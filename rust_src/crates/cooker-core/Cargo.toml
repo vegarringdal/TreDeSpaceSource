@@ -1,0 +1,25 @@
+# GLB → cooked CADM v7 pipeline as a LIBRARY: no I/O policy, no CLI, no wasm —
+# both the cooker CLI and the wasm tool wrap this. Port of the reference
+# cad-cooker + cad-format (vulkan_reference/crates/), kept format-identical so
+# the web viewer's parser (src/lib/format.ts) reads the output unchanged.
+[package]
+name = "cooker-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bytemuck.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+cad-format = { path = "../cad-format" }
+meshopt = { path = "../meshopt" }
+
+[dev-dependencies]
+bytemuck.workspace = true
+# RVM → GLB for the golden pipeline test. default-features = false mirrors the
+# wasm shell the app ships (no meshopt simplification pass) and keeps the
+# native C++ meshopt build out of `cargo test`.
+rvm-core = { path = "../rvm-core", default-features = false }

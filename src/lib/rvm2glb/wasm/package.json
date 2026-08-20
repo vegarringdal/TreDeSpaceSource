@@ -1,0 +1,16 @@
+{
+  "name": "rvm-wasm",
+  "type": "module",
+  "description": "WebAssembly shell for rvm2glb: RVM → GLB in the browser (Worker + OPFS)",
+  "version": "0.2.0",
+  "files": [
+    "rvm_wasm_bg.wasm",
+    "rvm_wasm.js",
+    "rvm_wasm.d.ts"
+  ],
+  "main": "rvm_wasm.js",
+  "types": "rvm_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

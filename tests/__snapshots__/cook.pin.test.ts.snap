@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`cook output pins > cooks a generic GLB flat-shaded and Z-up 1`] = `"35e21f15bfa515c4b5064edc857567d6a3f1d31c68170da44d5868d4a0370f17"`;
+
+exports[`cook output pins > cooks a generic GLB with authored normals 1`] = `"84226b8a2afb6142b94375ee9246cd4f5c8ccf4477b03b3657a3bbd82cc954f2"`;
+
+exports[`cook output pins > cooks a merged (web3dversion 2) GLB 1`] = `"0c46f08f2060db6cecbd543ce85f730d944fdcb1c8a46c59444ca5155022ed07"`;

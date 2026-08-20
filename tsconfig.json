@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "@webgpu/types", "node"],
+    // mirrors the future package name — resolved by Vite via resolve.alias
+    "paths": { "@treDeSpaceUI/*": ["./src/treDeSpaceUI/*"] },
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src", "api", "demo", "docs", "vite.config.ts"]
+}

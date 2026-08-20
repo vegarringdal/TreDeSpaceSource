@@ -1,0 +1,19 @@
+node_modules/
+rust_src/target/
+target/
+temp_ref/
+docs/generated/
+.pack/
+chrome/
+dist/
+.claude/settings.local.json
+
+# Large IFC test models — fetched on demand with convertSamples/ifc/fetch-large.sh
+# (too big for git; the ifc-core sample test skips whatever is absent).
+convertSamples/ifc/dental_clinic.ifc
+convertSamples/ifc/FM_ARC_DigitalHub.ifc
+convertSamples/ifc/C20-Institute-Var-2.ifc
+convertSamples/ifc/AC20-Institute-Var-2.ifc
+convertSamples/ifc/advanced_model.ifc
+convertSamples/ifc/schependomlaan.ifc
+convertSamples/ifc/ISSUE_068_ARK_NUS_skolebygg.ifc

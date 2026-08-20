@@ -1,0 +1,73 @@
+/* @treDeSpaceUI — library-owned styles. Import once per document that uses
+   the library (the app's styles.css and the docs widgets page both do).
+   The rest of the library styles itself: widgets via inline Tailwind
+   utilities, Tooltip via injected inline styles, and the dock chrome via
+   dockable/dockable.css (imported by the dockable entry point). */
+
+/* ------------------------------------------------------------------- theme
+   One palette for everything: the component library uses Tailwind's slate /
+   blue / amber / red utilities, and the dock chrome + app styles read the
+   same `--color-*` variables — so a theme is just a remap of those variables
+   keyed by data-theme on <html>. Add themes by copying the block below. */
+
+:root {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-slate-950: #f1f5f9;
+  --color-slate-900: #f8fafc;
+  --color-slate-800: #e2e8f0;
+  --color-slate-700: #cbd5e1;
+  --color-slate-600: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-slate-200: #1e293b;
+  --color-slate-100: #0f172a;
+  --color-blue-400: #2563eb;
+  --color-blue-100: #1e3a8a;
+  --color-blue-900: #bfdbfe;
+  --color-blue-950: #dbeafe;
+  --color-amber-400: #b45309;
+  /* amber accents (measurement values, custom-shortcut chips) */
+  --color-amber-300: #b45309;
+  --color-amber-200: #92400e;
+  --color-amber-700: #d97706;
+  --color-amber-950: #fef3c7;
+  --color-red-400: #dc2626;
+}
+
+/* "Floating" flat scrollbars EVERYWHERE — square, visible track, and a thumb
+   inset by a track-colored border so it floats with a gap. Blue-tinted thumb
+   from the theme accent; the variables remap for the light theme. */
+/* Standard properties ONLY where ::-webkit-scrollbar is unsupported (Firefox):
+   in Chrome, setting scrollbar-width/color would DISABLE the webkit styling
+   below and fall back to its rounded native thin scrollbar. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-blue-400) 45%, var(--color-slate-800)) var(--color-slate-900);
+  }
+}
+::-webkit-scrollbar {
+  width: 12px; /* wider to accommodate the floating gap */
+  height: 12px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: var(--color-slate-900);
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-blue-400) 45%, var(--color-slate-800));
+  border-radius: 0;
+  /* the "floating" spacing effect */
+  border: 3px solid var(--color-slate-900);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-blue-400);
+}
+::-webkit-scrollbar-button {
+  display: none;
+}

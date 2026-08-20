@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — embedded inside your app</title>
+  <meta name="description" content="How TreDeSpace runs as an iframe inside your product, and hosts your plugins as sandboxed panels — over a typed, origin-locked postMessage API." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="./events.html">API&nbsp;docs</a>
+    <a class="navlink" href="./demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="./widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ── HERO ─────────────────────────────────────────── -->
+    <header class="hero">
+      <p class="eyebrow">Embed the viewer</p>
+      <h1>A CAD engine that lives <span class="accent">inside your app</span>.</h1>
+      <p class="lede">
+        TreDeSpace is a simple but capable CAD viewer that drops into your product as a single
+        <code>&lt;iframe&gt;</code>. Your app drives it — selection, labels, measurements,
+        clipping, color rules, model import — through a <b>typed, origin-locked
+        <code>postMessage</code> API</b>. And the viewer returns the favor: it hosts
+        <b>your own tools as sandboxed panels</b>, iframes running inside the viewer that
+        talk back over the same protocol. One embed, both directions, nothing to install.
+      </p>
+
+      <div class="metrics">
+        <div class="metric"><div class="v">1&nbsp;line</div><div class="k">of HTML to embed</div></div>
+        <div class="metric"><div class="v">11</div><div class="k">API namespaces</div></div>
+        <div class="metric"><div class="v">WebGPU</div><div class="k">modern in-browser GPU rendering</div></div>
+        <div class="metric"><div class="v">0</div><div class="k">shared DOM · shared origin</div></div>
+      </div>
+    </header>
+
+    <!-- ── DIAGRAM ──────────────────────────────────────── -->
+    <section id="architecture">
+      <div class="sec-head">
+        <p class="sec-kick">The architecture</p>
+        <h2>Boxes inside boxes — origins inside origins</h2>
+        <p class="sec-sub">
+          Each frame is its own web origin with its own sandbox. Nothing reaches across a
+          boundary except a typed message on a locked bridge.
+        </p>
+      </div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 1040 732" role="img" aria-label="Your app embeds the TreDeSpace viewer as an iframe; the viewer hosts sandboxed plugin panels that talk back over postMessage.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9" fill="none" stroke="var(--teal)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+
+          <!-- OUTER: your app -->
+          <rect x="30" y="30" width="980" height="672" rx="18" class="s-surface s-border" stroke-width="1.5"/>
+          <rect x="30" y="30" width="980" height="48" rx="18" class="s-surface2"/>
+          <rect x="30" y="60" width="980" height="18" class="s-surface2"/>
+          <line x1="30" y1="78" x2="1010" y2="78" class="s-border" stroke-width="1.5"/>
+          <circle cx="52" cy="54" r="5" fill="var(--host)" opacity="0.9"/>
+          <circle cx="70" cy="54" r="5" fill="var(--host)" opacity="0.55"/>
+          <circle cx="88" cy="54" r="5" fill="var(--host)" opacity="0.35"/>
+          <text x="112" y="59" class="mono" font-size="14" font-weight="600" fill="var(--host)">3dviewer.company.com</text>
+          <text x="294" y="59" class="mono t-faint" font-size="13">/ your product · uses tredespace-client.ts (the SDK)</text>
+          <rect x="878" y="42" width="118" height="24" rx="12" fill="none" stroke="var(--host)" stroke-width="1.3" opacity="0.8"/>
+          <text x="937" y="58" text-anchor="middle" class="mono" font-size="11.5" font-weight="600" fill="var(--host)">host origin</text>
+
+          <!-- MIDDLE: the viewer -->
+          <rect x="72" y="118" width="896" height="558" rx="15" class="s-surface" stroke="var(--teal)" stroke-width="2"/>
+          <rect x="72" y="118" width="896" height="44" rx="15" fill="var(--teal-soft)"/>
+          <rect x="72" y="146" width="896" height="16" fill="var(--teal-soft)"/>
+          <line x1="72" y1="162" x2="968" y2="162" stroke="var(--teal)" stroke-width="1.4" opacity="0.55"/>
+          <g stroke="var(--teal)" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M96,131 L108,124 L120,131 L120,145 L108,152 L96,145 Z"/>
+            <path d="M96,131 L108,138 L120,131 M108,138 L108,152"/>
+          </g>
+          <text x="134" y="146" class="mono" font-size="14" font-weight="700" fill="var(--teal)">tredespace.com</text>
+          <text x="298" y="146" class="mono t-faint" font-size="13">/ embedded &lt;iframe&gt; · WebGPU CAD viewer</text>
+          <g transform="translate(818,127)">
+            <rect x="0" y="0" width="134" height="26" rx="13" fill="var(--teal-soft)" stroke="var(--teal)" stroke-width="1.2"/>
+            <path d="M16,13 v-3 a4,4 0 0 1 8,0 v3 M13,13 h14 v9 h-14 Z" fill="none" stroke="var(--teal)" stroke-width="1.4" stroke-linejoin="round"/>
+            <text x="77" y="17" text-anchor="middle" class="mono" font-size="11" font-weight="600" fill="var(--teal)">isolated origin</text>
+          </g>
+
+          <!-- 3D viewport strip -->
+          <rect x="96" y="184" width="848" height="150" rx="11" class="s-surface2 s-border" stroke-width="1.2"/>
+          <g stroke="var(--teal)" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity="0.9">
+            <path d="M164,238 L199,255 L199,289 L164,306 L129,289 L129,255 Z"/>
+            <path d="M164,238 L164,272 M164,272 L199,255 M164,272 L129,255 M164,272 L164,306" opacity="0.6"/>
+          </g>
+          <text x="240" y="252" class="sans t-ink" font-size="15" font-weight="600">GPU-driven 3D scene</text>
+          <text x="240" y="273" class="mono t-mut" font-size="12.5">cull compute → multi-draw indirect · HiZ · TAA · VBAO</text>
+          <text x="240" y="296" class="sans t-faint" font-size="12.5">Renders cooked .model files within 5–10% of the native Vulkan renderer.</text>
+
+          <!-- plugin row label -->
+          <text x="96" y="362" class="mono t-mut" font-size="12" letter-spacing="0.06em">YOUR PANELS — each a company-owned iframe inside the viewer, driving window.parent</text>
+
+          <!-- INNER: your panels -->
+          <!-- 1: project selector (same-origin host path) -->
+          <g>
+            <rect x="96" y="374" width="266" height="278" rx="12" class="s-surface" stroke="var(--indigo)" stroke-width="1.6"/>
+            <rect x="96" y="374" width="266" height="34" rx="12" fill="var(--indigo-soft)"/>
+            <rect x="96" y="396" width="266" height="12" fill="var(--indigo-soft)"/>
+            <line x1="96" y1="408" x2="362" y2="408" stroke="var(--indigo)" stroke-width="1" opacity="0.5"/>
+            <text x="112" y="396" class="mono" font-size="11.5" font-weight="700" fill="var(--indigo)">3dviewer.company.com</text>
+            <text x="114" y="431" class="sans t-ink" font-size="13.5" font-weight="600">Project selector</text>
+            <text x="114" y="448" class="mono t-faint" font-size="11">/select-project</text>
+            <text x="114" y="470" class="sans t-mut" font-size="12">Streams new &amp; changed</text>
+            <text x="114" y="486" class="sans t-mut" font-size="12">models into the viewer;</text>
+            <text x="114" y="502" class="sans t-mut" font-size="12">loads a SQLite DB.</text>
+            <text x="114" y="528" class="mono" font-size="10.5" fill="var(--indigo)">assets.list · import · sql.import</text>
+            <text x="114" y="620" class="mono t-faint" font-size="10.5">same domain as host</text>
+            <text x="114" y="634" class="mono t-faint" font-size="10.5">sandbox: allow-same-origin</text>
+            <g transform="translate(330,384)"><path d="M4,8 v-2 a4,4 0 0 1 8,0 v2 M1,8 h14 v9 h-14 Z" fill="none" stroke="var(--indigo)" stroke-width="1.3" stroke-linejoin="round"/></g>
+          </g>
+          <!-- 2: report viewer (cross-origin, first-party) -->
+          <g>
+            <rect x="387" y="374" width="266" height="278" rx="12" class="s-surface" stroke="var(--indigo)" stroke-width="1.6"/>
+            <rect x="387" y="374" width="266" height="34" rx="12" fill="var(--indigo-soft)"/>
+            <rect x="387" y="396" width="266" height="12" fill="var(--indigo-soft)"/>
+            <line x1="387" y1="408" x2="653" y2="408" stroke="var(--indigo)" stroke-width="1" opacity="0.5"/>
+            <text x="403" y="396" class="mono" font-size="11.5" font-weight="700" fill="var(--indigo)">reports.company.com</text>
+            <text x="405" y="431" class="sans t-ink" font-size="13.5" font-weight="600">Report viewer</text>
+            <text x="405" y="453" class="sans t-mut" font-size="12">Pushes large name sets;</text>
+            <text x="405" y="469" class="sans t-mut" font-size="12">selects or colors them</text>
+            <text x="405" y="485" class="sans t-mut" font-size="12">in one call.</text>
+            <text x="405" y="511" class="mono" font-size="10.5" fill="var(--indigo)">selection.set · colorRules.set</text>
+            <text x="405" y="527" class="mono t-faint" font-size="10.5">data: company API · SQLite</text>
+            <text x="405" y="620" class="mono t-faint" font-size="10.5">cross-origin · first-party</text>
+            <text x="405" y="634" class="mono t-faint" font-size="10.5">sandbox: allow-same-origin</text>
+            <g transform="translate(621,384)"><path d="M4,8 v-2 a4,4 0 0 1 8,0 v2 M1,8 h14 v9 h-14 Z" fill="none" stroke="var(--indigo)" stroke-width="1.3" stroke-linejoin="round"/></g>
+          </g>
+          <!-- 3: detail data viewer (cross-origin, first-party) -->
+          <g>
+            <rect x="678" y="374" width="266" height="278" rx="12" class="s-surface" stroke="var(--indigo)" stroke-width="1.6"/>
+            <rect x="678" y="374" width="266" height="34" rx="12" fill="var(--indigo-soft)"/>
+            <rect x="678" y="396" width="266" height="12" fill="var(--indigo-soft)"/>
+            <line x1="678" y1="408" x2="944" y2="408" stroke="var(--indigo)" stroke-width="1" opacity="0.5"/>
+            <text x="694" y="396" class="mono" font-size="11.5" font-weight="700" fill="var(--indigo)">attributes.company.com</text>
+            <text x="696" y="431" class="sans t-ink" font-size="13.5" font-weight="600">Detail data viewer</text>
+            <text x="696" y="453" class="sans t-mut" font-size="12">Follows selection events</text>
+            <text x="696" y="469" class="sans t-mut" font-size="12">from the main frame; shows</text>
+            <text x="696" y="485" class="sans t-mut" font-size="12">attributes on click.</text>
+            <text x="696" y="511" class="mono" font-size="10.5" fill="var(--indigo)">on tree.select → sql.query</text>
+            <text x="696" y="527" class="mono t-faint" font-size="10.5">data: own API · built-in</text>
+            <text x="696" y="620" class="mono t-faint" font-size="10.5">cross-origin · first-party</text>
+            <text x="696" y="634" class="mono t-faint" font-size="10.5">sandbox: allow-same-origin</text>
+            <g transform="translate(912,384)"><path d="M4,8 v-2 a4,4 0 0 1 8,0 v2 M1,8 h14 v9 h-14 Z" fill="none" stroke="var(--indigo)" stroke-width="1.3" stroke-linejoin="round"/></g>
+          </g>
+
+          <!-- postMessage bridge host <-> viewer -->
+          <line x1="30" y1="98" x2="72" y2="98" stroke="var(--teal)" stroke-width="1.7" stroke-dasharray="4 4" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+          <g transform="translate(978,300)">
+            <line x1="-10" y1="-182" x2="-10" y2="352" stroke="var(--teal)" stroke-width="1.4" stroke-dasharray="5 5" opacity="0.5"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="legend">
+        <span><i class="dot" style="background:var(--host)"></i> 3dviewer.company.com (host origin)</span>
+        <span><i class="dot" style="background:var(--teal)"></i> TreDeSpace viewer (isolated origin)</span>
+        <span><i class="dot" style="background:var(--indigo)"></i> Your panels (sandboxed iframes)</span>
+        <span>· · · postMessage — origin-locked, protocol v1</span>
+      </div>
+    </section>
+
+    <!-- ── TWO DIRECTIONS ───────────────────────────────── -->
+    <section id="directions">
+      <div class="sec-head">
+        <p class="sec-kick">Why an iframe both ways</p>
+        <h2>The same bridge, in two directions</h2>
+        <p class="sec-sub">The plugin system <em>is</em> the embedding model. There is no second SDK to learn.</p>
+      </div>
+      <div class="dirs">
+        <div class="dir">
+          <p class="tag">Direction 1 · you host the viewer</p>
+          <h3>Drive the 3D scene from your UI</h3>
+          <p>
+            Your app owns the page. It imports <code class="inline">tredespace-client.ts</code>,
+            points it at the viewer iframe, and calls typed methods — select parts, drop labels,
+            run color rules, import a model. Events (a user picking a part) stream back to you.
+          </p>
+          <p class="flow"><b>your app</b> <span class="arr">→ postMessage →</span> <b>viewer iframe</b></p>
+        </div>
+        <div class="dir">
+          <p class="tag">Direction 2 · the viewer hosts you</p>
+          <h3>Ship a panel that lives in the viewer</h3>
+          <p>
+            Register a URL as an External-app panel and the viewer loads it in a sandboxed iframe
+            (<code class="inline">?dialog=1</code>). Your panel drives <code class="inline">window.parent</code>
+            with the identical API — so a project picker, a report viewer, or an attributes inspector
+            plugs in without forking the viewer.
+          </p>
+          <p class="flow"><b>your panel</b> <span class="arr">→ window.parent →</span> <b>viewer</b></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── THE THREE PANELS ─────────────────────────────── -->
+    <section id="panels">
+      <div class="sec-head">
+        <p class="sec-kick">This deployment</p>
+        <h2>Three company panels, one viewer</h2>
+        <p class="sec-sub">
+          Every panel is served from <code class="inline">company.com</code> and speaks the same
+          protocol — data stays yours, whether it comes from a company API or the viewer's built-in
+          SQLite engine running in the browser.
+        </p>
+      </div>
+      <div class="dirs dirs-3">
+        <div class="dir">
+          <p class="tag">3dviewer.company.com/select-project</p>
+          <h3>Project selector</h3>
+          <p>
+            Picks the active project, then feeds the viewer only what it needs — pushing new or changed
+            models in as they land, instead of a full reload.
+          </p>
+          <ul class="checks" style="margin-top:14px;">
+            <li><span class="mk">→</span><span class="body"><span>Reads what's loaded — <code>assets.list</code></span></span></li>
+            <li><span class="mk">→</span><span class="body"><span>Streams new / changed models in — <code>assets.import</code> + <code>assets.load</code></span></span></li>
+            <li><span class="mk">→</span><span class="body"><span>Hands a SQLite DB to the browser engine — <code>sql.import</code></span></span></li>
+          </ul>
+        </div>
+        <div class="dir">
+          <p class="tag">reports.company.com</p>
+          <h3>Report viewer</h3>
+          <p>
+            Turns a report into a 3D highlight. Send a large set of fullnames and the viewer selects or
+            color-codes every match in a single call.
+          </p>
+          <ul class="checks" style="margin-top:14px;">
+            <li><span class="mk">→</span><span class="body"><span>Names from your company API, or the built-in SQLite engine — <code>sql.query</code></span></span></li>
+            <li><span class="mk">→</span><span class="body"><span>Drives <code>selection.set</code> / <code>colorRules.set</code> with thousands of names</span></span></li>
+            <li><span class="mk">→</span><span class="body"><span>Reports back <code>missed</code> names it couldn't resolve</span></span></li>
+          </ul>
+        </div>
+        <div class="dir">
+          <p class="tag">attributes.company.com</p>
+          <h3>Detail data viewer</h3>
+          <p>
+            Follows the user. Subscribes to selection in the main frame and shows attributes for
+            whatever they click — no polling, no glue code.
+          </p>
+          <ul class="checks" style="margin-top:14px;">
+            <li><span class="mk">→</span><span class="body"><span>Listens to <code>tree.select</code> events from the viewer</span></span></li>
+            <li><span class="mk">→</span><span class="body"><span>Fetches attributes from your own API, or the built-in engine — <code>sql.query</code></span></span></li>
+            <li><span class="mk">→</span><span class="body"><span>Can select or fly back on click — <code>selection.set</code> · <code>nav.flyTo</code></span></span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── API SURFACE ──────────────────────────────────── -->
+    <section id="api">
+      <div class="sec-head">
+        <p class="sec-kick">The command surface</p>
+        <h2>Eleven namespaces, one protocol</h2>
+        <p class="sec-sub">Every call is typed, awaits a result, and reports what it couldn't find (<code class="inline">missed</code> fullnames) — no silent failures.</p>
+      </div>
+      <div class="api">
+        <div class="ns"><div class="name">selection</div><div class="desc">set · get · clear by fullname</div></div>
+        <div class="ns"><div class="name">labels</div><div class="desc">add · anchor · explode · implode</div></div>
+        <div class="ns"><div class="name">measurements</div><div class="desc">point · line · path · area · angle</div></div>
+        <div class="ns"><div class="name">colorRules</div><div class="desc">filter-driven paint + run</div></div>
+        <div class="ns"><div class="name">clip</div><div class="desc">fit box · sphere / cylinder / box shapes</div></div>
+        <div class="ns"><div class="name">nav</div><div class="desc">flyTo · orbit a fullname</div></div>
+        <div class="ns"><div class="name">instance</div><div class="desc">one shared JSON per window</div></div>
+        <div class="ns"><div class="name">ui</div><div class="desc">kiosk · panels · dialogs · confirm</div></div>
+        <div class="ns"><div class="name">stores / assets</div><div class="desc">import GLB · RVM · IFC · STEP</div></div>
+        <div class="ns"><div class="name">sql</div><div class="desc">import + query SQLite in OPFS</div></div>
+        <div class="ns"><div class="name">events</div><div class="desc">tree.select · instance.changed</div></div>
+        <div class="ns"><div class="name">settings</div><div class="desc">read viewer state</div></div>
+      </div>
+    </section>
+
+    <!-- ── SECURITY + CODE ──────────────────────────────── -->
+    <section id="security">
+      <div class="sec-head">
+        <p class="sec-kick">The security model</p>
+        <h2>Isolation is the default, not a setting</h2>
+        <p class="sec-sub">Because every layer is a separate origin behind a sandbox, a plugin can render and message — but it cannot read your session or escape its frame.</p>
+      </div>
+      <div class="split">
+        <ul class="checks">
+          <li>
+            <span class="mk">✓</span>
+            <span class="body"><strong>Strict origin allowlist</strong>
+              <span>Every inbound message is dropped unless it comes from the configured origin — <code>if (e.origin !== targetOrigin) return;</code></span></span>
+          </li>
+          <li>
+            <span class="mk">✓</span>
+            <span class="body"><strong>Versioned, typed protocol</strong>
+              <span>Each message is tagged <code>protocol&nbsp;v1</code>; the client and viewer refuse mismatches instead of guessing.</span></span>
+          </li>
+          <li>
+            <span class="mk amk">⌘</span>
+            <span class="body"><strong>Per-plugin sandbox</strong>
+              <span>Third-party panels get <code>allow-scripts</code> only — no same-origin, no storage, no top-navigation. They can't touch your DOM or cookies.</span></span>
+          </li>
+          <li>
+            <span class="mk">✓</span>
+            <span class="body"><strong>Zero shared memory</strong>
+              <span>No shared DOM, no globals. Large model files stream as transferable <code>ArrayBuffer</code> chunks — cross-origin safe, zero copies.</span></span>
+          </li>
+        </ul>
+
+        <pre class="code"><span class="cm">// Copy api/tredespace-client.ts into your app</span>
+<span class="cm">// it's dependency-free.</span>
+<span class="kw">import</span> { TredespaceClient } <span class="kw">from</span> <span class="st">'./tredespace-client'</span>;
+
+<span class="kw">const</span> client = <span class="kw">new</span> <span class="fn">TredespaceClient</span>(iframe, {
+  targetOrigin: <span class="st">'https://tredespace.com'</span>,
+});
+
+<span class="kw">await</span> client.<span class="fn">ready</span>();               <span class="cm">// { version, api }</span>
+
+<span class="kw">const</span> { matched, missed } =
+  <span class="kw">await</span> client.<span class="fn">selectionSet</span>([<span class="st">'/SITE/ZONE-1/PIPE-401'</span>]);
+
+<span class="cm">// react to what the user does in 3D</span>
+client.<span class="fn">onTreeSelect</span>((e) => <span class="fn">highlightInMyGrid</span>(e.fullnames));</pre>
+      </div>
+    </section>
+
+    <!-- ── NEXT STEPS ───────────────────────────────────── -->
+    <section id="next">
+      <div class="sec-head">
+        <p class="sec-kick">Go deeper</p>
+        <h2>Read the API, or drive it live</h2>
+        <p class="sec-sub">The reference is generated straight from the SDK, so it never drifts. The demo runs the real viewer.</p>
+      </div>
+      <div class="dirs">
+        <a class="dir cta" href="./events.html">
+          <p class="tag">Reference</p>
+          <h3>API docs →</h3>
+          <p>Every command with its typed signature and description, plus the copy-paste <code class="inline">tredespace-client.ts</code> SDK to download.</p>
+        </a>
+        <a class="dir cta" href="./demo.html">
+          <p class="tag">Live</p>
+          <h3>Try the demo →</h3>
+          <p>Add a model generated in your browser, drop labels, explode them, toggle sketch and kiosk — all real postMessage calls.</p>
+        </a>
+      </div>
+    </section>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> — embedded WebGPU CAD viewer · postMessage API, protocol v1</span>
+      <span><a class="footlink" href="./events.html">API docs</a> · <a class="footlink" href="./demo.html">Live demo</a></span>
+    </footer>
+  </div>
+
+  <script type="module" src="./theme.ts"></script>
+</body>
+</html>

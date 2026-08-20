@@ -1,0 +1,20 @@
+{
+  "name": "step-wasm",
+  "type": "module",
+  "collaborators": [
+    "Vegar Ringdal <vegar.ringdal@postboxen.no>"
+  ],
+  "description": "WebAssembly shell for step2glb: STEP bytes → GLB bytes, in the browser",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "step_wasm_bg.wasm",
+    "step_wasm.js",
+    "step_wasm.d.ts"
+  ],
+  "main": "step_wasm.js",
+  "types": "step_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -1,0 +1,27 @@
+[package]
+name = "ifc-wasm"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "WebAssembly bindings for ifc2glb (IFC → GLB in the browser)."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Direct cook: converter → merged model → .tdp, skipping the GLB round trip.
+cooker-core = { path = "../cooker-core" }
+ifc-core = { path = "../ifc-core" }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+# ifc-lite-geometry/-processing use rayon `par_iter`. On wasm32 there is no
+# thread pool so it runs serially, but rayon-core still needs `web_spin_lock` to
+# compile and behave: it swaps rayon's internal `std::sync::Mutex` for a spin
+# lock. Without it par_iter can block/zombie on wasm. (Recipe copied from
+# ifc-lite's own wasm-bindings crate.)
+rayon-core = { version = "1", features = ["web_spin_lock"] }
+
+[dev-dependencies]
+# byte-parity test: GLB path vs direct path (tests/direct_cook.rs)
+cooker-core = { path = "../cooker-core" }

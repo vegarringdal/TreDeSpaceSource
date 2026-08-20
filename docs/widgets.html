@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — UI widgets demo</title>
+  <meta name="description" content="Live demo of @treDeSpaceUI — the self-contained component library the viewer's UI is built from: widgets, dialogs, and the dockable panel system." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="./index.html">Product</a>
+    <a class="navlink" href="./events.html">API&nbsp;docs</a>
+    <a class="navlink" href="./demo.html">Live&nbsp;demo</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">@treDeSpaceUI · component library</p>
+      <h1>The widgets, live</h1>
+      <p class="lede">
+        Every component the viewer's UI is built from, rendered live with its usage snippet.
+        <b>@treDeSpaceUI</b> is self-contained — this page imports only the library (plus its own
+        stylesheet), nothing from the app. Internal component reference; the embed API lives under
+        <a class="footlink" href="./events.html">API docs</a>.
+      </p>
+    </header>
+
+    <div id="root"><p class="ref-loading">Loading the widget gallery…</p></div>
+  </div>
+
+  <script type="module" src="./widgets.tsx"></script>
+</body>
+</html>

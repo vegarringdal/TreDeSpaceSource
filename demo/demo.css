@@ -1,0 +1,14 @@
+/* Stylesheet for the /demo/ host page ONLY. Tailwind scanning is scoped to the
+   component library + this page — the app's sources are deliberately NOT
+   scanned, so the demo doubles as a dogfooding check: a widget that renders
+   broken here secretly depends on an app style. */
+@import "tailwindcss" source(none);
+@source "../src/treDeSpaceUI";
+@source "./";
+
+/* Library-owned theme palette + scrollbar skin. */
+@import "../src/treDeSpaceUI/styles.css";
+
+body {
+  overflow: hidden;
+}

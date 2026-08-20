@@ -1,0 +1,16 @@
+[package]
+name = "step-capi"
+description = "C ABI for step2glb: STEP bytes → GLB bytes, for embedding in other languages"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Vegar Ringdal <vegar.ringdal@postboxen.no>"]
+
+# distinct from core's lib name (`step2glb`) to avoid an output-file collision;
+# the exported C symbols are `#[no_mangle]` so they are unaffected by this.
+[lib]
+name = "step_capi"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+step-core = { path = "../step-core" }

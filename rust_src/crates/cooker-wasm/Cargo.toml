@@ -1,0 +1,22 @@
+# wasm-bindgen shell around cooker-core: cook(glbBytes) → cooked CADM bytes.
+# Build (needs the wasi-sdk clang for the C++ meshoptimizer):
+#   CC=<wasi-sdk>/bin/clang AR=<wasi-sdk>/bin/llvm-ar \
+#     wasm-pack build crates/cooker-wasm --target web --release
+[package]
+name = "cooker-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cooker-core = { path = "../cooker-core" }
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+
+[package.metadata.wasm-pack.profile.release]
+# no binaryen download in the sandbox; LTO already trims the module
+wasm-opt = false

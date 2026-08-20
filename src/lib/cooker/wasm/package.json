@@ -1,0 +1,19 @@
+{
+  "name": "cooker-wasm",
+  "type": "module",
+  "collaborators": [
+    "Vegar Ringdal"
+  ],
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "files": [
+    "cooker_wasm_bg.wasm",
+    "cooker_wasm.js",
+    "cooker_wasm.d.ts"
+  ],
+  "main": "cooker_wasm.js",
+  "types": "cooker_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -1,0 +1,37 @@
+DERIVED WORK — PROVENANCE NOTE
+
+The crates in this family (rvm-core, rvm-cli, rvm-wasm and, where
+present, rvm-capi) started life as the standalone rvm2glb project (https://github.com/vegarringdal/rvm2glb),
+developed separately and imported into this repository on 2026-08-20, when the
+converter workspaces were folded into rust_src/ and the crates were renamed
+(dropping the "2glb" suffix, since they now cook straight to .tdp as well as GLB).
+
+It is itself a port/evolution of a C++ tool derived from
+rvm_parser_glb (https://github.com/vegarringdal/rvm_parser_glb), which
+derives from cdyk/rvmparser (https://github.com/cdyk/rvmparser).
+
+The original licence below is unchanged and continues to govern this code.
+
+-------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2026 Vegar Ringdal
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

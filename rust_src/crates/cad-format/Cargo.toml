@@ -1,0 +1,8 @@
+[package]
+name    = "cad-format"
+version = "0.1.0"
+edition = "2021"
+description = "Shared POD types for the packed .model file format. No GPU or allocator deps."
+
+[dependencies]
+bytemuck = { version = "1", features = ["derive"] }

@@ -1,0 +1,13 @@
+/* Stylesheet for the /docs/ widgets demo page ONLY.
+   Tailwind scanning is scoped to the component library + this page — the app's
+   sources are deliberately NOT scanned. If a widget renders broken here, it
+   secretly depends on an app style, which is exactly what this page exists to
+   catch. Page chrome (topbar, hero, code blocks) comes from docs/styles.css. */
+@import "tailwindcss" source(none);
+@source "../src/treDeSpaceUI";
+@source "./widgets.tsx";
+@source "./gallery";
+
+/* Library-owned theme palette + scrollbar skin (keys off data-theme, which
+   docs/theme.ts stamps on <html> — one toggle drives both style systems). */
+@import "../src/treDeSpaceUI/styles.css";

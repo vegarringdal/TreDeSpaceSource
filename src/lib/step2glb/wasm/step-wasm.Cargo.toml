@@ -1,0 +1,34 @@
+[package]
+name = "step-wasm"
+description = "WebAssembly shell for step2glb: STEP bytes → GLB bytes, in the browser"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Vegar Ringdal <vegar.ringdal@postboxen.no>"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Compile the C++ meshoptimizer into the wasm bundle (weld / vertex-cache /
+# simplify), for byte-parity with the native build. Needs `clang` on the build
+# machine — the meshopt crate ships freestanding `include_wasm32` headers, so
+# NO WASI SDK / sysroot is required (lib.rs supplies the `operator new`/`delete`
+# shim). Off by default so the demo builds without a C toolchain.
+optimize = ["step-core/optimize"]
+
+[dependencies]
+# meshopt / mmap are dropped by default in the browser build; enable the
+# `optimize` feature (and have clang installed) to compile meshopt in.
+# Direct cook: converter → merged model → .tdp, skipping the GLB round trip.
+cooker-core = { path = "../cooker-core" }
+step-core = { path = "../step-core", default-features = false }
+wasm-bindgen = "0.2"
+# turns wasm aborts (incl. OOM) into a readable console message instead of a
+# bare `unreachable`
+console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+# byte-parity test: GLB path vs direct path (tests/direct_cook.rs)
+cooker-core = { path = "../cooker-core" }

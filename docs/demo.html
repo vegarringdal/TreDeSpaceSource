@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — live demo</title>
+  <meta name="description" content="Drive the embedded TreDeSpace viewer live: generate a model in-browser, drop labels, explode them, toggle sketch and kiosk — all real postMessage calls." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="./index.html">Product</a>
+    <a class="navlink" href="./events.html">API&nbsp;docs</a>
+    <a class="navlink" href="./widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">Live · not a mockup</p>
+      <h1>Drive the real viewer</h1>
+      <p class="lede">
+        Every button posts a real command to the viewer embedded below. “Add model”
+        loads the <b>Huldra</b> platform sample — downloaded gzipped and cooked in the
+        viewer on click. Each button maps to exactly one SDK call.
+      </p>
+      <p class="demo-attrib">
+        <b>Data Attribution &amp; License:</b> Huldra 3D Model / STID Data provided by
+        Equinor ASA. Offered under the
+        <a class="footlink" href="../EquinorDemoLicense.pdf" target="_blank" rel="noopener">Equinor Open Data Sharing License</a>.
+        Material cannot be sold.
+      </p>
+    </header>
+
+    <section id="demo">
+      <div class="demo">
+        <div class="demo-bar" role="toolbar" aria-label="Demo actions">
+          <button id="btnAddModel" data-demo-action class="btn btn-primary" type="button">
+            + Add model <span class="mono sub">Huldra</span>
+          </button>
+          <span class="sep" aria-hidden="true"></span>
+          <button id="btnAddLabel" data-demo-action class="btn" type="button">Add label</button>
+          <button id="btnExplode" data-demo-action class="btn" type="button">Explode</button>
+          <button id="btnImplode" data-demo-action class="btn" type="button">Implode</button>
+          <button id="btnRemoveLabels" data-demo-action class="btn" type="button">Remove</button>
+          <span class="sep" aria-hidden="true"></span>
+          <button id="btnSketch" data-demo-action class="btn" type="button" aria-pressed="false">Toggle sketch</button>
+          <button id="btnKiosk" data-demo-action class="btn" type="button" aria-pressed="false">Toggle kiosk</button>
+          <button id="btnScreenshot" data-demo-action class="btn" type="button">Screenshot</button>
+          <button id="btnTheme" class="btn" type="button">
+            Theme <span class="mono sub" id="btnThemeState">dark</span>
+          </button>
+        </div>
+
+        <p class="demo-status" id="demoStatus" data-kind="info">Loading the viewer…</p>
+
+        <div class="demo-stage">
+          <iframe id="demoViewer" title="TreDeSpace viewer" allow="fullscreen"></iframe>
+        </div>
+
+        <p class="demo-note mono">
+          Runs when served from the app at <code>&lt;host&gt;/docs/</code> — start it with
+          <code>npm run dev</code> or <code>npm run preview</code>. Buttons map to:
+          <code>assetsImportAndLoad</code> · <code>labelsAdd</code> / <code>labelsClear</code> ·
+          <code>labelsExplode</code> / <code>labelsImplode</code> · <code>viewSketch</code> ·
+          <code>uiKiosk</code> · <code>viewScreenshot</code> · <code>uiTheme</code>. Batch import from URLs (<code>assetsImportUrl</code>) is in the
+          <a class="footlink" href="../demo/">API playground</a>. See them all in the
+          <a class="footlink" href="./events.html">API docs</a>.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> — embedded WebGPU CAD viewer · postMessage API, protocol v1</span>
+      <span><a class="footlink" href="./index.html">Product</a> · <a class="footlink" href="./events.html">API docs</a></span>
+    </footer>
+  </div>
+
+  <script type="module" src="./theme.ts"></script>
+  <script type="module" src="./demo.ts"></script>
+</body>
+</html>

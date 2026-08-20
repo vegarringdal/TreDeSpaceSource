@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — postMessage API reference</title>
+  <meta name="description" content="The TreDeSpace postMessage API (protocol v1): principles, envelope, handshake, origin security, and a command reference generated from the SDK." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="./index.html">Product</a>
+    <a class="navlink" href="./demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="./widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">postMessage API · protocol&nbsp;v1</p>
+      <h1>Drive the viewer from your app</h1>
+      <p class="lede">
+        The viewer is embedded as an <code>&lt;iframe&gt;</code> and controlled with
+        <code>postMessage</code>: every command gets exactly one typed response. Copy the
+        dependency-free <b>SDK</b> below and call one method per command — no envelopes by hand.
+        The command reference further down is <b>generated from that SDK</b>, so it never drifts.
+      </p>
+    </header>
+
+    <!-- ── SDK download ─────────────────────────────────── -->
+    <section id="sdk">
+      <div class="sdk-card">
+        <div class="sdk-copy">
+          <p class="sec-kick">The SDK</p>
+          <h2><code>tredespace-client.ts</code></h2>
+          <p>Dependency-free, fully typed. Copy it into your host app — it handles correlation ids, the ready handshake, timeouts, and transferables. One method per command.</p>
+        </div>
+        <div class="sdk-actions">
+          <button id="downloadSdk" class="btn btn-primary" type="button">Download tredespace-client.ts</button>
+          <a class="btn" id="rawSdkLink" href="./tredespace-client.ts" download>View raw</a>
+        </div>
+      </div>
+      <pre class="code"><span class="cm">// host side — one client per embedded viewer</span>
+<span class="kw">import</span> { TredespaceClient } <span class="kw">from</span> <span class="st">'./tredespace-client'</span>;
+
+<span class="kw">const</span> client = <span class="kw">new</span> <span class="fn">TredespaceClient</span>(iframe, { targetOrigin: <span class="st">'https://tredespace.com'</span> });
+<span class="kw">await</span> client.<span class="fn">ready</span>();
+<span class="kw">await</span> client.<span class="fn">selectionSet</span>([<span class="st">'/SITE/ZONE-1/PIPE-401'</span>]);
+client.<span class="fn">onTreeSelect</span>((e) => <span class="fn">syncMyGrid</span>(e.fullnames));</pre>
+    </section>
+
+    <!-- ── how it works (stable narrative) ──────────────── -->
+    <section id="how">
+      <div class="sec-head">
+        <p class="sec-kick">How it works</p>
+        <h2>Four things to know</h2>
+      </div>
+      <div class="api">
+        <div class="ns"><div class="name">Request / response</div><div class="desc">Every command gets exactly one reply with the same <code class="inline">id</code> — success or a typed error. No fire-and-forget.</div></div>
+        <div class="ns"><div class="name">Versioned envelope</div><div class="desc">Both directions carry <code class="inline">tredespace: 1</code> so host and viewer can evolve without guessing.</div></div>
+        <div class="ns"><div class="name">Origin allowlist</div><div class="desc">Messages are dropped unless the sender origin is allowed (settings, embedded panels, or <code class="inline">?apiOrigins=</code>). Replies target the sender, never <code class="inline">*</code>.</div></div>
+        <div class="ns"><div class="name">JSON + transferables</div><div class="desc">Payloads are JSON; file bytes ride as <code class="inline">ArrayBuffer</code> transferables (zero-copy), chunked past 500&nbsp;MB.</div></div>
+      </div>
+      <p class="sec-sub" style="margin-top:16px;">
+        Full protocol narrative — envelope shape, handshake, error codes, origin-check order — lives in
+        <code class="inline">EVENTS.md</code>. The per-command detail below comes straight from the SDK.
+      </p>
+    </section>
+
+    <!-- ── generated command reference ──────────────────── -->
+    <section id="reference">
+      <div class="sec-head">
+        <p class="sec-kick">Command reference · <span id="genMeta">generated from the SDK</span></p>
+        <h2>Every command</h2>
+        <p class="sec-sub">One SDK method per command. Signatures and descriptions are extracted from <code class="inline">api/tredespace-client.ts</code> at build time.</p>
+      </div>
+
+      <div class="ref-controls">
+        <input id="refSearch" type="search" placeholder="Filter commands… (e.g. label, clip, sql)" aria-label="Filter commands" autocomplete="off" spellcheck="false" />
+        <div class="ref-nav" id="refNav" aria-label="Jump to namespace"></div>
+      </div>
+
+      <div id="apiRef" class="ref">
+        <p class="ref-loading">Loading the reference…</p>
+      </div>
+    </section>
+
+    <!-- ── types appendix ───────────────────────────────── -->
+    <section id="types">
+      <div class="sec-head">
+        <p class="sec-kick">Payload &amp; result shapes</p>
+        <h2>Types</h2>
+        <p class="sec-sub">The interfaces referenced by the signatures above, with their field docs.</p>
+      </div>
+      <div id="apiTypes" class="types"></div>
+    </section>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> — embedded WebGPU CAD viewer · postMessage API, protocol v1</span>
+      <span><a class="footlink" href="./index.html">Product</a> · <a class="footlink" href="./demo.html">Live demo</a></span>
+    </footer>
+  </div>
+
+  <script type="module" src="./theme.ts"></script>
+  <script type="module" src="./events.ts"></script>
+</body>
+</html>

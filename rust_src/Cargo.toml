@@ -1,0 +1,47 @@
+# TreDeSpace Rust workspace — the cooker, the import converters (RVM / IFC /
+# STEP), their CLI + wasm shells, and shared libraries. Code here is OURS and
+# ships with the web viewer; the converters used to be separate workspaces
+# under converters/ and were folded in here (crate names keep their format
+# prefix: rvm2glb-*, ifc2glb-*, step2glb-*).
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+# The vendored tess2 fork is pulled in via [patch] below, not as a member, so
+# `cargo fmt/test --all` leave the upstream code's formatting and tests alone.
+exclude = ["crates/tess2-rust"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
+authors = ["Vegar Ringdal"]
+
+[workspace.dependencies]
+anyhow = "1"
+bytemuck = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# IFC front end: one call `process_geometry(&bytes)` runs parse → geometry →
+# colour → void subtraction → world placement, yielding world-space `MeshData`.
+#
+# Git-pinned (not crates.io 4.1.0): the published 4.1.0 has an UNGATED
+# `std::time::Instant::now()` on the process_geometry path, which traps on wasm32
+# ("time not implemented"). The wasm-safe `Clock` no-op landed on `main` after
+# 4.1.0 was cut.
+ifc-lite-processing = { git = "https://github.com/LTplus-AG/ifc-lite", rev = "a1748d120fe3d33035db268131678a3a0ef74dde" }
+
+# Use our vendored, fail-soft fork of tess2-rust instead of the crates.io build: a
+# degenerate polygon contour makes upstream's sweep `unwrap()` a freed region and
+# panic. On native that's catchable, but wasm is panic=abort (no unwinding) so it
+# kills the whole module. The fork flags the bad state and returns "tessellation
+# failed" (face skipped) instead. Used by rvm2glb-core and step2glb-core, which
+# each vendored their own copy before the workspaces merged — this is the
+# step2glb fork, the one carrying the dangling-edge and INVALID-origin guards.
+[patch.crates-io]
+tess2-rust = { path = "crates/tess2-rust" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

@@ -1,0 +1,52 @@
+{
+  "name": "tredespace",
+  "private": true,
+  "version": "0.0.58",
+  "type": "module",
+  "author": "Vegar Ringdal <vegar.ringdal@postboxen.no>",
+  "scripts": {
+    "dev": "vite",
+    "gen:docs": "node scripts/gen-api-docs.mjs && node scripts/gen-widget-docs.mjs",
+    "build": "npm run gen:docs && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "npm run gen:docs && tsc --noEmit",
+    "check:size": "node scripts/check-component-size.mjs",
+    "test:boot": "node scripts/boot-test.mjs",
+    "gen:notices": "node scripts/gen-third-party-notices.mjs",
+    "gen:apidocs": "node scripts/gen-api-docs.mjs",
+    "lint": "biome lint",
+    "format": "biome format --write",
+    "check": "biome check",
+    "check:fix": "biome check --write",
+    "gen:widgetdocs": "node scripts/gen-widget-docs.mjs",
+    "pack:ui": "node scripts/pack-ui.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "3.51.2-build6",
+    "@tabler/icons-react": "3.45.0",
+    "clsx": "2.1.1",
+    "comlink": "4.4.2",
+    "lit-html": "3.3.3",
+    "meshoptimizer": "1.2.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "tailwind-merge": "3.6.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.2.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-basic-ssl": "2.3.0",
+    "@vitejs/plugin-react": "6.0.5",
+    "@webgpu/types": "0.1.72",
+    "puppeteer-core": "25.3.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vite": "8.2.2",
+    "vitest": "4.1.11"
+  },
+  "license": "SEE LICENSE IN LICENSE"
+}

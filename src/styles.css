@@ -1,0 +1,226 @@
+@import "tailwindcss";
+/* Library-owned styles (theme palette, scrollbar skin) — see that file. */
+@import "./treDeSpaceUI/styles.css";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-slate-950);
+  color: var(--color-slate-200);
+  font:
+    12px / 1.45 ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.studio {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+}
+
+/* --- panel content --- */
+
+.panel-body.strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
+  padding: 0 14px;
+  font-size: 12px;
+}
+.panel-body.strip b {
+  color: var(--color-slate-100);
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 12px;
+}
+.brand {
+  letter-spacing: 0.01em;
+}
+.dim {
+  color: var(--color-slate-400);
+  font-size: 12px;
+}
+.grow {
+  flex: 1 1 auto;
+}
+
+.btn {
+  padding: 4px 9px;
+  border: 1px solid var(--color-slate-800);
+  border-radius: 0;
+  background: var(--color-slate-800);
+  color: var(--color-slate-200);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--color-slate-700);
+  background: var(--color-slate-700);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--color-blue-400);
+  outline-offset: 1px;
+}
+
+.section {
+  margin: 0 0 8px;
+  color: var(--color-slate-400);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.section:not(:first-child) {
+  margin-top: 16px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+.field > span {
+  flex: 0 0 46px;
+  color: var(--color-slate-400);
+}
+.field input[type="range"],
+.field select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.field select,
+.field input[type="color"] {
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--color-slate-800);
+  border-radius: 4px;
+  background: var(--color-slate-900);
+  color: var(--color-slate-200);
+  font: inherit;
+  font-size: 12px;
+}
+.field input[type="color"] {
+  width: 34px;
+  padding: 2px;
+}
+.field output {
+  flex: 0 0 52px;
+  color: var(--color-slate-400);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.note {
+  margin: 14px 0 0;
+  color: var(--color-slate-400);
+  font-size: 12px;
+}
+
+/* --- hierarchy --- */
+
+.tree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-slate-200);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.tree-row:hover {
+  background: var(--color-slate-800);
+}
+.tree-row.is-selected {
+  background: var(--color-blue-950);
+  color: var(--color-blue-100);
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-slate-500);
+}
+.dot-mesh {
+  background: var(--color-blue-400);
+}
+.dot-light {
+  background: var(--color-amber-400);
+}
+.dot-camera {
+  background: var(--color-purple-400);
+}
+.dot-helper {
+  background: var(--color-green-500);
+}
+
+/* --- assets --- */
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.swatch {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-slate-800);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.swatch.is-active {
+  border-color: var(--color-slate-100);
+  box-shadow: 0 0 0 2px var(--color-slate-950) inset;
+}
+
+/* legacy alias — the global scrollbar skin (library styles) covers the look;
+   kept for the overflow behavior */
+.scroll-slim {
+  overflow-y: auto;
+}

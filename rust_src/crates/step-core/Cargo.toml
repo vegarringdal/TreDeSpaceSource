@@ -1,0 +1,29 @@
+[package]
+name = "step-core"
+description = "STEP (ISO 10303-21) parsing, tessellation and GLB export — the platform-agnostic library"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Vegar Ringdal <vegar.ringdal@postboxen.no>"]
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = ["optimize", "mmap"]
+# meshoptimizer pass (weld / vertex-cache / simplify). Pulls in a C++ build, so
+# the wasm / capi shells can drop it; without it meshes are valid, just larger.
+optimize = ["dep:meshopt"]
+# memory-map the STEP input (native only — files larger than RAM, paged by the
+# OS). wasm builds with --no-default-features and feeds bytes via an InputHandle.
+mmap = ["dep:memmap2"]
+
+[dependencies]
+md5 = "0.7"
+tess2-rust = "1.1.0"
+meshopt = { version = "0.6", optional = true }
+memmap2 = { version = "0.9", optional = true }
+
+[dev-dependencies]
+proptest = "1.11.0"
+serde_json = "1"

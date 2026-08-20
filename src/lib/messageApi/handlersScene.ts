@@ -1,0 +1,107 @@
+// Scene-annotation commands: selection, labels (content + layout) and
+// measurements. See EVENTS.md for the payload contracts.
+import { db } from '../../state/viewer/db';
+import { labelsActions } from '../../state/viewer/labels.actions';
+import { labelsState, MAX_LABELS, type SceneLabel } from '../../state/viewer/labels.state';
+import { measurementsActions } from '../../state/viewer/measurements.actions';
+import { measurementsState } from '../../state/viewer/measurements.state';
+import { selectionState } from '../../state/viewer/selection.state';
+import { viewerActions } from '../../state/viewer/viewer.actions';
+import { ApiError, type ApiHandler, records, strings } from './protocol';
+
+const setOrAddLabels: ApiHandler = async ({ type, p }) => {
+  const inputs = records(p.labels, 'labels');
+  const wantNames = [...new Set(inputs.map((l) => l.fullname).filter((n): n is string => typeof n === 'string'))];
+  const { found, notFound } = wantNames.length ? await db.findLabelAnchors(wantNames) : { found: [], notFound: [] };
+  const centers = new Map(found.map((f) => [f.name.toLowerCase().replace(/^\//, ''), f.center]));
+  const s = labelsState.get();
+  const items: SceneLabel[] = [];
+  for (const l of inputs) {
+    const text = typeof l.text === 'string' ? l.text : '';
+    let anchor: [number, number, number] | null = null;
+    let fullname: string | null = null;
+    if (typeof l.fullname === 'string') {
+      const c = centers.get(l.fullname.trim().toLowerCase().replace(/^\//, ''));
+      if (!c) {
+        continue; // reported via missed
+      }
+      anchor = c;
+      fullname = l.fullname;
+    } else if (Array.isArray(l.anchor) && l.anchor.length === 3) {
+      anchor = [Number(l.anchor[0]), Number(l.anchor[1]), Number(l.anchor[2])];
+    } else {
+      throw new ApiError('bad-payload', 'each label needs a fullname or an anchor [x,y,z]');
+    }
+    items.push({
+      id: 0, // rebased by setAll
+      text,
+      fullname,
+      anchor,
+      offset: [0, 0],
+      selected: false,
+      bg: s.bg,
+      opacity: s.opacity,
+      textColor: s.textColor,
+    });
+  }
+  const base = type === 'labels.set' ? [] : s.items;
+  const combined = [...base, ...items].slice(0, MAX_LABELS);
+  labelsActions.setAll(combined);
+  return { added: items.length, missed: notFound };
+};
+
+const setOrAddMeasurements: ApiHandler = ({ type, p }) => {
+  const inputs = records(p.measurements, 'measurements');
+  const cur = measurementsState.get();
+  const base = type === 'measurements.set' ? [] : cur.items;
+  const mapped = inputs.map((m, i) => ({ id: i + 1, ...m }));
+  // importJson replaces + backfills every optional field
+  const n = measurementsActions.importJson(
+    JSON.stringify({ items: [...base, ...mapped], muted: cur.muted, precision: cur.precision }),
+  );
+  return { added: Math.max(0, n - base.length) };
+};
+
+export const sceneHandlers: Record<string, ApiHandler> = {
+  'selection.set': ({ p }) => viewerActions.selectByFullnames(strings(p.fullnames, 'fullnames')),
+
+  'selection.clear': async () => {
+    await viewerActions.clearSelection();
+    return {};
+  },
+
+  'selection.get': async () => {
+    const pairs = selectionState
+      .get()
+      .actives.map((k) => k.split(':').map(Number))
+      .filter((x) => x.length === 2)
+      .map(([model, entry]) => ({ model, entry }));
+    return { count: selectionState.get().count, fullnames: await db.entryNames(pairs) };
+  },
+
+  'labels.set': setOrAddLabels,
+  'labels.add': setOrAddLabels,
+
+  'labels.clear': () => {
+    labelsActions.clearAll();
+    return {};
+  },
+
+  'labels.implode': () => {
+    labelsActions.implode();
+    return {};
+  },
+
+  'labels.explode': () => {
+    labelsActions.explode();
+    return {};
+  },
+
+  'measurements.set': setOrAddMeasurements,
+  'measurements.add': setOrAddMeasurements,
+
+  'measurements.clear': () => {
+    measurementsActions.clear();
+    return {};
+  },
+};

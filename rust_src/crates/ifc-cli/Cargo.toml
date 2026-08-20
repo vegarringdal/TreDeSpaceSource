@@ -1,0 +1,14 @@
+[package]
+name = "ifc-cli"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Command-line IFC → GLB converter."
+
+[[bin]]
+name = "ifc"
+path = "src/main.rs"
+
+[dependencies]
+ifc-core = { path = "../ifc-core" }
+clap = { version = "4", features = ["derive"] }

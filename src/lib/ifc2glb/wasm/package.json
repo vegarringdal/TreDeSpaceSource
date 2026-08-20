@@ -1,0 +1,17 @@
+{
+  "name": "ifc-wasm",
+  "type": "module",
+  "description": "WebAssembly bindings for ifc2glb (IFC → GLB in the browser).",
+  "version": "0.1.0",
+  "license": "MPL-2.0",
+  "files": [
+    "ifc_wasm_bg.wasm",
+    "ifc_wasm.js",
+    "ifc_wasm.d.ts"
+  ],
+  "main": "ifc_wasm.js",
+  "types": "ifc_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

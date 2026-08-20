@@ -1,0 +1,25 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`shader text pins > produces byte-identical WGSL for every entry point and variant 1`] = `
+{
+  "cubeBlitWgsl()": "ecada98894e2e0d8aad79f9af408f69e06f2fd666f21559fb17f2d3ffa0dccd5",
+  "cullWgsl(false,false)": "94661251daf3c9954823825dc90986d386ddf7547edb611127bda59ff0f94f80",
+  "cullWgsl(false,true)": "9b220129de4b5b5ae47e87de210457d903aae9df7710deca18cabb3b49e042d3",
+  "cullWgsl(true,false)": "c4af9238f157dd0689144ecc326297856e8bbc20dbd26f023bc7806c9c74630a",
+  "cullWgsl(true,true)": "762d79c18ce54ae7e85b482256070a1a6003bc8a2ad13127d0ede0aecd5e2db0",
+  "hzbWgsl(false)": "817e184faf1f80ff6fe5713c1c12a2ed879a07d3c10b0e5463ab223f3388ed43",
+  "hzbWgsl(true)": "19dcbba481bec69f35b464fcc8f2d5a2e290d22a31ea0b8ae56588ad9ddb24ac",
+  "lineWgsl()": "6363acc076f59474fc90da2da3d4754b939bd3515f46d8fbcde609ffd186a8e1",
+  "measureSnapWgsl()": "acb78efbcbeaec6970c6a45f5a867e89942c6e0305438538192ffb3390f430aa",
+  "outlineWgsl(false)": "dbcd52754e366bd11b1bc7587f52e2106e37a3e6a88db6ff04c783872ca5d2a7",
+  "outlineWgsl(true)": "d1157817b219a6252c7fdde18d90fccf42355260a2dfcfbeceb1c8befef10ce0",
+  "postWgsl(false)": "2aab369ba93283027db6715ad7634d1175eaa7a4025ebccdaacfeadc5ae3295d",
+  "postWgsl(true)": "088a25f804d31cb09df530cfee52a775436110f7abe89035fd4f34945a85dac4",
+  "renderVpWgsl()": "ca8bf630eb2364fdae7c3805f8b3c6222cefb8fb4e7ff422376e2f4588fccef4",
+  "renderWgsl(false)": "759f95368563240692db207c3f1fd963e03a730c781db11f3ac7eaa6feef36d6",
+  "renderWgsl(true)": "077dfb0b096ba8a3e35130af6136c56679132b88ec2964374ee0679b317ce628",
+  "vbaoWgsl(false)": "f3fa43f9e886bf70a7f6f4e96c1c7063b3841e17e8280a8bd8dc360794161a5f",
+  "vbaoWgsl(true)": "2008f174d2fb7553dd85650c245c7cd8a1c7acf94ad6f1ca58db1b6d27d15fc3",
+  "viewCubeWgsl()": "7d198cb3d4f76333eb76c37ce7426531b685ff1eddfd47d97982e24994755e84",
+}
+`;

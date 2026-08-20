@@ -1,0 +1,34 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION((''),'2;1');
+FILE_NAME('','',(''),(''),'','','');
+FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));
+ENDSEC;
+DATA;
+
+
+#10 = CARTESIAN_POINT('origin', (0.0, 0.0, 0.0));
+#11 = DIRECTION('z_axis', (0.0, 0.0, 1.0));
+#12 = DIRECTION('x_axis', (1.0, 0.0, 0.0));
+#13 = AXIS2_PLACEMENT_3D('base_placement', #10, #11, #12);
+
+#20 = CARTESIAN_POINT('offset_origin', (5.0, 5.0, 0.0));
+#21 = AXIS2_PLACEMENT_3D('cylinder_placement', #20, #11, #12);
+
+
+
+#30 = BLOCK('base_block', #13, 10.0, 10.0, 10.0);
+
+
+#31 = RIGHT_CIRCULAR_CYLINDER('cutting_cylinder', #21, 10.0, 3.0);
+
+
+
+#40 = BOOLEAN_RESULT('hole_operation', .DIFFERENCE., #30, #31);
+
+
+
+#50 = CSG_SOLID('final_part', #40);
+
+ENDSEC;
+END-ISO-10303-21;

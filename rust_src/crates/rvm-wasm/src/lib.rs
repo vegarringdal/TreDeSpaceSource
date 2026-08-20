@@ -1,0 +1,455 @@
+//! WebAssembly shell for rvm2glb.
+//!
+//! Two entry points, mirroring step2glb but with our 3-way `mode` and N-outputs model:
+//!  - [`convert_in_ram`] — input bytes in, every output (GLBs + `status_file.json`)
+//!    collected in RAM and handed back via [`ConvertResult`]. For files that fit in RAM.
+//!  - [`convert_streaming`] — input + output stream through a JS [`Io`] object backed by
+//!    OPFS sync access handles in a Worker (`size`/`read` for input; `open`/`write`/
+//!    `close` per output file; `progress` per GLB). No whole-file buffering.
+//!
+//! meshopt is compiled out here (core built `--no-default-features`).
+
+use rvm_core::{
+    convert, convert_cooked, ConvertOptions, InputHandle, OutputHandle, OutputSink, Progress,
+};
+use std::io;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
+
+/// Bridge the converter's in-memory merged export to the cooker's input, so an
+/// RVM can be cooked to `.tdp` without ever serialising a GLB.
+///
+/// The only transform is the axis flip: [`rvm_core::MergedData`] carries glTF
+/// space (Y-up) because that is what the merged build produces, and the cooker
+/// wants Z-up — the same `[x, -z, y]` the cooker applies when it reads a GLB, so
+/// both paths land on identical bytes.
+pub fn to_cooker_model(merged: rvm_core::MergedData) -> cooker_core::MergedModel {
+    let nodes = merged
+        .nodes
+        .into_iter()
+        .map(|n| cooker_core::MergedNode {
+            base_color: color_to_rgba(n.color_with_alpha),
+            positions: n
+                .positions
+                .chunks_exact(3)
+                .map(|p| [p[0], -p[2], p[1]])
+                .collect(),
+            indices: n.indices,
+            draw_ranges: n
+                .draw_ranges
+                .into_iter()
+                .map(|(id, index_start, index_count)| cooker_core::MergedRange {
+                    id,
+                    index_start,
+                    index_count,
+                })
+                .collect(),
+        })
+        .collect();
+    let hierarchy = merged
+        .hierarchy
+        .into_iter()
+        .map(|(id, name, parent)| cooker_core::MergedHierarchyEntry {
+            id,
+            name,
+            // rvm2glb marks roots with parent 0; the cooker uses None.
+            parent_id: (parent != 0).then_some(parent),
+        })
+        .collect();
+    cooker_core::MergedModel { nodes, hierarchy }
+}
+
+/// `0xAARRGGBB` → the exact `baseColorFactor` the merged GLB would have written
+/// (port of `material_json` in rvm2glb-core, including its inverted alpha:
+/// stored alpha is opacity-from-1, and anything but 1.0 becomes `1.0 - a`).
+/// Computed in f64 like the JSON path, then narrowed — the GLB round trip lands
+/// on the same f32.
+fn color_to_rgba(color: u32) -> [f32; 4] {
+    let r = ((color >> 16) & 0xff) as f64 / 255.0;
+    let g = ((color >> 8) & 0xff) as f64 / 255.0;
+    let b = (color & 0xff) as f64 / 255.0;
+    let a = ((color >> 24) & 0xff) as f64 / 255.0;
+    let final_a = if (a - 1.0).abs() > 1e-4 { 1.0 - a } else { 1.0 };
+    [r as f32, g as f32, b as f32, final_a as f32]
+}
+
+#[wasm_bindgen(start)]
+pub fn start() {
+    console_error_panic_hook::set_once();
+}
+
+/// Crate version string.
+#[wasm_bindgen]
+pub fn version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+// Freestanding `wasm32-unknown-unknown` has no C++ runtime, so meshoptimizer's C++
+// `operator new`/`delete` (`_Znwm`/`_ZdlPv`/…) are undefined at link time. Provide
+// minimal versions backed by Rust's global allocator. Only on wasm + `optimize` — on
+// native, libstdc++/libc++ already defines these (defining ours would clash).
+#[cfg(all(feature = "optimize", target_arch = "wasm32"))]
+mod cxx_alloc {
+    use std::alloc::{Layout, alloc, dealloc};
+
+    // Stash the allocation size in a 16-byte header so sizeless `operator delete` can
+    // reconstruct the Layout; 16 also keeps the returned pointer suitably aligned.
+    const HDR: usize = 16;
+
+    unsafe fn cxx_new(size: usize) -> *mut u8 {
+        let layout = Layout::from_size_align(size + HDR, HDR).unwrap();
+        // SAFETY: layout has non-zero size (size + HDR >= HDR).
+        let base = unsafe { alloc(layout) };
+        if base.is_null() {
+            return base;
+        }
+        unsafe {
+            (base as *mut usize).write(size);
+            base.add(HDR)
+        }
+    }
+
+    unsafe fn cxx_delete(ptr: *mut u8) {
+        if ptr.is_null() {
+            return;
+        }
+        unsafe {
+            let base = ptr.sub(HDR);
+            let size = (base as *const usize).read();
+            dealloc(base, Layout::from_size_align(size + HDR, HDR).unwrap());
+        }
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _Znwm(size: usize) -> *mut u8 {
+        unsafe { cxx_new(size) }
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _Znam(size: usize) -> *mut u8 {
+        unsafe { cxx_new(size) }
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _ZdlPv(ptr: *mut u8) {
+        unsafe { cxx_delete(ptr) }
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _ZdaPv(ptr: *mut u8) {
+        unsafe { cxx_delete(ptr) }
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _ZdlPvm(ptr: *mut u8, _size: usize) {
+        unsafe { cxx_delete(ptr) }
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _ZdaPvm(ptr: *mut u8, _size: usize) {
+        unsafe { cxx_delete(ptr) }
+    }
+}
+
+// ── Options (a JS class; mode: 0 merged, 1 instanced, 2 standard, 3 gpu-instanced) ──
+
+#[wasm_bindgen]
+#[derive(Clone, Copy)]
+pub struct Options {
+    pub level: u8,
+    pub mode: u8,
+    pub remove_empty: bool,
+    pub cleanup_position: bool,
+    pub cleanup_precision: u8,
+    pub meshopt_threshold: f32,
+    pub meshopt_target_error: f32,
+    pub tolerance: f32,
+    pub line_width: f32,
+    /// Include RVM Line primitives. `false` (the default) skips them entirely —
+    /// they are numerous and add visual noise.
+    pub include_line: bool,
+    pub align_segments: bool,
+    pub highlight_instance: bool,
+    pub dry_run: bool,
+    /// Extract the RVM structure as JSON (`<site>.json` + `base.json`) instead of GLB.
+    /// Overrides `mode`; honours `level`.
+    pub extract_json: bool,
+}
+
+#[wasm_bindgen]
+impl Options {
+    /// Defaults match the CLI (merged, remove-empty on, weld on, tolerance 0.01, …).
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Options {
+        Options {
+            level: 0,
+            mode: 0,
+            remove_empty: true,
+            cleanup_position: true,
+            cleanup_precision: 3,
+            meshopt_threshold: 0.75,
+            meshopt_target_error: 0.0,
+            tolerance: 0.01,
+            line_width: 0.005,
+            include_line: false,
+            align_segments: false,
+            highlight_instance: false,
+            dry_run: false,
+            extract_json: false,
+        }
+    }
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options::new()
+    }
+}
+
+fn to_core(o: &Options, source_name: String) -> ConvertOptions {
+    ConvertOptions {
+        level: o.level,
+        remove_empty: o.remove_empty,
+        cleanup_position: o.cleanup_position,
+        cleanup_precision: o.cleanup_precision,
+        meshopt_threshold: o.meshopt_threshold,
+        meshopt_target_error: o.meshopt_target_error,
+        tolerance: o.tolerance,
+        mode: match o.mode {
+            1 => rvm_core::OutputMode::Instanced,
+            2 => rvm_core::OutputMode::Standard,
+            3 => rvm_core::OutputMode::GpuInstanced,
+            _ => rvm_core::OutputMode::Merged,
+        },
+        line_width: o.line_width,
+        include_line: o.include_line,
+        align_segments: o.align_segments,
+        highlight_instance: o.highlight_instance,
+        dry_run: o.dry_run,
+        extract_json: o.extract_json,
+        source_name,
+    }
+}
+
+// ── JS-provided objects we call into ─────────────────────────────────────────
+
+#[wasm_bindgen]
+extern "C" {
+    /// Per-GLB progress callback (in-RAM path).
+    pub type ProgressSink;
+    #[wasm_bindgen(method)]
+    fn report(this: &ProgressSink, output_index: u32, name: String, nodes: u32);
+
+    /// Streaming I/O backed by OPFS sync access handles (in a Worker).
+    pub type Io;
+    #[wasm_bindgen(method)]
+    fn size(this: &Io) -> f64;
+    /// Read up to `len` bytes at `offset`; returns the bytes (may be shorter at EOF).
+    #[wasm_bindgen(method)]
+    fn read(this: &Io, offset: f64, len: f64) -> Vec<u8>;
+    /// Open output `name`; returns a nonzero handle id, or 0 on failure.
+    #[wasm_bindgen(method)]
+    fn open(this: &Io, name: String) -> f64;
+    #[wasm_bindgen(method)]
+    fn write(this: &Io, handle: f64, bytes: &[u8]);
+    #[wasm_bindgen(method)]
+    fn close(this: &Io, handle: f64);
+    #[wasm_bindgen(method)]
+    fn progress(this: &Io, output_index: u32, name: String, nodes: u32);
+}
+
+// ── In-RAM path ──────────────────────────────────────────────────────────────
+
+/// Every output of one conversion (GLBs + `status_file.json`), held in RAM.
+#[wasm_bindgen]
+pub struct ConvertResult {
+    files: Vec<(String, Vec<u8>)>,
+    info: String,
+}
+
+#[wasm_bindgen]
+impl ConvertResult {
+    /// Number of files produced.
+    #[wasm_bindgen(getter)]
+    pub fn len(&self) -> usize {
+        self.files.len()
+    }
+    /// Name of file `i` (e.g. `"HA-PIPE.glb"`, `"status_file.json"`).
+    pub fn name(&self, i: usize) -> Option<String> {
+        self.files.get(i).map(|f| f.0.clone())
+    }
+    /// Bytes of file `i`.
+    pub fn bytes(&self, i: usize) -> Option<Vec<u8>> {
+        self.files.get(i).map(|f| f.1.clone())
+    }
+    /// Small JSON summary (`{"files":N,"warnings":M}`).
+    #[wasm_bindgen(getter)]
+    pub fn info(&self) -> String {
+        self.info.clone()
+    }
+}
+
+/// Convert RVM bytes entirely in memory; returns all outputs in a [`ConvertResult`].
+#[wasm_bindgen]
+pub fn convert_in_ram(
+    input: Vec<u8>,
+    opts: &Options,
+    source_name: String,
+    progress: &ProgressSink,
+) -> Result<ConvertResult, JsValue> {
+    let mut sink = rvm_core::MemSink::new();
+    let report = convert(
+        Box::new(input),
+        &mut sink,
+        &to_core(opts, source_name),
+        &mut |p: &Progress| progress.report(p.output_index, p.output_name.to_string(), p.nodes),
+    )
+    .map_err(|e| JsValue::from_str(&e))?;
+    let info = format!(
+        "{{\"files\":{},\"warnings\":{}}}",
+        report.filemeta.len(),
+        report.warnings.len()
+    );
+    Ok(ConvertResult {
+        files: sink.into_files(),
+        info,
+    })
+}
+
+// ── Streaming (OPFS) path ────────────────────────────────────────────────────
+
+struct IoInput(Io);
+// wasm32 is single-threaded; the JS handle never crosses threads.
+unsafe impl Send for IoInput {}
+unsafe impl Sync for IoInput {}
+
+impl InputHandle for IoInput {
+    fn size(&self) -> u64 {
+        self.0.size() as u64
+    }
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+        let data = self.0.read(offset as f64, buf.len() as f64);
+        let n = data.len().min(buf.len());
+        buf[..n].copy_from_slice(&data[..n]);
+        Ok(n)
+    }
+}
+
+struct IoSink(Io);
+
+impl OutputSink for IoSink {
+    fn open(&mut self, name: &str) -> io::Result<Box<dyn OutputHandle>> {
+        let handle = self.0.open(name.to_string());
+        if handle == 0.0 {
+            return Err(io::Error::other("open callback failed"));
+        }
+        Ok(Box::new(IoHandle {
+            io: self.0.clone().unchecked_into(),
+            handle,
+        }))
+    }
+}
+
+struct IoHandle {
+    io: Io,
+    handle: f64,
+}
+
+impl OutputHandle for IoHandle {
+    fn write(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.io.write(self.handle, buf);
+        Ok(())
+    }
+}
+
+impl Drop for IoHandle {
+    fn drop(&mut self) {
+        self.io.close(self.handle);
+    }
+}
+
+/// Stream a conversion through a JS `Io` (OPFS-backed). Returns a small JSON summary.
+#[wasm_bindgen]
+pub fn convert_streaming(io: Io, opts: &Options, source_name: String) -> Result<String, JsValue> {
+    let input = Box::new(IoInput(io.clone().unchecked_into()));
+    let mut sink = IoSink(io.clone().unchecked_into());
+    let prog: Io = io.clone().unchecked_into();
+    let report = convert(
+        input,
+        &mut sink,
+        &to_core(opts, source_name),
+        &mut |p: &Progress| prog.progress(p.output_index, p.output_name.to_string(), p.nodes),
+    )
+    .map_err(|e| JsValue::from_str(&e))?;
+    Ok(format!(
+        "{{\"files\":{},\"warnings\":{}}}",
+        report.filemeta.len(),
+        report.warnings.len()
+    ))
+}
+
+/// RVM → cooked `.tdp` files, streaming through the same JS [`Io`] object as
+/// [`convert_streaming`]: each site's merged model goes straight into the
+/// cooker, so no GLB is built, serialised or parsed. With `coarsen`, the coarse
+/// variant is written next to each site as `<name>.coarse.tdp`.
+#[wasm_bindgen]
+pub fn convert_streaming_tdp(
+    io: Io,
+    opts: &Options,
+    source_name: String,
+    compute_normals: bool,
+    coarsen: bool,
+) -> Result<String, JsValue> {
+    let input = Box::new(IoInput(io.clone().unchecked_into()));
+    let mut sink = IoSink(io.clone().unchecked_into());
+    let prog: Io = io.clone().unchecked_into();
+    // Separate handle for the coarse sibling: the core has no output file open
+    // while the hook runs, so writing here can't interleave with the full one.
+    let coarse_io: Io = io.clone().unchecked_into();
+    let report = convert_cooked(
+        input,
+        &mut sink,
+        &to_core(opts, source_name),
+        &mut |p: &Progress| prog.progress(p.output_index, p.output_name.to_string(), p.nodes),
+        Box::new(move |merged, stem| {
+            let (full, coarse) = cook_merged(to_cooker_model(merged), compute_normals, coarsen)?;
+            if let Some(c) = coarse {
+                let handle = coarse_io.open(format!("{stem}.coarse.tdp"));
+                if handle != 0.0 {
+                    coarse_io.write(handle, &c);
+                }
+            }
+            Ok(full)
+        }),
+    )
+    .map_err(|e| JsValue::from_str(&e))?;
+    Ok(format!(
+        "{{\"files\":{},\"warnings\":{}}}",
+        report.filemeta.len(),
+        report.warnings.len()
+    ))
+}
+
+/// Cook a merged model into the full `.tdp` (and, when asked, the coarse
+/// variant the VRAM budget swaps in). Mirrors what the cooker wasm does for a
+/// GLB, so the app's asset pipeline is unchanged apart from the input.
+pub fn cook_merged(
+    model: cooker_core::MergedModel,
+    compute_normals: bool,
+    coarsen: bool,
+) -> Result<(Vec<u8>, Option<Vec<u8>>), String> {
+    let opts = cooker_core::CookOptions {
+        compute_normals,
+        dense_bounds: true,
+        coarsen: None,
+        spatial_order: true,
+    };
+    let coarse = if coarsen {
+        let c = cooker_core::CookOptions {
+            coarsen: Some(cooker_core::CoarsenOptions::default()),
+            ..opts
+        };
+        cooker_core::cook_model(model.clone(), c)
+            .map(|o| Some(o.bytes))
+            .map_err(|e| e.to_string())?
+    } else {
+        None
+    };
+    let full = cooker_core::cook_model(model, opts).map_err(|e| e.to_string())?;
+    Ok((full.bytes, coarse))
+}

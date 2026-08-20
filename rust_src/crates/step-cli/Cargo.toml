@@ -1,0 +1,16 @@
+[package]
+name = "step-cli"
+description = "STEP (ISO 10303-21) → glTF/GLB converter (command-line front end)"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Vegar Ringdal <vegar.ringdal@postboxen.no>"]
+
+# Output binary stays `step2glb`.
+[[bin]]
+name = "step"
+path = "src/main.rs"
+
+[dependencies]
+step-core = { path = "../step-core" }
+clap = { version = "4", features = ["derive"] }
