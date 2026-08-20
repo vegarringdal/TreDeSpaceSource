@@ -34,13 +34,52 @@
 // Commands NEVER throw — they resolve a Result<T> = { data?, error? }; check
 // `error` (Rust-style). Only ready()/on*()/dispose() sit outside that.
 //
-// Usage:
+// GETTING ACCESS (the viewer ignores messages from unknown origins):
+//   The easiest bootstrap is the embed URL — your page controls it, and the
+//   viewer honors ?apiOrigins= by default:
+//     <iframe src="https://viewer.example.com/?apiOrigins=https://your-portal.example.com">
+//   Alternatives: same-origin hosting needs nothing; or an admin lists your
+//   origin under the viewer's Settings → External → API security (required if
+//   a deployment turned the URL-parameter route off there).
+//
+// Usage — your page EMBEDS the viewer in an iframe:
 //   const client = new TredespaceClient(iframe, { targetOrigin: 'https://viewer.example.com' });
-//   await client.ready();
+//   await client.ready();                          // resolves on app.ready
 //   const res = await client.selectionSet(['/TP400-PIPE-01']);
 //   if (res.error) console.warn(res.error.msg);
 //   else console.log(res.data.matched, res.data.missed);
 //   client.dispose();
+// Usage — your page runs INSIDE the viewer (External-app panel/dialog): same,
+// but drive the parent window, with the VIEWER's origin as targetOrigin
+// (derivable from document.referrer; never '*' — it is also the filter for
+// which incoming messages this client trusts):
+//   const viewerOrigin = new URL(document.referrer).origin;
+//   const client = new TredespaceClient(window.parent, { targetOrigin: viewerOrigin });
+//
+// EVENTS (unsolicited app → host; subscribe with on() or the typed helpers):
+//   'tree.select'                — user selected a tree row / clicked the model
+//   'instance.changed'           — the shared instance-data blob changed
+//   'viewpoints.bookmark'        — user clicked the host bookmark button
+//                                  (onViewpointsBookmark; config attached)
+//   'assets.importUrl:progress'  — per-file import progress (assetsImportUrl
+//                                  surfaces it via its onProgress option)
+//
+// COMMON FLOWS (each step is one method below — see its JSDoc):
+//   Sync hosted models:   assetsList → compare each asset's md5 against a hash
+//     of your hosted file → assetsImportUrl the changed/missing (replace:true),
+//     assetsRemove the stale → assetsSetLoaded(desiredIds) applies the exact
+//     visible set (idempotent; unlisted models are unloaded).
+//   Sync hosted SQL dbs:  sqlList (md5 = hash of the bytes you delivered) →
+//     sqlImportUrl only what changed (GB-safe: streamed straight into OPFS).
+//     Or per query: sqlCheck(sql) pre-flights which dbs the script references
+//     and whether they're present/current — then sqlQuery.
+//   Viewpoint bookmarks:  viewpointsSetBookmarkButton({label}) → user clicks →
+//     onViewpointsBookmark fires with the config blob → persist it; restore
+//     later with viewpointsSet(config) or a hosted file via viewpointsSetUrl
+//     (showViewer:true docks the presentation panel).
+//   Context-dependent UI: externalAppsSet([...]) after ready() installs
+//     SESSION-ONLY entries in the viewer's External ribbon (never persisted —
+//     re-set them after every app.ready).
 
 // ── protocol types ───────────────────────────────────────────────────────────
 
@@ -199,7 +238,12 @@ export interface StoreInfo {
   count: number;
 }
 
-export type ImportFormat = 'glb-merged' | 'glb-standard' | 'rvm' | 'ifc' | 'step';
+/** Conversion pipeline for an imported file. `tdp` is an already-cooked
+ *  TreDeSpace file (e.g. a viewer export or a server-hosted model): it is
+ *  stored as-is — no conversion — with its coarse (VRAM-budget) variant
+ *  rebuilt in-app and its recorded md5 being the hash of the `.tdp` bytes
+ *  themselves. */
+export type ImportFormat = 'glb-merged' | 'glb-standard' | 'rvm' | 'ifc' | 'step' | 'tdp';
 
 export interface AssetsImportResult {
   entries: AssetInfo[];
@@ -262,6 +306,12 @@ export interface SqlDbInfo {
   path: string;
   size: number;
   modified: number;
+  /** MD5 of the source bytes AS DELIVERED at import time — compare against a
+   *  hash of the hosted file to decide whether to re-import. Recorded before
+   *  the WAL normalization rewrites the stored file and never updated by
+   *  later in-app edits. Absent for databases imported before this existed or
+   *  created in-app. */
+  md5?: string;
 }
 
 export interface SqlImportResult {
@@ -271,6 +321,92 @@ export interface SqlImportResult {
   skipped: string[];
   /** how many existing databases were overwritten. */
   replaced: number;
+}
+
+/** One file for {@link TredespaceClient.sqlImportUrl}: a URL the VIEWER
+ *  downloads itself, streamed straight into OPFS. */
+export interface SqlImportUrlFile {
+  /** URL the viewer fetches (subject to the VIEWER origin's CORS, not yours). */
+  url: string;
+  /** name to store the database under; defaults to the URL's last path segment. */
+  fileName?: string;
+}
+
+export interface SqlImportUrlResult extends SqlImportResult {
+  /** files whose download or write failed — never aborts the rest of the batch. */
+  failed: { url: string; error: string }[];
+}
+
+/** One SESSION-ONLY external app entry for
+ *  {@link TredespaceClient.externalAppsSet}. Mirrors the Settings → External
+ *  fields; only `name` and `url` are required. */
+export interface HostExternalApp {
+  /** ribbon button + panel title */
+  name: string;
+  url: string;
+  /** ribbon section title — apps sharing a section are grouped together */
+  section?: string;
+  /** ribbon button size (default 'medium') */
+  size?: 'big' | 'medium' | 'small';
+  tooltip?: string;
+  /** allow several instances of this app open at once */
+  multiple?: boolean;
+  /** open in a new browser tab instead of an in-app panel (never auto-opened —
+   *  window.open without a user gesture is popup-blocked) */
+  newWindow?: boolean;
+  /** open as a centered modal dialog over the app */
+  modal?: boolean;
+  /** open immediately when this set call lands (e.g. a project selector) */
+  openOnStart?: boolean;
+  /** config passed to the page as a stringified `?config=` URL param — pass an
+   *  object and the viewer stringifies it */
+  config?: string | Record<string, unknown>;
+}
+
+/** One configured external app, from {@link TredespaceClient.externalAppsList}. */
+export interface ExternalAppInfo {
+  id: string;
+  name: string;
+  url: string;
+  section: string;
+  size: 'big' | 'medium' | 'small';
+  multiple: boolean;
+  newWindow: boolean;
+  modal: boolean;
+  openOnStart: boolean;
+  /** true = session-only entry set through the API; false = user-configured in Settings */
+  hostManaged: boolean;
+}
+
+/** The whole viewpoint set as one JSON-safe blob — exactly what the panel's
+ *  Save button writes to file. Treat it as opaque: persist it, hand it back
+ *  to {@link TredespaceClient.viewpointsSet}, done. */
+export interface ViewpointsConfig {
+  version: number;
+  viewpoints: unknown[];
+}
+
+/** Payload of the unsolicited `viewpoints.bookmark` event — fired when the
+ *  user clicks the host-configured bookmark button in the Viewpoints panel.
+ *  Carries the CURRENT config so no follow-up `viewpointsGet` is needed. */
+export interface ViewpointsBookmarkEvent {
+  /** the configured button label (identifies which button, if you rename it) */
+  label: string;
+  config: ViewpointsConfig;
+}
+
+/** One database referenced by a script, from {@link TredespaceClient.sqlCheck}. */
+export interface SqlCheckEntry {
+  /** OPFS path (`sql_assets/<store>/<file>`) — the `mainDb` you passed or an
+   *  `ATTACH DATABASE '…'` literal from the script. */
+  path: string;
+  exists: boolean;
+  /** present only when `exists` */
+  size?: number;
+  modified?: number;
+  /** import-time md5 of the delivered bytes (see {@link SqlDbInfo.md5});
+   *  absent when `exists` is false or the db predates md5 recording. */
+  md5?: string;
 }
 
 export interface SqlStatementResult {
@@ -695,6 +831,26 @@ export class TredespaceClient {
     return this.send('assets.unload', { ids });
   }
 
+  /** Declaratively set WHICH assets are loaded: after this call the loaded
+   *  set is exactly `ids` — anything loaded but not listed is unloaded,
+   *  anything listed but not yet loaded is loaded, anything already right is
+   *  untouched (idempotent, so a sync can call it every cycle). An empty
+   *  array unloads everything. `store` scopes both directions to that store —
+   *  assets in other stores are never touched. `fit` is OPT-IN here (a
+   *  background sync should not move the camera) and frames the union of the
+   *  whole desired set, not just what this call loaded. `missing` returns
+   *  requested ids that are not in the asset manager — import those first. */
+  assetsSetLoaded(
+    ids: string[],
+    opts?: { store?: string; fit?: boolean },
+  ): Promise<Result<{ loaded: number; unloaded: number; missing: string[] }>> {
+    return this.send('assets.setLoaded', {
+      ids,
+      ...(opts?.store ? { store: opts.store } : {}),
+      ...(opts?.fit !== undefined ? { fit: opts.fit } : {}),
+    });
+  }
+
   /** Delete persisted assets from local storage (OPFS). A copy already loaded
    *  into the viewer stays on screen - import -> load -> remove leaves a
    *  session-only model with nothing on disk. */
@@ -713,7 +869,9 @@ export class TredespaceClient {
    *  ArrayBuffer (TRANSFERRED — unusable after) or a Blob/File (by reference).
    *  `replace: true` overwrites an existing same-name db; false (default) skips
    *  it. WAL databases are normalised to rollback journalling on the way in
-   *  (the OPFS VFS is shm-less, so WAL can't be read shared). */
+   *  (the OPFS VFS is shm-less, so WAL can't be read shared). The md5 of the
+   *  bytes as delivered is recorded and returned by `sqlList` — hash your
+   *  source file and compare to decide whether an import is needed at all. */
   sqlImport(input: {
     fileName: string;
     bytes: ArrayBuffer | Blob;
@@ -732,6 +890,100 @@ export class TredespaceClient {
         );
     }
     return this.send<SqlImportResult>('sql.import', payload, { bytes, timeoutMs: this.importTimeoutMs });
+  }
+
+  /** Batch-import .db/.sqlite files the VIEWER downloads by URL — nothing
+   *  rides postMessage, and each download is STREAMED straight into OPFS
+   *  (constant memory, so multi-GB databases are fine). URLs are fetched
+   *  under the viewer origin's CORS, not the host's. `replace: true`
+   *  overwrites an existing same-name db; false (default) skips it WITHOUT
+   *  downloading. The md5 of the downloaded bytes is recorded per file (see
+   *  `sqlList`) — hash your hosted file and compare first to skip unchanged
+   *  imports entirely. Files run serially; a download failure lands in
+   *  `failed` and never aborts the rest. */
+  sqlImportUrl(input: {
+    files: SqlImportUrlFile[];
+    /** destination store (default 'main'); must be a known store name */
+    store?: string;
+    replace?: boolean;
+  }): Promise<Result<SqlImportUrlResult>> {
+    return this.send<SqlImportUrlResult>('sql.importUrl', input, { timeoutMs: this.importTimeoutMs });
+  }
+
+  /** Pre-flight a SQL script WITHOUT running it: which databases does it
+   *  reference (the optional `mainDb` plus every `ATTACH DATABASE '…'`
+   *  literal, in appearance order), and are they present? Present entries
+   *  carry `size` / `modified` / `md5` (import-time hash of the delivered
+   *  bytes), so a host can compare against its manifest and `sqlImportUrl`
+   *  only the missing or outdated files before calling `sqlQuery`. */
+  sqlCheck(input: { sql: string; mainDb?: string }): Promise<Result<{ dbs: SqlCheckEntry[] }>> {
+    return this.send('sql.check', input);
+  }
+
+  // ── viewpoints ────────────────────────────────────────────────────────────
+  /** The whole viewpoint set as one opaque JSON blob — the same shape the
+   *  panel's Save button writes to file. Persist it host-side (per user, per
+   *  project…) and restore it later with `viewpointsSet`. */
+  viewpointsGet(): Promise<Result<{ config: ViewpointsConfig }>> {
+    return this.send('viewpoints.get', {});
+  }
+
+  /** REPLACE the current viewpoint set from a config blob (from
+   *  `viewpointsGet`, a `viewpoints.bookmark` event, or a saved viewpoints
+   *  JSON file — same shape). Viewpoints carry model-relative content
+   *  (fullnames, positions, color rules), so restore them alongside the same
+   *  loaded models. `showViewer: true` then docks the Viewpoint Viewer panel
+   *  on the RIGHT and makes it active, ready to present. */
+  viewpointsSet(config: ViewpointsConfig, opts?: { showViewer?: boolean }): Promise<Result<{ loaded: number }>> {
+    return this.send('viewpoints.set', { config, ...(opts?.showViewer ? { showViewer: true } : {}) });
+  }
+
+  /** REPLACE the current viewpoint set from a hosted viewpoints JSON file the
+   *  VIEWER downloads itself (viewer-origin CORS, like the other *Url
+   *  commands) — same blob shape as `viewpointsGet` / a panel-saved file.
+   *  `showViewer: true` then docks the Viewpoint Viewer panel on the RIGHT
+   *  and makes it active, ready to present the loaded set (also available on
+   *  `viewpointsSet`). */
+  viewpointsSetUrl(url: string, opts?: { showViewer?: boolean }): Promise<Result<{ loaded: number }>> {
+    return this.send('viewpoints.setUrl', { url, ...(opts?.showViewer ? { showViewer: true } : {}) });
+  }
+
+  /** Show (or remove, with null) a SESSION-ONLY bookmark button in the
+   *  Viewpoints panel, between Add viewpoint and Save. When the user clicks
+   *  it the viewer fires the unsolicited `viewpoints.bookmark` event with the
+   *  current config attached — subscribe with `onViewpointsBookmark` and
+   *  persist it wherever bookmarks live. Like host-set external apps, the
+   *  button is never persisted: gone on reload until set again after
+   *  `app.ready`. */
+  viewpointsSetBookmarkButton(button: { label: string; tooltip?: string } | null): Promise<Result<{ shown: boolean }>> {
+    return this.send('viewpoints.setBookmarkButton', { button });
+  }
+
+  /** Subscribe to the bookmark-button click event (see
+   *  `viewpointsSetBookmarkButton`). Returns an unsubscribe function. */
+  onViewpointsBookmark(handler: (e: ViewpointsBookmarkEvent) => void): () => void {
+    return this.on('viewpoints.bookmark', (payload) => handler(payload as ViewpointsBookmarkEvent));
+  }
+
+  // ── external apps (session-only host configuration) ───────────────────────
+  /** Declaratively set the SESSION-ONLY host-managed external apps: replaces
+   *  any prior host-set entries with `apps` (user-configured Settings entries
+   *  are untouched). Entries appear in the External ribbon; their origins get
+   *  postMessage API access for this session. Nothing is persisted — a reload
+   *  drops them until the host calls this again after `app.ready`, so a viewer
+   *  opened without its host has none. `openOnStart: true` opens that entry
+   *  immediately (panels/modals only — new-window entries are popup-blocked
+   *  without a user gesture). Call with `[]` to clear the host-set entries. */
+  externalAppsSet(
+    apps: HostExternalApp[],
+  ): Promise<Result<{ apps: { id: string; name: string; url: string }[]; opened: number }>> {
+    return this.send('externalApps.set', { apps });
+  }
+
+  /** List every configured external app — user-configured (Settings) and
+   *  host-set session entries alike, told apart by `hostManaged`. */
+  externalAppsList(): Promise<Result<{ apps: ExternalAppInfo[] }>> {
+    return this.send('externalApps.list', {});
   }
 
   /** Delete databases by their OPFS `path` (from `sqlList`). A path in use by a
@@ -825,8 +1077,8 @@ export class TredespaceClient {
 
   // ── unsolicited app → host events ─────────────────────────────────────────
 
-  /** Listen for an app event (`id: null` messages, e.g. 'tree.select').
-   *  Returns an unsubscribe function. */
+  /** Listen for an app event (`id: null` messages) — the event types are
+   *  listed in the file header ("EVENTS"). Returns an unsubscribe function. */
   on(type: string, handler: (payload: unknown) => void): () => void {
     let set = this.eventHandlers.get(type);
     if (!set) {

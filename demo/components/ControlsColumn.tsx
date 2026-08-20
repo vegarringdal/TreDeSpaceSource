@@ -6,6 +6,7 @@ import { AppSection } from '../sections/AppSection';
 import { ClipSection } from '../sections/ClipSection';
 import { ColorRulesSection } from '../sections/ColorRulesSection';
 import { EventsSection } from '../sections/EventsSection';
+import { ExternalAppsSection } from '../sections/ExternalAppsSection';
 import { InstanceSection } from '../sections/InstanceSection';
 import { LabelsSection } from '../sections/LabelsSection';
 import { MeasurementsSection } from '../sections/MeasurementsSection';
@@ -13,6 +14,7 @@ import { ModelStoresSection } from '../sections/ModelStoresSection';
 import { NavigationSection } from '../sections/NavigationSection';
 import { SelectionSection } from '../sections/SelectionSection';
 import { SqlSection } from '../sections/SqlSection';
+import { ViewpointsSection } from '../sections/ViewpointsSection';
 import { Hint } from './Hint';
 import { Row } from './Row';
 
@@ -70,9 +72,11 @@ export function ControlsColumn() {
         <ClipSection />
         <InstanceSection />
         <MeasurementsSection />
+        <ViewpointsSection />
         <AppSection />
         <ModelStoresSection />
         <SqlSection />
+        <ExternalAppsSection />
       </div>
     </div>
   );

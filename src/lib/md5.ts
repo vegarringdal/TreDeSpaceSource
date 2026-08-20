@@ -1,6 +1,8 @@
 // MD5 (RFC 1321) — dependency-free, byte-oriented. SubtleCrypto has no MD5,
 // and the asset store wants an MD5 of each source file so a host can cheaply
 // tell whether a re-import would replace unchanged bytes. Lowercase hex out.
+// `Md5` is the incremental form for streamed sources (GB-scale downloads that
+// go straight to OPFS); `md5Hex` is the one-shot convenience over it.
 
 // K[i] = floor(2^32 * abs(sin(i+1))) — hardcoded to avoid any float drift.
 const K = [
@@ -22,32 +24,80 @@ const S = [
 
 const rotl = (x: number, c: number) => (x << c) | (x >>> (32 - c));
 
-export function md5Hex(input: Uint8Array): string {
-  const len = input.length;
-  // pad to a multiple of 64 with room for 0x80 + an 8-byte length
-  const total = (((len + 8) >>> 6) << 6) + 64;
-  const buf = new Uint8Array(total);
-  buf.set(input);
-  buf[len] = 0x80;
-  const dv = new DataView(buf.buffer);
-  const bitLen = len * 8;
-  dv.setUint32(total - 8, bitLen >>> 0, true);
-  dv.setUint32(total - 4, Math.floor(bitLen / 0x100000000) >>> 0, true);
+const BLOCK = 64;
 
-  let a0 = 0x67452301;
-  let b0 = 0xefcdab89;
-  let c0 = 0x98badcfe;
-  let d0 = 0x10325476;
-  const M = new Int32Array(16);
+/** Incremental MD5: `update()` any number of chunks, then `hex()` once.
+ *  Constant memory regardless of input size — feed it a download stream. */
+export class Md5 {
+  private a0 = 0x67452301;
+  private b0 = 0xefcdab89;
+  private c0 = 0x98badcfe;
+  private d0 = 0x10325476;
+  private readonly pending = new Uint8Array(BLOCK);
+  private pendingLen = 0;
+  private totalLen = 0;
+  private readonly M = new Int32Array(16);
 
-  for (let off = 0; off < total; off += 64) {
+  update(chunk: Uint8Array): this {
+    this.totalLen += chunk.length;
+    let off = 0;
+    if (this.pendingLen > 0) {
+      const take = Math.min(BLOCK - this.pendingLen, chunk.length);
+      this.pending.set(chunk.subarray(0, take), this.pendingLen);
+      this.pendingLen += take;
+      off = take;
+      if (this.pendingLen < BLOCK) {
+        return this;
+      }
+      this.block(new DataView(this.pending.buffer), 0);
+      this.pendingLen = 0;
+    }
+    const dv = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    for (; off + BLOCK <= chunk.length; off += BLOCK) {
+      this.block(dv, off);
+    }
+    if (off < chunk.length) {
+      this.pending.set(chunk.subarray(off));
+      this.pendingLen = chunk.length - off;
+    }
+    return this;
+  }
+
+  /** Finalize and return the lowercase hex digest. Call once. */
+  hex(): string {
+    // pad to a multiple of 64 with room for 0x80 + an 8-byte length
+    const rest = this.pendingLen;
+    const total = (((rest + 8) >>> 6) << 6) + 64;
+    const buf = new Uint8Array(total);
+    buf.set(this.pending.subarray(0, rest));
+    buf[rest] = 0x80;
+    const dv = new DataView(buf.buffer);
+    const bitLen = this.totalLen * 8;
+    dv.setUint32(total - 8, bitLen >>> 0, true);
+    dv.setUint32(total - 4, Math.floor(bitLen / 0x100000000) >>> 0, true);
+    for (let off = 0; off < total; off += BLOCK) {
+      this.block(dv, off);
+    }
+
+    const hex = (x: number) => {
+      let s = '';
+      for (let i = 0; i < 4; i++) {
+        s += (((x >>> (i * 8)) & 0xff) + 0x100).toString(16).slice(1);
+      }
+      return s;
+    };
+    return hex(this.a0) + hex(this.b0) + hex(this.c0) + hex(this.d0);
+  }
+
+  private block(dv: DataView, off: number): void {
+    const M = this.M;
     for (let i = 0; i < 16; i++) {
       M[i] = dv.getUint32(off + i * 4, true);
     }
-    let A = a0;
-    let B = b0;
-    let C = c0;
-    let D = d0;
+    let A = this.a0;
+    let B = this.b0;
+    let C = this.c0;
+    let D = this.d0;
     for (let i = 0; i < 64; i++) {
       let F: number;
       let g: number;
@@ -70,18 +120,13 @@ export function md5Hex(input: Uint8Array): string {
       C = B;
       B = (B + rotl(F, S[i])) | 0;
     }
-    a0 = (a0 + A) | 0;
-    b0 = (b0 + B) | 0;
-    c0 = (c0 + C) | 0;
-    d0 = (d0 + D) | 0;
+    this.a0 = (this.a0 + A) | 0;
+    this.b0 = (this.b0 + B) | 0;
+    this.c0 = (this.c0 + C) | 0;
+    this.d0 = (this.d0 + D) | 0;
   }
+}
 
-  const hex = (x: number) => {
-    let s = '';
-    for (let i = 0; i < 4; i++) {
-      s += (((x >>> (i * 8)) & 0xff) + 0x100).toString(16).slice(1);
-    }
-    return s;
-  };
-  return hex(a0) + hex(b0) + hex(c0) + hex(d0);
+export function md5Hex(input: Uint8Array): string {
+  return new Md5().update(input).hex();
 }

@@ -4,7 +4,8 @@ import { sqlAssetsActions } from '../../state/sqlAssets/sqlAssets.actions';
 import { sqlAssetsState } from '../../state/sqlAssets/sqlAssets.state';
 import { sqliteClient, sqlOptions } from '../sqlite/client';
 import { parseAttachPaths, splitSqlStatements } from '../sqlite/sqlAttach';
-import { ApiError, type ApiHandler, requireStoreOpt, strings } from './protocol';
+import { fileNameFromUrl } from './handlersAssets';
+import { ApiError, type ApiHandler, isRecord, requireStoreOpt, strings } from './protocol';
 
 export const sqlHandlers: Record<string, ApiHandler> = {
   'sql.list': async ({ p }) => {
@@ -13,7 +14,14 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     const dbs = sqlAssetsState
       .get()
       .dbs.filter((d) => !store || d.store === store)
-      .map((d) => ({ store: d.store, fileName: d.fileName, path: d.path, size: d.size, modified: d.modified }));
+      .map((d) => ({
+        store: d.store,
+        fileName: d.fileName,
+        path: d.path,
+        size: d.size,
+        modified: d.modified,
+        ...(d.md5 ? { md5: d.md5 } : {}),
+      }));
     return { dbs };
   },
 
@@ -33,10 +41,50 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     return await sqlAssetsActions.importDatabases([file], store, { replace });
   },
 
+  'sql.importUrl': async ({ p }) => {
+    const raw = p.files;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      throw new ApiError('bad-payload', 'files must be a non-empty array');
+    }
+    const files = raw.map((f, i) => {
+      if (!isRecord(f) || typeof f.url !== 'string' || !f.url) {
+        throw new ApiError('bad-payload', `files[${i}].url must be a string`);
+      }
+      const fileName =
+        typeof f.fileName === 'string' && f.fileName ? f.fileName : fileNameFromUrl(f.url, `file-${i}.db`);
+      return { url: f.url, fileName };
+    });
+    const store = requireStoreOpt(p.store) ?? 'main';
+    const replace = p.replace === true;
+    // structured result (imported / skipped / replaced / failed) — skips and
+    // per-file download failures are recorded, never thrown.
+    return await sqlAssetsActions.importDatabasesFromUrls(files, store, { replace });
+  },
+
   'sql.delete': async ({ p }) => {
     const paths = strings(p.paths, 'paths');
     await sqlAssetsActions.refresh();
     return await sqlAssetsActions.deleteDatabases(paths);
+  },
+
+  'sql.check': async ({ p }) => {
+    const sql = typeof p.sql === 'string' ? p.sql : '';
+    if (!sql.trim()) {
+      throw new ApiError('bad-payload', 'sql is required');
+    }
+    const mainDb = typeof p.mainDb === 'string' && p.mainDb ? [p.mainDb] : [];
+    await sqlAssetsActions.refresh();
+    const byPath = new Map(sqlAssetsState.get().dbs.map((d) => [d.path, d] as const));
+    // mainDb first (when given), then ATTACH literals in appearance order
+    const paths = [...new Set([...mainDb, ...parseAttachPaths(sql)])];
+    const dbs = paths.map((path) => {
+      const d = byPath.get(path);
+      if (!d) {
+        return { path, exists: false };
+      }
+      return { path, exists: true, size: d.size, modified: d.modified, ...(d.md5 ? { md5: d.md5 } : {}) };
+    });
+    return { dbs };
   },
 
   'sql.query': async ({ p }) => {

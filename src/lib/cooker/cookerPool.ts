@@ -4,8 +4,12 @@ import * as Comlink from 'comlink';
 import type { CookerApi, CookOutcome } from './cookerWorker';
 
 export type CookToOpfs = (glb: ArrayBuffer, outFileName: string, coarsePath?: string) => Promise<CookOutcome>;
+export type CoarsenTdpToOpfs = (tdp: ArrayBuffer, outFileName: string) => Promise<{ size: number }>;
 
-export async function withCookerPool<T>(size: number, run: (cook: CookToOpfs) => Promise<T>): Promise<T> {
+export async function withCookerPool<T>(
+  size: number,
+  run: (cook: CookToOpfs, coarsenTdp: CoarsenTdpToOpfs) => Promise<T>,
+): Promise<T> {
   const workers = Array.from(
     { length: Math.max(1, size) },
     () => new Worker(new URL('./cookerWorker.ts', import.meta.url), { type: 'module' }),
@@ -14,18 +18,22 @@ export async function withCookerPool<T>(size: number, run: (cook: CookToOpfs) =>
   // round-robin with per-worker busy chaining: callers await their slot
   const busy = apis.map(() => Promise.resolve());
   let next = 0;
-  const cook: CookToOpfs = (glb, outFileName, coarsePath) => {
+  const dispatch = <R>(job: (api: Comlink.Remote<CookerApi>) => Promise<R>): Promise<R> => {
     const i = next;
     next = (next + 1) % apis.length;
-    const job = busy[i].then(() => apis[i].cookToOpfs(Comlink.transfer(glb, [glb]), outFileName, coarsePath));
-    busy[i] = job.then(
+    const done = busy[i].then(() => job(apis[i]));
+    busy[i] = done.then(
       () => undefined,
       () => undefined,
     );
-    return job;
+    return done;
   };
+  const cook: CookToOpfs = (glb, outFileName, coarsePath) =>
+    dispatch((api) => api.cookToOpfs(Comlink.transfer(glb, [glb]), outFileName, coarsePath));
+  const coarsenTdp: CoarsenTdpToOpfs = (tdp, outFileName) =>
+    dispatch((api) => api.coarsenTdpToOpfs(Comlink.transfer(tdp, [tdp]), outFileName));
   try {
-    return await run(cook);
+    return await run(cook, coarsenTdp);
   } finally {
     for (const w of workers) {
       w.terminate();

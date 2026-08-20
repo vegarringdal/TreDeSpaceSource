@@ -1,5 +1,7 @@
 // Scene-annotation commands: selection, labels (content + layout) and
 // measurements. See EVENTS.md for the payload contracts.
+
+import { openViewpointViewerPanelRight } from '../../components/panels/viewpoints/viewpointsPanel';
 import { db } from '../../state/viewer/db';
 import { labelsActions } from '../../state/viewer/labels.actions';
 import { labelsState, MAX_LABELS, type SceneLabel } from '../../state/viewer/labels.state';
@@ -7,7 +9,8 @@ import { measurementsActions } from '../../state/viewer/measurements.actions';
 import { measurementsState } from '../../state/viewer/measurements.state';
 import { selectionState } from '../../state/viewer/selection.state';
 import { viewerActions } from '../../state/viewer/viewer.actions';
-import { ApiError, type ApiHandler, records, strings } from './protocol';
+import { viewpointsActions } from '../../state/viewer/viewpoints.actions';
+import { ApiError, type ApiHandler, isRecord, records, strings } from './protocol';
 
 const setOrAddLabels: ApiHandler = async ({ type, p }) => {
   const inputs = records(p.labels, 'labels');
@@ -103,5 +106,65 @@ export const sceneHandlers: Record<string, ApiHandler> = {
   'measurements.clear': () => {
     measurementsActions.clear();
     return {};
+  },
+
+  'viewpoints.get': () => ({ config: viewpointsActions.configJson() }),
+
+  'viewpoints.set': ({ p }) => {
+    if (!isRecord(p.config)) {
+      throw new ApiError('bad-payload', 'config must be an object (the shape viewpoints.get returns)');
+    }
+    let loaded: number;
+    try {
+      loaded = viewpointsActions.replaceAll(p.config);
+    } catch (e) {
+      throw new ApiError('bad-payload', e instanceof Error ? e.message : String(e));
+    }
+    if (p.showViewer === true) {
+      openViewpointViewerPanelRight();
+    }
+    return { loaded };
+  },
+
+  'viewpoints.setUrl': async ({ p }) => {
+    const url = typeof p.url === 'string' ? p.url : '';
+    if (!url) {
+      throw new ApiError('bad-payload', 'url is required');
+    }
+    let text: string;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      }
+      text = await res.text();
+    } catch (e) {
+      throw new ApiError('internal', `download failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    let loaded: number;
+    try {
+      loaded = viewpointsActions.replaceAll(JSON.parse(text));
+    } catch (e) {
+      throw new ApiError('bad-payload', e instanceof Error ? e.message : String(e));
+    }
+    if (p.showViewer === true) {
+      openViewpointViewerPanelRight();
+    }
+    return { loaded };
+  },
+
+  'viewpoints.setBookmarkButton': ({ p }) => {
+    if (p.button === null) {
+      viewpointsActions.setBookmarkButton(null);
+      return { shown: false };
+    }
+    if (!isRecord(p.button) || typeof p.button.label !== 'string' || !p.button.label.trim()) {
+      throw new ApiError('bad-payload', 'button must be null or { label, tooltip? } with a non-empty label');
+    }
+    viewpointsActions.setBookmarkButton({
+      label: p.button.label.trim(),
+      tooltip: typeof p.button.tooltip === 'string' ? p.button.tooltip : '',
+    });
+    return { shown: true };
   },
 };

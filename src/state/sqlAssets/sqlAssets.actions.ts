@@ -7,10 +7,54 @@
 
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
-import { listFiles, sqlDbPath, sqlStoreDir, writeFile } from '../../lib/opfs/opfs';
+import { Md5 } from '../../lib/md5';
+import { listFiles, readJson, sqlDbPath, sqlStoreDir, writeFile, writeJson } from '../../lib/opfs/opfs';
 import { sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { storesState } from '../stores/stores.state';
 import { type SqlDbEntry, sqlAssetsState } from './sqlAssets.state';
+
+// -----------------------------------------------------------------------------
+// import-time md5 sidecar (SQL_Meta.json per store)
+// -----------------------------------------------------------------------------
+
+/** Per-store sidecar recording each database's import-time md5 — the hash of
+ *  the bytes AS DELIVERED, taken before the WAL normalization rewrites the
+ *  file. It answers a syncing host's "did I already import this version?"; it
+ *  deliberately ignores whatever queries modified the file afterwards.
+ *  `refresh()` skips `.json` files, so the sidecar never lists as a database. */
+const META_FILE = 'SQL_Meta.json';
+
+type SqlMeta = Record<string, { md5: string }>;
+
+async function readMeta(store: string): Promise<SqlMeta> {
+  return (await readJson<SqlMeta>(await sqlStoreDir(store), META_FILE)) ?? {};
+}
+
+async function recordMd5(store: string, fileName: string, md5: string): Promise<void> {
+  const dir = await sqlStoreDir(store);
+  const meta = (await readJson<SqlMeta>(dir, META_FILE)) ?? {};
+  meta[fileName] = { md5 };
+  await writeJson(dir, META_FILE, meta);
+}
+
+async function dropMd5(store: string, fileName: string): Promise<void> {
+  const dir = await sqlStoreDir(store);
+  const meta = (await readJson<SqlMeta>(dir, META_FILE)) ?? {};
+  if (meta[fileName]) {
+    delete meta[fileName];
+    await writeJson(dir, META_FILE, meta);
+  }
+}
+
+/** Incremental md5 of a whole stream — constant memory, GB-safe. */
+async function md5OfStream(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const h = new Md5();
+  const reader = stream.getReader();
+  for (let r = await reader.read(); !r.done; r = await reader.read()) {
+    h.update(r.value);
+  }
+  return h.hex();
+}
 
 /** Take a just-imported database OUT of WAL journal mode. Our OPFS VFS has no
  *  shared-memory (`-shm`) support, so a WAL database can only be read with
@@ -53,17 +97,21 @@ export const sqlAssetsActions = {
     const dbs: SqlDbEntry[] = [];
     for (const st of storesState.get().stores) {
       const dir = await sqlStoreDir(st.name);
+      const meta = await readMeta(st.name);
       for (const file of await listFiles(dir)) {
-        // .json files in a store are sidecar metadata (SQL_Reports.json), not databases
+        // .json files in a store are sidecar metadata (SQL_Reports.json,
+        // SQL_Meta.json), not databases
         if (file.name.toLowerCase().endsWith('.json')) {
           continue;
         }
+        const md5 = meta[file.name]?.md5;
         dbs.push({
           store: st.name,
           fileName: file.name,
           path: sqlDbPath(st.name, file.name),
           size: file.size,
           modified: file.lastModified,
+          ...(md5 ? { md5 } : {}),
         });
       }
     }
@@ -117,11 +165,15 @@ export const sqlAssetsActions = {
           result.replaced++;
         }
         const path = sqlDbPath(store, file.name);
+        // hash the bytes AS DELIVERED — before the write and before the WAL
+        // normalization below rewrites the stored file
+        const md5 = await md5OfStream(file.stream());
         const done = await withDbLock(path, async () => {
           await writeFile(await sqlStoreDir(store), file.name, file);
           return true;
         });
         if (done) {
+          await recordMd5(store, file.name, md5);
           result.imported.push(path);
           consoleActions.log('info', `SQL: imported ${path} (${(file.size / 1048576).toFixed(1)} MB)`);
           // convert out of WAL so it reads in shared/read-only mode later
@@ -144,6 +196,101 @@ export const sqlAssetsActions = {
     return result;
   },
 
+  /** Download databases by URL, streaming each straight into
+   *  sql_assets/<store>/ — chunks go from the network reader into an OPFS
+   *  writable (staged, committed on close, discarded on abort), so a
+   *  multi-GB file never sits in memory. The import-time md5 is hashed from
+   *  the same chunks as they pass. Files run serially; a failure records a
+   *  `failed` entry and never aborts the rest. `replace: false` skips an
+   *  existing name WITHOUT downloading it. */
+  async importDatabasesFromUrls(
+    files: { url: string; fileName: string }[],
+    store: string,
+    opts: { replace?: boolean } = {},
+  ): Promise<{ imported: string[]; skipped: string[]; replaced: number; failed: { url: string; error: string }[] }> {
+    const result = {
+      imported: [] as string[],
+      skipped: [] as string[],
+      replaced: 0,
+      failed: [] as { url: string; error: string }[],
+    };
+    if (!files.length) {
+      return result;
+    }
+    await this.refresh();
+    const existing = new Set(
+      sqlAssetsState
+        .get()
+        .dbs.filter((d) => d.store === store)
+        .map((d) => d.fileName),
+    );
+    sqlAssetsState.set({ busy: true });
+    try {
+      for (const f of files) {
+        const existed = existing.has(f.fileName);
+        if (existed && !opts.replace) {
+          result.skipped.push(f.fileName);
+          continue;
+        }
+        const path = sqlDbPath(store, f.fileName);
+        try {
+          const res = await fetch(f.url);
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status} ${res.statusText}`);
+          }
+          const body = res.body;
+          if (!body) {
+            throw new Error('response has no body');
+          }
+          const md5 = await withDbLock(path, async () => {
+            const dir = await sqlStoreDir(store);
+            const handle = await dir.getFileHandle(f.fileName, { create: true });
+            const writable = await handle.createWritable();
+            try {
+              const h = new Md5();
+              const reader = body.getReader();
+              for (let r = await reader.read(); !r.done; r = await reader.read()) {
+                h.update(r.value);
+                await writable.write(r.value);
+              }
+              await writable.close();
+              return h.hex();
+            } catch (e) {
+              // staged write: abort discards everything, the prior file (if
+              // any) is untouched — only clean up a newly created empty stub
+              await writable.abort();
+              if (!existed) {
+                await dir.removeEntry(f.fileName).catch(() => undefined);
+              }
+              throw e;
+            }
+          });
+          if (md5 === null) {
+            result.skipped.push(f.fileName);
+            continue;
+          }
+          await recordMd5(store, f.fileName, md5);
+          if (existed) {
+            result.replaced++;
+          }
+          existing.add(f.fileName);
+          result.imported.push(path);
+          consoleActions.log('info', `SQL: imported ${path} from URL`);
+          // convert out of WAL so it reads in shared/read-only mode later
+          await normalizeOutOfWal(path);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          result.failed.push({ url: f.url, error: msg });
+          consoleActions.log('error', `SQL: import of ${f.url} failed: ${msg}`);
+        }
+      }
+    } finally {
+      sqlAssetsState.set({ busy: false });
+      await this.refresh();
+    }
+    return result;
+  },
+
   /** Delete databases by their OPFS path (the same key used as the Web Lock).
    *  Unknown paths are ignored; a locked file is skipped. Returns the paths
    *  actually deleted and those skipped. */
@@ -162,6 +309,7 @@ export const sqlAssetsActions = {
           return true;
         });
         if (done) {
+          await dropMd5(d.store, d.fileName);
           result.deleted.push(d.path);
           consoleActions.log('info', `SQL: deleted ${d.path}`);
         } else {

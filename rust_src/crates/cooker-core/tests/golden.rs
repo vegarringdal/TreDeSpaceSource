@@ -368,3 +368,115 @@ fn coarse_cook_preserves_item_table() {
         100.0 * coarse_total as f64 / full_total as f64
     );
 }
+
+/// Coarse-from-.tdp (no source file): the rebuilt coarse variant must be a
+/// valid residency-swap partner for the full file — identical item table,
+/// hierarchy section, cell table, draw-range ids and header bounds. Compared
+/// against the coarse-from-GLB cook, which is the reference for all of those.
+#[test]
+fn coarsen_tdp_matches_glb_coarse_structure() {
+    use cad_format::{HierarchySectionHeader, ItemsSectionHeader};
+
+    /// Structural sections of a packed file: per-cg draw-range id arrays, the
+    /// items-section arrays, the hierarchy blob (name pool + entries +
+    /// id→item), and the v9 cell table.
+    fn sections(b: &[u8]) -> (Vec<Vec<u32>>, Vec<u8>, Vec<u8>, Vec<u8>) {
+        let version = u32::from_le_bytes(b[4..8].try_into().unwrap());
+        let cg_start: usize = match version {
+            7 => 216,
+            8 => 240,
+            _ => 256,
+        };
+        let cg_count = u32::from_le_bytes(b[8..12].try_into().unwrap()) as usize;
+        let dr_ids: Vec<Vec<u32>> = (0..cg_count)
+            .map(|i| {
+                let base = cg_start + i * 128;
+                let d = u32::from_le_bytes(b[base + 24..base + 28].try_into().unwrap()) as usize;
+                let off = u64::from_ne_bytes(b[base + 32..base + 40].try_into().unwrap()) as usize;
+                (0..d)
+                    .map(|k| {
+                        u32::from_le_bytes(b[off + k * 4..off + k * 4 + 4].try_into().unwrap())
+                    })
+                    .collect()
+            })
+            .collect();
+
+        let h: ModelFileHeader =
+            bytemuck::pod_read_unaligned(&b[..std::mem::size_of::<ModelFileHeader>()]);
+        let ish: ItemsSectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.items_offset as usize
+                ..h.items_offset as usize + std::mem::size_of::<ItemsSectionHeader>()],
+        );
+        let n = ish.item_count as usize;
+        let cg_off = ish.item_to_color_group_offset as usize;
+        let dr_off = ish.item_to_draw_range_idx_offset as usize;
+        let mut items = b[cg_off..cg_off + n * 2].to_vec();
+        items.extend_from_slice(&b[dr_off..dr_off + n * 4]);
+
+        let hsh: HierarchySectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.hierarchy_offset as usize
+                ..h.hierarchy_offset as usize + std::mem::size_of::<HierarchySectionHeader>()],
+        );
+        let np = hsh.name_pool_offset as usize;
+        let en = hsh.entries_offset as usize;
+        let ii = hsh.id_item_offset as usize;
+        let mut hier = b[np..np + hsh.name_pool_len as usize].to_vec();
+        hier.extend_from_slice(&b[en..en + hsh.entry_count as usize * 16]);
+        hier.extend_from_slice(&b[ii..ii + hsh.id_item_count as usize * 8]);
+
+        let cells = if version >= 9 {
+            let off = u64::from_ne_bytes(b[240..248].try_into().unwrap()) as usize;
+            let count = u32::from_le_bytes(b[248..252].try_into().unwrap()) as usize;
+            b[off..off + count * 32].to_vec()
+        } else {
+            Vec::new()
+        };
+        (dr_ids, items, hier, cells)
+    }
+
+    let Some(glbs) = huldra_glbs() else { return };
+    for (name, glb) in &glbs {
+        let full = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("full cook {name}: {e}"));
+        let glb_coarse = cooker_core::cook(
+            glb,
+            cooker_core::CookOptions {
+                coarsen: Some(cooker_core::CoarsenOptions::default()),
+                ..Default::default()
+            },
+        )
+        .unwrap_or_else(|e| panic!("glb coarse cook {name}: {e}"));
+        let tdp_coarse =
+            cooker_core::coarsen_tdp(&full.bytes, cooker_core::CoarsenOptions::default())
+                .unwrap_or_else(|e| panic!("coarsen_tdp {name}: {e}"));
+
+        // header: same version, bounds/dense bit-exact with the FULL file
+        assert_eq!(tdp_coarse[0..8], full.bytes[0..8], "{name}: magic/version");
+        assert_eq!(tdp_coarse[48..72], full.bytes[48..72], "{name}: bounds");
+        assert_eq!(
+            tdp_coarse[216..240],
+            full.bytes[216..240],
+            "{name}: dense bounds"
+        );
+
+        let (dr_a, items_a, hier_a, cells_a) = sections(&glb_coarse.bytes);
+        let (dr_b, items_b, hier_b, cells_b) = sections(&tdp_coarse);
+        assert_eq!(dr_a, dr_b, "{name}: draw-range id arrays diverge");
+        assert_eq!(items_a, items_b, "{name}: items section diverges");
+        assert_eq!(hier_a, hier_b, "{name}: hierarchy section diverges");
+        assert_eq!(cells_a, cells_b, "{name}: cell table diverges");
+
+        assert!(
+            tdp_coarse.len() < full.bytes.len(),
+            "{name}: tdp coarse ({} B) not smaller than full ({} B)",
+            tdp_coarse.len(),
+            full.bytes.len()
+        );
+        eprintln!(
+            "{name}: full {} B, glb-coarse {} B, tdp-coarse {} B",
+            full.bytes.len(),
+            glb_coarse.bytes.len(),
+            tdp_coarse.len()
+        );
+    }
+}

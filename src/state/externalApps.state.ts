@@ -28,6 +28,10 @@ export interface ExternalApp {
   modal: boolean;
   /** JSON config passed to the page as a stringified `?config=` URL param */
   config: string;
+  /** SESSION-ONLY entry set by an embedding host through the postMessage API
+   *  (`externalApps.set`): never persisted to localStorage and not editable in
+   *  Settings — gone on reload until the host sets it again after app.ready. */
+  hostManaged?: boolean;
 }
 
 interface ExternalAppsState {
@@ -66,7 +70,9 @@ export const externalAppsState = createStore<ExternalAppsState>(load());
 
 externalAppsState.subscribe(() => {
   try {
-    localStorage.setItem(KEY, JSON.stringify(externalAppsState.get()));
+    // host-managed entries are session-only — never persisted
+    const apps = externalAppsState.get().apps.filter((a) => !a.hostManaged);
+    localStorage.setItem(KEY, JSON.stringify({ apps }));
   } catch {
     // storage unavailable — non-fatal
   }
@@ -128,11 +134,43 @@ export const externalAppsActions = {
   remove(id: string) {
     externalAppsState.set((s) => ({ apps: s.apps.filter((a) => a.id !== id) }));
   },
-  /** Remove every configured external app. */
+  /** Remove every configured external app (host-managed entries stay — they
+   *  belong to the embedding host's session, not the user's settings). */
   clearAll() {
-    externalAppsState.set({ apps: [] });
+    externalAppsState.set((s) => ({ apps: s.apps.filter((a) => a.hostManaged) }));
+  },
+
+  /** Declaratively replace the SESSION-ONLY host-managed set (postMessage
+   *  `externalApps.set`): all prior host entries go, the given ones come in.
+   *  User-configured entries are untouched. Returns the created entries. */
+  setHostManaged(apps: Omit<ExternalApp, 'id' | 'hostManaged'>[]): ExternalApp[] {
+    const created = apps.map((a) => ({ ...a, id: newId(), hostManaged: true as const }));
+    externalAppsState.set((s) => ({ apps: [...s.apps.filter((a) => !a.hostManaged), ...created] }));
+    return created;
   },
 };
+
+// -----------------------------------------------------------------------------
+// opener hook — App startup owns the dock manager and registers how to open an
+// app as a panel/modal, so the postMessage handler can honour `openOnStart`
+// -----------------------------------------------------------------------------
+
+let opener: ((app: ExternalApp) => void) | null = null;
+
+export function registerExternalAppOpener(fn: (app: ExternalApp) => void) {
+  opener = fn;
+}
+
+/** Open an app as its panel/modal NOW (used for host-set `openOnStart`
+ *  entries). New-window apps are skipped — window.open without a user gesture
+ *  is popup-blocked. No-op before the dock manager registers the opener. */
+export function openExternalAppNow(app: ExternalApp): boolean {
+  if (!opener || app.newWindow || !app.name.trim() || !app.url.trim()) {
+    return false;
+  }
+  opener(app);
+  return true;
+}
 
 /** The app's URL with its JSON config attached as a `?config=` param (the
  *  value is the config MINIFIED — parse errors fall back to the raw text). */

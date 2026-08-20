@@ -55,6 +55,19 @@ async function importAndReport(
     case 'step':
       await assetsActions.importStep(file, { folder, store, ...behaviour });
       break;
+    case 'tdp': {
+      // already-cooked file: stored as-is (validated as CADM v7–v9 by the
+      // importer, which also rebuilds the coarse variant from these bytes and
+      // records the md5 of the .tdp itself). The extension routes the
+      // importer's cook/store branch, so guarantee it.
+      const name = /\.tdp$/i.test(file.name) ? file.name : `${file.name}.tdp`;
+      await assetsActions.importSources([{ name, bytes: () => file.arrayBuffer() }], {
+        folder,
+        store,
+        ...behaviour,
+      });
+      break;
+    }
     default:
       throw new ApiError('bad-payload', `unknown format ${String(format)}`);
   }
@@ -81,11 +94,11 @@ async function importAndReport(
   return { entries, replaced };
 }
 
-const IMPORT_FORMATS = new Set(['glb-merged', 'glb-standard', 'rvm', 'ifc', 'step']);
+const IMPORT_FORMATS = new Set(['glb-merged', 'glb-standard', 'rvm', 'ifc', 'step', 'tdp']);
 
 /** Last path segment of a URL (query/hash dropped), for the asset's stored name
- *  when a file gives no explicit `fileName`. */
-function fileNameFromUrl(url: string, fallback: string): string {
+ *  when a file gives no explicit `fileName`. Shared with `sql.importUrl`. */
+export function fileNameFromUrl(url: string, fallback: string): string {
   try {
     const seg = new URL(url, location.href).pathname.split('/').filter(Boolean).pop();
     return seg ? decodeURIComponent(seg) : fallback;
@@ -438,5 +451,71 @@ export const assetHandlers: Record<string, ApiHandler> = {
       await viewerActions.removeModelsQuiet(indices);
     }
     return { unloaded: indices.length };
+  },
+
+  /** Declarative load state: make the loaded set EXACTLY `ids` — anything
+   *  loaded but not listed is unloaded, anything listed but not loaded is
+   *  loaded, anything already right is untouched. Scoped to `store` when
+   *  given (assets in other stores are then never considered, in either
+   *  direction). Unloads run before loads so VRAM frees first. */
+  'assets.setLoaded': async ({ p }) => {
+    const ids = strings(p.ids, 'ids');
+    const store = requireStoreOpt(p.store);
+    const want = new Set(ids);
+    const scoped = assetsState.get().assets.filter((a) => !store || a.store === store);
+    const byId = new Map(scoped.map((a) => [a.id, a] as const));
+    const missing = ids.filter((id) => !byId.has(id));
+
+    const toUnload: typeof scoped = [];
+    const toLoad: string[] = [];
+    for (const a of scoped) {
+      const isLoaded = await db.hasModel(a.name, groupOf(a), a.store);
+      if (want.has(a.id) && !isLoaded) {
+        toLoad.push(a.id);
+      } else if (!want.has(a.id) && isLoaded) {
+        toUnload.push(a);
+      }
+    }
+
+    if (toUnload.length > 0) {
+      const indices = await db.indicesForPaths(
+        toUnload.map((a) => ({ name: a.name, group: groupOf(a), store: a.store })),
+      );
+      if (indices.length > 0) {
+        await viewerActions.removeModelsQuiet(indices);
+      }
+    }
+
+    let loaded = 0;
+    for (const id of toLoad) {
+      if (await loadAssetIntoViewer(id)) {
+        loaded++;
+      }
+    }
+    if (loaded > 0 || toUnload.length > 0) {
+      viewerActions.bumpModelsVersion();
+    }
+    // fit (opt-in — a background sync should not move the camera) frames the
+    // union of the whole DESIRED set, not just what this call loaded
+    if (p.fit === true) {
+      const min = [Infinity, Infinity, Infinity];
+      const max = [-Infinity, -Infinity, -Infinity];
+      let any = false;
+      for (const id of ids) {
+        const b = byId.get(id)?.bounds;
+        const box = b?.dense ?? b?.full;
+        if (box) {
+          any = true;
+          for (let k = 0; k < 3; k++) {
+            min[k] = Math.min(min[k], box[k]);
+            max[k] = Math.max(max[k], box[k + 3]);
+          }
+        }
+      }
+      if (any) {
+        getRenderer()?.fitBounds(min, max);
+      }
+    }
+    return { loaded, unloaded: toUnload.length, missing };
   },
 };

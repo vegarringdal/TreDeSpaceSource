@@ -248,6 +248,13 @@ import succeeds, so a failed import never removes anything. Responds when the
 import (which may be long — RVM/IFC conversion) finishes. Only one import runs
 at a time (`busy` error otherwise, same as the UI's import lock).
 
+`format: 'tdp'` is an already-cooked TreDeSpace file (a viewer export, or a
+server-hosted model): it is stored as-is — no conversion — and the viewer
+rebuilds its coarse (VRAM-budget) variant from the same bytes during the
+import. The recorded `md5` is the hash of the `.tdp` bytes themselves, so a
+host syncing hosted `.tdp` files can compare manifest hashes directly against
+`assets.list`.
+
 `bytes` is the file's `ArrayBuffer` (transferred, so unusable in the host after)
 or a `Blob`/`File` (passed by reference); the SDK lists it as a transferable and
 chunk-streams Blobs ≥ 500 MB for you.
@@ -255,7 +262,7 @@ chunk-streams Blobs ≥ 500 MB for you.
 ```js
 payload:  { fileName: 'pump.glb', folder: 'external', store: 'project-x',
             replace: true,                // drop a prior same store/folder/name asset
-            format: 'glb-standard',        // 'glb-merged' | 'glb-standard' | 'rvm' | 'ifc' | 'step'
+            format: 'glb-standard',        // 'glb-merged' | 'glb-standard' | 'rvm' | 'ifc' | 'step' | 'tdp'
             bytes,                         // ArrayBuffer | Blob (rides as a transferable)
             options: { normals: true, edges: true } }  // per-format options
 response: { entries: [{ id: '...', store: 'project-x', name: 'pump', md5: '…',
@@ -285,15 +292,18 @@ payload:  { files: [
               { url: 'https://cdn.example.com/pump.rvm', format: 'rvm', folder: 'plant' },
               { url: 'https://cdn.example.com/frame.ifc', format: 'ifc' },
               { url: 'https://cdn.example.com/valve.glb', format: 'glb-standard',
-                options: { normals: true, edges: true } } ],
+                options: { normals: true, edges: true } },
+              { url: 'https://cdn.example.com/site.tdp', format: 'tdp' } ],  // pre-cooked, stored as-is
             concurrent: 3, store: 'project-x', replace: true }
-response: { imported: 2, failed: 1, results: [
+response: { imported: 3, failed: 1, results: [
               { url: 'https://cdn.example.com/pump.rvm', ok: true, replaced: 0,
                 entries: [{ id: '...', store: 'project-x', name: 'pump', kind: 'merged' }] },
               { url: 'https://cdn.example.com/frame.ifc', ok: true, replaced: 1,
                 entries: [{ id: '...', store: 'project-x', name: 'frame', kind: 'merged' }] },
               { url: 'https://cdn.example.com/valve.glb', ok: false,
-                error: 'download failed: HTTP 404 Not Found' } ] }
+                error: 'download failed: HTTP 404 Not Found' },
+              { url: 'https://cdn.example.com/site.tdp', ok: true, replaced: 0,
+                entries: [{ id: '...', store: 'project-x', name: 'site', kind: 'merged' }] } ] }
 ```
 
 ### assets.uploadBegin / assets.uploadChunk / assets.uploadAbort / assets.uploadFinish
@@ -354,6 +364,23 @@ payload:  { ids: ['mdl8f2-k3j9x'], fit: true, store: 'project-x' }  // fit = fra
 response: { loaded: 1 }
 ```
 
+### assets.setLoaded
+Declarative load state: after this call the loaded set is EXACTLY `ids` —
+anything loaded but not listed is unloaded, anything listed but not yet loaded
+is loaded, anything already right is untouched. Idempotent, so a sync can call
+it every cycle with its desired set (typically the ids picked from
+`assets.list`). An empty `ids` unloads everything. `store` (optional, must be
+known) scopes BOTH directions — assets in other stores are never touched.
+Unloads run before loads so VRAM frees first. `fit` is opt-in here (default
+false — a background sync should not move the camera); when true it frames the
+union of the whole desired set, not just what this call loaded. `missing`
+lists requested ids that are not in the asset manager — import those first.
+
+```js
+payload:  { ids: ['mdl8f2-k3j9x', 'mdl3aa-p0q2z'], store: 'project-x', fit: false }
+response: { loaded: 1, unloaded: 2, missing: [] }
+```
+
 ### assets.remove
 Delete persisted assets from local storage (OPFS) by id. A copy already loaded
 into the viewer stays on screen — import → load → remove leaves a session-only
@@ -364,17 +391,116 @@ payload:  { ids: ['mdl8f2-k3j9x'], store: 'project-x' }
 response: { removed: 1 }
 ```
 
+### viewpoints.get
+The whole viewpoint set as ONE opaque JSON blob — the exact shape the panel's
+Save button writes to `viewpoints.json` ({ version, viewpoints }). Persist it
+host-side (per user, per project…) and restore it later with `viewpoints.set`.
+Viewpoints carry model-relative content (fullnames, positions, color rules),
+so a blob belongs with the models it was made against.
+
+```js
+payload:  { }
+response: { config: { version: 1, viewpoints: [ /* full viewpoint records */ ] } }
+```
+
+### viewpoints.set
+REPLACE the current viewpoint set from a config blob — from `viewpoints.get`,
+a `viewpoints.bookmark` event, or a saved viewpoints JSON file (same shape,
+same tolerant parsing: missing fields get defaults, ids are regenerated). An
+active viewpoint's scene mute is undone first, exactly like the panel's Load.
+`showViewer: true` then docks the Viewpoint Viewer panel on the RIGHT (the
+side column is recreated if pruned) and makes it active — load-and-present in
+one call.
+
+```js
+payload:  { config: { version: 1, viewpoints: [ … ] }, showViewer: true }
+response: { loaded: 3 }
+```
+
+### viewpoints.setUrl
+Same as `viewpoints.set`, but the VIEWER downloads the config from a URL —
+a hosted `viewpoints.json` (fetched under the viewer origin's CORS, like the
+other *Url commands). `showViewer` works identically. Fails with a download
+error when the fetch fails, `bad-payload` when the file isn't a viewpoints
+config.
+
+```js
+payload:  { url: 'https://cdn.example.com/plant-7/viewpoints.json', showViewer: true }
+response: { loaded: 3 }
+```
+
+### viewpoints.setBookmarkButton
+Show (or remove, with `button: null`) a SESSION-ONLY bookmark button in the
+Viewpoints panel, between Add viewpoint and Save. When the user clicks it the
+viewer fires the unsolicited `viewpoints.bookmark` event (see Events) with the
+CURRENT config attached — the host persists it wherever bookmarks live, no
+follow-up `viewpoints.get` needed. Like host-set external apps, the button is
+never persisted: a reload drops it until the host sets it again after
+`app.ready`.
+
+```js
+payload:  { button: { label: 'Bookmark', tooltip: 'Save this view to the project' } }
+response: { shown: true }
+
+payload:  { button: null }        // remove the button
+response: { shown: false }
+```
+
+### externalApps.set
+Declaratively set the SESSION-ONLY host-managed external apps: replaces any
+prior host-set entries with `apps` — user-configured Settings entries are
+untouched, and `apps: []` clears the host set. Entries take the same fields as
+Settings → External (`name` + `url` required; `section`, `size`, `tooltip`,
+`multiple`, `newWindow`, `modal`, `openOnStart`, `config` optional — `config`
+may be an object, stringified onto the page's `?config=` param). They appear
+in the External ribbon and their origins get postMessage API access for this
+session. **Nothing is persisted**: a reload drops them until the host calls
+this again after `app.ready`, so a viewer opened without its host simply has
+none — this is how a hosting page configures an out-of-the-box viewer for its
+context without touching the user's settings. `openOnStart: true` opens that
+entry immediately (panels/modals only; new-window entries are never
+auto-opened — window.open without a user gesture is popup-blocked).
+
+```js
+payload:  { apps: [
+              { name: 'Projects', url: 'https://portal.example.com/picker',
+                modal: true, openOnStart: true, config: { project: 'plant-7' } },
+              { name: 'Docs', url: 'https://portal.example.com/docs', section: 'Portal' } ] }
+response: { apps: [ { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/picker' },
+                    { id: 'm3k9x-c3d4', name: 'Docs', url: 'https://…/docs' } ],
+            opened: 1 }
+```
+
+### externalApps.list
+Every configured external app — user-configured (Settings → External) and
+host-set session entries alike, told apart by `hostManaged`.
+
+```js
+payload:  { }
+response: { apps: [
+  { id: 'k2j4…', name: 'Reports', url: 'https://…', section: '', size: 'medium',
+    multiple: false, newWindow: false, modal: false, openOnStart: false,
+    hostManaged: false },
+  { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/picker', section: '',
+    size: 'medium', multiple: false, newWindow: false, modal: true,
+    openOnStart: true, hostManaged: true } ] }
+```
+
 ### sql.list
 List the SQLite databases in OPFS (`sql_assets/<store>/<file>`). Stores are the
 SAME registry as model assets (call `stores.list` first). `store` (optional,
 must be a known name) lists just that store. Each db's `path` is what you pass
 as `mainDb` to `sql.query`, and what an `ATTACH DATABASE '…'` literal refers to.
+`md5` is the hash of the source bytes AS DELIVERED at import time (recorded
+before WAL normalization, never updated by later in-app edits) — hash your
+hosted file and compare to decide whether to re-import. It is absent for
+databases imported before md5 recording existed or created in-app.
 
 ```js
 payload:  { store: 'main' }   // or {} for all stores
 response: { dbs: [
   { store: 'main', fileName: 'meta.db', path: 'sql_assets/main/meta.db',
-    size: 61440, modified: 1721600000000 },
+    size: 61440, modified: 1721600000000, md5: '9e107d9d372bb6826bd81d3542a419d6' },
 ] }
 ```
 
@@ -384,7 +510,9 @@ Blob by reference). `store` (optional, default 'main', known name). `replace:
 true` overwrites an existing same-name db; `false` (default) skips it. WAL
 databases are normalised to rollback journalling on the way in — the OPFS VFS
 is shm-less, so a WAL file could otherwise only be read in exclusive mode. A
-same-name skip is a normal result, NOT an error.
+same-name skip is a normal result, NOT an error. The md5 of the bytes as
+delivered (hashed BEFORE the WAL normalization) is recorded and returned by
+`sql.list`.
 
 ```js
 iframe.contentWindow.postMessage({
@@ -396,6 +524,30 @@ iframe.contentWindow.postMessage({
 response: { imported: ['sql_assets/main/meta.db'], skipped: [], replaced: 1 }
 ```
 
+### sql.importUrl
+Batch-import `.db`/`.sqlite` files the **viewer downloads by URL** — nothing
+rides postMessage, and each download is STREAMED straight into OPFS (constant
+memory), so multi-GB databases import without ever being held in RAM. URLs are
+fetched under the **viewer** origin's CORS, not the host's. `fileName`
+defaults to the URL's last path segment; `store` (default 'main', must be
+known) and `replace` apply to every file — `replace: false` (default) skips an
+existing name WITHOUT downloading it. Files run serially; a download or write
+failure lands in `failed` and never aborts the rest. Each imported file's md5
+(of the downloaded bytes, hashed before WAL normalization) is recorded and
+returned by `sql.list` — hash your hosted file and compare first to skip
+unchanged imports entirely.
+
+```js
+payload:  { files: [
+              { url: 'https://cdn.example.com/meta.db' },
+              { url: 'https://cdn.example.com/big.sqlite', fileName: 'tags.db' } ],
+            store: 'project-x', replace: true }
+response: { imported: ['sql_assets/project-x/meta.db'],
+            skipped: ['tags.db'],          // locked by another tab (or existed, when replace is false)
+            replaced: 1,
+            failed: [] }                    // [{ url, error }] for download failures
+```
+
 ### sql.delete
 Delete databases by their OPFS `path` (from `sql.list`). A path in use by a
 running query or another tab is skipped, never waited on. Unknown paths are
@@ -404,6 +556,25 @@ ignored.
 ```js
 payload:  { paths: ['sql_assets/main/meta.db'] }
 response: { deleted: ['sql_assets/main/meta.db'], skipped: [] }
+```
+
+### sql.check
+Pre-flight a SQL script WITHOUT running it: report every database it
+references — the optional `mainDb` plus each `ATTACH DATABASE '…'` string
+literal (an exact scan, comment- and literal-aware; same parser `sql.query`
+locks with), in appearance order, deduped. Each entry says whether the file
+exists; present entries carry `size`, `modified` and the import-time `md5`
+(hash of the bytes as delivered — see `sql.list`), so a host can compare
+against its manifest and `sql.importUrl` only the missing or outdated files
+before calling `sql.query`.
+
+```js
+payload:  { sql: "ATTACH DATABASE 'sql_assets/main/tags.db' AS tags; SELECT …",
+            mainDb: 'sql_assets/main/meta.db' }
+response: { dbs: [
+  { path: 'sql_assets/main/meta.db', exists: true,
+    size: 61440, modified: 1721600000000, md5: '9e107d9d372bb6826bd81d3542a419d6' },
+  { path: 'sql_assets/main/tags.db', exists: false } ] }
 ```
 
 ### sql.query
@@ -643,6 +814,18 @@ to e.g. the selected project.
 
 SDK: `client.onInstanceChanged((e) => …)`.
 
+### viewpoints.bookmark
+The user clicked the host-configured bookmark button in the Viewpoints panel
+(`viewpoints.setBookmarkButton`). The payload carries the button's `label`
+and the CURRENT viewpoints config blob — persist it host-side; hand it back
+via `viewpoints.set` to restore. SDK: `onViewpointsBookmark(handler)`.
+
+```js
+{ tredespace: 1, id: null, type: 'viewpoints.bookmark',
+  payload: { label: 'Bookmark',
+             config: { version: 1, viewpoints: [ … ] } } }
+```
+
 ## External app hosting (Settings → External)
 
 Each configured app has: section/size/tooltip for its ribbon button,
@@ -653,6 +836,12 @@ always layer above it), **Open on start** (e.g. a project selector), and a
 **config JSON** field passed to the page as a stringified `?config=` URL
 parameter. Multi-instance panels left open in the layout are restored on
 reload as long as their app entry still exists.
+
+A hosting page can additionally supply SESSION-ONLY entries through
+`externalApps.set` — same fields, shown in the ribbon alongside the user's,
+but never persisted and not editable in Settings (the tab notes how many are
+host-set). The intended flow: embed the viewer → wait for `app.ready` → set
+the apps for the current context.
 
 The config JSON doubles as the modal's initial-size source — `width` and
 `height` accept px or % of the viewport (`{"width": "600px", "height": "60%"}`;

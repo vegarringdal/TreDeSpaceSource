@@ -23,6 +23,9 @@ export function useDemoEvents(
       const offs = [
         cl.onTreeSelect((e) => line('out', `⚡ tree.select ${JSON.stringify(e, null, 2)}`)),
         cl.onInstanceChanged((e) => line('out', `⚡ instance.changed ${JSON.stringify(e.data)}`)),
+        cl.onViewpointsBookmark((e) =>
+          line('out', `⚡ viewpoints.bookmark "${e.label}" — ${e.config.viewpoints.length} viewpoint(s) attached`),
+        ),
       ];
       unsubRef.current = () => {
         for (const off of offs) {

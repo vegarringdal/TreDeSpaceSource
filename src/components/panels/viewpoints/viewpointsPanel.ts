@@ -11,6 +11,13 @@ const viewer = makeCallbackSlot();
 export const registerViewpointViewerOpener = viewer.register;
 export const openViewpointViewerPanel = viewer.call;
 
+// forced-right variant for the postMessage API's `showViewer` option: a host
+// that just loaded viewpoints wants the presentation panel docked RIGHT and
+// active, regardless of the panel's left home or the current layout
+const viewerRight = makeCallbackSlot();
+export const registerViewpointViewerRightOpener = viewerRight.register;
+export const openViewpointViewerPanelRight = viewerRight.call;
+
 const labels = makeCallbackSlot();
 export const registerLabelsViewpointOpener = labels.register;
 export const openLabelsViewpointPanel = labels.call;

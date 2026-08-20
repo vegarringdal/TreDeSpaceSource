@@ -9,7 +9,11 @@ import { registerMeasurementsOpener } from './components/panels/measurements/mea
 import { registerModelAssetsOpener } from './components/panels/model-assets/modelAssetsPanel';
 import { registerMultiColorOpener } from './components/panels/multi-color/multiColorPanel';
 import { closeExternalModal, openExternalModal } from './components/panels/ribbon-external/externalModals.state';
-import { externalPanelId, registerExternalPanels } from './components/panels/ribbon-external/externalPanels';
+import {
+  externalPanelId,
+  makeExternalPanel,
+  registerExternalPanels,
+} from './components/panels/ribbon-external/externalPanels';
 import { registerKioskToggle, registerSoloToggle } from './components/panels/ribbon-home/soloPanels';
 import { registerSqlAssetsOpener } from './components/panels/sql-assets/sqlAssetsPanel';
 import { registerSqlDetailOpener } from './components/panels/sql-detail/sqlDetailPanel';
@@ -22,6 +26,7 @@ import {
   registerMultiColorViewpointOpener,
   registerViewpointsOpener,
   registerViewpointViewerOpener,
+  registerViewpointViewerRightOpener,
 } from './components/panels/viewpoints/viewpointsPanel';
 import { viewportOnly } from './lib/appLayout';
 import {
@@ -31,7 +36,7 @@ import {
   registerKiosk,
   registerPanelControl,
 } from './lib/messageApi';
-import { externalAppsState } from './state/externalApps.state';
+import { externalAppsState, externalAppUrl, registerExternalAppOpener } from './state/externalApps.state';
 import { findTopTabs, layoutsActions, layoutsState, noteActiveRibbon, registerLayoutDock } from './state/layouts.state';
 import { initSettingsSync } from './state/settingsSync';
 
@@ -45,7 +50,10 @@ function printWelcome() {
   welcomed = true;
   consoleActions.log('info', 'Welcome to TreDeSpace Web Viewer');
   consoleActions.log('info', 'Application made by Vegar Ringdal');
-  consoleActions.log('info', `© ${new Date().getFullYear()} Vegar Ringdal — TreDeSpace License (Elastic License 2.0 + attribution and public-improvement terms).`);
+  consoleActions.log(
+    'info',
+    `© ${new Date().getFullYear()} Vegar Ringdal — TreDeSpace License (Elastic License 2.0 + attribution and public-improvement terms).`,
+  );
   consoleActions.log('info', `Version: ${__APP_VERSION__}`);
 }
 
@@ -143,6 +151,17 @@ export function useAppStartup(manager: DockManager): void {
         manager.openPanel(externalPanelId(a.id));
       }
     }
+    // host-set external apps (postMessage externalApps.set) arrive AFTER boot,
+    // so their panel defs don't exist yet — register on open, like the ribbon
+    registerExternalAppOpener((a) => {
+      if (a.modal) {
+        openExternalModal(a);
+        return;
+      }
+      const id = externalPanelId(a.id);
+      manager.registerPanel(makeExternalPanel(id, a.name, externalAppUrl(a)));
+      manager.openPanel(id);
+    });
     markApiReady(__APP_VERSION__);
     // named layout slots (Layout ribbon, F1-F12) drive the manager through these
     registerLayoutDock({
@@ -171,6 +190,10 @@ export function useAppStartup(manager: DockManager): void {
     registerExportOpener(() => manager.openPanel('export'));
     registerViewpointsOpener(() => manager.openPanel('viewpoints'));
     registerViewpointViewerOpener(() => manager.openPanel('viewpointViewer'));
+    registerViewpointViewerRightOpener(() => {
+      manager.openPanel('viewpointViewer', 'right');
+      manager.focusPanel('viewpointViewer');
+    });
     registerLabelsViewpointOpener(() => manager.openPanel('labelsViewpoint'));
     registerMeasurementsViewpointOpener(() => manager.openPanel('measurementsViewpoint'));
     registerMultiColorViewpointOpener(() => manager.openPanel('multiColorViewpoint'));

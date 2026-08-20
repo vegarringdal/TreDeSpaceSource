@@ -23,7 +23,7 @@ export function splitLines(value: string): string[] {
     .filter(Boolean);
 }
 
-export const IMPORT_FORMATS: readonly ImportFormat[] = ['glb-standard', 'glb-merged', 'rvm', 'ifc', 'step'];
+export const IMPORT_FORMATS: readonly ImportFormat[] = ['glb-standard', 'glb-merged', 'rvm', 'ifc', 'step', 'tdp'];
 
 export const IMPORT_FORMAT_OPTIONS: SelectOption[] = IMPORT_FORMATS.map((f) => ({ value: f, label: f }));
 

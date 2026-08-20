@@ -11,6 +11,7 @@
 import { assetsActions } from '../../state/assets/assets.actions';
 import { storesActions } from '../../state/stores/stores.actions';
 import { assetHandlers } from './handlersAssets';
+import { externalAppsHandlers } from './handlersExternalApps';
 import { sceneHandlers } from './handlersScene';
 import { sqlHandlers } from './handlersSql';
 import { uiHandlers } from './handlersUi';
@@ -27,6 +28,7 @@ const handlers: Record<string, ApiHandler> = {
   ...assetHandlers,
   ...uiHandlers,
   ...sqlHandlers,
+  ...externalAppsHandlers,
 };
 
 let installed = false;

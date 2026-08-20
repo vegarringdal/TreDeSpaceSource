@@ -6,7 +6,11 @@ import { ExternalAppEditor } from './ExternalAppEditor';
 
 /** Settings → External tab: external app entries + postMessage API security. */
 export function ExternalTab() {
-  const externalApps = externalAppsState.use().apps;
+  // host-managed entries (postMessage externalApps.set) are session-only and
+  // belong to the embedding page — not editable here
+  const allApps = externalAppsState.use().apps;
+  const externalApps = allApps.filter((a) => !a.hostManaged);
+  const hostManagedCount = allApps.length - externalApps.length;
 
   return (
     <>
@@ -60,6 +64,12 @@ export function ExternalTab() {
         <div className="text-slate-500 text-xs">
           New entries appear in the External ribbon once they have a name and URL. Reload to register restored panels
           after URL changes.
+          {hostManagedCount > 0 && (
+            <>
+              {' '}
+              {hostManagedCount} additional app(s) are set by the embedding page for this session (not editable here).
+            </>
+          )}
         </div>
       </Collapsible>
       <ApiSecuritySection />

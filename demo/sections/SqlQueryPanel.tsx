@@ -48,6 +48,14 @@ export function SqlQueryPanel({ dbs, mainDb, onMainDbChange }: SqlQueryPanelProp
       <Row>
         <Select value={lockmode} onChange={handleLockChange} options={LOCK_OPTIONS} className="min-w-40" />
         <Button onClick={handleRun}>sql.query</Button>
+        <Button
+          tooltip="Pre-flight WITHOUT running: which dbs does this script reference (mainDb + ATTACH literals), do they exist, and their import-time md5"
+          onClick={() =>
+            void run('sql.check', { sql, mainDb }, () => c().sqlCheck({ sql, ...(mainDb ? { mainDb } : {}) }))
+          }
+        >
+          sql.check
+        </Button>
       </Row>
     </>
   );

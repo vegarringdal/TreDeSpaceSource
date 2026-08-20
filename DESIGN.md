@@ -159,7 +159,9 @@ own. Key facts, kept here so the port history isn't lost:
   wasm entry point is `cook(glb, compute_normals, coarsen)`: `compute_normals`
   is the import option (keep/derive vertex normals → smooth shading, tracked as
   `hasNormals` per asset) and `coarsen` writes the extra `<id>.coarse.tdp`
-  variant for the VRAM budget.
+  variant for the VRAM budget. A second entry point `coarsenTdp(tdp)` rebuilds
+  that coarse variant from an already-cooked `.tdp` when no sibling exists
+  (see "Coarse from `.tdp` alone" under the VRAM budget section).
 - **RVM → GLB import** (`src/lib/rvm2glb/rvm2glbWorker.ts`, `rvmWriter.ts`, wasm
   `rvm2glb`): import raw RVM in the browser (streaming to OPFS, per-zone
   split) → merged GLB → cook. Native has no equivalent — it consumes GLB from
@@ -419,6 +421,17 @@ headroom.
   0.005×model-diag). Same item table as the full cook — slot, `item_base`,
   selection, hide state and colors survive swaps untouched (the revive path
   rebuilds the renderer slot in place and re-pushes item states).
+- **Coarse from `.tdp` alone** (`cooker-core/src/tdp.rs`, wasm
+  `coarsenTdp(tdp)`): a bare `.tdp` (viewer export, hosted file, panel import
+  without its sibling) gets its coarse variant rebuilt at import time —
+  geometry is dequantized from the meshlet streams, re-welded on a 1 mm grid,
+  then run through the same coarsen→meshletize→pack pipeline; the item table,
+  hierarchy, cell table and header bounds are copied from the input verbatim,
+  so the output is a valid swap partner by construction. This makes the full
+  `.tdp` the ONLY file that ever needs to travel (its md5 is the sync key;
+  `.coarse.tdp` is a locally derived cache), and coarse settings can change
+  without a format bump. Structure parity is enforced by
+  `coarsen_tdp_matches_glb_coarse_structure` in cooker-core's golden test.
 - **Residency manager** (`src/state/viewer/residency.ts`): main-thread
   bookkeeping + side effects; one swap in flight; per-zone visible-bounds /
   nearest-visible-item tracking so hidden items don't inflate priorities.

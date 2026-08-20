@@ -12,6 +12,9 @@ import {
 import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonClippingPlaneState } from '../../components/panels/ribbon-clipping-plane/ribbonClippingPlane.state';
 import { downloadText } from '../../lib/download';
+// transport directly (not the messageApi index) — the index imports the
+// handlers, which import this module: going through it would be a cycle
+import { emitApiEvent } from '../../lib/messageApi/transport';
 import { clipShapesActions } from './clipShapes.actions';
 import { clipShapesState } from './clipShapes.state';
 import { db } from './db';
@@ -445,59 +448,89 @@ export const viewpointsActions = {
 
   /** Save every viewpoint to a JSON file. */
   saveToFile() {
-    const { list } = viewpointsState.get();
-    downloadText('viewpoints.json', JSON.stringify({ version: 1, viewpoints: list }, null, 2));
+    downloadText('viewpoints.json', JSON.stringify(viewpointsActions.configJson(), null, 2));
+  },
+
+  /** The whole viewpoint set as one JSON-safe blob — the SAME shape the Save
+   *  button writes to file, and what `loadFromText`/`replaceAll` accept. */
+  configJson(): { version: number; viewpoints: Viewpoint[] } {
+    return { version: 1, viewpoints: viewpointsState.get().list };
   },
 
   /** Load viewpoints from a JSON file — REPLACES the current set. */
   loadFromText(text: string) {
     try {
-      const data = JSON.parse(text) as { viewpoints?: Partial<Viewpoint>[] };
-      if (!Array.isArray(data.viewpoints)) {
-        throw new Error('no viewpoints found in the file');
-      }
-      const s = viewpointsState.get();
-      if (s.liveSide === 'viewpoint') {
-        viewpointsActions.unmuteSceneNow();
-      }
-      const list: Viewpoint[] = data.viewpoints.map((v, i) => ({
-        id: uid() + i,
-        name: v.name ?? `Viewpoint ${i + 1}`,
-        description: v.description ?? '',
-        camera: {
-          target: v.camera?.target ?? [0, 0, 0],
-          azimuth: v.camera?.azimuth ?? 0.6,
-          elevation: v.camera?.elevation ?? 0.5,
-          orbitDistance: v.camera?.orbitDistance ?? 10,
-          orthographic: v.camera?.orthographic ?? false,
-          ...(typeof v.camera?.sketch === 'boolean' ? { sketch: v.camera.sketch } : {}),
-        },
-        clipBox: {
-          enabled: v.clipBox?.enabled ?? false,
-          boxOn: v.clipBox?.boxOn ?? true,
-          center: v.clipBox?.center ?? [0, 0, 0],
-          size: v.clipBox?.size ?? [10, 10, 10],
-          rotation: v.clipBox?.rotation ?? [0, 0, 0, 1],
-          inverted: v.clipBox?.inverted ?? false,
-        },
-        clipPlanes: v.clipPlanes,
-        clipShapes: Array.isArray(v.clipShapes) ? v.clipShapes : [],
-        labels: Array.isArray(v.labels) ? v.labels : [],
-        measurements: Array.isArray(v.measurements) ? v.measurements : [],
-        colorRules: {
-          mode: v.colorRules?.mode === 'append' ? 'append' : 'reset',
-          // untouched default copies from older files collapse to "no rules"
-          rules: (() => {
-            const rules = normalizeRules(v.colorRules?.rules);
-            return isPristineRuleSet(rules) ? [] : rules;
-          })(),
-        },
-        fullnames: Array.isArray(v.fullnames) ? v.fullnames.filter((n): n is string => typeof n === 'string') : [],
-      }));
-      viewpointsState.set({ list, activeId: null, selectedId: list[0]?.id ?? null });
-      consoleActions.log('info', `Viewpoints: loaded ${list.length} viewpoint(s) from file`);
+      const n = viewpointsActions.replaceAll(JSON.parse(text));
+      consoleActions.log('info', `Viewpoints: loaded ${n} viewpoint(s) from file`);
     } catch (e) {
       dialogs.error(`Could not load the viewpoints file: ${e}`, 'Viewpoints');
     }
+  },
+
+  /** Replace the whole viewpoint set from a parsed config blob (a saved file's
+   *  contents / `viewpoints.set` payload). Throws on malformed data — callers
+   *  surface the error their own way (dialog vs API error). Returns how many
+   *  viewpoints were loaded. */
+  replaceAll(parsed: unknown): number {
+    const data = (parsed ?? {}) as { viewpoints?: Partial<Viewpoint>[] };
+    if (!Array.isArray(data.viewpoints)) {
+      throw new Error('no viewpoints found in the config');
+    }
+    const s = viewpointsState.get();
+    if (s.liveSide === 'viewpoint') {
+      viewpointsActions.unmuteSceneNow();
+    }
+    const list: Viewpoint[] = data.viewpoints.map((v, i) => ({
+      id: uid() + i,
+      name: v.name ?? `Viewpoint ${i + 1}`,
+      description: v.description ?? '',
+      camera: {
+        target: v.camera?.target ?? [0, 0, 0],
+        azimuth: v.camera?.azimuth ?? 0.6,
+        elevation: v.camera?.elevation ?? 0.5,
+        orbitDistance: v.camera?.orbitDistance ?? 10,
+        orthographic: v.camera?.orthographic ?? false,
+        ...(typeof v.camera?.sketch === 'boolean' ? { sketch: v.camera.sketch } : {}),
+      },
+      clipBox: {
+        enabled: v.clipBox?.enabled ?? false,
+        boxOn: v.clipBox?.boxOn ?? true,
+        center: v.clipBox?.center ?? [0, 0, 0],
+        size: v.clipBox?.size ?? [10, 10, 10],
+        rotation: v.clipBox?.rotation ?? [0, 0, 0, 1],
+        inverted: v.clipBox?.inverted ?? false,
+      },
+      clipPlanes: v.clipPlanes,
+      clipShapes: Array.isArray(v.clipShapes) ? v.clipShapes : [],
+      labels: Array.isArray(v.labels) ? v.labels : [],
+      measurements: Array.isArray(v.measurements) ? v.measurements : [],
+      colorRules: {
+        mode: v.colorRules?.mode === 'append' ? 'append' : 'reset',
+        // untouched default copies from older files collapse to "no rules"
+        rules: (() => {
+          const rules = normalizeRules(v.colorRules?.rules);
+          return isPristineRuleSet(rules) ? [] : rules;
+        })(),
+      },
+      fullnames: Array.isArray(v.fullnames) ? v.fullnames.filter((n): n is string => typeof n === 'string') : [],
+    }));
+    viewpointsState.set({ list, activeId: null, selectedId: list[0]?.id ?? null });
+    return list.length;
+  },
+
+  /** Show/replace or remove (null) the SESSION-ONLY host bookmark button. */
+  setBookmarkButton(button: { label: string; tooltip: string } | null) {
+    viewpointsState.set({ bookmarkButton: button });
+  },
+
+  /** The host bookmark button was clicked: notify the embedding host with the
+   *  CURRENT config attached, so it can persist the bookmark without a
+   *  follow-up `viewpoints.get` (and without racing later edits). */
+  bookmarkClicked() {
+    const button = viewpointsState.get().bookmarkButton;
+    if (!button) {
+      return;
+    }
+    emitApiEvent('viewpoints.bookmark', { label: button.label, config: viewpointsActions.configJson() });
   },
 };

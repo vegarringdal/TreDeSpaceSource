@@ -237,7 +237,10 @@ export class DockManager {
     return this.titleOverrides.get(panelId) ?? this.defs.get(panelId)?.title ?? panelId;
   }
 
-  /** Open (or focus) a panel. Docks into `targetNodeId`, else the first unlocked tabs node. */
+  /** Open (or focus) a panel. Docks into `targetNodeId`, else the first
+   *  unlocked tabs node. A `targetNodeId` of `'left'`/`'right'`/`'bottom'` is
+   *  recreated when that side column was pruned, so callers can force a side
+   *  regardless of the current layout. */
   openPanel(panelId: string, targetNodeId?: string) {
     if (!this.defs.has(panelId)) {
       throw new Error(`dockable: unknown panel "${panelId}"`);
@@ -249,7 +252,7 @@ export class DockManager {
     const home = this.homeOf(panelId);
     const remembered = this.lastLocation.get(panelId);
     const softHome = this.defs.get(panelId)?.home;
-    const t1 = targetNodeId;
+    const t1 = targetNodeId ? (this.ensureHomeNode(targetNodeId) ?? undefined) : undefined;
     const t2 = remembered && this.findNodeAnywhere(remembered) ? remembered : undefined;
     // a missing soft-home side node ('right'/'left'/'bottom') is RECREATED so a
     // right-home panel never lands in the left column just because every right

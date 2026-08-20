@@ -864,6 +864,15 @@ export const HOTKEYS: HotkeyDef[] = [
     },
   },
   {
+    id: 'viewpoints.bookmark',
+    category: 'View',
+    label: 'Viewpoints: host bookmark',
+    defaultKeys: 'ALT + 1207',
+    description:
+      'Send the current viewpoints to the hosting page as a bookmark (button only visible when a host configured it)',
+    run: () => viewpointsActions.bookmarkClicked(),
+  },
+  {
     id: 'viewpoints.save',
     category: 'View',
     label: 'Viewpoints: save file',

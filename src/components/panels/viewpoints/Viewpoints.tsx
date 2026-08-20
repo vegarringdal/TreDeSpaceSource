@@ -1,6 +1,6 @@
 // Viewpoints panel: capture, edit and activate named scene viewpoints
 // (camera + clipping + labels + measurements + color rules + selection).
-import { IconCameraPlus, IconDownload, IconUpload } from '@tabler/icons-react';
+import { IconBookmark, IconCameraPlus, IconDownload, IconUpload } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
 import { Button, InfoBox, readFileText, useFilePicker } from '@treDeSpaceUI/widgets';
 import { viewpointsActions as act } from '../../../state/viewer/viewpoints.actions';
@@ -24,6 +24,16 @@ export function Viewpoints() {
         >
           Add viewpoint
         </Button>
+        {s.bookmarkButton && (
+          <Button
+            icon={<IconBookmark size={14} />}
+            tooltip={s.bookmarkButton.tooltip || 'Send the current viewpoints to the hosting page as a bookmark'}
+            shortcut="viewpoints.bookmark"
+            onClick={() => act.bookmarkClicked()}
+          >
+            {s.bookmarkButton.label}
+          </Button>
+        )}
         <Button
           icon={<IconDownload size={14} />}
           tooltip="Save every viewpoint to a JSON file"

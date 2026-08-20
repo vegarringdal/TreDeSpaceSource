@@ -1,4 +1,4 @@
-import { Button, Checkbox, Select, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Select, TextInput, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { DemoSection } from '../components/DemoSection';
 import { Hint } from '../components/Hint';
@@ -14,6 +14,7 @@ export function SqlSection() {
   const [file, setFile] = useState<File | null>(null);
   const [dbs, setDbs] = useState<readonly string[]>([]);
   const [mainDb, setMainDb] = useState<string | null>(null);
+  const [url, setUrl] = useState('');
   const picker = useFilePicker('.db,.sqlite,.sqlite3,.db3,.sqlite-db', setFile);
 
   const store = selected ?? undefined;
@@ -48,6 +49,18 @@ export function SqlSection() {
       const list = must(await c().sqlList(store));
       return c().sqlDelete(list.dbs.map((d) => d.path));
     });
+  };
+
+  const handleImportUrl = () => {
+    const u = url.trim();
+    if (!u) {
+      line('err', 'enter a database URL');
+      return;
+    }
+
+    void run('sql.importUrl', { files: [{ url: u }], store, replace }, () =>
+      c().sqlImportUrl({ files: [{ url: u }], store, replace }),
+    );
   };
 
   // the picked File rides straight to the SDK as a Blob (read + transferred there)
@@ -92,6 +105,14 @@ export function SqlSection() {
       <Row>
         <Button onClick={handleImport}>sql.import</Button>
         <Checkbox checked={replace} onChange={setReplace} label="replace if exists" />
+      </Row>
+      <Hint>
+        Or let the viewer download it by URL — streamed straight into OPFS (GB-safe, nothing rides postMessage). The
+        import-time md5 shows up in sql.list; hash your hosted file and compare to skip unchanged imports.
+      </Hint>
+      <Row>
+        <TextInput value={url} onChange={setUrl} placeholder="https://…/meta.db" className="min-w-0 flex-1" />
+        <Button onClick={handleImportUrl}>sql.importUrl</Button>
       </Row>
       <SqlQueryPanel dbs={dbs} mainDb={mainDb} onMainDbChange={setMainDb} />
     </DemoSection>

@@ -62,6 +62,19 @@ pub fn cook(glb: &[u8], compute_normals: bool, coarsen: bool) -> Result<CookResu
     })
 }
 
+/// Build the coarse variant of an already-cooked `.tdp` (CADM v7–v9) — no
+/// source file needed. Geometry is rebuilt from the packed meshlet streams and
+/// re-coarsened with the default settings; the item table, hierarchy, cell
+/// table and bounds are copied verbatim, so the output is a valid residency
+/// swap partner for the input. Throws on wrong magic/version or a truncated
+/// file.
+#[wasm_bindgen(js_name = coarsenTdp)]
+pub fn coarsen_tdp(tdp: &[u8]) -> Result<Vec<u8>, JsError> {
+    console_error_panic_hook::set_once();
+    cooker_core::coarsen_tdp(tdp, cooker_core::CoarsenOptions::default())
+        .map_err(|e| JsError::new(&format!("{e:#}")))
+}
+
 /// Cooker version — part of any future cache key.
 #[wasm_bindgen(js_name = cookerVersion)]
 pub fn cooker_version() -> u32 {

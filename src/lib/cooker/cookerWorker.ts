@@ -8,7 +8,7 @@
 import * as Comlink from 'comlink';
 import { opfsReadFromRoot, opfsWriteFromRoot } from '../opfs/opfsSyncWrite';
 import { cookGenericGlb } from './cook';
-import init, { cook } from './wasm/cooker_wasm.js';
+import init, { coarsenTdp, cook } from './wasm/cooker_wasm.js';
 
 const ready = init();
 
@@ -86,6 +86,18 @@ const api = {
     const { bytes } = await cookGenericGlb(glb, { normals: false, zUpInput: true });
     await opfsWriteFromRoot(outPath, new Uint8Array(bytes));
     return { size: bytes.byteLength };
+  },
+
+  /** Build the coarse variant of an already-cooked `.tdp` (no source needed —
+   *  geometry is rebuilt from the packed meshlet streams, the item table and
+   *  hierarchy are carried over verbatim) and store it as
+   *  model_assets/<outFileName> (callers pass `<store>/<id>.coarse.tdp`).
+   *  Throws on a non-CADM input. */
+  async coarsenTdpToOpfs(tdpBytes: ArrayBuffer, outFileName: string): Promise<{ size: number }> {
+    await ready;
+    const coarse = coarsenTdp(new Uint8Array(tdpBytes));
+    await opfsSyncWrite(outFileName, coarse);
+    return { size: coarse.byteLength };
   },
 };
 

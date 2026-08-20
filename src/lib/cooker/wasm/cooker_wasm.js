@@ -65,6 +65,28 @@ export class CookResult {
 if (Symbol.dispose) CookResult.prototype[Symbol.dispose] = CookResult.prototype.free;
 
 /**
+ * Build the coarse variant of an already-cooked `.tdp` (CADM v7–v9) — no
+ * source file needed. Geometry is rebuilt from the packed meshlet streams and
+ * re-coarsened with the default settings; the item table, hierarchy, cell
+ * table and bounds are copied verbatim, so the output is a valid residency
+ * swap partner for the input. Throws on wrong magic/version or a truncated
+ * file.
+ * @param {Uint8Array} tdp
+ * @returns {Uint8Array}
+ */
+export function coarsenTdp(tdp) {
+    const ptr0 = passArray8ToWasm0(tdp, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.coarsenTdp(ptr0, len0);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+
+/**
  * Cook one merged GLB. Throws (JS exception) with the cooker's error message
  * on non-merged input or malformed GLBs. `coarsen` produces the aggressive
  * low-detail variant for the VRAM-budget residency swap (same item table as

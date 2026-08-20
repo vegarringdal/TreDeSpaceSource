@@ -18,6 +18,16 @@ export class CookResult {
 }
 
 /**
+ * Build the coarse variant of an already-cooked `.tdp` (CADM v7–v9) — no
+ * source file needed. Geometry is rebuilt from the packed meshlet streams and
+ * re-coarsened with the default settings; the item table, hierarchy, cell
+ * table and bounds are copied verbatim, so the output is a valid residency
+ * swap partner for the input. Throws on wrong magic/version or a truncated
+ * file.
+ */
+export function coarsenTdp(tdp: Uint8Array): Uint8Array;
+
+/**
  * Cook one merged GLB. Throws (JS exception) with the cooker's error message
  * on non-merged input or malformed GLBs. `coarsen` produces the aggressive
  * low-detail variant for the VRAM-budget residency swap (same item table as
@@ -35,6 +45,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_cookresult_free: (a: number, b: number) => void;
+    readonly coarsenTdp: (a: number, b: number) => [number, number, number, number];
     readonly cook: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly cookerVersion: () => number;
     readonly cookresult_bounds: (a: number) => [number, number];

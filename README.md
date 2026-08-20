@@ -8,6 +8,8 @@ desktop-application feeling on the web; I am not a fan of oversimplified
 applications. Graphics will be simple, no normals/texture. Target is CAD/BIM
 models.
 
+> ⚠️ Still in a early phase, trying to find out what I need/want and shape the client SDK. Might be breaking changes.
+
 All processing happens in your browser — models never leave your machine.
 
 ## Three parts, three licenses

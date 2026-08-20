@@ -6,11 +6,13 @@
 
 pub mod cook;
 pub mod glb;
+pub mod tdp;
 
 pub use cook::{
     cook, cook_model, CoarsenOptions, CookOptions, CookOutput, MergedHierarchyEntry, MergedModel,
     MergedNode, MergedRange,
 };
+pub use tdp::coarsen_tdp;
 
 /// Bumped whenever the cooked output changes — part of the cache key, so stale
 /// cooked files re-cook automatically (same rule as the reference cooker).

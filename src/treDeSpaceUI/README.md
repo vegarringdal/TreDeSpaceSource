@@ -1024,7 +1024,8 @@ Commonly used methods:
 
 ```ts
 // open/close
-manager.openPanel(id, targetNodeId?)   // reopen a closed panel (home/first node when omitted)
+manager.openPanel(id, targetNodeId?)   // reopen a closed panel (home/first node when omitted;
+                                       // 'left'/'right'/'bottom' recreate that side column if pruned)
 manager.closePanel(id)
 manager.togglePanel(id)
 manager.openPanels(); manager.closedPanels(); manager.isOpen(id)

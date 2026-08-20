@@ -70,6 +70,11 @@ export interface ViewpointsState {
   /** The "(viewpoint)" editor bars' Edit → Save flow: false shows Edit,
    *  true shows Save-to-viewpoint (lit while there are unsaved edits). */
   editing: boolean;
+  /** SESSION-ONLY host-configured bookmark button (postMessage
+   *  `viewpoints.setBookmarkButton`), shown between Add viewpoint and Save.
+   *  Clicking it emits the `viewpoints.bookmark` event with the current
+   *  config so the host can persist it. null = no button. */
+  bookmarkButton: { label: string; tooltip: string } | null;
 }
 
 // Deliberately NOT persisted: viewpoints are tied to the loaded MODEL
@@ -83,6 +88,7 @@ export const viewpointsState = createStore<ViewpointsState>({
   stash: null,
   selectedId: null,
   editing: false,
+  bookmarkButton: null,
 });
 
 /** The ACTIVE viewpoint's Set Color rules — bound to the same editor component

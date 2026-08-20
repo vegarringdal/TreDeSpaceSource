@@ -158,22 +158,22 @@ struct DrawRangeRaw {
     node_index: usize,
 }
 
-struct ColorGroup {
-    base_color: [f32; 4],
-    positions: Vec<[f32; 3]>,
-    indices: Vec<u32>,
-    dr_ids: Vec<u32>,
-    dr_starts: Vec<u32>,
-    dr_counts: Vec<u32>,
-    dr_meshlet_starts: Vec<u32>,
-    dr_meshlet_counts: Vec<u32>,
-    meshlet_descs: Vec<MeshletDesc>,
-    meshlet_verts: Vec<u32>,
-    meshlet_tris: Vec<u8>,
-    meshlet_bounds: Vec<MeshletBounds>,
-    normals: Vec<[f32; 3]>,
-    meshlet_positions: Vec<u8>,
-    meshlet_normals: Vec<u8>,
+pub(crate) struct ColorGroup {
+    pub(crate) base_color: [f32; 4],
+    pub(crate) positions: Vec<[f32; 3]>,
+    pub(crate) indices: Vec<u32>,
+    pub(crate) dr_ids: Vec<u32>,
+    pub(crate) dr_starts: Vec<u32>,
+    pub(crate) dr_counts: Vec<u32>,
+    pub(crate) dr_meshlet_starts: Vec<u32>,
+    pub(crate) dr_meshlet_counts: Vec<u32>,
+    pub(crate) meshlet_descs: Vec<MeshletDesc>,
+    pub(crate) meshlet_verts: Vec<u32>,
+    pub(crate) meshlet_tris: Vec<u8>,
+    pub(crate) meshlet_bounds: Vec<MeshletBounds>,
+    pub(crate) normals: Vec<[f32; 3]>,
+    pub(crate) meshlet_positions: Vec<u8>,
+    pub(crate) meshlet_normals: Vec<u8>,
 }
 
 /// A model handed to the cooker in memory: merged single-material nodes plus
@@ -483,6 +483,7 @@ pub fn cook_model(model: MergedModel, opts: CookOptions) -> Result<CookOutput> {
         None
     };
     let bytes = pack_binary(
+        compute_bounds(&color_groups),
         dense,
         &color_groups,
         &all_items,
@@ -509,7 +510,7 @@ pub fn cook_model(model: MergedModel, opts: CookOptions) -> Result<CookOutput> {
 /// are left untouched — the packed file only
 /// stores per-meshlet vertex data, and model/dense bounds must match the full
 /// variant so framing and residency priorities agree.
-fn coarsen_cg(cg: &mut ColorGroup, model_diag: f32, c: CoarsenOptions) {
+pub(crate) fn coarsen_cg(cg: &mut ColorGroup, model_diag: f32, c: CoarsenOptions) {
     let vertex_bytes: &[u8] = bytemuck::cast_slice::<[f32; 3], u8>(&cg.positions);
     let adapter = match meshopt::VertexDataAdapter::new(vertex_bytes, 12, 0) {
         Ok(a) => a,
@@ -577,7 +578,7 @@ struct DrMeshletData {
     bounds: Vec<MeshletBounds>,
 }
 
-fn meshletize_cg(cg: &mut ColorGroup) -> Result<()> {
+pub(crate) fn meshletize_cg(cg: &mut ColorGroup) -> Result<()> {
     let per_dr: Vec<DrMeshletData> = (0..cg.dr_ids.len())
         .map(|di| build_dr_meshlets(cg, di))
         .collect();
@@ -690,7 +691,7 @@ fn build_dr_meshlets(cg: &ColorGroup, di: usize) -> DrMeshletData {
 
 // ── Quantized streams + normals (verbatim ports) ──────────────────────────────
 
-fn build_quantized_streams(cg: &mut ColorGroup) {
+pub(crate) fn build_quantized_streams(cg: &mut ColorGroup) {
     let local_count = cg.meshlet_verts.len();
     cg.meshlet_positions = Vec::with_capacity(local_count * 6);
     let has_normals = !cg.normals.is_empty();
@@ -779,7 +780,8 @@ fn compute_vertex_normals(positions: &[[f32; 3]], indices: &[u32]) -> Vec<[f32; 
 
 // ── Binary packing (verbatim port; source_hash is zeroed — unused by the web) ─
 
-fn pack_binary(
+pub(crate) fn pack_binary(
+    bounds: ([f32; 3], [f32; 3]),
     dense: Option<([f32; 3], [f32; 3])>,
     color_groups: &[ColorGroup],
     all_items: &[(u32, u16, u32)],
@@ -883,7 +885,7 @@ fn pack_binary(
     let cell_table_off = id_item_off + id_item_table.len() as u64 * 8;
     let total_size = cell_table_off + cell_table.len() as u64 * 32;
 
-    let (bounds_min, bounds_max) = compute_bounds(color_groups);
+    let (bounds_min, bounds_max) = bounds;
 
     let mut buf = vec![0u8; total_size as usize];
 
@@ -1046,7 +1048,9 @@ fn pack_binary(
 
 // ── Extras parsing (port of parse_extras, on serde_json::Value) ───────────────
 
-fn parse_extras(json: &serde_json::Value) -> Result<(Vec<DrawRangeRaw>, Vec<MergedHierarchyEntry>)> {
+fn parse_extras(
+    json: &serde_json::Value,
+) -> Result<(Vec<DrawRangeRaw>, Vec<MergedHierarchyEntry>)> {
     let version = json["asset"]["extras"]["web3dversion"]
         .as_u64()
         .ok_or_else(|| anyhow!("not a merged GLB: asset.extras.web3dversion missing"))?;
@@ -1171,7 +1175,7 @@ fn compute_bounds(color_groups: &[ColorGroup]) -> ([f32; 3], [f32; 3]) {
 
 /// Per-axis 10th–90th percentile box over every vertex — "where 80% of the
 /// mesh is". O(n) via select_nth; falls back to the full AABB when tiny.
-fn compute_dense_bounds(color_groups: &[ColorGroup]) -> ([f32; 3], [f32; 3]) {
+pub(crate) fn compute_dense_bounds(color_groups: &[ColorGroup]) -> ([f32; 3], [f32; 3]) {
     let n: usize = color_groups.iter().map(|cg| cg.positions.len()).sum();
     if n < 16 {
         return compute_bounds(color_groups);

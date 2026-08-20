@@ -9,7 +9,7 @@
 import * as Comlink from 'comlink';
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
-import { type CookToOpfs, withCookerPool } from '../../lib/cooker/cookerPool';
+import { type CoarsenTdpToOpfs, type CookToOpfs, withCookerPool } from '../../lib/cooker/cookerPool';
 import type { CookerApi } from '../../lib/cooker/cookerWorker';
 import type { Ifc2GlbApi } from '../../lib/ifc2glb/ifc2glbWorker';
 import { md5Hex } from '../../lib/md5';
@@ -456,7 +456,7 @@ export const assetsActions = {
     const pending = new Set<string>();
     let done = 0;
     let failed = 0;
-    const runBatch = async (cook: CookToOpfs) => {
+    const runBatch = async (cook: CookToOpfs, coarsenTdp: CoarsenTdpToOpfs) => {
       const work = sources.map((src) => async () => {
         try {
           const bytes = await src.bytes();
@@ -483,7 +483,7 @@ export const assetsActions = {
             hasNormals = cooked.hasNormals;
             coarse = cooked.coarseSize !== undefined ? { size: cooked.coarseSize } : undefined;
           } else {
-            // .tdp: must really be a cooked file (CADM v7 or v8)
+            // .tdp: must really be a cooked file (CADM v7–v9)
             const dv = new DataView(bytes);
             const ver = bytes.byteLength >= 216 ? dv.getUint32(4, true) : 0;
             if (dv.getUint32(0, true) !== 0x4d444143 || ver < 7 || ver > 9) {
@@ -512,6 +512,17 @@ export const assetsActions = {
               } catch (e) {
                 // a missing/broken coarse variant only costs VRAM headroom
                 consoleActions.log('error', `Assets: coarse variant for ${src.name} skipped: ${e}`);
+              }
+            } else {
+              // bare .tdp (exported, hosted, or panel-imported without its
+              // sibling): rebuild the coarse variant from the cooked file
+              // itself, so every import lands residency-swap ready. NOTE:
+              // coarsenTdp transfers `bytes` — it is detached past this point.
+              try {
+                const { size: coarseSize } = await coarsenTdp(bytes, `${store}/${id}.coarse.tdp`);
+                coarse = { size: coarseSize };
+              } catch (e) {
+                consoleActions.log('error', `Assets: coarse cook for ${src.name} skipped: ${e}`);
               }
             }
           }
@@ -553,14 +564,20 @@ export const assetsActions = {
       );
     };
     try {
-      if (sources.some((src) => /\.glb$/i.test(src.name))) {
-        // GLBs present: spin up the cooker pool for the batch
+      // the pool is needed to cook GLBs AND to rebuild the coarse variant of
+      // any .tdp arriving without its pre-cooked sibling
+      if (sources.some((src) => /\.glb$/i.test(src.name) || !src.coarseBytes)) {
         await withCookerPool(pool, runBatch);
       } else {
-        // no GLBs — the cook callback is never reached
-        await runBatch(async () => {
-          throw new Error('unexpected GLB in a .tdp-only batch');
-        });
+        // converter-fed .tdp batch (full + coarse pre-cooked) — no worker needed
+        await runBatch(
+          async () => {
+            throw new Error('unexpected GLB in a pre-cooked .tdp batch');
+          },
+          async () => {
+            throw new Error('unexpected coarsen in a pre-cooked .tdp batch');
+          },
+        );
       }
     } finally {
       dialogs.hideLoading();

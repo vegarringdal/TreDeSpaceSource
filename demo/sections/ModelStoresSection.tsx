@@ -64,6 +64,19 @@ export function ModelStoresSection() {
     });
   };
 
+  // declarative sync: loaded set becomes EXACTLY the first half of the store
+  const handleSetLoadedHalf = () => {
+    void run('assets.setLoaded', { store, ids: '(first half of store)' }, async () => {
+      const { assets } = must(await c().assetsList(store));
+      const ids = assets.slice(0, Math.ceil(assets.length / 2)).map((a) => a.id);
+      return c().assetsSetLoaded(ids, { store });
+    });
+  };
+
+  const handleSetLoadedNone = () => {
+    void run('assets.setLoaded', { store, ids: [] }, () => c().assetsSetLoaded([], { store }));
+  };
+
   return (
     <DemoSection
       title="Stores & assets — Model"
@@ -91,6 +104,17 @@ export function ModelStoresSection() {
         </Button>
         <Button onClick={handleLoad}>assets.load (all in store)</Button>
         <Button onClick={handleUnload}>assets.unload (all loaded)</Button>
+      </Row>
+      <Row>
+        <Button
+          tooltip="Declarative sync: the loaded set becomes EXACTLY the first half of the store — the rest is unloaded, already-correct assets are untouched. Idempotent: click twice, the second call is a no-op."
+          onClick={handleSetLoadedHalf}
+        >
+          assets.setLoaded (first half)
+        </Button>
+        <Button tooltip="Empty desired set = unload everything in the store" onClick={handleSetLoadedNone}>
+          assets.setLoaded ([])
+        </Button>
       </Row>
       <ImportFilePanel store={store} replace={replace} onReplaceChange={setReplace} />
       <ImportUrlPanel store={store} replace={replace} />
