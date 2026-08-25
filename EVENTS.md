@@ -275,17 +275,34 @@ Batch-import files the **viewer downloads by URL** — nothing rides postMessage
 so a host can queue many/large models without shipping their bytes across the
 frame. Each file names its own `format` (required — a `.glb` URL is ambiguous
 between merged and standard, so nothing is inferred on the wire). `store`
-(default 'main', must be known) and `replace` apply to every file. `concurrent`
-(default 3, clamped 1..8) is how many files DOWNLOAD at once — cooking stays
-serial (the single import lock), so keep it modest for large RVM/IFC/STEP.
+(default 'main', must be known) and `replace` apply to every file.
+
+The whole batch takes the app's import lock ONCE. `concurrent` (default 3,
+clamped 1..8) files are then processed at a time **end-to-end**: for
+`glb-merged` / `glb-standard` / `tdp` each slot downloads AND cooks on a
+cooker-pool worker, so downloads and conversions overlap and a slow download
+never stalls a cook that is ready to run. The `rvm` / `ifc` / `step`
+converters are multi-phase and stage through shared temp dirs, so they run one
+after another inside the same batch.
+
+`progress: true` (the SDK sets it whenever you pass `onProgress`) puts the
+viewer in QUIET mode: it drives **no import dialogs at all**, leaving the
+progress UI entirely to the host. Without it the viewer shows its usual import
+overlay.
 
 URLs are fetched under the **viewer** origin's CORS, not the host's. One
 `results` entry per input file, in order; a download or convert failure is
 recorded on that entry and never aborts the batch (`imported` + `failed` =
-files). While it runs the viewer posts unsolicited `assets.importUrl:progress`
-events — `{ batchId, completed, total, url, phase }`, `phase` one of
-`download` / `convert` / `done` / `error` — echoing the optional `batchId` so a
-host can correlate them (the SDK's `onProgress` does this for you).
+files).
+
+While it runs the viewer posts unsolicited `assets.importUrl:progress` events —
+`{ batchId, completed, total, index, url, phase, loaded?, totalBytes? }`.
+`index` is the file's position in the `files` array (files run in parallel, so
+ticks for several indexes interleave — key your UI on `index`, not on arrival
+order). `phase` is one of `download` (repeats as bytes arrive, carrying
+`loaded` and — when the server sent a content-length — `totalBytes`),
+`convert` (the cook started), `done` or `error`. `batchId` is echoed so a host
+can correlate them (the SDK's `onProgress` does this for you).
 
 ```js
 payload:  { files: [
@@ -294,7 +311,7 @@ payload:  { files: [
               { url: 'https://cdn.example.com/valve.glb', format: 'glb-standard',
                 options: { normals: true, edges: true } },
               { url: 'https://cdn.example.com/site.tdp', format: 'tdp' } ],  // pre-cooked, stored as-is
-            concurrent: 3, store: 'project-x', replace: true }
+            concurrent: 3, store: 'project-x', replace: true, progress: true }
 response: { imported: 3, failed: 1, results: [
               { url: 'https://cdn.example.com/pump.rvm', ok: true, replaced: 0,
                 entries: [{ id: '...', store: 'project-x', name: 'pump', kind: 'merged' }] },
@@ -304,6 +321,12 @@ response: { imported: 3, failed: 1, results: [
                 error: 'download failed: HTTP 404 Not Found' },
               { url: 'https://cdn.example.com/site.tdp', ok: true, replaced: 0,
                 entries: [{ id: '...', store: 'project-x', name: 'site', kind: 'merged' }] } ] }
+
+// progress events while it runs
+{ tredespace: 1, id: null, type: 'assets.importUrl:progress',
+  payload: { batchId: 'ts-x1-batch-1', completed: 1, total: 4, index: 2,
+             url: 'https://cdn.example.com/valve.glb', phase: 'download',
+             loaded: 8388608, totalBytes: 41943040 } }
 ```
 
 ### assets.uploadBegin / assets.uploadChunk / assets.uploadAbort / assets.uploadFinish

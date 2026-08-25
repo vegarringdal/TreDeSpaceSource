@@ -5,10 +5,11 @@ import type { CookerApi, CookOutcome } from './cookerWorker';
 
 export type CookToOpfs = (glb: ArrayBuffer, outFileName: string, coarsePath?: string) => Promise<CookOutcome>;
 export type CoarsenTdpToOpfs = (tdp: ArrayBuffer, outFileName: string) => Promise<{ size: number }>;
+export type CookStandardToOpfs = (glb: ArrayBuffer, outFileName: string, normals: boolean) => Promise<CookOutcome>;
 
 export async function withCookerPool<T>(
   size: number,
-  run: (cook: CookToOpfs, coarsenTdp: CoarsenTdpToOpfs) => Promise<T>,
+  run: (cook: CookToOpfs, coarsenTdp: CoarsenTdpToOpfs, cookStandard: CookStandardToOpfs) => Promise<T>,
 ): Promise<T> {
   const workers = Array.from(
     { length: Math.max(1, size) },
@@ -32,8 +33,12 @@ export async function withCookerPool<T>(
     dispatch((api) => api.cookToOpfs(Comlink.transfer(glb, [glb]), outFileName, coarsePath));
   const coarsenTdp: CoarsenTdpToOpfs = (tdp, outFileName) =>
     dispatch((api) => api.coarsenTdpToOpfs(Comlink.transfer(tdp, [tdp]), outFileName));
+  // standard glTF (plain node trees / gpu-instanced) — the generic TS cook.
+  // Pooled like the others so a batch of standard GLBs converts in parallel.
+  const cookStandard: CookStandardToOpfs = (glb, outFileName, normals) =>
+    dispatch((api) => api.cookStandardToOpfs(Comlink.transfer(glb, [glb]), outFileName, normals));
   try {
-    return await run(cook, coarsenTdp);
+    return await run(cook, coarsenTdp, cookStandard);
   } finally {
     for (const w of workers) {
       w.terminate();

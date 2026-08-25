@@ -9,7 +9,12 @@
 import * as Comlink from 'comlink';
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
-import { type CoarsenTdpToOpfs, type CookToOpfs, withCookerPool } from '../../lib/cooker/cookerPool';
+import {
+  type CoarsenTdpToOpfs,
+  type CookStandardToOpfs,
+  type CookToOpfs,
+  withCookerPool,
+} from '../../lib/cooker/cookerPool';
 import type { CookerApi } from '../../lib/cooker/cookerWorker';
 import type { Ifc2GlbApi } from '../../lib/ifc2glb/ifc2glbWorker';
 import { md5Hex } from '../../lib/md5';
@@ -103,15 +108,26 @@ export interface ImportBehaviour {
   /** Session-only import: the asset (and its cooked file) is purged on the
    *  next app start. Default = the Import Manager "Temp" checkbox. */
   temp?: boolean;
+  /** Drive NO app dialogs (no progress overlay, no error popup) — for callers
+   *  that report progress themselves, e.g. a host driving `assets.importUrl`
+   *  with a progress subscription. Console logging is unaffected. */
+  quiet?: boolean;
 }
 
 /** Run after entries have landed in state: drop the assets the new ones
  *  replace, then optionally load the new ones. Deleting AFTER the import is
  *  deliberate — a failed import must never destroy the previous version.
- *  Returns how many were replaced. */
-async function finishImport(before: AssetEntry[], added: AssetEntry[], opts: ImportBehaviour): Promise<number> {
+ *  Returns how many were replaced in total, and per identity key — a batch
+ *  import reports `replaced` per file, and only the key says which file's
+ *  predecessor went. */
+async function finishImport(
+  before: AssetEntry[],
+  added: AssetEntry[],
+  opts: ImportBehaviour,
+): Promise<{ replaced: number; byKey: Map<string, number> }> {
+  const byKey = new Map<string, number>();
   if (added.length === 0) {
-    return 0;
+    return { replaced: 0, byKey };
   }
   const s = assetsState.get();
   let replaced = 0;
@@ -119,9 +135,12 @@ async function finishImport(before: AssetEntry[], added: AssetEntry[], opts: Imp
   // and two assets with the same store/folder/name are indistinguishable
   if (opts.replace ?? true) {
     const newKeys = new Set(added.map(identityKey));
-    const doomed = before.filter((a) => newKeys.has(identityKey(a))).map((a) => a.id);
+    const doomed = before.filter((a) => newKeys.has(identityKey(a)));
     if (doomed.length) {
-      await assetsActions.deleteByIds(doomed);
+      for (const a of doomed) {
+        byKey.set(identityKey(a), (byKey.get(identityKey(a)) ?? 0) + 1);
+      }
+      await assetsActions.deleteByIds(doomed.map((a) => a.id));
       replaced = doomed.length;
     }
   }
@@ -129,12 +148,37 @@ async function finishImport(before: AssetEntry[], added: AssetEntry[], opts: Imp
   if (opts.load ?? (added.some((a) => a.temp) || s.loadAfterImport)) {
     await assetsActions.loadIds(added.map((a) => a.id));
   }
-  return replaced;
+  return { replaced, byKey };
+}
+
+/** Depth of import locks THIS tab holds across message dispatches — the
+ *  postMessage batch import takes one for the whole batch (acquireImportLock).
+ *  Web Locks are not reentrant, so an import action called from inside that
+ *  batch must run inline instead of asking for a lock it already owns. */
+let heldLocally = 0;
+
+/** Import-phase progress overlay — silent for a `quiet` import, where the
+ *  caller (a host driving assets.importUrl) reports progress itself. */
+function phaseLoading(opts: ImportBehaviour, msg: string, title: string) {
+  if (!opts.quiet) {
+    dialogs.loading(msg, title);
+  }
+}
+
+function phaseHideLoading(opts: ImportBehaviour) {
+  if (!opts.quiet) {
+    dialogs.hideLoading();
+  }
 }
 
 /** One import at a time, across every import path AND every tab (Web Locks).
- *  Returns null (after logging) if another import already holds the lock. */
+ *  Returns null (after logging) if another import already holds the lock.
+ *  Inside a batch this tab owns, runs inline and lets errors propagate to the
+ *  batch orchestrator (which reports them per file). */
 async function withImportLock<T>(run: () => Promise<T>): Promise<T | null> {
+  if (heldLocally > 0) {
+    return await run();
+  }
   return navigator.locks.request('asset-import', { ifAvailable: true }, async (lock) => {
     if (!lock) {
       consoleActions.log('error', 'Assets: another import is already running — try again when it finishes');
@@ -182,11 +226,16 @@ export function acquireImportLock(): Promise<(() => Promise<void>) | null> {
           resolveOuter(null);
           return; // not held — nothing to await
         }
+        heldLocally++;
+        residency.pause(); // no VRAM-budget swaps while an import appends slots
         resolveOuter(async () => {
           releaseHeld();
           await done;
         });
-        return held;
+        return held.finally(() => {
+          heldLocally--;
+          residency.resume();
+        });
       })
       .catch(() => {
         /* request rejected — treat as not acquired */
@@ -204,6 +253,13 @@ export interface ImportSource {
    *  (the converters cook full + coarse in one pass). GLB sources cook their
    *  own coarse in the cooker worker instead. */
   coarseBytes?: () => Promise<ArrayBuffer>;
+  /** This `.glb` is a STANDARD glTF (plain node tree / EXT_mesh_gpu_instancing),
+   *  not a merged one — cook it with the generic TS cook on a pool worker.
+   *  Default (false) takes the strict merged path, which rejects standard files. */
+  standardGlb?: boolean;
+  /** Per-file standard-GLB options; defaults to the Import Manager's settings.
+   *  Only read when `standardGlb` is set. */
+  stdOptions?: { normals?: boolean; edges?: boolean };
 }
 
 /** Rewrite every folder path under `oldPath` to live under `newPath`, within
@@ -382,7 +438,7 @@ export const assetsActions = {
       const { normals, edges } = assetsState.get().stdGlb;
       // show the overlay FIRST — before the (slow) worker spin-up — so the UI
       // is blocked the instant Import is clicked, not seconds later
-      dialogs.loading(`Cooking ${file.name}…`, 'Importing standard GLB');
+      phaseLoading(opts, `Cooking ${file.name}…`, 'Importing standard GLB');
       const worker = new Worker(new URL('../../lib/cooker/cookerWorker.ts', import.meta.url), { type: 'module' });
       try {
         const cookerApi = Comlink.wrap<CookerApi>(worker);
@@ -413,7 +469,7 @@ export const assetsActions = {
         };
         assetsState.set((s) => ({ assets: [...s.assets, entry] }));
         await persistIndex();
-        const replaced = await finishImport(before, [entry], opts);
+        const { replaced } = await finishImport(before, [entry], opts);
         consoleActions.log(
           'info',
           `Assets: imported ${file.name} (standard${cooked.hasNormals ? ', normals' : ''}${
@@ -422,7 +478,7 @@ export const assetsActions = {
         );
       } finally {
         worker.terminate();
-        dialogs.hideLoading();
+        phaseHideLoading(opts);
       }
     });
   },
@@ -437,27 +493,44 @@ export const assetsActions = {
   /** The importSources body — call only with the import lock held. */
   async importSourcesLocked(
     sources: ImportSource[],
-    opts: { folder: string; store?: string; title?: string } & ImportBehaviour,
+    opts: {
+      folder: string;
+      store?: string;
+      title?: string;
+      /** Sources processed at once (default: the Import Manager pool size).
+       *  Each slot downloads (`bytes()`) AND cooks, so a batch of URL sources
+       *  overlaps the two automatically. */
+      concurrency?: number;
+      /** Per-source outcome, fired as each finishes — the caller's hook for
+       *  per-file progress and for mapping entries back to their input. */
+      onSourceDone?: (index: number, result: { entry?: AssetEntry; error?: string }) => void;
+    } & ImportBehaviour,
   ) {
     const t0 = performance.now();
+    const quiet = opts.quiet === true;
     // block the UI immediately — the cooker pool below can take a moment to
     // spin up, and until now the dialog only appeared after the FIRST cook
-    dialogs.loading(`File 0 of ${sources.length}`, opts.title ?? 'Importing assets');
+    if (!quiet) {
+      dialogs.loading(`File 0 of ${sources.length}`, opts.title ?? 'Importing assets');
+    }
     const before = assetsState.get().assets;
     const temp = opts.temp ?? assetsState.get().importTemp;
     // temp imports never ask for a store — they land in the reserved 'temp'
     // store (own section in the Model Assets panel, purged on next start)
     const store = temp ? TEMP_STORE : resolveStore(opts.store);
     const dir = await modelStoreDir(store);
-    const pool = assetsState.get().pool;
+    const pool = Math.max(1, opts.concurrency ?? assetsState.get().pool);
     const added: AssetEntry[] = [];
+    // entries by source index — the batch's per-file result map
+    const perSource = new Map<number, AssetEntry>();
+    const stdDefaults = assetsState.get().stdGlb;
     // ids handed out this batch aren't in state yet (added is flushed at the
     // end) — track them so concurrent cooks can't pick the same id
     const pending = new Set<string>();
     let done = 0;
     let failed = 0;
-    const runBatch = async (cook: CookToOpfs, coarsenTdp: CoarsenTdpToOpfs) => {
-      const work = sources.map((src) => async () => {
+    const runBatch = async (cook: CookToOpfs, coarsenTdp: CoarsenTdpToOpfs, cookStandard: CookStandardToOpfs) => {
+      const work = sources.map((src, index) => async () => {
         try {
           const bytes = await src.bytes();
           // hash BEFORE the cook (the cooker transfers/detaches the buffer)
@@ -468,20 +541,27 @@ export const assetsActions = {
           let bounds: AssetBounds | undefined;
           let kind: AssetEntry['kind'];
           let hasNormals = false;
+          let edges: boolean | undefined;
           let coarse: AssetEntry['coarse'];
           if (/\.glb$/i.test(src.name)) {
             // GLB → cooker worker: cooks AND writes the .tdp into OPFS
             // itself (sync access handle) — no bytes come back. Merged files
-            // use the wasm cooker; anything else the generic TS cook
-            // (standard node trees + gpu-instanced, authored normals kept).
+            // use the wasm cooker; a source flagged `standardGlb` takes the
+            // generic TS cook (standard node trees + gpu-instanced, authored
+            // normals kept) on the same pool worker.
             // The coarse variant (VRAM-budget swap) cooks from the same GLB.
-            const cooked = await cook(bytes, `${store}/${id}.tdp`, `${store}/${id}.coarse.tdp`);
+            const cooked = src.standardGlb
+              ? await cookStandard(bytes, `${store}/${id}.tdp`, src.stdOptions?.normals ?? stdDefaults.normals)
+              : await cook(bytes, `${store}/${id}.tdp`, `${store}/${id}.coarse.tdp`);
             rootName = cooked.rootName;
             size = cooked.size;
             bounds = { full: cooked.bounds, dense: cooked.dense };
             kind = cooked.kind;
             hasNormals = cooked.hasNormals;
             coarse = cooked.coarseSize !== undefined ? { size: cooked.coarseSize } : undefined;
+            if (src.standardGlb) {
+              edges = src.stdOptions?.edges ?? stdDefaults.edges;
+            }
           } else {
             // .tdp: must really be a cooked file (CADM v7–v9)
             const dv = new DataView(bytes);
@@ -541,16 +621,23 @@ export const assetsActions = {
             bounds,
             kind,
             hasNormals,
+            ...(edges !== undefined ? { edges } : {}),
             ...(coarse ? { coarse } : {}),
             ...(temp ? { temp: true } : {}),
           };
           added.push(entry);
+          perSource.set(index, entry);
+          opts.onSourceDone?.(index, { entry });
         } catch (e) {
           failed++;
-          consoleActions.log('error', `Assets: failed to import ${src.name}: ${e}`);
+          const msg = e instanceof Error ? e.message : String(e);
+          consoleActions.log('error', `Assets: failed to import ${src.name}: ${msg}`);
+          opts.onSourceDone?.(index, { error: msg });
         } finally {
           done++;
-          dialogs.loading(`File ${done} of ${sources.length}`, opts.title ?? 'Importing assets');
+          if (!quiet) {
+            dialogs.loading(`File ${done} of ${sources.length}`, opts.title ?? 'Importing assets');
+          }
         }
       });
       // simple pool: `pool` runners pull from a shared queue
@@ -577,26 +664,39 @@ export const assetsActions = {
           async () => {
             throw new Error('unexpected coarsen in a pre-cooked .tdp batch');
           },
+          async () => {
+            throw new Error('unexpected standard GLB in a pre-cooked .tdp batch');
+          },
         );
       }
     } finally {
-      dialogs.hideLoading();
+      if (!quiet) {
+        dialogs.hideLoading();
+      }
     }
     assetsState.set((s) => ({ assets: [...s.assets, ...added] }));
     await persistIndex();
-    const replaced = await finishImport(before, added, opts);
+    const { replaced, byKey } = await finishImport(before, added, opts);
     consoleActions.log(
       'info',
       `Assets: imported ${added.length} file(s)${replaced ? `, replaced ${replaced}` : ''}${
         failed ? `, ${failed} failed` : ''
       } in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
     );
-    if (failed > 0) {
+    if (failed > 0 && !quiet) {
       dialogs.error(
         `${failed} of ${sources.length} file(s) failed to import — see the Console panel.`,
         'Import errors',
       );
     }
+    // per-source outcome for a caller that must map results back to inputs
+    // (the postMessage batch import); `replaced` is per file, resolved from
+    // the identity keys finishImport actually dropped.
+    return [...perSource.entries()].map(([index, entry]) => ({
+      index,
+      entry,
+      replaced: byKey.get(identityKey(entry)) ?? 0,
+    }));
   },
 
   /** RVM import, two phases under one lock: (1) the rvm wasm streams the .rvm
@@ -625,7 +725,7 @@ export const assetsActions = {
       const t0 = performance.now();
       // overlay first — before OPFS clear + worker spin-up — so the click lands
       // on a blocked UI, not a still-live one
-      dialogs.loading(`Converting ${file.name}…`, 'Importing RVM — phase 1 of 2');
+      phaseLoading(opts, `Converting ${file.name}…`, 'Importing RVM — phase 1 of 2');
       const rvmOpts = assetsState.get().rvm;
       const temp = await rvmTempDir();
       await clearDir(temp);
@@ -648,7 +748,7 @@ export const assetsActions = {
             { ...rvmOpts },
             Comlink.proxy(() => {
               parts++;
-              dialogs.loading(`${parts} ${unit}${parts === 1 ? '' : 's'} converted`, 'Importing RVM — phase 1 of 2');
+              phaseLoading(opts, `${parts} ${unit}${parts === 1 ? '' : 's'} converted`, 'Importing RVM — phase 1 of 2');
             }),
           ),
           workerDied,
@@ -705,7 +805,7 @@ export const assetsActions = {
       } finally {
         // errors propagate to the lock holder (error dialog + console)
         worker.terminate();
-        dialogs.hideLoading();
+        phaseHideLoading(opts);
         await clearDir(temp);
       }
     }
@@ -720,7 +820,7 @@ export const assetsActions = {
     await withImportLock(async () => {
       const t0 = performance.now();
       // overlay first — before the worker spin-up — so the UI blocks on click
-      dialogs.loading(`Converting ${file.name}…`, 'Importing IFC — phase 1 of 2');
+      phaseLoading(opts, `Converting ${file.name}…`, 'Importing IFC — phase 1 of 2');
       const ifcOpts = assetsState.get().ifc;
       const worker = new Worker(new URL('../../lib/ifc2glb/ifc2glbWorker.ts', import.meta.url), { type: 'module' });
       try {
@@ -736,7 +836,7 @@ export const assetsActions = {
             file.name,
             { ...ifcOpts },
             Comlink.proxy((f: number) =>
-              dialogs.loading(`${Math.round(f * 100)}% converted`, 'Importing IFC — phase 1 of 2'),
+              phaseLoading(opts, `${Math.round(f * 100)}% converted`, 'Importing IFC — phase 1 of 2'),
             ),
           ),
           workerDied,
@@ -780,7 +880,7 @@ export const assetsActions = {
         });
       } finally {
         worker.terminate();
-        dialogs.hideLoading();
+        phaseHideLoading(opts);
       }
     });
   },
@@ -793,7 +893,7 @@ export const assetsActions = {
     await withImportLock(async () => {
       const t0 = performance.now();
       // overlay first — before the worker spin-up — so the UI blocks on click
-      dialogs.loading(`Converting ${file.name}…`, 'Importing STEP — phase 1 of 2');
+      phaseLoading(opts, `Converting ${file.name}…`, 'Importing STEP — phase 1 of 2');
       const stepOpts = assetsState.get().step;
       const worker = new Worker(new URL('../../lib/step2glb/step2glbWorker.ts', import.meta.url), { type: 'module' });
       try {
@@ -807,7 +907,8 @@ export const assetsActions = {
             Comlink.transfer(bytes, [bytes]),
             { ...stepOpts },
             Comlink.proxy((done: number, total: number) =>
-              dialogs.loading(
+              phaseLoading(
+                opts,
                 `${total > 0 ? Math.round((done / total) * 100) : 0}% tessellated`,
                 'Importing STEP — phase 1 of 2',
               ),
@@ -844,7 +945,7 @@ export const assetsActions = {
         );
       } finally {
         worker.terminate();
-        dialogs.hideLoading();
+        phaseHideLoading(opts);
       }
     });
   },

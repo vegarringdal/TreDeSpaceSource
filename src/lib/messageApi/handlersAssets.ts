@@ -3,7 +3,7 @@
 // contracts.
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { acquireImportLock, assetsActions, loadAssetIntoViewer } from '../../state/assets/assets.actions';
-import { assetsState, groupOf } from '../../state/assets/assets.state';
+import { type AssetEntry, assetsState, groupOf } from '../../state/assets/assets.state';
 import { storesActions } from '../../state/stores/stores.actions';
 import { normalizeStoreName, storeExists, storesState } from '../../state/stores/stores.state';
 import { db } from '../../state/viewer/db';
@@ -23,6 +23,7 @@ async function importAndReport(
   store: string,
   replace: boolean,
   opts: Record<string, unknown>,
+  quiet = false,
 ): Promise<{ entries: unknown[]; replaced: number }> {
   const before = assetsState.get().assets;
   const beforeIds = new Set(before.map((a) => a.id));
@@ -30,7 +31,7 @@ async function importAndReport(
   // must not inherit whatever the user last ticked, so all are passed
   // explicitly. The importer drops the replaced asset(s) AFTER the new one
   // lands, so a failed import never deletes anything.
-  const behaviour = { replace, load: false, temp: false };
+  const behaviour = { replace, load: false, temp: false, quiet };
   switch (format) {
     case 'glb-merged':
       await assetsActions.importSources([{ name: file.name, bytes: () => file.arrayBuffer() }], {
@@ -109,87 +110,236 @@ export function fileNameFromUrl(url: string, fallback: string): string {
 
 type ImportUrlOutcome = { url: string; ok: boolean; entries?: unknown[]; replaced?: number; error?: string };
 
-/** Fetch each file in `files` (up to `concurrent` at once) and import it. The
- *  cook is single-locked app-wide (concurrent imports fail 'busy'), so imports
- *  are chained serially while downloads run ahead — `concurrent` is really
- *  download parallelism, and a slot frees only after that file's import ends, so
- *  at most `concurrent` downloaded blobs sit in memory. One outcome per input
- *  file, in order; a download/convert failure is recorded, never thrown. */
+/** Wire shape of one imported asset. */
+const toApiEntry = (a: AssetEntry) => ({
+  id: a.id,
+  store: a.store,
+  name: a.name,
+  folder: a.folder,
+  fileName: a.fileName,
+  md5: a.md5,
+  size: a.size,
+  kind: a.kind,
+  hasNormals: a.hasNormals,
+  loaded: false,
+});
+
+/** Formats whose whole import is ONE single-file cook, so they ride a single
+ *  pooled batch — download and cook pipeline per file, `concurrent` at a time.
+ *  The converters (rvm / ifc / step) are multi-phase, spawn their own workers
+ *  and stage through shared temp dirs, so they run one after another. */
+const POOLED_FORMATS = new Set(['glb-merged', 'glb-standard', 'tdp']);
+
+/** Give a downloaded file the extension its pipeline is routed by (the
+ *  importer picks cook vs store-as-cooked off the name, and a URL's last
+ *  segment often carries no extension at all). */
+function pipelineName(fileName: string, format: string): string {
+  if (format === 'tdp') {
+    return /\.tdp$/i.test(fileName) ? fileName : `${fileName}.tdp`;
+  }
+  return /\.glb$/i.test(fileName) ? fileName : `${fileName}.glb`;
+}
+
+/** Fetch to an ArrayBuffer, reporting bytes as they arrive. Falls back to a
+ *  plain buffer read when the response has no readable body stream. */
+async function downloadBytes(url: string, onBytes: (loaded: number, total: number) => void): Promise<ArrayBuffer> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  }
+  const total = Number(res.headers.get('content-length') ?? 0);
+  if (!res.body) {
+    const buf = await res.arrayBuffer();
+    onBytes(buf.byteLength, buf.byteLength);
+    return buf;
+  }
+  const reader = res.body.getReader();
+  // copied per chunk so the array is provably ArrayBuffer-backed (a stream
+  // chunk's buffer type is ArrayBufferLike, which a Blob part rejects)
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let loaded = 0;
+  let lastReport = 0;
+  for (let r = await reader.read(); !r.done; r = await reader.read()) {
+    chunks.push(new Uint8Array(r.value));
+    loaded += r.value.length;
+    // throttle: every 5% of a known total, else every 8 MB
+    const step = total > 0 ? total / 20 : 8 * 1024 * 1024;
+    if (loaded - lastReport >= step) {
+      lastReport = loaded;
+      onBytes(loaded, total);
+    }
+  }
+  onBytes(loaded, total || loaded);
+  // assemble via a Blob rather than a manual copy: the browser can keep it
+  // disk-backed, so a multi-GB file is not held twice in RAM at once
+  const blob = new Blob(chunks);
+  chunks.length = 0;
+  return await blob.arrayBuffer();
+}
+
+type UrlJob = {
+  index: number;
+  url: string;
+  format: string;
+  fileName: string;
+  folder: string;
+  options: Record<string, unknown>;
+};
+
+/** Import a batch of files the VIEWER downloads. The whole batch takes the
+ *  import lock ONCE, so the per-file imports inside run without re-queuing
+ *  behind it: the pooled formats (glb / tdp) download AND cook `concurrent` at
+ *  a time in one cooker pool, while the converters (rvm / ifc / step) follow
+ *  serially. `quiet` drives no app dialogs — for a host that subscribed to the
+ *  progress events and shows its own UI. One outcome per input file, in order;
+ *  a download/convert failure is recorded, never thrown. */
 async function importUrlBatch(
   files: Record<string, unknown>[],
   concurrent: number,
   store: string,
   replace: boolean,
   batchId: string | undefined,
+  quiet: boolean,
 ): Promise<{ imported: number; failed: number; results: ImportUrlOutcome[] }> {
   const total = files.length;
   const results: ImportUrlOutcome[] = new Array(total);
   let completed = 0;
-  const emit = (url: string, phase: string) =>
-    emitApiEvent('assets.importUrl:progress', { ...(batchId ? { batchId } : {}), completed, total, url, phase });
+  const emit = (index: number, url: string, phase: string, extra?: Record<string, number>) =>
+    emitApiEvent('assets.importUrl:progress', {
+      ...(batchId ? { batchId } : {}),
+      completed,
+      total,
+      index,
+      url,
+      phase,
+      ...extra,
+    });
   const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const fail = (index: number, url: string, error: string) => {
+    results[index] = { url, ok: false, error };
+    completed++;
+    emit(index, url, 'error');
+  };
 
-  // imports run one at a time (the asset-import Web Lock is single-holder), so
-  // every worker's convert step queues behind this chain
-  let importChain: Promise<void> = Promise.resolve();
-
-  const handleOne = async (i: number): Promise<void> => {
+  // 1. validate every entry up front — a bad one never reaches the lock
+  const jobs: UrlJob[] = [];
+  for (let i = 0; i < total; i++) {
     const f = files[i];
     const url = typeof f.url === 'string' ? f.url : '';
     if (!url) {
-      results[i] = { url: '', ok: false, error: 'url must be a string' };
-      completed++;
-      emit('', 'error');
-      return;
+      fail(i, '', 'url must be a string');
+      continue;
     }
     const format = f.format;
     if (typeof format !== 'string' || !IMPORT_FORMATS.has(format)) {
-      results[i] = { url, ok: false, error: `unknown format ${String(format)}` };
-      completed++;
-      emit(url, 'error');
-      return;
+      fail(i, url, `unknown format ${String(format)}`);
+      continue;
     }
-    emit(url, 'download');
-    let file: File;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      }
-      const blob = await res.blob();
-      const name = typeof f.fileName === 'string' && f.fileName ? f.fileName : fileNameFromUrl(url, `file-${i}`);
-      file = new File([blob], name);
-    } catch (e) {
-      results[i] = { url, ok: false, error: `download failed: ${errMsg(e)}` };
-      completed++;
-      emit(url, 'error');
-      return;
-    }
-    emit(url, 'convert');
-    const folder = typeof f.folder === 'string' ? f.folder : '';
-    const options = isRecord(f.options) ? f.options : {};
-    const myTurn = importChain.then(async () => {
-      try {
-        const r = await importAndReport(file, format, folder, store, replace, options);
-        results[i] = { url, ok: true, entries: r.entries, replaced: r.replaced };
-      } catch (e) {
-        results[i] = { url, ok: false, error: errMsg(e) };
-      }
+    jobs.push({
+      index: i,
+      url,
+      format,
+      fileName: typeof f.fileName === 'string' && f.fileName ? f.fileName : fileNameFromUrl(url, `file-${i}`),
+      folder: typeof f.folder === 'string' ? f.folder : '',
+      options: isRecord(f.options) ? f.options : {},
     });
-    importChain = myTurn;
-    await myTurn;
-    completed++;
-    emit(url, results[i].ok ? 'done' : 'error');
-  };
+  }
 
-  // worker pool: `concurrent` workers pull the next index off a shared cursor
-  let cursor = 0;
-  const worker = async () => {
-    for (let i = cursor++; i < total; i = cursor++) {
-      await handleOne(i);
+  if (jobs.length > 0) {
+    // ONE lock for the whole batch: the imports below then run inline instead
+    // of each waiting for (and re-showing) the app-wide import lock.
+    const release = await acquireImportLock();
+    if (!release) {
+      throw new ApiError('busy', 'another import is already running');
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(concurrent, total) }, worker));
+    const behaviour = { replace, load: false, temp: false, quiet };
+    try {
+      const pooled = jobs.filter((j) => POOLED_FORMATS.has(j.format));
+      const serial = jobs.filter((j) => !POOLED_FORMATS.has(j.format));
+
+      if (pooled.length > 0) {
+        // lazy bytes(): the pool slot downloads, then cooks — so `concurrent`
+        // files are in flight end-to-end and a slow download never blocks a
+        // cook that is ready to run
+        const sources = pooled.map((j) => ({
+          name: pipelineName(j.fileName, j.format),
+          folder: j.folder,
+          standardGlb: j.format === 'glb-standard',
+          stdOptions: {
+            ...(typeof j.options.normals === 'boolean' ? { normals: j.options.normals } : {}),
+            ...(typeof j.options.edges === 'boolean' ? { edges: j.options.edges } : {}),
+          },
+          bytes: async () => {
+            emit(j.index, j.url, 'download');
+            let buf: ArrayBuffer;
+            try {
+              buf = await downloadBytes(j.url, (loaded, bytesTotal) =>
+                emit(j.index, j.url, 'download', { loaded, totalBytes: bytesTotal }),
+              );
+            } catch (e) {
+              throw new Error(`download failed: ${errMsg(e)}`);
+            }
+            emit(j.index, j.url, 'convert');
+            return buf;
+          },
+        }));
+        const done = await assetsActions.importSourcesLocked(sources, {
+          folder: '',
+          store,
+          concurrency: concurrent,
+          ...behaviour,
+          onSourceDone: (i, r) => {
+            const j = pooled[i];
+            if (r.error) {
+              // the download phase reports its own failure text verbatim
+              fail(j.index, j.url, r.error);
+              return;
+            }
+            completed++;
+            emit(j.index, j.url, 'done');
+          },
+        });
+        for (const d of done) {
+          const j = pooled[d.index];
+          results[j.index] = { url: j.url, ok: true, entries: [toApiEntry(d.entry)], replaced: d.replaced };
+        }
+      }
+
+      // converters: one at a time (each spawns its own workers and stages
+      // through a shared temp dir), but still inside the batch's single lock
+      for (const j of serial) {
+        try {
+          emit(j.index, j.url, 'download');
+          let buf: ArrayBuffer;
+          try {
+            buf = await downloadBytes(j.url, (loaded, bytesTotal) =>
+              emit(j.index, j.url, 'download', { loaded, totalBytes: bytesTotal }),
+            );
+          } catch (e) {
+            throw new Error(`download failed: ${errMsg(e)}`);
+          }
+          emit(j.index, j.url, 'convert');
+          const file = new File([buf], j.fileName);
+          const r = await importAndReport(file, j.format, j.folder, store, replace, j.options, quiet);
+          results[j.index] = { url: j.url, ok: true, entries: r.entries, replaced: r.replaced };
+          completed++;
+          emit(j.index, j.url, 'done');
+        } catch (e) {
+          fail(j.index, j.url, errMsg(e));
+        }
+      }
+    } finally {
+      await release();
+    }
+  }
+
+  // a pooled source that never ran (pool torn down early) has no result yet
+  for (let i = 0; i < total; i++) {
+    if (!results[i]) {
+      const j = jobs.find((x) => x.index === i);
+      results[i] = { url: j?.url ?? '', ok: false, error: 'import produced no entries (see the Console panel)' };
+    }
+  }
 
   const imported = results.filter((r) => r?.ok).length;
   return { imported, failed: total - imported, results };
@@ -293,7 +443,10 @@ export const assetHandlers: Record<string, ApiHandler> = {
     const store = requireStoreOpt(p.store) ?? 'main';
     const replace = p.replace === true;
     const batchId = typeof p.batchId === 'string' ? p.batchId : undefined;
-    return await importUrlBatch(files, concurrent, store, replace, batchId);
+    // the host subscribed to the progress events — it draws its own UI, so the
+    // viewer drives no import dialogs for this batch
+    const quiet = p.progress === true;
+    return await importUrlBatch(files, concurrent, store, replace, batchId, quiet);
   },
 
   // chunk upload (large files: the SDK splits a File into transfers). The

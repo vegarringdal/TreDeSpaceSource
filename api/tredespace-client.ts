@@ -290,11 +290,23 @@ export interface AssetsImportUrlResult {
 /** Progress tick for {@link TredespaceClient.assetsImportUrl} — one per phase
  *  change. `completed`/`total` count whole files; `phase` is what just started
  *  (`download`/`convert`) or ended (`done`/`error`) for `url`. */
+/** Progress tick for one file in an {@link TredespaceClient.assetsImportUrl}
+ *  batch. Files run in parallel, so ticks for several `index`es interleave —
+ *  key your UI on `index` (its position in the `files` array you passed), not
+ *  on arrival order. `completed`/`total` count whole files across the batch. */
 export interface ImportUrlProgress {
   completed: number;
   total: number;
+  /** index into the `files` array this tick belongs to */
+  index: number;
   url: string;
+  /** `download` repeats as bytes arrive; `convert` once the cook starts;
+   *  `done` / `error` end that file. */
   phase: 'download' | 'convert' | 'done' | 'error';
+  /** bytes downloaded so far (download phase only) */
+  loaded?: number;
+  /** total bytes, when the server sent a content-length (download phase only) */
+  totalBytes?: number;
 }
 
 /** One SQLite database in OPFS (`sql_assets/<store>/<file>`). Stores are shared
@@ -729,25 +741,38 @@ export class TredespaceClient {
     return { data: { ...data, loaded } };
   }
 
-  /** Batch-import files the VIEWER downloads by URL — no bytes cross
-   *  postMessage. Each file names its own `format` (required — a `.glb` URL is
-   *  ambiguous). The viewer fetches up to `concurrent` files at once but cooks
-   *  them ONE at a time (the importer is single-locked), so `concurrent` is
-   *  really download parallelism — keep it modest for large RVM/IFC/STEP.
+  /** Batch-import files the VIEWER downloads by URL - nothing rides
+   *  postMessage, so a host can queue many/large models without shipping their
+   *  bytes across the frame. Each file names its own `format` (required - a
+   *  `.glb` URL is ambiguous between merged and standard, so nothing is
+   *  inferred on the wire).
    *
-   *  One `results` entry per input file, in order; a download or convert
-   *  failure is recorded there and never aborts the batch. `onProgress` fires
-   *  per phase change while the batch runs. URLs are fetched under the VIEWER
-   *  origin's CORS, not the host's. */
+   *  `concurrent` (default 3, clamped 1..8) files are processed at once
+   *  END-TO-END: for glb/tdp each slot downloads AND cooks, so a slow download
+   *  never stalls a cook that is ready to run. The rvm/ifc/step converters are
+   *  multi-phase and stage through shared temp dirs, so they run one after
+   *  another (their downloads still stream inside the same batch).
+   *
+   *  Passing `onProgress` also puts the viewer in QUIET mode: it drives no
+   *  import dialogs at all, leaving the progress UI entirely to the host.
+   *  Ticks carry the file `index`, its phase, and downloaded bytes - see
+   *  {@link ImportUrlProgress}. Without `onProgress` the viewer shows its own
+   *  import overlay as usual.
+   *
+   *  One `results` entry per input file, in input order; a download or convert
+   *  failure is recorded there and never aborts the batch. URLs are fetched
+   *  under the VIEWER origin's CORS, not the host's. */
   assetsImportUrl(
     files: ImportUrlFile[],
     opts?: {
-      /** how many downloads run at once (default 3, clamped 1..8 by the viewer). */
+      /** files processed at once — download AND cook (default 3, clamped 1..8
+       *  by the viewer). */
       concurrent?: number;
       /** destination store (default 'main'); must be a known store name. */
       store?: string;
       /** delete any prior asset sharing each new one's store + folder + name. */
       replace?: boolean;
+      /** per-file progress; also suppresses the viewer's own import dialogs. */
       onProgress?: (p: ImportUrlProgress) => void;
     },
   ): Promise<Result<AssetsImportUrlResult>> {
@@ -767,6 +792,8 @@ export class TredespaceClient {
       {
         files,
         batchId,
+        // tells the viewer the host draws its own progress UI: no app dialogs
+        ...(opts?.onProgress ? { progress: true } : {}),
         ...(opts?.concurrent !== undefined ? { concurrent: opts.concurrent } : {}),
         ...(opts?.store ? { store: opts.store } : {}),
         ...(opts?.replace ? { replace: opts.replace } : {}),

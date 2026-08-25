@@ -13,8 +13,10 @@ type ImportUrlPanelProps = Readonly<{
 
 /** Batch import by URL. The VIEWER downloads each URL itself — no bytes cross
  *  postMessage. The wire needs an explicit format per file (a .glb URL is
- *  ambiguous), so the format select applies to every line. `concurrent` bounds
- *  parallel downloads; cooking is serial regardless (single import lock). */
+ *  ambiguous), so the format select applies to every line. `concurrent` files
+ *  are processed at once end-to-end (glb/tdp download AND cook in parallel;
+ *  the rvm/ifc/step converters still run one after another). Passing
+ *  onProgress also silences the viewer's own import dialogs. */
 export function ImportUrlPanel({ store, replace }: ImportUrlPanelProps) {
   const { run, c, line } = useDemo();
   const [urls, setUrls] = useState('');
@@ -35,7 +37,11 @@ export function ImportUrlPanel({ store, replace }: ImportUrlPanelProps) {
     concurrent,
     store,
     replace,
-    onProgress: (p: ImportUrlProgress) => line('', `  … [${p.completed}/${p.total}] ${p.phase} ${p.url}`),
+    onProgress: (p: ImportUrlProgress) => {
+      // files run in parallel — the index says which one a tick belongs to
+      const pct = p.totalBytes ? ` ${Math.round(((p.loaded ?? 0) / p.totalBytes) * 100)}%` : '';
+      line('', `  … [${p.completed}/${p.total}] #${p.index} ${p.phase}${pct} ${p.url}`);
+    },
   });
 
   const handleFormatChange = (v: string | null) => {
