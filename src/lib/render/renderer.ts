@@ -17,6 +17,7 @@
 
 import { projectToScreen } from '../math/project';
 import type { PackedModel } from '../model/pack';
+import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
 
 /** what the GPU upload needs — the worker keeps itemBounds for itself */
 export type GpuPackedModel = Omit<PackedModel, 'itemBounds'>;
@@ -816,7 +817,7 @@ export class Renderer {
         {
           binding: 0,
           visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-          buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: 160 },
+          buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: FRAME_SIZE },
         },
         {
           binding: 1,
@@ -1124,7 +1125,7 @@ export class Renderer {
       label: 'renderBind',
       layout: this.renderBGL,
       entries: [
-        { binding: 0, resource: { buffer: this.frameBuf, size: 160 } },
+        { binding: 0, resource: { buffer: this.frameBuf, size: FRAME_SIZE } },
         { binding: 1, resource: { buffer: cgColorBuf } },
         { binding: 2, resource: { buffer: meshletInfoBuf } },
         { binding: 3, resource: { buffer: itemStateBuf } },
@@ -2004,6 +2005,8 @@ export class Renderer {
 
     // Sub-pixel projection jitter (Halton 2,3) while accumulating. Applied
     // after the change check so jitter itself never counts as camera motion.
+    let jx = 0;
+    let jy = 0;
     if (opt.fastAA) {
       const halton = (i: number, b: number) => {
         let f = 1,
@@ -2015,8 +2018,8 @@ export class Renderer {
         }
         return r;
       };
-      const jx = ((halton(this.accumIdx + 1, 2) - 0.5) * 2) / canvas.width;
-      const jy = ((halton(this.accumIdx + 1, 3) - 0.5) * 2) / canvas.height;
+      jx = ((halton(this.accumIdx + 1, 2) - 0.5) * 2) / canvas.width;
+      jy = ((halton(this.accumIdx + 1, 3) - 0.5) * 2) / canvas.height;
       for (let c = 0; c < 4; c++) {
         vp[c * 4 + 0] += jx * vp[c * 4 + 3];
         vp[c * 4 + 1] += jy * vp[c * 4 + 3];
@@ -2024,25 +2027,41 @@ export class Renderer {
     }
 
     const eye = this.camera.eye();
-    const frameData = new ArrayBuffer(160);
+    // CAMERA-RELATIVE RENDERING: the GPU gets the world rebased on a per-frame
+    // origin near the camera, because an absolute f32 coordinate resolves only
+    // ~1 mm at 10 km — enough to z-fight coincident faces AND to wreck the
+    // screen-space derivative the flat shading takes its face normal from.
+    // The origin is the eye ROUNDED, so it only changes when the camera has
+    // moved a whole unit (a stable basis frame to frame, which keeps TAA
+    // accumulation from seeing the rebase as motion). lastVP / lastView stay
+    // ABSOLUTE — host-side picking, the label overlay and the cull pass all
+    // work in world space.
+    const origin: [number, number, number] = [Math.round(eye[0]), Math.round(eye[1]), Math.round(eye[2])];
+    const vpRel = this.camera.viewProjRelative(canvas.width / canvas.height, origin);
+    for (let c = 0; c < 4; c++) {
+      vpRel[c * 4 + 0] += jx * vpRel[c * 4 + 3];
+      vpRel[c * 4 + 1] += jy * vpRel[c * 4 + 3];
+    }
+    const frameData = new ArrayBuffer(FRAME_SIZE);
     const ff = new Float32Array(frameData);
-    ff.set(vp);
-    ff.set([...eye, 1], 16);
+    ff.set(vpRel, FRAME_SLOT.viewProj);
+    ff.set([...origin, 0], FRAME_SLOT.origin);
+    ff.set([eye[0] - origin[0], eye[1] - origin[1], eye[2] - origin[2], 1], FRAME_SLOT.eye);
     const fu = new Uint32Array(frameData);
-    fu[20] = opt.meshletVis ? 1 : 0;
-    fu[21] = opt.suppressTintOnOverride ? 1 : 0;
-    fu[22] = opt.transparencyBlend ? 1 : 0; // bit1 (blend pass) set in slot 2
-    fu[23] = this.accumIdx; // alpha-hash seed
+    fu[FRAME_SLOT.flags] = opt.meshletVis ? 1 : 0;
+    fu[FRAME_SLOT.flags + 1] = opt.suppressTintOnOverride ? 1 : 0;
+    fu[FRAME_SLOT.flags + 2] = opt.transparencyBlend ? 1 : 0; // bit1 (blend pass) set in slot 2
+    fu[FRAME_SLOT.flags + 3] = this.accumIdx; // alpha-hash seed
     // ortho: directional headlight along the view axis (surface -> light = -fwd)
     const fwd = this.camera.forward();
-    ff.set([-fwd[0], -fwd[1], -fwd[2], opt.orthographic ? 1 : 0], 24);
-    ff.set([...opt.ambientColor, opt.ambientIntensity], 28);
-    ff.set([...opt.headlightColor, opt.headlightIntensity], 32);
+    ff.set([-fwd[0], -fwd[1], -fwd[2], opt.orthographic ? 1 : 0], FRAME_SLOT.light);
+    ff.set([...opt.ambientColor, opt.ambientIntensity], FRAME_SLOT.ambient);
+    ff.set([...opt.headlightColor, opt.headlightIntensity], FRAME_SLOT.headlight);
     // selection REPLACES the color (a = blend); outline-only style zeroes the
     // blend so selected items keep their true color (outline shows instead)
-    ff.set([...opt.selectionColor, opt.selectionTint ? 1.0 : 0.0], 36);
+    ff.set([...opt.selectionColor, opt.selectionTint ? 1.0 : 0.0], FRAME_SLOT.selColor);
     dev.queue.writeBuffer(this.frameBuf, 0, frameData);
-    fu[22] |= 2; // blend-pass slot
+    fu[FRAME_SLOT.flags + 2] |= 2; // blend-pass slot
     dev.queue.writeBuffer(this.frameBuf, 256, frameData);
 
     // vp = vertex pulling (core WebGPU); mdi = multi-draw indirect (feature);

@@ -4,6 +4,7 @@
 // finished frame. Owns its pipelines, uniform buffers and lazy canvas-sized
 // targets; the renderer calls encode() only when something is outlined.
 
+import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
 import { type GpuModel, replayDrawLists } from './gpuModel';
 import type { GpuTimings } from './gpuTimings';
 import { outlineWgsl } from './shaders';
@@ -174,13 +175,13 @@ export class OutlinePass {
 
     // outline frame slot @768: blend routing off (every outlined item in one
     // replay); ambient.x = include-selected flag, ambient.y = hover id (bitcast)
-    const of = new ArrayBuffer(160);
+    const of = new ArrayBuffer(FRAME_SIZE);
     new Uint8Array(of).set(new Uint8Array(frameData));
     const ou = new Uint32Array(of);
-    ou[22] = 0;
+    ou[FRAME_SLOT.flags + 2] = 0;
     const ofl = new Float32Array(of);
-    ofl[28] = opt.outlineSelection && opt.outlineSelectionActive ? 1 : 0;
-    ou[29] = hoverId;
+    ofl[FRAME_SLOT.ambient] = opt.outlineSelection && opt.outlineSelectionActive ? 1 : 0;
+    ou[FRAME_SLOT.ambient + 1] = hoverId;
     dev.queue.writeBuffer(frameBuf, 768, of);
 
     // blur params: thickness-radius full-res pair + fixed-wide half-res glow pair

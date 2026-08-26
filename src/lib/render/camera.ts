@@ -407,7 +407,25 @@ export class CameraController {
   // Orthographic: half-height from the focus distance (matches perspective
   // framing at the focal plane); depth slab [orthoNear, orthoFar].
   viewProj(aspect: number): Mat4 {
-    const [ex, ey, ez] = this.eye();
+    return this.buildViewProj(aspect, 0, 0, 0, true);
+  }
+
+  /** The same matrix with the world REBASED on `origin`: clip = vp * (world -
+   *  origin). Built from the f64 camera state, so the translation terms stay
+   *  small and survive the f32 upload — at 10 km an absolute f32 coordinate
+   *  resolves to only ~1 mm, which is what makes distant geometry speckle.
+   *  Does NOT touch `lastView` (the cull pass works in absolute world space). */
+  viewProjRelative(aspect: number, origin: readonly [number, number, number]): Mat4 {
+    return this.buildViewProj(aspect, origin[0], origin[1], origin[2], false);
+  }
+
+  private buildViewProj(aspect: number, ox: number, oy: number, oz: number, record: boolean): Mat4 {
+    const [eyeX, eyeY, eyeZ] = this.eye();
+    // rebase in f64 BEFORE the matrix math: the subtraction is exact here and
+    // the products below then stay small
+    const ex = eyeX - ox;
+    const ey = eyeY - oy;
+    const ez = eyeZ - oz;
     const f = this.forward();
     // right-handed look_at basis (camera x = screen-right = cross(fwd, up))
     let rx = f[1],
@@ -437,7 +455,9 @@ export class CameraController {
       f[0] * ex + f[1] * ey + f[2] * ez,
       1,
     ];
-    this.lastView.set(v);
+    if (record) {
+      this.lastView.set(v);
+    }
 
     const p = new Array(16).fill(0);
     if (this.ortho) {

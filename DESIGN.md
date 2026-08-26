@@ -623,3 +623,43 @@ Re-measure the "% busy" line before believing any of this has changed.
   WebGPU resource in `renderer.ts` now carries a `label:` (buffers, textures,
   bind groups, pipelines, shader modules), so Dawn validation / device-lost
   messages name the culprit instead of `[Buffer]`.
+
+## Camera-relative rendering (far-from-origin precision)
+
+Models placed far from the world origin (plant coordinates, 10 km+) speckled:
+an absolute f32 coordinate resolves to only ~1 mm at 9 km (vs 7.6 µm at 100 m),
+which is enough to z-fight coincident faces AND to wreck the screen-space
+derivative the flat shading derives its face normal from. The depth buffer was
+never the problem — it is already reverse-Z `depth32float` with an infinite far
+plane.
+
+The GPU is therefore handed the world REBASED on a per-frame origin: `clip =
+view_proj * (world_abs - origin)`, with `origin` = the camera position rounded
+to whole units (rounded so it only changes on real camera motion, which keeps
+TAA from seeing the rebase as movement). Two details make it work:
+
+- The camera builds the rebased matrix from its **f64** state
+  (`viewProjRelative`), so the translation terms are small before they are
+  narrowed to f32 — rebasing an already-f32 absolute matrix would keep the
+  cancellation.
+- The vertex shader rebases **before** dequantizing:
+  `(aabb_min - origin) + q * aabb_scale`. `aabb_min - origin` is an exact f32
+  subtraction (nearby magnitudes), so the sum lands in small-number space.
+  Items with a committed/live transform still go through their absolute-space
+  matrix and rebase after — as precise as before, no worse.
+
+Everything the vertex stage interpolates (`world`, `eye`) is in rebased space;
+the clip box/planes convert back (`world + origin`) since their uniforms are
+absolute. `lastVP` / `lastView` stay ABSOLUTE — host-side picking, the label
+overlay and the cull pass all work in world space, where mm precision is
+irrelevant. `tests/cameraRelative.test.ts` pins both properties.
+
+Every pass that patches a copy of the frame data (pick @512, outline @768)
+indexes it through `frameLayout.ts` — adding `origin` shifted the members and
+broke both passes, because their byte size and slot numbers were duplicated as
+magic numbers. Keep them there.
+
+Residual (not fixed by this): `aabb_min` is still stored as an absolute f32,
+so a meshlet's base is on that ~1 mm grid. Vertices are offsets from that base,
+so reconstruction stays sub-mm — but a cook-side recentering (geometry relative
+to a per-model origin) is the lever if anything remains.

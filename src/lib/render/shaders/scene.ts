@@ -5,7 +5,14 @@
 // -----------------------------------------------------------------------------
 
 const RENDER_FRAME = /* wgsl */ `struct Frame {
+  // CAMERA-RELATIVE: clip = view_proj * (world_abs - origin). Everything the
+  // vertex stage interpolates (world, eye) is in that rebased space too —
+  // f32 resolves ~1 mm at 10 km from the true origin, which speckles distant
+  // geometry through both z-fighting and the derivative face normal.
   view_proj: mat4x4f,
+  // xyz: the frame's rebase origin (the camera position, rounded); w unused
+  origin: vec4f,
+  // eye in REBASED space (= absolute eye - origin)
   eye: vec4f,
   // x: 1 = per-meshlet debug colors; y: suppress selection tint on overrides;
   // z: bit0 = blend transparency mode, bit1 = this is the blend pass;
@@ -197,7 +204,7 @@ const RENDER_FS = /* wgsl */ `struct FsOut {
 
 @fragment
 fn fs(in: VsOut) -> FsOut {
-  if (clip_discard(in.world)) { discard; }
+  if (clip_discard(in.world + frame.origin.xyz)) { discard; }
   if ((frame.flags.z & 1u) == 0u && in.opacity < 1.0) {
     // alpha-hash mode: stochastic discard, converges under TAA
     if (alpha_hash(vec2u(in.clip.xy), frame.flags.w) > in.opacity) { discard; }
@@ -252,7 +259,7 @@ fn fs(in: VsOut) -> FsOut {
 // slot's (otherwise unused) ambient.xy.
 @fragment
 fn fs_pick(in: VsOut) -> @location(0) vec4f {
-  if (clip_discard(in.world)) { discard; }
+  if (clip_discard(in.world + frame.origin.xyz)) { discard; }
   let thr = frame.ambient.x;
   var solid: bool;
   if (frame.ambient.y > 0.5) {
@@ -275,7 +282,7 @@ fn fs_pick(in: VsOut) -> @location(0) vec4f {
 // occludes it — that is what makes the hidden-edge color possible.
 @fragment
 fn fs_outline(in: VsOut) {
-  if (clip_discard(in.world)) { discard; }
+  if (clip_discard(in.world + frame.origin.xyz)) { discard; }
   let sel = (item_states[in.id - model_uni.info.x].flags & 4u) != 0u;
   let hover_id = bitcast<u32>(frame.ambient.y);
   if (!((sel && frame.ambient.x > 0.5) || (hover_id != 0u && in.id == hover_id))) { discard; }
@@ -339,16 +346,25 @@ fn vs(
     return o;
   }
   o.opacity = opacity;
-${quantized ? '  var world = info.aabb_min + vec3f(pos.xyz) * info.aabb_scale;' : '  var world = pos;'}
-  // committed item transform (native mesh.slang: pos = T * pos)
   let tid = item_states[info.item].tidx;
-  if (tid != 0u) {
-    world = (transforms[tid] * vec4f(world, 1.0)).xyz;
-  }
-  // live gizmo-drag preview on top, selected items only (native model_global)
   let live = model_uni.info.y == 1u && (item_states[info.item].flags & 4u) != 0u;
-  if (live) {
-    world = (model_uni.global * vec4f(world, 1.0)).xyz;
+  // Rebase FIRST on the untransformed path: aabb_min - origin is an exact
+  // f32 subtraction (both are nearby magnitudes), so the dequantized position
+  // lands in small-number space and keeps micron precision however far the
+  // model sits from the true origin. Transformed items must go through their
+  // absolute-space matrix, so they rebase after (as precise as before).
+${quantized ? '  var world = (info.aabb_min - frame.origin.xyz) + vec3f(pos.xyz) * info.aabb_scale;' : '  var world = pos - frame.origin.xyz;'}
+  if (tid != 0u || live) {
+${quantized ? '    var abs_world = info.aabb_min + vec3f(pos.xyz) * info.aabb_scale;' : '    var abs_world = pos;'}
+    // committed item transform (native mesh.slang: pos = T * pos)
+    if (tid != 0u) {
+      abs_world = (transforms[tid] * vec4f(abs_world, 1.0)).xyz;
+    }
+    // live gizmo-drag preview on top, selected items only (native model_global)
+    if (live) {
+      abs_world = (model_uni.global * vec4f(abs_world, 1.0)).xyz;
+    }
+    world = abs_world - frame.origin.xyz;
   }
   // authored normal (generic GLB import); vid = index value + baseVertex =
   // the global vertex index the normal stream is laid out by
@@ -446,16 +462,21 @@ fn vs(
     return o;
   }
   o.opacity = opacity;
-  var world = info.aabb_min + q * info.aabb_scale;
-  // committed item transform (native mesh.slang: pos = T * pos)
+  // rebase before dequantizing — see the MDI path for why
   let tid = item_states[info.item].tidx;
-  if (tid != 0u) {
-    world = (transforms[tid] * vec4f(world, 1.0)).xyz;
-  }
-  // live gizmo-drag preview on top, selected items only (native model_global)
   let live = model_uni.info.y == 1u && (item_states[info.item].flags & 4u) != 0u;
-  if (live) {
-    world = (model_uni.global * vec4f(world, 1.0)).xyz;
+  var world = (info.aabb_min - frame.origin.xyz) + q * info.aabb_scale;
+  if (tid != 0u || live) {
+    var abs_world = info.aabb_min + q * info.aabb_scale;
+    // committed item transform (native mesh.slang: pos = T * pos)
+    if (tid != 0u) {
+      abs_world = (transforms[tid] * vec4f(abs_world, 1.0)).xyz;
+    }
+    // live gizmo-drag preview on top, selected items only (native model_global)
+    if (live) {
+      abs_world = (model_uni.global * vec4f(abs_world, 1.0)).xyz;
+    }
+    world = abs_world - frame.origin.xyz;
   }
   // authored normal (generic GLB import): same global vertex index as qverts
   o.normal = vec3f(0.0);
@@ -485,7 +506,10 @@ ${RENDER_FS}`;
 export function lineWgsl(): string {
   return /* wgsl */ `
 struct Frame {
+  // first two members of the shared Frame (camera-relative rendering): the
+  // line vertices below are ABSOLUTE world, so they rebase here too
   view_proj: mat4x4f,
+  origin: vec4f,
 };
 
 @group(0) @binding(0) var<uniform> frame: Frame;
@@ -498,7 +522,7 @@ struct VsOut {
 @vertex
 fn vs(@location(0) a: vec4f) -> VsOut {
   var o: VsOut;
-  o.clip = frame.view_proj * vec4f(a.xyz, 1.0);
+  o.clip = frame.view_proj * vec4f(a.xyz - frame.origin.xyz, 1.0);
   let c = bitcast<u32>(a.w);
   o.color = vec4f(
     f32(c & 255u), f32((c >> 8u) & 255u), f32((c >> 16u) & 255u), f32((c >> 24u) & 255u),

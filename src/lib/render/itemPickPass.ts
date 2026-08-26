@@ -5,6 +5,7 @@
 // targets — the main G-buffer is 4-sample under MSAA (not copyable, and the
 // 1-sample pick pipelines couldn't render into it).
 
+import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
 import { type GpuModel, replayDrawLists } from './gpuModel';
 import type { GpuTimings } from './gpuTimings';
 
@@ -89,13 +90,13 @@ export class ItemPickPass {
     // the fragment discards items on the wrong side of the opacity
     // threshold, so the winning id is what the rule says the click hits.
     // Pick frame slot @512: blend routing off; ambient.xy = threshold/shift.
-    const pickFrame = new ArrayBuffer(160);
+    const pickFrame = new ArrayBuffer(FRAME_SIZE);
     new Uint8Array(pickFrame).set(new Uint8Array(frameData));
     const pfu = new Uint32Array(pickFrame);
-    pfu[22] = 0; // no blend-mode routing — glass renders (and applies the rule)
+    pfu[FRAME_SLOT.flags + 2] = 0; // no blend routing — glass renders (and applies the rule)
     const pff = new Float32Array(pickFrame);
-    pff[28] = opt.pickOpacityPct / 100;
-    pff[29] = req.shift ? 1 : 0;
+    pff[FRAME_SLOT.ambient] = opt.pickOpacityPct / 100;
+    pff[FRAME_SLOT.ambient + 1] = req.shift ? 1 : 0;
     dev.queue.writeBuffer(frameBuf, 512, pickFrame);
     const x = Math.min(Math.max(req.x, 0), canvas.width - 1);
     const y = Math.min(Math.max(req.y, 0), canvas.height - 1);
