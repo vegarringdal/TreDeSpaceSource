@@ -9,6 +9,7 @@ import { normalizeStoreName, storeExists, storesState } from '../../state/stores
 import { db } from '../../state/viewer/db';
 import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { deleteFile, uploadsTempDir } from '../opfs/opfs';
+import { applyCameraPayload } from './handlersViewer';
 import { ApiError, type ApiHandler, isRecord, records, requireStoreOpt, strings } from './protocol';
 import { emitApiEvent } from './transport';
 
@@ -581,7 +582,11 @@ export const assetHandlers: Record<string, ApiHandler> = {
     }
     if (loaded > 0) {
       viewerActions.bumpModelsVersion();
-      if (p.fit !== false && boxes.length > 0) {
+      // an explicit camera REPLACES the fit — set the view in one step
+      // instead of framing the batch and then jumping somewhere else
+      if (isRecord(p.camera)) {
+        applyCameraPayload(p.camera);
+      } else if (p.fit !== false && boxes.length > 0) {
         const min = [Infinity, Infinity, Infinity];
         const max = [-Infinity, -Infinity, -Infinity];
         for (const b of boxes) {
@@ -648,9 +653,14 @@ export const assetHandlers: Record<string, ApiHandler> = {
     if (loaded > 0 || toUnload.length > 0) {
       viewerActions.bumpModelsVersion();
     }
+    // an explicit camera REPLACES the fit (and needs no opt-in: passing one
+    // IS the instruction to move)
+    if (isRecord(p.camera)) {
+      applyCameraPayload(p.camera);
+    }
     // fit (opt-in — a background sync should not move the camera) frames the
     // union of the whole DESIRED set, not just what this call loaded
-    if (p.fit === true) {
+    else if (p.fit === true) {
       const min = [Infinity, Infinity, Infinity];
       const max = [-Infinity, -Infinity, -Infinity];
       let any = false;

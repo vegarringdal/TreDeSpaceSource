@@ -38,6 +38,8 @@ function parseApp(f: Record<string, unknown>, i: number): Omit<ExternalApp, 'id'
     tooltip: typeof f.tooltip === 'string' ? f.tooltip : '',
     newWindow: f.newWindow === true,
     openOnStart: f.openOnStart === true,
+    home: f.home === true,
+    homeAt: f.homeAt === 'end' ? 'end' : 'start',
     modal: f.modal === true,
     config,
   };
@@ -50,12 +52,29 @@ export const externalAppsHandlers: Record<string, ApiHandler> = {
     // openOnStart on a host entry = open NOW (the host sets apps after boot);
     // new-window entries are skipped — window.open without a gesture is blocked
     let opened = 0;
+    const dialogIds = new Map<string, string>();
     for (const a of created) {
-      if (a.openOnStart && openExternalAppNow(a)) {
+      if (!a.openOnStart) {
+        continue;
+      }
+      const r = openExternalAppNow(a);
+      if (r.opened) {
         opened++;
       }
+      if (r.dialogId) {
+        dialogIds.set(a.id, r.dialogId);
+      }
     }
-    return { apps: created.map((a) => ({ id: a.id, name: a.name, url: a.url })), opened };
+    return {
+      apps: created.map((a) => ({
+        id: a.id,
+        name: a.name,
+        url: a.url,
+        // present for a MODAL app opened by this call — what ui.dialog.* uses
+        ...(dialogIds.has(a.id) ? { dialogId: dialogIds.get(a.id) } : {}),
+      })),
+      opened,
+    };
   },
 
   'externalApps.list': async () => ({
@@ -69,6 +88,8 @@ export const externalAppsHandlers: Record<string, ApiHandler> = {
       newWindow: a.newWindow,
       modal: a.modal,
       openOnStart: a.openOnStart,
+      home: a.home,
+      homeAt: a.homeAt,
       hostManaged: a.hostManaged === true,
     })),
   }),

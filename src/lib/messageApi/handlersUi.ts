@@ -1,6 +1,11 @@
 // UI commands (kiosk, theme, panels, dialogs) and the shared instance-data
 // blob. App.tsx registers the dock/kiosk/dialog hooks in registry.ts.
 import { dialogs } from '../../components/dialogs/dialogs.actions';
+import {
+  closeExternalModal,
+  externalModalsState,
+  setExternalModalHidden,
+} from '../../components/panels/ribbon-external/externalModals.state';
 import { settingsActions } from '../../components/panels/settings/settings.actions';
 import { settingsState } from '../../components/panels/settings/settings.state';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
@@ -22,6 +27,41 @@ const showOrHidePanel: ApiHandler = ({ type, p }) => {
   }
   panelControl.close(panel);
   return { hidden: true };
+};
+
+/** The external-modal dialog id hosting `source`, for the id-less form of the
+ *  dialog commands (an embedded app addressing ITSELF). DOM-only, so it needs
+ *  no dock-manager registration. */
+function dialogIdOfSource(source?: Window | null): string | null {
+  if (!source) {
+    return null;
+  }
+  for (const f of document.querySelectorAll('iframe')) {
+    if (f.contentWindow === source) {
+      return f.closest('[data-ext-modal]')?.getAttribute('data-ext-modal') ?? null;
+    }
+  }
+  return null;
+}
+
+/** Resolve the dialog a command targets: an explicit `id`, else the sending
+ *  window's own dialog. */
+function requireDialogId(p: Record<string, unknown>, source?: Window | null): string {
+  const id = typeof p.id === 'string' && p.id ? p.id : dialogIdOfSource(source);
+  if (!id) {
+    throw new ApiError('bad-payload', 'id is required (no external dialog hosts the sending window)');
+  }
+  if (!externalModalsState.get().open.some((m) => m.key === id)) {
+    throw new ApiError('not-found', `no open dialog with id "${id}"`);
+  }
+  return id;
+}
+
+const hideOrShowDialog: ApiHandler = ({ type, p, source }) => {
+  const id = requireDialogId(p, source);
+  const hidden = type === 'ui.dialog.hide';
+  setExternalModalHidden(id, hidden);
+  return { id, hidden };
 };
 
 export const uiHandlers: Record<string, ApiHandler> = {
@@ -57,6 +97,27 @@ export const uiHandlers: Record<string, ApiHandler> = {
 
   'ui.showPanel': showOrHidePanel,
   'ui.hidePanel': showOrHidePanel,
+
+  'ui.dialogs': () => ({
+    dialogs: externalModalsState.get().open.map((m) => ({
+      id: m.key,
+      appId: m.appId,
+      name: m.name,
+      url: m.url,
+      hidden: m.hidden === true,
+    })),
+  }),
+
+  // hide/show keep the iframe MOUNTED — the app inside keeps its state, so a
+  // dialog parked during a load can come back exactly as the user left it
+  'ui.dialog.hide': hideOrShowDialog,
+  'ui.dialog.show': hideOrShowDialog,
+
+  'ui.dialog.close': ({ p, source }) => {
+    const id = requireDialogId(p, source);
+    closeExternalModal(id);
+    return { id, closed: true };
+  },
 
   // header = the bold title line; title = the body/message line
   'ui.loading.show': ({ p }) => {

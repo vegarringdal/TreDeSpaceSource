@@ -6,12 +6,17 @@ import { createStore } from '@treDeSpaceUI/lib/createStore';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
 
 export interface OpenModal {
+  /** Instance id — the dialog id the postMessage API addresses it by. */
   key: string;
   appId: string;
   name: string;
   url: string;
   width: string;
   height: string;
+  /** Hidden but STILL MOUNTED: the iframe keeps running and keeps its state,
+   *  so showing it again resumes the same page (unlike closing, which drops
+   *  the context). Driven by the host through `ui.dialog.hide` / `.show`. */
+  hidden?: boolean;
 }
 
 export const externalModalsState = createStore<{ open: OpenModal[] }>({ open: [] });
@@ -39,22 +44,43 @@ function initialSize(config: string): { width: string; height: string } {
 }
 
 /** Open an external app as a modal dialog (single-instance apps re-focus the
- *  existing dialog instead of opening a second one). */
-export function openExternalModal(app: ExternalApp) {
+ *  existing dialog instead of opening a second one). Returns the dialog id —
+ *  what `ui.dialog.hide` / `.show` / `.close` address it by. A hidden
+ *  single-instance dialog is un-hidden rather than duplicated. */
+export function openExternalModal(app: ExternalApp): string {
+  let key = '';
   externalModalsState.set((s) => {
     // single-instance apps: re-opening brings the existing dialog to the top
     const existing = !app.multiple ? s.open.find((m) => m.appId === app.id) : undefined;
     if (existing) {
-      return { open: [...s.open.filter((m) => m.key !== existing.key), existing] };
+      key = existing.key;
+      const shown = { ...existing, hidden: false };
+      return { open: [...s.open.filter((m) => m.key !== existing.key), shown] };
     }
     const size = initialSize(app.config);
+    key = `${app.id}:${seq++}`;
     return {
-      open: [
-        ...s.open,
-        { key: `${app.id}:${seq++}`, appId: app.id, name: app.name, url: externalAppUrl(app), ...size },
-      ],
+      open: [...s.open, { key, appId: app.id, name: app.name, url: externalAppUrl(app), ...size }],
     };
   });
+  return key;
+}
+
+/** Hide or re-show one modal WITHOUT unmounting it — the iframe keeps its
+ *  context (a half-filled form, a live session) across the round trip.
+ *  Returns false when no dialog has that id. */
+export function setExternalModalHidden(key: string, hidden: boolean): boolean {
+  const target = externalModalsState.get().open.find((m) => m.key === key);
+  if (!target) {
+    return false;
+  }
+  const next = { ...target, hidden };
+  // re-showing also raises it: render order is the stacking order
+  externalModalsState.set((s) => {
+    const rest = s.open.filter((m) => m.key !== key);
+    return { open: hidden ? [next, ...rest] : [...rest, next] };
+  });
+  return true;
 }
 
 /** Close one external modal dialog by its instance key. */

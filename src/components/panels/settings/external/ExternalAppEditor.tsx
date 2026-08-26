@@ -73,6 +73,23 @@ export function ExternalAppEditor({ app }: { app: ExternalApp }) {
           onChange={(x) => externalAppsActions.update(a.id, { modal: x })}
         />
         <Check
+          label="Show in Home"
+          tooltip="Put the button on the HOME ribbon instead of External — for a tool the user should see right away (a project selector). The select next to it picks which end of the ribbon it sits at."
+          checked={a.home}
+          onChange={(x) => externalAppsActions.update(a.id, { home: x })}
+        />
+        {a.home && (
+          <Select
+            className="w-32"
+            value={a.homeAt}
+            options={[
+              { value: 'start', label: 'At start' },
+              { value: 'end', label: 'At end' },
+            ]}
+            onChange={(v) => externalAppsActions.update(a.id, { homeAt: v === 'end' ? 'end' : 'start' })}
+          />
+        )}
+        <Check
           label="Open on start"
           tooltip="Open automatically when the app starts (e.g. a project selector)"
           checked={a.openOnStart}

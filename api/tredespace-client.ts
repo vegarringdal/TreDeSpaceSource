@@ -56,11 +56,37 @@
 //   const viewerOrigin = new URL(document.referrer).origin;
 //   const client = new TredespaceClient(window.parent, { targetOrigin: viewerOrigin });
 //
+// TALKING BETWEEN YOUR OWN FRAMES (browser storage partitioning):
+//   When your page embeds the viewer and the viewer embeds a page of YOURS
+//   back (an External-app panel or modal dialog), those two same-origin pages
+//   of yours sit in DIFFERENT storage partitions: the nested one has a
+//   cross-site ancestor (the viewer), so BroadcastChannel — and localStorage /
+//   IndexedDB — do NOT reach between them. Measured, Chrome 151:
+//     A → A                      (no viewer in between)     works
+//     A → viewer(B) → A                                     nothing arrives
+//     A → viewer(B) → A   (any iframe sandbox attribute)    nothing arrives
+//     A | A side by side inside viewer(B)  (two dialogs)    works
+//   It is not a sandbox or a permission the viewer controls — the one switch
+//   that lifts it is Chrome's browser-wide
+//   `--disable-features=ThirdPartyStoragePartitioning`, a global privacy
+//   setting and never something to build a product on. Use instead:
+//     - between two of YOUR pages inside the viewer: BroadcastChannel works
+//       (same partition) — no relay needed.
+//     - nested page ↔ your top page: postMessage directly (the nested page's
+//       window.parent.parent is your top page; validate event.origin), or
+//       relay through the viewer with instanceSet / onInstanceChanged — one
+//       shared JSON blob per viewer window, broadcast to every embedded frame.
+//     - serving the viewer from your own site (a path or a subdomain — a
+//       subdomain is same-SITE) removes the cross-site ancestor entirely, and
+//       all of the above just works.
+//
 // EVENTS (unsolicited app → host; subscribe with on() or the typed helpers):
 //   'tree.select'                — user selected a tree row / clicked the model
 //   'instance.changed'           — the shared instance-data blob changed
 //   'viewpoints.bookmark'        — user clicked the host bookmark button
 //                                  (onViewpointsBookmark; config attached)
+//   'theme.changed'              — viewer theme switched, from any route
+//                                  (onThemeChanged) — restyle your frames
 //   'assets.importUrl:progress'  — per-file import progress (assetsImportUrl
 //                                  surfaces it via its onProgress option)
 //
@@ -368,11 +394,75 @@ export interface HostExternalApp {
   newWindow?: boolean;
   /** open as a centered modal dialog over the app */
   modal?: boolean;
+  /** Put the button on the HOME ribbon instead of External — for a tool the
+   *  user should see immediately (a project selector, a report picker). It
+   *  shows in one place, not both; `section` still titles its group. */
+  home?: boolean;
+  /** Which end of the Home ribbon the group sits at: `'start'` (default) puts
+   *  it before the viewer's own Home groups, `'end'` after them. Ignored
+   *  unless `home` is set. */
+  homeAt?: 'start' | 'end';
   /** open immediately when this set call lands (e.g. a project selector) */
   openOnStart?: boolean;
-  /** config passed to the page as a stringified `?config=` URL param — pass an
-   *  object and the viewer stringifies it */
+  /** Config passed to the page as a stringified `?config=` URL param — pass an
+   *  object and the viewer stringifies it.
+   *
+   *  For a `modal` app it ALSO sets the dialog's initial size: `width` /
+   *  `height` accept `"600px"`, `"60%"` (of the viewport) or a bare number
+   *  (px). Both default to `"70%"`, which is a lot of screen for a small
+   *  form — set them explicitly for compact dialogs. The dialog is capped at
+   *  96vw × 96vh, and the user can still move it by its title bar and resize
+   *  it from the bottom-right corner.
+   *
+   *  ```ts
+   *  { name: 'Picker', url: '…', modal: true,
+   *    config: { width: '480px', height: '320px', project: 'plant-7' } }
+   *  ``` */
   config?: string | Record<string, unknown>;
+}
+
+/** A camera placement. The viewer's camera is ORBIT-based (Z-up): a pivot
+ *  `target` plus `azimuth` / `elevation` (radians) and `distance` from the
+ *  pivot. Give an eye `position` instead and the viewer converts — pass
+ *  `position` + `target` if you think in eye points. Anything omitted keeps
+ *  its current value, so `{ target: [x, y, z] }` re-pivots without turning. */
+export interface CameraInput {
+  /** eye point; converted to azimuth/elevation/distance around `target` */
+  position?: [number, number, number];
+  /** look-at pivot (defaults to the current pivot) */
+  target?: [number, number, number];
+  /** radians — ignored when `position` is given */
+  azimuth?: number;
+  /** radians, +Z up — ignored when `position` is given */
+  elevation?: number;
+  /** distance from `target` — ignored when `position` is given */
+  distance?: number;
+  orthographic?: boolean;
+  /** glide there (default) or snap with `false` */
+  animate?: boolean;
+}
+
+/** The camera's current placement, from {@link TredespaceClient.cameraGet}. */
+export interface CameraState {
+  target: [number, number, number];
+  /** eye point, derived from the orbit parameters */
+  position: [number, number, number];
+  azimuth: number;
+  elevation: number;
+  distance: number;
+  orthographic: boolean;
+}
+
+/** One open external modal dialog, from {@link TredespaceClient.uiDialogs}. */
+export interface DialogInfo {
+  /** dialog id — what the ui.dialog* methods address it by */
+  id: string;
+  /** the external-app entry it was opened from */
+  appId: string;
+  name: string;
+  url: string;
+  /** hidden but still mounted (its page keeps running and keeps its state) */
+  hidden: boolean;
 }
 
 /** One configured external app, from {@link TredespaceClient.externalAppsList}. */
@@ -386,6 +476,10 @@ export interface ExternalAppInfo {
   newWindow: boolean;
   modal: boolean;
   openOnStart: boolean;
+  /** button lives on the Home ribbon rather than External */
+  home: boolean;
+  /** which end of the Home ribbon it sits at */
+  homeAt: 'start' | 'end';
   /** true = session-only entry set through the API; false = user-configured in Settings */
   hostManaged: boolean;
 }
@@ -848,10 +942,21 @@ export class TredespaceClient {
     );
   }
 
-  /** Render imported assets into the viewer. `fit:true` (default) frames them.
-   *  Pair with {@link assetsImport}, or use {@link assetsImportAndLoad}. */
-  assetsLoad(ids: string[], opts?: { fit?: boolean; store?: string }): Promise<Result<{ loaded: number }>> {
-    return this.send('assets.load', { ids, fit: opts?.fit ?? true, ...(opts?.store ? { store: opts.store } : {}) });
+  /** Render imported assets into the viewer. The camera follows one of three
+   *  rules: `fit: true` (the default) frames what was loaded; `fit: false`
+   *  leaves the camera exactly where it is; a `camera` places it explicitly
+   *  and replaces the framing entirely, so the view never fits first and then
+   *  jumps. Pair with {@link assetsImport}, or use {@link assetsImportAndLoad}. */
+  assetsLoad(
+    ids: string[],
+    opts?: { fit?: boolean; store?: string; camera?: CameraInput },
+  ): Promise<Result<{ loaded: number }>> {
+    return this.send('assets.load', {
+      ids,
+      fit: opts?.fit ?? true,
+      ...(opts?.store ? { store: opts.store } : {}),
+      ...(opts?.camera ? { camera: opts.camera } : {}),
+    });
   }
   /** Remove assets from the viewport (they stay in the asset manager). */
   assetsUnload(ids: string[]): Promise<Result<{ unloaded: number }>> {
@@ -869,12 +974,13 @@ export class TredespaceClient {
    *  requested ids that are not in the asset manager — import those first. */
   assetsSetLoaded(
     ids: string[],
-    opts?: { store?: string; fit?: boolean },
+    opts?: { store?: string; fit?: boolean; camera?: CameraInput },
   ): Promise<Result<{ loaded: number; unloaded: number; missing: string[] }>> {
     return this.send('assets.setLoaded', {
       ids,
       ...(opts?.store ? { store: opts.store } : {}),
       ...(opts?.fit !== undefined ? { fit: opts.fit } : {}),
+      ...(opts?.camera ? { camera: opts.camera } : {}),
     });
   }
 
@@ -947,6 +1053,25 @@ export class TredespaceClient {
     return this.send('sql.check', input);
   }
 
+  // ── camera ────────────────────────────────────────────────────────────────
+  /** The camera's current placement — both as orbit parameters and as an eye
+   *  `position`. Round-trips: hand what you get back to `cameraSet` (or to
+   *  `assetsLoad`'s `camera` option) to restore this exact view. */
+  cameraGet(): Promise<Result<CameraState>> {
+    return this.send('camera.get', {});
+  }
+
+  /** Move the camera. Give an eye `position` + `target`, or orbit parameters;
+   *  omitted fields keep their current value. `animate: false` snaps instead
+   *  of gliding. To place the camera as models appear, prefer the `camera`
+   *  option on `assetsLoad` / `assetsSetLoaded` — it replaces their framing
+   *  step, so the view never fits first and then jumps. */
+  cameraSet(
+    camera: CameraInput,
+  ): Promise<Result<{ target: [number, number, number]; azimuth: number; elevation: number; distance: number }>> {
+    return this.send('camera.set', { ...camera });
+  }
+
   // ── viewpoints ────────────────────────────────────────────────────────────
   /** The whole viewpoint set as one opaque JSON blob — the same shape the
    *  panel's Save button writes to file. Persist it host-side (per user, per
@@ -992,6 +1117,36 @@ export class TredespaceClient {
     return this.on('viewpoints.bookmark', (payload) => handler(payload as ViewpointsBookmarkEvent));
   }
 
+  // ── external dialogs (open external-app modals) ───────────────────────────
+  /** Every open external modal dialog, with its `hidden` state. The ids are
+   *  what `uiDialogHide` / `uiDialogShow` / `uiDialogClose` address, and are
+   *  also returned as `dialogId` by `externalAppsSet` for a modal it opened. */
+  uiDialogs(): Promise<Result<{ dialogs: DialogInfo[] }>> {
+    return this.send('ui.dialogs', {});
+  }
+
+  /** Hide a dialog WITHOUT closing it: the iframe stays mounted, so its page
+   *  keeps running and keeps its state (a half-filled form, a live session)
+   *  and `uiDialogShow` brings it back exactly as it was — unlike closing,
+   *  which drops the context. Park a dialog while a model loads, then either
+   *  show it again or close it. Omit `id` from inside an embedded app to hide
+   *  the dialog hosting it. */
+  uiDialogHide(id?: string): Promise<Result<{ id: string; hidden: boolean }>> {
+    return this.send('ui.dialog.hide', id ? { id } : {});
+  }
+
+  /** Re-show a hidden dialog (and raise it above the other dialogs). */
+  uiDialogShow(id?: string): Promise<Result<{ id: string; hidden: boolean }>> {
+    return this.send('ui.dialog.show', id ? { id } : {});
+  }
+
+  /** Close a dialog by id — its page is unmounted and its context lost. Omit
+   *  `id` from inside an embedded app to close the dialog hosting it (the
+   *  same as `uiClose`). */
+  uiDialogClose(id?: string): Promise<Result<{ id: string; closed: boolean }>> {
+    return this.send('ui.dialog.close', id ? { id } : {});
+  }
+
   // ── external apps (session-only host configuration) ───────────────────────
   /** Declaratively set the SESSION-ONLY host-managed external apps: replaces
    *  any prior host-set entries with `apps` (user-configured Settings entries
@@ -1000,10 +1155,12 @@ export class TredespaceClient {
    *  drops them until the host calls this again after `app.ready`, so a viewer
    *  opened without its host has none. `openOnStart: true` opens that entry
    *  immediately (panels/modals only — new-window entries are popup-blocked
-   *  without a user gesture). Call with `[]` to clear the host-set entries. */
+   *  without a user gesture); a modal opened that way reports its `dialogId`,
+   *  which `uiDialogHide` / `uiDialogShow` / `uiDialogClose` address. Call
+   *  with `[]` to clear the host-set entries. */
   externalAppsSet(
     apps: HostExternalApp[],
-  ): Promise<Result<{ apps: { id: string; name: string; url: string }[]; opened: number }>> {
+  ): Promise<Result<{ apps: { id: string; name: string; url: string; dialogId?: string }[]; opened: number }>> {
     return this.send('externalApps.set', { apps });
   }
 
@@ -1119,6 +1276,14 @@ export class TredespaceClient {
   /** Typed convenience for the tree-click event. */
   onTreeSelect(handler: (e: TreeSelectEvent) => void): () => void {
     return this.on('tree.select', (p) => handler(p as TreeSelectEvent));
+  }
+
+  /** Typed convenience for viewer theme changes — fired whichever way the
+   *  theme switched (Settings tab, hotkey, `uiTheme`, or another tab syncing
+   *  its settings over), so a host page and every embedded app can restyle in
+   *  step with the viewer. */
+  onThemeChanged(handler: (e: { theme: 'dark' | 'light' }) => void): () => void {
+    return this.on('theme.changed', (p) => handler(p as { theme: 'dark' | 'light' }));
   }
 
   /** Typed convenience for instance-data changes (any dialog called instance.set). */

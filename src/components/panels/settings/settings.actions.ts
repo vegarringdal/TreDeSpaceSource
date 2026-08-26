@@ -1,4 +1,7 @@
 import { hotkeysActions } from '@treDeSpaceUI/hotkeys';
+// transport directly (not the messageApi index) — that index imports the
+// handlers, which import this module: going through it would be a cycle
+import { emitApiEvent } from '../../../lib/messageApi/transport';
 import { gizmoLabelsActions } from '../../../state/viewer/gizmoLabels.state';
 import { navActions } from '../../../state/viewer/nav.state';
 import { initialViewerState, viewerState } from '../../../state/viewer/viewer.state';
@@ -14,6 +17,19 @@ export function initTheme() {
     document.documentElement.dataset.theme = theme;
   }
 }
+
+// `theme.changed` for hosts and embedded apps: fired from the STORE, so every
+// route into the theme is covered — the Settings tab, the hotkey, `ui.theme`,
+// and the cross-tab settings sync (which writes the store directly rather than
+// calling setTheme).
+let lastTheme = settingsState.get().theme;
+settingsState.subscribe(() => {
+  const { theme } = settingsState.get();
+  if (theme !== lastTheme) {
+    lastTheme = theme;
+    emitApiEvent('theme.changed', { theme });
+  }
+});
 
 export const settingsActions = {
   /** Theme = a data-theme attribute; styles.css maps it to CSS variables. */

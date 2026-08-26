@@ -23,6 +23,7 @@ export function useDemoEvents(
       const offs = [
         cl.onTreeSelect((e) => line('out', `⚡ tree.select ${JSON.stringify(e, null, 2)}`)),
         cl.onInstanceChanged((e) => line('out', `⚡ instance.changed ${JSON.stringify(e.data)}`)),
+        cl.onThemeChanged((e) => line('out', `⚡ theme.changed ${e.theme}`)),
         cl.onViewpointsBookmark((e) =>
           line('out', `⚡ viewpoints.bookmark "${e.label}" — ${e.config.viewpoints.length} viewpoint(s) attached`),
         ),
@@ -33,7 +34,7 @@ export function useDemoEvents(
         }
       };
       setListening(true);
-      line('ok', '← listening for tree.select + instance.changed (Events section toggles this)');
+      line('ok', '← listening for tree.select + instance.changed + theme.changed + viewpoints.bookmark');
     },
     [line],
   );
@@ -62,7 +63,7 @@ export function useDemoEvents(
     unsubRef.current();
     unsubRef.current = null;
     setListening(false);
-    line('ok', '← unsubscribed from tree.select + instance.changed');
+    line('ok', '← unsubscribed from every event');
   }, [line]);
 
   return { listening, subscribe, listenEvents, stopEvents };

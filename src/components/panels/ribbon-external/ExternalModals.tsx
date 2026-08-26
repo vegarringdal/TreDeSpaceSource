@@ -15,7 +15,10 @@ export function ExternalModals() {
         <div
           key={m.key}
           className="fixed inset-0 flex items-center justify-center bg-black/40"
-          style={{ zIndex: 900 + i }}
+          // hidden dialogs stay MOUNTED (display:none, not unmounted) so the
+          // iframe keeps running and its context survives hide → show
+          style={{ zIndex: 900 + i, ...(m.hidden ? { display: 'none' } : {}) }}
+          aria-hidden={m.hidden ? true : undefined}
         >
           <ExternalModalBox m={m} />
         </div>

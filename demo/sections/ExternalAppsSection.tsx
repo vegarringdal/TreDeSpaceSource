@@ -1,4 +1,5 @@
-import { Button } from '@treDeSpaceUI/widgets';
+import { Button, TextInput } from '@treDeSpaceUI/widgets';
+import { useState } from 'react';
 import { DemoSection } from '../components/DemoSection';
 import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
@@ -8,7 +9,8 @@ import { useDemo } from '../DemoContext';
  *  modal app in the viewer's External ribbon (openOnStart opens it right
  *  away); nothing persists — a viewer reload drops it until set again. */
 export function ExternalAppsSection() {
-  const { run, c } = useDemo();
+  const { run, c, line } = useDemo();
+  const [dialogId, setDialogId] = useState('');
 
   // this demo in dialog mode — the classic "app hosted inside the viewer"
   const demoDialogUrl = new URL('./?dialog=1', location.href).href;
@@ -21,9 +23,50 @@ export function ExternalAppsSection() {
       modal: true,
       openOnStart: true,
       tooltip: 'This demo page, installed by the host for this session',
+      // width/height also size the modal (default 70% × 70%) — px, % or a number
       config: { width: '600px', height: '60%' },
     },
+    {
+      // home: true puts the button on the HOME ribbon instead of External —
+      // for a tool the user should see right away, like a project selector.
+      // homeAt picks which end of that ribbon: 'start' (default) or 'end'.
+      name: 'Projects',
+      url: demoDialogUrl,
+      section: 'Portal',
+      size: 'big' as const,
+      modal: true,
+      home: true,
+      homeAt: 'start' as const,
+      tooltip: 'A project selector promoted to the start of the Home ribbon',
+      config: { width: '420px', height: '300px' },
+    },
   ];
+
+  // the modal opened by openOnStart reports its dialogId — remember it so the
+  // hide / show / close buttons below have something to address
+  const handleSet = () => {
+    void run('externalApps.set', { apps: sampleApps }, async () => {
+      const res = await c().externalAppsSet(sampleApps);
+      const id = res.data?.apps.find((a) => a.dialogId)?.dialogId;
+      if (id) {
+        setDialogId(id);
+      }
+
+      return res;
+    });
+  };
+
+  const handleDialog = (action: 'hide' | 'show' | 'close') => {
+    const id = dialogId.trim();
+    if (!id) {
+      line('err', 'no dialog id yet — run externalApps.set (or ui.dialogs) first');
+      return;
+    }
+
+    const call = () =>
+      action === 'hide' ? c().uiDialogHide(id) : action === 'show' ? c().uiDialogShow(id) : c().uiDialogClose(id);
+    void run(`ui.dialog.${action}`, { id }, call);
+  };
 
   return (
     <DemoSection
@@ -33,11 +76,7 @@ export function ExternalAppsSection() {
         page as a modal app and opens it immediately (openOnStart)."
     >
       <Row>
-        <Button
-          onClick={() => void run('externalApps.set', { apps: sampleApps }, () => c().externalAppsSet(sampleApps))}
-        >
-          externalApps.set (this demo)
-        </Button>
+        <Button onClick={handleSet}>externalApps.set (this demo)</Button>
         <Button
           tooltip="Empty list clears the host-set entries (user-configured Settings apps are untouched)"
           onClick={() => void run('externalApps.set', { apps: [] }, () => c().externalAppsSet([]))}
@@ -49,9 +88,24 @@ export function ExternalAppsSection() {
         </Button>
       </Row>
       <Hint>
-        After set, check the viewer's External ribbon and Settings → External (which reports host-set apps without
-        exposing them for editing). hostManaged tells the two kinds apart in list.
+        After set, check the ribbons: "Host demo" lands under <b>External</b>, while "Projects" is flagged{' '}
+        <code>home</code> so its button sits on the <b>Home</b> ribbon — one place or the other, not both (
+        <code>homeAt</code> picks which end of it). Settings → External reports host-set apps without exposing them for
+        editing; hostManaged tells the two kinds apart in list.
       </Hint>
+      <Hint>
+        Dialog control by id — hide keeps the iframe MOUNTED, so the page inside keeps its state and show brings it back
+        untouched (close drops it). Park a dialog while a model loads, then show or close it.
+      </Hint>
+      <Row>
+        <TextInput value={dialogId} onChange={setDialogId} placeholder="dialog id" className="min-w-0 flex-1" />
+        <Button onClick={() => void run('ui.dialogs', {}, () => c().uiDialogs())}>ui.dialogs</Button>
+      </Row>
+      <Row>
+        <Button onClick={() => handleDialog('hide')}>ui.dialog.hide</Button>
+        <Button onClick={() => handleDialog('show')}>ui.dialog.show</Button>
+        <Button onClick={() => handleDialog('close')}>ui.dialog.close</Button>
+      </Row>
     </DemoSection>
   );
 }

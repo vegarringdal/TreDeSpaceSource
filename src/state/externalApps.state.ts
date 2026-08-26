@@ -5,6 +5,8 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 
 export type ExternalAppSize = 'big' | 'medium' | 'small';
+/** Which end of the Home ribbon a promoted app's group sits at. */
+export type HomePlacement = 'start' | 'end';
 
 export interface ExternalApp {
   id: string;
@@ -23,6 +25,12 @@ export interface ExternalApp {
   newWindow: boolean;
   /** open automatically at app start (e.g. a project selector) */
   openOnStart: boolean;
+  /** Put the button in the HOME ribbon instead of External — for tools the
+   *  user should see immediately (a project selector, a report picker). */
+  home: boolean;
+  /** Which end of the Home ribbon it sits at — before the app's own groups
+   *  ('start', default) or after them ('end'). Ignored unless `home`. */
+  homeAt: HomePlacement;
   /** open as a centered modal dialog over the app (never blocks the app's own
    *  loading/error/confirm dialogs — those layer above it) */
   modal: boolean;
@@ -57,6 +65,8 @@ function load(): ExternalAppsState {
         tooltip: typeof a.tooltip === 'string' ? a.tooltip : '',
         newWindow: a.newWindow === true,
         openOnStart: a.openOnStart === true,
+        home: a.home === true,
+        homeAt: a.homeAt === 'end' ? 'end' : 'start',
         modal: a.modal === true,
         config: typeof a.config === 'string' ? a.config : '',
       })),
@@ -95,6 +105,8 @@ export const externalAppsActions = {
           tooltip: '',
           newWindow: false,
           openOnStart: false,
+          home: false,
+          homeAt: 'start',
           modal: false,
           config: '',
           ...preset,
@@ -155,21 +167,23 @@ export const externalAppsActions = {
 // app as a panel/modal, so the postMessage handler can honour `openOnStart`
 // -----------------------------------------------------------------------------
 
-let opener: ((app: ExternalApp) => void) | null = null;
+let opener: ((app: ExternalApp) => string | null) | null = null;
 
-export function registerExternalAppOpener(fn: (app: ExternalApp) => void) {
+export function registerExternalAppOpener(fn: (app: ExternalApp) => string | null) {
   opener = fn;
 }
 
 /** Open an app as its panel/modal NOW (used for host-set `openOnStart`
  *  entries). New-window apps are skipped — window.open without a user gesture
- *  is popup-blocked. No-op before the dock manager registers the opener. */
-export function openExternalAppNow(app: ExternalApp): boolean {
+ *  is popup-blocked. No-op before the dock manager registers the opener.
+ *  `dialogId` is set for a MODAL app — the id `ui.dialog.hide` / `.show` /
+ *  `.close` address it by. */
+export function openExternalAppNow(app: ExternalApp): { opened: boolean; dialogId?: string } {
   if (!opener || app.newWindow || !app.name.trim() || !app.url.trim()) {
-    return false;
+    return { opened: false };
   }
-  opener(app);
-  return true;
+  const dialogId = opener(app);
+  return { opened: true, ...(dialogId ? { dialogId } : {}) };
 }
 
 /** The app's URL with its JSON config attached as a `?config=` param (the

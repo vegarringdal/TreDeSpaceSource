@@ -382,8 +382,19 @@ response: { created: true, store: { name: 'project-x', description: 'Client X', 
 Load into / unload from the viewer by asset id. `store` (optional, must be a
 known name) restricts loading to ids that belong to that store.
 
+The camera follows one of three rules: `fit: true` (default) frames what was
+loaded, `fit: false` leaves the camera untouched, and a `camera` object (same
+fields as `camera.set`) places it explicitly — replacing the fit, so the view
+never frames the models and then jumps somewhere else.
+
 ```js
 payload:  { ids: ['mdl8f2-k3j9x'], fit: true, store: 'project-x' }  // fit = frame the batch
+response: { loaded: 1 }
+
+payload:  { ids: ['mdl8f2-k3j9x'], camera: { position: [30, -15, 18], target: [12, 3, 1] } }
+response: { loaded: 1 }                        // placed, not fitted
+
+payload:  { ids: ['mdl8f2-k3j9x'], fit: false }   // load without moving the camera
 response: { loaded: 1 }
 ```
 
@@ -396,7 +407,9 @@ it every cycle with its desired set (typically the ids picked from
 known) scopes BOTH directions — assets in other stores are never touched.
 Unloads run before loads so VRAM frees first. `fit` is opt-in here (default
 false — a background sync should not move the camera); when true it frames the
-union of the whole desired set, not just what this call loaded. `missing`
+union of the whole desired set, not just what this call loaded. A `camera`
+object (same fields as `camera.set`) places the view explicitly instead and
+needs no opt-in — passing one IS the instruction to move. `missing`
 lists requested ids that are not in the asset manager — import those first.
 
 ```js
@@ -475,7 +488,10 @@ prior host-set entries with `apps` — user-configured Settings entries are
 untouched, and `apps: []` clears the host set. Entries take the same fields as
 Settings → External (`name` + `url` required; `section`, `size`, `tooltip`,
 `multiple`, `newWindow`, `modal`, `openOnStart`, `config` optional — `config`
-may be an object, stringified onto the page's `?config=` param). They appear
+may be an object, stringified onto the page's `?config=` param). For a
+`modal` app the config's `width` / `height` also set the dialog's initial
+size (`"600px"`, `"60%"` of the viewport, or a bare number = px; both default
+to `"70%"`, capped at 96vw × 96vh and still user-movable/resizable). They appear
 in the External ribbon and their origins get postMessage API access for this
 session. **Nothing is persisted**: a reload drops them until the host calls
 this again after `app.ready`, so a viewer opened without its host simply has
@@ -487,9 +503,16 @@ auto-opened — window.open without a user gesture is popup-blocked).
 ```js
 payload:  { apps: [
               { name: 'Projects', url: 'https://portal.example.com/picker',
-                modal: true, openOnStart: true, config: { project: 'plant-7' } },
-              { name: 'Docs', url: 'https://portal.example.com/docs', section: 'Portal' } ] }
-response: { apps: [ { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/picker' },
+                modal: true, openOnStart: true,
+                // width/height size the dialog (default 70% × 70%)
+                config: { width: '480px', height: '320px', project: 'plant-7' } },
+              { name: 'Docs', url: 'https://portal.example.com/docs', section: 'Portal' },
+              // home: the button sits on the HOME ribbon, not External;
+              // homeAt picks which end of it ('start' default, or 'end')
+              { name: 'Project', url: 'https://portal.example.com/projects',
+                home: true, homeAt: 'start', section: 'Portal', modal: true } ] }
+response: { apps: [ { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/picker',
+                      dialogId: 'm3k9x-a1b2:0' },   // modal opened by this call
                     { id: 'm3k9x-c3d4', name: 'Docs', url: 'https://…/docs' } ],
             opened: 1 }
 ```
@@ -503,10 +526,10 @@ payload:  { }
 response: { apps: [
   { id: 'k2j4…', name: 'Reports', url: 'https://…', section: '', size: 'medium',
     multiple: false, newWindow: false, modal: false, openOnStart: false,
-    hostManaged: false },
+    home: false, homeAt: 'start', hostManaged: false },
   { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/picker', section: '',
     size: 'medium', multiple: false, newWindow: false, modal: true,
-    openOnStart: true, hostManaged: true } ] }
+    openOnStart: true, home: true, homeAt: 'end', hostManaged: true } ] }
 ```
 
 ### sql.list
@@ -716,6 +739,29 @@ payload:  {}
 response: {}
 ```
 
+### camera.get
+The camera's current placement, as orbit parameters AND as an eye `position`
+(Z-up world). Round-trips: hand the result back to `camera.set` (or to a load
+command's `camera`) to restore the exact view.
+
+```js
+payload:  { }
+response: { target: [12.4, 3.1, 0.8], position: [30.2, -14.9, 18.6],
+            azimuth: 0.61, elevation: 0.5, distance: 42.7, orthographic: false }
+```
+
+### camera.set
+Move the camera. Give an eye `position` + `target`, or `target` +
+`azimuth`/`elevation`/`distance` (radians / world units); anything omitted
+keeps its current value, so `{ target: [x,y,z] }` re-pivots without turning.
+`orthographic` switches projection, `animate: false` snaps instead of gliding.
+Responds with the pose actually applied.
+
+```js
+payload:  { position: [30, -15, 18], target: [12, 3, 1], animate: false }
+response: { target: [12, 3, 1], azimuth: 0.61, elevation: 0.5, distance: 42.7 }
+```
+
 ### nav.flyTo / nav.orbit
 Drive the camera to a node by fullname. `flyTo` frames it; `orbit` re-pivots on
 it (camera stays put). `select: true` also selects it — otherwise the selection
@@ -724,6 +770,41 @@ is left untouched. `matched` is false when the fullname isn't found.
 ```js
 payload:  { fullname: '/SITE/ZONE-1/PIPE-401', select: false }
 response: { matched: true }
+```
+
+### ui.dialogs
+List the open EXTERNAL modal dialogs (external-app entries with "Modal
+dialog"). Each `id` is what the `ui.dialog.*` commands address; a modal opened
+by `externalApps.set` reports the same value as `dialogId`.
+
+```js
+payload:  { }
+response: { dialogs: [
+  { id: 'm3k9x-a1b2:0', appId: 'm3k9x-a1b2', name: 'Projects',
+    url: 'https://…/picker', hidden: false } ] }
+```
+
+### ui.dialog.hide / ui.dialog.show
+Hide a dialog WITHOUT closing it, or bring it back. The iframe stays MOUNTED
+(`display:none`), so the page inside keeps running and keeps its state — a
+half-filled form or a live session survives hide → show, unlike
+`ui.dialog.close`, which unmounts it and loses the context. Park a dialog
+while a model loads, then either show it again or close it; showing also
+raises it above the other dialogs. `id` is optional for a request coming FROM
+an embedded app — it then addresses the dialog hosting the sender.
+
+```js
+payload:  { id: 'm3k9x-a1b2:0' }
+response: { id: 'm3k9x-a1b2:0', hidden: true }
+```
+
+### ui.dialog.close
+Close one external modal dialog by id (its page is unmounted, context lost).
+`id` is optional from inside an embedded app — same self-close as `ui.close`.
+
+```js
+payload:  { id: 'm3k9x-a1b2:0' }
+response: { id: 'm3k9x-a1b2:0', closed: true }
 ```
 
 ### ui.showPanel / ui.hidePanel
@@ -773,7 +854,12 @@ per-instance prefix, so multiple clients on one shared carrier never collide.
   zero-copy `ArrayBuffer` transferables.
 - **BroadcastChannel (planned, cheap).** For a viewer in a SEPARATE TAB.
   Same-origin only — host and viewer must be served from one origin (a
-  portal on another domain cannot use this). Pairing: the host mints a
+  portal on another domain cannot use this). Note this is stricter than
+  same-origin alone: a page of the host's embedded INSIDE a cross-domain
+  viewer is storage-PARTITIONED away from the host's own top-level page (it
+  has a cross-site ancestor), so BroadcastChannel/localStorage/IndexedDB do
+  not reach between them either — see "Host frames and storage partitioning"
+  below. Pairing: the host mints a
   channel name `tredespace-<uuid>` and opens the viewer with
   `?apiChannel=tredespace-<uuid>`; both sides simply join that channel — the
   unguessable name doubles as the capability token, and no extra instance-id
@@ -837,6 +923,17 @@ to e.g. the selected project.
 
 SDK: `client.onInstanceChanged((e) => …)`.
 
+### theme.changed
+The viewer's theme switched — from ANY route: the Settings tab, the theme
+hotkey, a `ui.theme` command, or another tab/window syncing its settings over.
+Hosts and embedded apps use it to restyle in step with the viewer. SDK:
+`onThemeChanged(handler)`.
+
+```js
+{ tredespace: 1, id: null, type: 'theme.changed',
+  payload: { theme: 'dark' } }              // 'dark' | 'light'
+```
+
 ### viewpoints.bookmark
 The user clicked the host-configured bookmark button in the Viewpoints panel
 (`viewpoints.setBookmarkButton`). The payload carries the button's `label`
@@ -851,8 +948,12 @@ via `viewpoints.set` to restore. SDK: `onViewpointsBookmark(handler)`.
 
 ## External app hosting (Settings → External)
 
-Each configured app has: section/size/tooltip for its ribbon button,
-**Multiple instances**, **New window** (browser tab instead of a panel),
+Each configured app has: section/size/tooltip for its ribbon button, **Show in
+Home** (the button sits on the HOME ribbon instead of External — for a tool the
+user should see right away, like a project selector; it appears in one place,
+not both) with a placement picker for which END of the Home ribbon its group
+sits at (before the viewer's own groups, or after them), **Multiple instances**, **New window** (browser tab instead of a
+panel),
 **Modal dialog** (centered overlay, movable by its title bar and resizable
 from the bottom-right handle; the viewer's own loading/error/confirm dialogs
 always layer above it), **Open on start** (e.g. a project selector), and a
@@ -871,10 +972,47 @@ The config JSON doubles as the modal's initial-size source — `width` and
 a bare number means px), defaulting to 70% × 70%. The rest of the object is
 still delivered verbatim to the page.
 
+## Host frames and storage partitioning
+
+A host page often ends up embedding the viewer, with the viewer embedding a
+page of the HOST's back as an External-app panel or modal dialog. Those two
+host pages are same-origin, but the browser puts them in **different storage
+partitions**: the nested one has a cross-site ancestor (the viewer), so
+`BroadcastChannel`, `localStorage` and IndexedDB do not reach between them.
+
+Measured in Chrome 151 (A = the host's site, B = the viewer's site):
+
+| chain | BroadcastChannel |
+| --- | --- |
+| A → A (no viewer in between) | works |
+| A → viewer(B) → A | nothing arrives |
+| A → viewer(B) → A, with the viewer's iframe `sandbox` attribute | nothing arrives |
+| two A pages side by side inside viewer(B) | works |
+| A → viewer(B) → A, Chrome `--disable-features=ThirdPartyStoragePartitioning` | works |
+
+The sandbox attribute is not the cause (the viewer's external iframes carry
+`allow-same-origin`, and adding or removing it changes nothing), and the
+partitioning is not a permission the viewer can grant. The flag in the last
+row is a browser-wide privacy setting — evidence of the cause, not a
+deployment option.
+
+What to do instead:
+
+- **Between two of the host's pages inside the viewer** (two dialogs, or a
+  dialog and a panel): they share one partition, so `BroadcastChannel` works
+  between them directly.
+- **Nested page ↔ the host's top page**: `postMessage` is unaffected by
+  partitioning — the nested page's `window.parent.parent` is the top page
+  (validate `event.origin` on both ends). Or relay through the viewer with
+  `instance.set` / the `instance.changed` event, which is one shared JSON blob
+  per viewer window delivered to every embedded frame.
+- **Serve the viewer from the host's own site** (a path, or a subdomain — a
+  subdomain is same-*site*): no cross-site ancestor, so every same-origin
+  mechanism works normally.
+
 ## Future (documented, not v1)
 
 - `viewpoints.list` / `viewpoints.activate` — drive presentations from the host.
-- `camera.get` / `camera.set` — pose control.
 - `export.glb` / `export.ifc` — return the exported bytes to the host
   instead of downloading.
 - More events (`selection.changed`, `model.loaded`) — `tree.select` sets the

@@ -5,7 +5,7 @@ import { multiColorState, normalizeRules } from '../../components/panels/multi-c
 import { ribbonClippingBoxActions } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.actions';
 import { ribbonHomeActions } from '../../components/panels/ribbon-home/ribbonHome.actions';
 import { clipShapesActions } from '../../state/viewer/clipShapes.actions';
-import { viewerActions } from '../../state/viewer/viewer.actions';
+import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { viewerState } from '../../state/viewer/viewer.state';
 import { ApiError, type ApiHandler, records } from './protocol';
 
@@ -25,6 +25,66 @@ const setOrAddColorRules: ApiHandler = async ({ type, p }) => {
   }
   return { rules: rules.length, ran, matches: multiColorState.get().counts.map((c) => c ?? 0) };
 };
+
+// -----------------------------------------------------------------------------
+// camera
+// -----------------------------------------------------------------------------
+
+/** The camera is ORBIT-based (Z-up): a pivot `target`, plus `azimuth` /
+ *  `elevation` (radians) and the `distance` from the pivot. Hosts usually
+ *  think in eye positions, so a payload may give `position` + `target`
+ *  instead and this converts. Fields left out keep their current value. */
+type CameraPose = { target: [number, number, number]; azimuth: number; elevation: number; distance: number };
+
+function vec3(v: unknown): [number, number, number] | null {
+  if (!Array.isArray(v) || v.length !== 3) {
+    return null;
+  }
+  const n = v.map(Number);
+  return n.every((x) => Number.isFinite(x)) ? [n[0], n[1], n[2]] : null;
+}
+
+function poseFromPayload(p: Record<string, unknown>): CameraPose | null {
+  const cam = getRenderer()?.camera;
+  if (!cam) {
+    return null;
+  }
+  const target = vec3(p.target) ?? [cam.target[0], cam.target[1], cam.target[2]];
+  const position = vec3(p.position);
+  if (position) {
+    // forward runs eye → target: distance is its length, azimuth/elevation
+    // its spherical angles (elevation +Z up, matching the render camera)
+    const d: [number, number, number] = [target[0] - position[0], target[1] - position[1], target[2] - position[2]];
+    const distance = Math.hypot(d[0], d[1], d[2]);
+    if (distance < 1e-6) {
+      throw new ApiError('bad-payload', 'position and target must not be the same point');
+    }
+    return { target, azimuth: Math.atan2(d[1], d[0]), elevation: Math.asin(d[2] / distance), distance };
+  }
+  const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+  return {
+    target,
+    azimuth: num(p.azimuth, cam.azimuth),
+    elevation: num(p.elevation, cam.elevation),
+    distance: Math.max(num(p.distance, cam.orbitDistance), 0.05),
+  };
+}
+
+/** Move the camera per a payload. Returns the applied pose, or null when the
+ *  renderer is not up yet. `animate: false` snaps instead of gliding. Shared
+ *  with the asset-load commands, where a `camera` replaces their `fit`. */
+export function applyCameraPayload(p: Record<string, unknown>): CameraPose | null {
+  const cam = getRenderer()?.camera;
+  const pose = poseFromPayload(p);
+  if (!cam || !pose) {
+    return null;
+  }
+  if (typeof p.orthographic === 'boolean') {
+    viewerActions.setProjection(p.orthographic);
+  }
+  cam.goToPose(pose.target, pose.azimuth, pose.elevation, pose.distance, p.animate === false ? 0.01 : 0.5);
+  return pose;
+}
 
 export const viewerHandlers: Record<string, ApiHandler> = {
   'colorRules.set': setOrAddColorRules,
@@ -94,6 +154,29 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     ribbonClippingBoxActions.disable();
     clipShapesActions.clear();
     return {};
+  },
+
+  'camera.get': () => {
+    const cam = getRenderer()?.camera;
+    if (!cam) {
+      throw new ApiError('not-found', 'the renderer is not up yet');
+    }
+    return {
+      target: [cam.target[0], cam.target[1], cam.target[2]],
+      position: cam.eye(),
+      azimuth: cam.azimuth,
+      elevation: cam.elevation,
+      distance: cam.orbitDistance,
+      orthographic: viewerState.get().orthographic,
+    };
+  },
+
+  'camera.set': ({ p }) => {
+    const pose = applyCameraPayload(p);
+    if (!pose) {
+      throw new ApiError('not-found', 'the renderer is not up yet');
+    }
+    return pose;
   },
 
   'nav.flyTo': async ({ p }) => {

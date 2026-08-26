@@ -155,12 +155,12 @@ export function useAppStartup(manager: DockManager): void {
     // so their panel defs don't exist yet — register on open, like the ribbon
     registerExternalAppOpener((a) => {
       if (a.modal) {
-        openExternalModal(a);
-        return;
+        return openExternalModal(a); // the dialog id the API addresses it by
       }
       const id = externalPanelId(a.id);
       manager.registerPanel(makeExternalPanel(id, a.name, externalAppUrl(a)));
       manager.openPanel(id);
+      return null;
     });
     markApiReady(__APP_VERSION__);
     // named layout slots (Layout ribbon, F1-F12) drive the manager through these
