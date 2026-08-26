@@ -95,3 +95,34 @@ describe('camera-relative view-projection', () => {
     expect(worstRebased).toBeLessThan(1e-6); // sub-micron
   });
 });
+
+describe('near plane', () => {
+  it('tracks the view distance, not the scene size', () => {
+    const cam = new CameraController();
+    // a big scene: one model at the origin, one 12.6 km out
+    cam.fit([-1, -1, -1], [-8694 + 1, 8998 + 1, 30]);
+    const framedNear = cam.near;
+
+    // flying in close must give a close near plane — the old rule pinned it to
+    // the scene radius, so anything within ~1.3 m of the camera was clipped
+    cam.orbitDistance = 2;
+    expect(cam.near).toBeLessThan(0.001 * 2); // sub-millimetre at 2 m out
+    expect(cam.near).toBeLessThan(framedNear / 1000);
+  });
+
+  it('never goes below the floor, however close the camera gets', () => {
+    const cam = new CameraController();
+    cam.orbitDistance = 0;
+    expect(cam.near).toBe(0.001);
+    cam.orbitDistance = 1e-9;
+    expect(cam.near).toBe(0.001);
+  });
+
+  it('does not go stale when a big model is unloaded and a small one fitted', () => {
+    const cam = new CameraController();
+    cam.fit([0, 0, 0], [-8694, 8998, 30]); // huge scene
+    const big = cam.near;
+    cam.fit([0, 0, 0], [2, 2, 3]); // that model unloaded, a small one framed
+    expect(cam.near).toBeLessThan(big / 100);
+  });
+});

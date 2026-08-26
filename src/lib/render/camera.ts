@@ -21,6 +21,9 @@ const SPRINT_MULT = 5.0; // ortho W/S dolly acceleration while Shift is held
 const MIN_PAN_SPEED = 0.5;
 const MAX_PAN_SPEED = 50.0;
 const EL_CLAMP = 89 * DEG;
+/** Near plane as a fraction of the orbit distance (see the `near` getter). */
+const NEAR_RATIO = 1 / 12500;
+const NEAR_MIN = 0.001;
 const EL_CLAMP_ANIM = 89.99 * DEG;
 
 export class CameraController {
@@ -29,7 +32,6 @@ export class CameraController {
   elevation = 0.5;
   orbitDistance = 10;
   fovY = 55 * DEG;
-  near = 0.05;
 
   ortho = false;
   orthoNear = -1; // view-depth slab, set per frame from the scene AABB
@@ -97,6 +99,18 @@ export class CameraController {
   lastP11 = 1;
   orthoHalfH = 1;
 
+  /** Near plane, DERIVED from how far the camera is rather than from the scene
+   *  size. Reverse-Z on depth32float has near-uniform relative precision, so
+   *  the near plane can hug the camera however large the scene is — pinning it
+   *  to the scene radius meant one far-away model clipped everything within a
+   *  metre, and the value went stale when that model was unloaded. The ratio
+   *  reproduces what the old scene-radius rule gave right after a fit
+   *  (radius / 5000, with orbitDistance ≈ 2.5 × radius at the default 55° fov),
+   *  so framing is unchanged while flying in close now actually gets close. */
+  get near(): number {
+    return Math.max(this.orbitDistance * NEAR_RATIO, NEAR_MIN);
+  }
+
   get focusDist(): number {
     return Math.max(this.orbitDistance, this.near);
   }
@@ -142,7 +156,6 @@ export class CameraController {
     }
     const radius = Math.max(0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]), 0.01);
     this.orbitDistance = this.tDist = (radius * 1.3) / Math.tan(this.fovY / 2);
-    this.near = Math.max(radius / 5000, 0.001);
     this.anim = null;
   }
 

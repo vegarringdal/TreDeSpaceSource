@@ -663,3 +663,21 @@ Residual (not fixed by this): `aabb_min` is still stored as an absolute f32,
 so a meshlet's base is on that ~1 mm grid. Vertices are offsets from that base,
 so reconstruction stays sub-mm — but a cook-side recentering (geometry relative
 to a per-model origin) is the lever if anything remains.
+
+## Near plane (derived, not stored)
+
+`CameraController.near` is a GETTER over the orbit distance
+(`orbitDistance / 12500`, floored at 1 mm), not a value stamped by `fit()`.
+The old rule took it from the fitted scene RADIUS (`radius / 5000`), which had
+two failure modes: one model 12.6 km out made the union radius ~6.3 km, so the
+near plane became ~1.26 m and clipped anything within arm's reach; and the
+value then went STALE — unloading that model left the huge near plane behind
+until the next fit.
+
+Reverse-Z on `depth32float` has near-uniform relative precision, so the near
+plane can hug the camera however large the scene is; that is the whole reason
+the projection is reverse-Z. The ratio reproduces what the radius rule gave
+immediately after a fit (orbitDistance ≈ 2.5 × radius at the default 55° fov),
+so framing behaves as before while flying in close now actually gets close.
+Anything reading `camera.near` (the cull params, HiZ, the projection) picks the
+same value up automatically. Pinned in `tests/cameraRelative.test.ts`.
