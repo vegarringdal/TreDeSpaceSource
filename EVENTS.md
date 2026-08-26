@@ -387,6 +387,15 @@ loaded, `fit: false` leaves the camera untouched, and a `camera` object (same
 fields as `camera.set`) places it explicitly — replacing the fit, so the view
 never frames the models and then jumps somewhere else.
 
+Models load in PARALLEL (`concurrent`, default the viewer's load-pool setting,
+clamped to 16) with VRAM-budget residency swaps paused for the batch. While it
+runs the viewer posts unsolicited `assets.load:progress` events —
+`{ batchId, completed, total, index, id, phase }`, `phase` one of `done` /
+`error` per model, `index` the model's slot in the `ids` you sent. Ticks
+interleave, so key your UI on `index`. `progress: true` (the SDK sets it when
+you pass `onProgress`) keeps the viewer's own loading overlay down; without it
+the viewer shows the same overlay as a panel load.
+
 ```js
 payload:  { ids: ['mdl8f2-k3j9x'], fit: true, store: 'project-x' }  // fit = frame the batch
 response: { loaded: 1 }
@@ -396,6 +405,11 @@ response: { loaded: 1 }                        // placed, not fitted
 
 payload:  { ids: ['mdl8f2-k3j9x'], fit: false }   // load without moving the camera
 response: { loaded: 1 }
+
+// progress events while a batch loads (with progress: true, no viewer overlay)
+{ tredespace: 1, id: null, type: 'assets.load:progress',
+  payload: { batchId: 'ts-x1-load-2', completed: 2, total: 5, index: 1,
+             id: 'mdl3aa-p0q2z', phase: 'done' } }
 ```
 
 ### assets.setLoaded
@@ -409,7 +423,9 @@ Unloads run before loads so VRAM frees first. `fit` is opt-in here (default
 false — a background sync should not move the camera); when true it frames the
 union of the whole desired set, not just what this call loaded. A `camera`
 object (same fields as `camera.set`) places the view explicitly instead and
-needs no opt-in — passing one IS the instruction to move. `missing`
+needs no opt-in — passing one IS the instruction to move. `concurrent` and
+`progress` behave as on `assets.load`, and the `assets.load:progress` events
+cover the models this call actually had to load. `missing`
 lists requested ids that are not in the asset manager — import those first.
 
 ```js

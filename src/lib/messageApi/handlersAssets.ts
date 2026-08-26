@@ -2,7 +2,7 @@
 // chunked upload session, remove/load/unload. See EVENTS.md for the payload
 // contracts.
 import { dialogs } from '../../components/dialogs/dialogs.actions';
-import { acquireImportLock, assetsActions, loadAssetIntoViewer } from '../../state/assets/assets.actions';
+import { acquireImportLock, assetsActions, loadIdsPooled } from '../../state/assets/assets.actions';
 import { type AssetEntry, assetsState, groupOf } from '../../state/assets/assets.state';
 import { storesActions } from '../../state/stores/stores.actions';
 import { normalizeStoreName, storeExists, storesState } from '../../state/stores/stores.state';
@@ -359,6 +359,37 @@ const uploads = new Map<
   }
 >();
 
+/** Load ids for the API, pooled, reporting `assets.load:progress` per model.
+ *  `progress: true` (the SDK sets it when a host passes onProgress) means the
+ *  host draws its own UI, so the viewer's overlay stays down. Returns the ids
+ *  that actually loaded, in input order. */
+async function loadWithProgress(ids: string[], p: Record<string, unknown>): Promise<string[]> {
+  const quiet = p.progress === true;
+  const batchId = typeof p.batchId === 'string' ? p.batchId : undefined;
+  const concurrency =
+    typeof p.concurrent === 'number' && p.concurrent > 0 ? Math.min(16, Math.round(p.concurrent)) : undefined;
+  const total = ids.length;
+  let completed = 0;
+  const ok = await loadIdsPooled(ids, {
+    quiet,
+    ...(concurrency ? { concurrency } : {}),
+    onDone: (index, id, loaded) => {
+      completed++;
+      emitApiEvent('assets.load:progress', {
+        ...(batchId ? { batchId } : {}),
+        completed,
+        total,
+        index,
+        id,
+        phase: loaded ? 'done' : 'error',
+      });
+    },
+  });
+  // input order, not completion order — hosts index results by their own list
+  const okSet = new Set(ok);
+  return ids.filter((id) => okSet.has(id));
+}
+
 export const assetHandlers: Record<string, ApiHandler> = {
   'stores.list': () => ({
     stores: storesState.get().stores.map((st) => ({
@@ -564,41 +595,39 @@ export const assetHandlers: Record<string, ApiHandler> = {
   'assets.load': async ({ p }) => {
     const ids = strings(p.ids, 'ids');
     const store = requireStoreOpt(p.store);
-    let loaded = 0;
-    const boxes: { min: number[]; max: number[] }[] = [];
-    for (const id of ids) {
-      const entry = assetsState.get().assets.find((a) => a.id === id);
-      if (!entry || (store && entry.store !== store)) {
-        continue;
-      }
-      if (await loadAssetIntoViewer(id)) {
-        loaded++;
-        const b = entry.bounds;
-        const box = b?.dense ?? b?.full;
-        if (box) {
-          boxes.push({ min: box.slice(0, 3), max: box.slice(3, 6) });
-        }
-      }
-    }
-    if (loaded > 0) {
+    const known = new Map(assetsState.get().assets.map((a) => [a.id, a] as const));
+    const wanted = ids.filter((id) => {
+      const entry = known.get(id);
+      return entry !== undefined && (!store || entry.store === store);
+    });
+    const loadedIds = await loadWithProgress(wanted, p);
+    if (loadedIds.length > 0) {
       viewerActions.bumpModelsVersion();
       // an explicit camera REPLACES the fit — set the view in one step
       // instead of framing the batch and then jumping somewhere else
       if (isRecord(p.camera)) {
         applyCameraPayload(p.camera);
-      } else if (p.fit !== false && boxes.length > 0) {
+      } else if (p.fit !== false) {
         const min = [Infinity, Infinity, Infinity];
         const max = [-Infinity, -Infinity, -Infinity];
-        for (const b of boxes) {
-          for (let k = 0; k < 3; k++) {
-            min[k] = Math.min(min[k], b.min[k]);
-            max[k] = Math.max(max[k], b.max[k]);
+        let any = false;
+        for (const id of loadedIds) {
+          const b = known.get(id)?.bounds;
+          const box = b?.dense ?? b?.full;
+          if (box) {
+            any = true;
+            for (let k = 0; k < 3; k++) {
+              min[k] = Math.min(min[k], box[k]);
+              max[k] = Math.max(max[k], box[k + 3]);
+            }
           }
         }
-        getRenderer()?.fitBounds(min, max);
+        if (any) {
+          getRenderer()?.fitBounds(min, max);
+        }
       }
     }
-    return { loaded };
+    return { loaded: loadedIds.length };
   },
 
   'assets.unload': async ({ p }) => {
@@ -644,12 +673,7 @@ export const assetHandlers: Record<string, ApiHandler> = {
       }
     }
 
-    let loaded = 0;
-    for (const id of toLoad) {
-      if (await loadAssetIntoViewer(id)) {
-        loaded++;
-      }
-    }
+    const loaded = (await loadWithProgress(toLoad, p)).length;
     if (loaded > 0 || toUnload.length > 0) {
       viewerActions.bumpModelsVersion();
     }

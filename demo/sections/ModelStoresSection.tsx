@@ -48,11 +48,15 @@ export function ModelStoresSection() {
     });
   };
 
+  // onProgress gives a tick per model AND silences the viewer's own overlay
   const handleLoad = () => {
     void run('assets.load', { store, ids: '(all unloaded in store)' }, async () => {
       const { assets } = must(await c().assetsList(store));
       const ids = assets.filter((a) => !a.loaded).map((a) => a.id);
-      return c().assetsLoad(ids, { store });
+      return c().assetsLoad(ids, {
+        store,
+        onProgress: (p) => line('', `  … [${p.completed}/${p.total}] #${p.index} ${p.phase} ${p.id}`),
+      });
     });
   };
 

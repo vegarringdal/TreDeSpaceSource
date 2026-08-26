@@ -89,6 +89,8 @@
 //                                  (onThemeChanged) — restyle your frames
 //   'assets.importUrl:progress'  — per-file import progress (assetsImportUrl
 //                                  surfaces it via its onProgress option)
+//   'assets.load:progress'       — per-model load progress (assetsLoad /
+//                                  assetsSetLoaded, same onProgress option)
 //
 // COMMON FLOWS (each step is one method below — see its JSDoc):
 //   Sync hosted models:   assetsList → compare each asset's md5 against a hash
@@ -419,6 +421,22 @@ export interface HostExternalApp {
    *    config: { width: '480px', height: '320px', project: 'plant-7' } }
    *  ``` */
   config?: string | Record<string, unknown>;
+}
+
+/** Progress tick for one model in an {@link TredespaceClient.assetsLoad} or
+ *  {@link TredespaceClient.assetsSetLoaded} batch. Models load in parallel, so
+ *  ticks interleave — `index` is the model's position in the ids you passed
+ *  (for `assetsSetLoaded`, in the subset it actually had to load). */
+export type LoadProgressFn = (p: LoadProgress) => void;
+
+export interface LoadProgress {
+  completed: number;
+  total: number;
+  index: number;
+  /** the asset id this tick is about */
+  id: string;
+  /** `error` = that model failed to load; the batch continues either way */
+  phase: 'done' | 'error';
 }
 
 /** A camera placement. The viewer's camera is ORBIT-based (Z-up): a pivot
@@ -946,17 +964,18 @@ export class TredespaceClient {
    *  rules: `fit: true` (the default) frames what was loaded; `fit: false`
    *  leaves the camera exactly where it is; a `camera` places it explicitly
    *  and replaces the framing entirely, so the view never fits first and then
-   *  jumps. Pair with {@link assetsImport}, or use {@link assetsImportAndLoad}. */
+   *  jumps. Pair with {@link assetsImport}, or use {@link assetsImportAndLoad}.
+   *
+   *  Models load in parallel (`concurrent`, default the viewer's load-pool
+   *  setting). Pass `onProgress` for a tick per model as it lands — that also
+   *  puts the viewer in quiet mode, so it drives no loading overlay and the
+   *  progress UI is entirely yours. Without it the viewer shows its own
+   *  overlay, exactly like loading from the Model Assets panel. */
   assetsLoad(
     ids: string[],
-    opts?: { fit?: boolean; store?: string; camera?: CameraInput },
+    opts?: { fit?: boolean; store?: string; camera?: CameraInput; concurrent?: number; onProgress?: LoadProgressFn },
   ): Promise<Result<{ loaded: number }>> {
-    return this.send('assets.load', {
-      ids,
-      fit: opts?.fit ?? true,
-      ...(opts?.store ? { store: opts.store } : {}),
-      ...(opts?.camera ? { camera: opts.camera } : {}),
-    });
+    return this.loadCall('assets.load', { ids, fit: opts?.fit ?? true }, opts);
   }
   /** Remove assets from the viewport (they stay in the asset manager). */
   assetsUnload(ids: string[]): Promise<Result<{ unloaded: number }>> {
@@ -974,14 +993,36 @@ export class TredespaceClient {
    *  requested ids that are not in the asset manager — import those first. */
   assetsSetLoaded(
     ids: string[],
-    opts?: { store?: string; fit?: boolean; camera?: CameraInput },
+    opts?: { store?: string; fit?: boolean; camera?: CameraInput; concurrent?: number; onProgress?: LoadProgressFn },
   ): Promise<Result<{ loaded: number; unloaded: number; missing: string[] }>> {
-    return this.send('assets.setLoaded', {
-      ids,
+    return this.loadCall('assets.setLoaded', { ids, ...(opts?.fit !== undefined ? { fit: opts.fit } : {}) }, opts);
+  }
+
+  /** Shared plumbing for the two load commands: subscribes to this batch's
+   *  progress ticks while it runs and tells the viewer to keep its own
+   *  overlay down whenever the host is drawing one. */
+  private loadCall<T>(
+    type: string,
+    payload: Record<string, unknown>,
+    opts?: { store?: string; camera?: CameraInput; concurrent?: number; onProgress?: LoadProgressFn },
+  ): Promise<Result<T>> {
+    const batchId = `${this.idPrefix}-load-${this.nextId++}`;
+    const off = opts?.onProgress
+      ? this.on('assets.load:progress', (p) => {
+          const pr = p as LoadProgress & { batchId?: string };
+          if (pr.batchId === batchId) {
+            opts.onProgress?.(pr);
+          }
+        })
+      : undefined;
+    return this.send<T>(type, {
+      ...payload,
+      batchId,
+      ...(opts?.onProgress ? { progress: true } : {}),
       ...(opts?.store ? { store: opts.store } : {}),
-      ...(opts?.fit !== undefined ? { fit: opts.fit } : {}),
       ...(opts?.camera ? { camera: opts.camera } : {}),
-    });
+      ...(opts?.concurrent !== undefined ? { concurrent: opts.concurrent } : {}),
+    }).finally(() => off?.());
   }
 
   /** Delete persisted assets from local storage (OPFS). A copy already loaded

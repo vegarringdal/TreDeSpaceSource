@@ -277,6 +277,58 @@ function reprefixFolder(store: string, oldPath: string, newPath: string) {
 
 /** Read one asset from OPFS into the viewer — no dialog, no version bump.
  *  Exported for the postMessage API (assets.load). */
+/** Load ids into the viewer with `concurrency`-way pooling (default: the
+ *  Import Manager's load pool). Residency swaps are PAUSED for the batch — a
+ *  VRAM-budget swap racing the model-slot appends fights for the same memory.
+ *  The overlay ticks per file unless `quiet` (the caller reports progress
+ *  itself), and `onDone` fires as each id lands. Returns the ids that loaded.
+ *  Camera framing is deliberately NOT here: the panel and the postMessage API
+ *  frame differently, so each does its own after this returns. */
+export async function loadIdsPooled(
+  ids: string[],
+  opts: {
+    concurrency?: number;
+    quiet?: boolean;
+    onDone?: (index: number, id: string, ok: boolean) => void;
+  } = {},
+): Promise<string[]> {
+  const okIds: string[] = [];
+  if (ids.length === 0) {
+    return okIds;
+  }
+  const pool = Math.max(1, opts.concurrency ?? assetsState.get().loadPool);
+  let done = 0;
+  if (!opts.quiet) {
+    dialogs.loading(`File 0 of ${ids.length}`, 'Loading assets');
+  }
+  residency.pause(); // no VRAM-budget swaps while the batch appends model slots
+  try {
+    // `pool` runners pull from a shared queue (same shape as importSources)
+    const queue = ids.map((id, index) => ({ id, index }));
+    await Promise.all(
+      Array.from({ length: Math.min(pool, queue.length) }, async () => {
+        for (let job = queue.shift(); job; job = queue.shift()) {
+          const ok = await loadOne(job.id);
+          if (ok) {
+            okIds.push(job.id);
+          }
+          done++;
+          if (!opts.quiet) {
+            dialogs.loading(`File ${done} of ${ids.length}`, 'Loading assets');
+          }
+          opts.onDone?.(job.index, job.id, ok);
+        }
+      }),
+    );
+  } finally {
+    residency.resume();
+    if (!opts.quiet) {
+      dialogs.hideLoading();
+    }
+  }
+  return okIds;
+}
+
 export async function loadAssetIntoViewer(id: string): Promise<boolean> {
   return loadOne(id);
 }
@@ -982,29 +1034,7 @@ export const assetsActions = {
       return;
     }
     const t0 = performance.now();
-    let loaded = 0;
-    let done = 0;
-    const loadPool = s.loadPool;
-    dialogs.loading(`File 0 of ${ids.length}`, 'Loading assets');
-    residency.pause(); // no VRAM-budget swaps while the batch appends model slots
-    try {
-      // `loadPool` runners pull from a shared queue (same shape as importSources)
-      const queue = [...ids];
-      await Promise.all(
-        Array.from({ length: Math.min(loadPool, queue.length) }, async () => {
-          for (let id = queue.shift(); id; id = queue.shift()) {
-            if (await loadOne(id)) {
-              loaded++;
-            }
-            done++;
-            dialogs.loading(`File ${done} of ${ids.length}`, 'Loading assets');
-          }
-        }),
-      );
-    } finally {
-      residency.resume();
-      dialogs.hideLoading();
-    }
+    const loaded = (await loadIdsPooled(ids)).length;
     if (loaded > 0) {
       viewerActions.bumpModelsVersion();
       // Fit the camera to what was JUST loaded so a partial load doesn't
