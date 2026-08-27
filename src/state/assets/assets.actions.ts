@@ -108,6 +108,9 @@ export interface ImportBehaviour {
   /** Session-only import: the asset (and its cooked file) is purged on the
    *  next app start. Default = the Import Manager "Temp" checkbox. */
   temp?: boolean;
+  /** Host metadata stamped on every asset this import produces (a converter
+   *  can yield several). Opaque to the viewer; returned by `assets.list`. */
+  meta?: Record<string, unknown>;
   /** Drive NO app dialogs (no progress overlay, no error popup) — for callers
    *  that report progress themselves, e.g. a host driving `assets.importUrl`
    *  with a progress subscription. Console logging is unaffected. */
@@ -253,6 +256,8 @@ export interface ImportSource {
    *  (the converters cook full + coarse in one pass). GLB sources cook their
    *  own coarse in the cooker worker instead. */
   coarseBytes?: () => Promise<ArrayBuffer>;
+  /** Per-file metadata; falls back to the batch's `meta`. */
+  meta?: Record<string, unknown>;
   /** This `.glb` is a STANDARD glTF (plain node tree / EXT_mesh_gpu_instancing),
    *  not a merged one — cook it with the generic TS cook on a pool worker.
    *  Default (false) takes the strict merged path, which rejects standard files. */
@@ -517,6 +522,7 @@ export const assetsActions = {
           kind: 'standard',
           hasNormals: cooked.hasNormals,
           edges,
+          ...(opts.meta ? { meta: opts.meta } : {}),
           ...(temp ? { temp: true } : {}),
         };
         assetsState.set((s) => ({ assets: [...s.assets, entry] }));
@@ -675,6 +681,7 @@ export const assetsActions = {
             hasNormals,
             ...(edges !== undefined ? { edges } : {}),
             ...(coarse ? { coarse } : {}),
+            ...((src.meta ?? opts.meta) ? { meta: src.meta ?? opts.meta } : {}),
             ...(temp ? { temp: true } : {}),
           };
           added.push(entry);
@@ -853,6 +860,10 @@ export const assetsActions = {
           replace: opts.replace,
           load: opts.load,
           temp: opts.temp,
+          // the rest of the behaviour must travel too — `quiet` keeps the
+          // final phase's overlay down for a host, `meta` tags every asset
+          quiet: opts.quiet,
+          meta: opts.meta,
         });
       } finally {
         // errors propagate to the lock holder (error dialog + console)
@@ -929,6 +940,10 @@ export const assetsActions = {
           replace: opts.replace,
           load: opts.load,
           temp: opts.temp,
+          // the rest of the behaviour must travel too — `quiet` keeps the
+          // final phase's overlay down for a host, `meta` tags every asset
+          quiet: opts.quiet,
+          meta: opts.meta,
         });
       } finally {
         worker.terminate();
@@ -990,6 +1005,10 @@ export const assetsActions = {
           replace: opts.replace,
           load: opts.load,
           temp: opts.temp,
+          // the rest of the behaviour must travel too — `quiet` keeps the
+          // final phase's overlay down for a host, `meta` tags every asset
+          quiet: opts.quiet,
+          meta: opts.meta,
         });
         consoleActions.log(
           'info',

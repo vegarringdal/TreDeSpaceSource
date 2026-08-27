@@ -248,6 +248,13 @@ import succeeds, so a failed import never removes anything. Responds when the
 import (which may be long — RVM/IFC conversion) finishes. Only one import runs
 at a time (`busy` error otherwise, same as the UI's import lock).
 
+`meta` (any JSON object) is stored with every asset the import produces and
+comes back verbatim from `assets.list` — the viewer never interprets it. Use it
+for host bookkeeping the viewer has no concept of, e.g. the md5 of the
+COMPRESSED artifact you actually serve. A converter that yields several assets
+from one file tags them all. It works the same on `assets.importUrl` (per
+file), `sql.import` and `sql.importUrl` (per file).
+
 `format: 'tdp'` is an already-cooked TreDeSpace file (a viewer export, or a
 server-hosted model): it is stored as-is — no conversion — and the viewer
 rebuilds its coarse (VRAM-budget) variant from the same bytes during the
@@ -264,7 +271,8 @@ payload:  { fileName: 'pump.glb', folder: 'external', store: 'project-x',
             replace: true,                // drop a prior same store/folder/name asset
             format: 'glb-standard',        // 'glb-merged' | 'glb-standard' | 'rvm' | 'ifc' | 'step' | 'tdp'
             bytes,                         // ArrayBuffer | Blob (rides as a transferable)
-            options: { normals: true, edges: true } }  // per-format options
+            options: { normals: true, edges: true },   // per-format options
+            meta: { zipMd5: 'a1b2…', rev: 42 } }       // yours, returned by assets.list
 response: { entries: [{ id: '...', store: 'project-x', name: 'pump', md5: '…',
                         size: 40213, kind: 'standard', hasNormals: true }],
             replaced: 1 }                  // # of prior assets removed by replace
@@ -562,7 +570,8 @@ databases imported before md5 recording existed or created in-app.
 payload:  { store: 'main' }   // or {} for all stores
 response: { dbs: [
   { store: 'main', fileName: 'meta.db', path: 'sql_assets/main/meta.db',
-    size: 61440, modified: 1721600000000, md5: '9e107d9d372bb6826bd81d3542a419d6' },
+    size: 61440, modified: 1721600000000, md5: '9e107d9d372bb6826bd81d3542a419d6',
+    meta: { zipMd5: 'c3d4…' } },
 ] }
 ```
 
@@ -574,7 +583,10 @@ databases are normalised to rollback journalling on the way in — the OPFS VFS
 is shm-less, so a WAL file could otherwise only be read in exclusive mode. A
 same-name skip is a normal result, NOT an error. The md5 of the bytes as
 delivered (hashed BEFORE the WAL normalization) is recorded and returned by
-`sql.list`.
+`sql.list`, as is any `meta` object you attach.
+
+`progress: true` (the SDK sets it when you pass `onProgress`) emits
+`sql.importUrl:progress` events and keeps the viewer's own dialogs down.
 
 ```js
 iframe.contentWindow.postMessage({
@@ -596,18 +608,34 @@ known) and `replace` apply to every file — `replace: false` (default) skips an
 existing name WITHOUT downloading it. Files run serially; a download or write
 failure lands in `failed` and never aborts the rest. Each imported file's md5
 (of the downloaded bytes, hashed before WAL normalization) is recorded and
-returned by `sql.list` — hash your hosted file and compare first to skip
-unchanged imports entirely.
+returned by `sql.list`, along with any per-file `meta` you attach — hash your
+hosted file and compare first to skip unchanged imports entirely.
+
+With `progress: true` (the SDK sets it when you pass `onProgress`) the viewer
+posts unsolicited `sql.importUrl:progress` events and drives no dialogs of its
+own. Files import ONE AT A TIME, so the ticks give you both counters a UI
+needs: `completed`/`total` for "fetching file X of Y", and `loaded`/`totalBytes`
+for the download percentage of the file in flight (`totalBytes` is present when
+the server sent a content-length). `phase` is `download` (repeats as bytes
+arrive), `import` (writing into OPFS + WAL normalization), then `done` or
+`error`. `batchId` is echoed so a host can correlate them.
 
 ```js
 payload:  { files: [
               { url: 'https://cdn.example.com/meta.db' },
-              { url: 'https://cdn.example.com/big.sqlite', fileName: 'tags.db' } ],
-            store: 'project-x', replace: true }
+              { url: 'https://cdn.example.com/big.sqlite', fileName: 'tags.db',
+                meta: { zipMd5: 'c3d4…' } } ],       // yours, returned by sql.list
+            store: 'project-x', replace: true, progress: true }
 response: { imported: ['sql_assets/project-x/meta.db'],
             skipped: ['tags.db'],          // locked by another tab (or existed, when replace is false)
             replaced: 1,
             failed: [] }                    // [{ url, error }] for download failures
+
+// progress events while it runs
+{ tredespace: 1, id: null, type: 'sql.importUrl:progress',
+  payload: { batchId: 'ts-x1-sql-3', completed: 1, total: 2, index: 1,
+             fileName: 'tags.db', url: 'https://…/big.sqlite',
+             phase: 'download', loaded: 8388608, totalBytes: 41943040 } }
 ```
 
 ### sql.delete
@@ -656,6 +684,48 @@ payload:  { mainDb: 'sql_assets/main/meta.db',
 response: { statements: [
   { columns: ['id', 'name'], rows: [[1, 'Flange'], [2, 'Bolt']], rowCount: 2 },
 ], ms: 4.1 }
+```
+
+### sql.execute
+The full statement form — the same contract the viewer's SQL editor and the
+original sqllitedebug tool run on. `statements` run against `mainDb` in ONE
+transaction (with `lockmode: 'exclusive'`; `'shared'` is read-only), so a load
+of several tables commits or rolls back as a unit. Per statement: `sql`,
+optional `name` (echoed in the result and in progress), `binding` — one value
+array per execution, several rows = the statement is prepared once and stepped
+per row (bulk INSERT without a giant SQL string), `null` binds NULL — and
+`collect` (keep the rows; default false, so writes return nothing). `attach`
+lists extra database paths to Web-Lock alongside `mainDb`; any
+`ATTACH DATABASE '…'` literal in a statement is locked automatically as well.
+`maxRows` caps rows per collected statement like `sql.query`. A failing
+statement rolls the whole batch back and the error carries sqlite's own
+message (`no such table: x`, `datatype mismatch`, `UNIQUE constraint failed`),
+so a host can act on it.
+
+`progress: true` (the SDK sets it when you pass `onProgress`) emits
+`sql.execute:progress` events: a `statement` tick as each statement FINISHES
+(`no` = its index, `total` = statement count, `name` when given) and a `row`
+tick every `progressSize` rows (default 1000) inside the current statement.
+
+```js
+payload:  { mainDb: 'sql_assets/main/meta.db', lockmode: 'exclusive',
+            statements: [
+              { name: 'schema', sql: 'CREATE TABLE IF NOT EXISTS tag(id INTEGER PRIMARY KEY, name TEXT)' },
+              { name: 'load',   sql: 'INSERT INTO tag(id, name) VALUES (?, ?)',
+                binding: [[1, 'P-101'], [2, 'V-204'], [3, null]] },   // stepped per row
+              { name: 'count',  sql: 'SELECT count(*) AS n FROM tag', collect: true } ],
+            progress: true, progressSize: 500 }
+response: { statements: [
+              { name: 'schema', columns: null, rows: [], rowCount: 0 },
+              { name: 'load',   columns: null, rows: [], rowCount: 0 },
+              { name: 'count',  columns: ['n'], rows: [[3]], rowCount: 1 } ],
+            ms: 6.2 }
+
+// progress events while it runs
+{ tredespace: 1, id: null, type: 'sql.execute:progress',
+  payload: { batchId: 'ts-x1-sqlexecuteprogress-4', type: 'statement', no: 1, total: 3, name: 'load' } }
+{ tredespace: 1, id: null, type: 'sql.execute:progress',
+  payload: { batchId: 'ts-x1-sqlexecuteprogress-4', type: 'row', no: 500, total: null } }
 ```
 
 ### ui.kiosk

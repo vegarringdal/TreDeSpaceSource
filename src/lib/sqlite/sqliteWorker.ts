@@ -330,9 +330,11 @@ async function execute(
         const stmt = db.prepare(statement.sql);
         binding.forEach((v) => {
           if (Array.isArray(v)) {
-            v.forEach((vv) => {
-              stmt.bind(vv);
-            });
+            // one bind() with the whole row: oo1 binds an ARRAY positionally
+            // (1..n). Binding each value on its own bound every column onto
+            // parameter 1 — a latent bug, since nothing in-app sent
+            // multi-column rows before sql.execute did.
+            stmt.bind(v);
             if (statement.collect) {
               stmt.step();
               if (!columnNames) {
@@ -402,8 +404,10 @@ async function execute(
       }
       db.close();
     }
-    /* simple for now */
-    err = { err: e, msg: 'WORKER_ERR' };
+    // surface sqlite's own message ("no such table: x", "datatype mismatch",
+    // "UNIQUE constraint failed") — a host driving sql.execute can act on it,
+    // whereas a fixed sentinel told nobody anything
+    err = { err: e, msg: e instanceof Error && e.message ? e.message : String(e) };
   }
 
   /**

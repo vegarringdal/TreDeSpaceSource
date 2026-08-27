@@ -1,10 +1,10 @@
-import { Button, Checkbox, Select, TextInput, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Select, TextArea, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { DemoSection } from '../components/DemoSection';
 import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
 import { useDemo } from '../DemoContext';
-import { must } from '../util';
+import { must, splitLines } from '../util';
 import { SqlQueryPanel } from './SqlQueryPanel';
 
 export function SqlSection() {
@@ -51,15 +51,26 @@ export function SqlSection() {
     });
   };
 
+  // one line per file, rewritten as the percentage climbs — "fetching X/Y"
+  // plus the download percent of the file in flight
   const handleImportUrl = () => {
-    const u = url.trim();
-    if (!u) {
-      line('err', 'enter a database URL');
+    const urls = splitLines(url);
+    if (!urls.length) {
+      line('err', 'enter at least one database URL (one per line)');
       return;
     }
 
-    void run('sql.importUrl', { files: [{ url: u }], store, replace }, () =>
-      c().sqlImportUrl({ files: [{ url: u }], store, replace }),
+    const files = urls.map((u) => ({ url: u, meta: { importedBy: 'demo', at: Date.now() } }));
+    void run('sql.importUrl', { files, store, replace }, () =>
+      c().sqlImportUrl({
+        files,
+        store,
+        replace,
+        onProgress: (p) => {
+          const pct = p.totalBytes ? ` ${Math.round(((p.loaded ?? 0) / p.totalBytes) * 100)}%` : '';
+          line('', `  … fetching file ${p.completed + 1}/${p.total} — ${p.fileName} ${p.phase}${pct}`);
+        },
+      }),
     );
   };
 
@@ -71,7 +82,14 @@ export function SqlSection() {
     }
 
     void run('sql.import', { fileName: file.name, store, replace, bytes: `<${file.size} bytes>` }, () =>
-      c().sqlImport({ fileName: file.name, bytes: file, store, replace }),
+      c().sqlImport({
+        fileName: file.name,
+        bytes: file,
+        store,
+        replace,
+        meta: { importedBy: 'demo', at: Date.now() },
+        onProgress: (p) => line('', `  … ${p.fileName} ${p.phase}`),
+      }),
     );
   };
 
@@ -108,10 +126,12 @@ export function SqlSection() {
       </Row>
       <Hint>
         Or let the viewer download it by URL — streamed straight into OPFS (GB-safe, nothing rides postMessage). The
-        import-time md5 shows up in sql.list; hash your hosted file and compare to skip unchanged imports.
+        import-time md5 shows up in sql.list; hash your hosted file and compare to skip unchanged imports. Progress
+        ticks report "file X/Y" plus the download percent, and the demo attaches a <code>meta</code> object you can see
+        again in sql.list.
       </Hint>
       <Row>
-        <TextInput value={url} onChange={setUrl} placeholder="https://…/meta.db" className="min-w-0 flex-1" />
+        <TextArea value={url} onChange={setUrl} rows={2} placeholder="https://…/meta.db (one URL per line)" />
         <Button onClick={handleImportUrl}>sql.importUrl</Button>
       </Row>
       <SqlQueryPanel dbs={dbs} mainDb={mainDb} onMainDbChange={setMainDb} />

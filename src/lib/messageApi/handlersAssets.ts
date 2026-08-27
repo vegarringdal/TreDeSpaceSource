@@ -25,6 +25,7 @@ async function importAndReport(
   replace: boolean,
   opts: Record<string, unknown>,
   quiet = false,
+  meta?: Record<string, unknown>,
 ): Promise<{ entries: unknown[]; replaced: number }> {
   const before = assetsState.get().assets;
   const beforeIds = new Set(before.map((a) => a.id));
@@ -32,7 +33,7 @@ async function importAndReport(
   // must not inherit whatever the user last ticked, so all are passed
   // explicitly. The importer drops the replaced asset(s) AFTER the new one
   // lands, so a failed import never deletes anything.
-  const behaviour = { replace, load: false, temp: false, quiet };
+  const behaviour = { replace, load: false, temp: false, quiet, ...(meta ? { meta } : {}) };
   switch (format) {
     case 'glb-merged':
       await assetsActions.importSources([{ name: file.name, bytes: () => file.arrayBuffer() }], {
@@ -91,6 +92,7 @@ async function importAndReport(
     size: a.size,
     kind: a.kind,
     hasNormals: a.hasNormals,
+    ...(a.meta ? { meta: a.meta } : {}),
     loaded: false,
   }));
   return { entries, replaced };
@@ -122,6 +124,7 @@ const toApiEntry = (a: AssetEntry) => ({
   size: a.size,
   kind: a.kind,
   hasNormals: a.hasNormals,
+  ...(a.meta ? { meta: a.meta } : {}),
   loaded: false,
 });
 
@@ -185,6 +188,7 @@ type UrlJob = {
   fileName: string;
   folder: string;
   options: Record<string, unknown>;
+  meta?: Record<string, unknown>;
 };
 
 /** Import a batch of files the VIEWER downloads. The whole batch takes the
@@ -243,6 +247,7 @@ async function importUrlBatch(
       fileName: typeof f.fileName === 'string' && f.fileName ? f.fileName : fileNameFromUrl(url, `file-${i}`),
       folder: typeof f.folder === 'string' ? f.folder : '',
       options: isRecord(f.options) ? f.options : {},
+      ...(isRecord(f.meta) ? { meta: f.meta } : {}),
     });
   }
 
@@ -266,6 +271,7 @@ async function importUrlBatch(
           name: pipelineName(j.fileName, j.format),
           folder: j.folder,
           standardGlb: j.format === 'glb-standard',
+          ...(j.meta ? { meta: j.meta } : {}),
           stdOptions: {
             ...(typeof j.options.normals === 'boolean' ? { normals: j.options.normals } : {}),
             ...(typeof j.options.edges === 'boolean' ? { edges: j.options.edges } : {}),
@@ -321,7 +327,7 @@ async function importUrlBatch(
           }
           emit(j.index, j.url, 'convert');
           const file = new File([buf], j.fileName);
-          const r = await importAndReport(file, j.format, j.folder, store, replace, j.options, quiet);
+          const r = await importAndReport(file, j.format, j.folder, store, replace, j.options, quiet, j.meta);
           results[j.index] = { url: j.url, ok: true, entries: r.entries, replaced: r.replaced };
           completed++;
           emit(j.index, j.url, 'done');
@@ -438,6 +444,7 @@ export const assetHandlers: Record<string, ApiHandler> = {
         kind: a.kind,
         hasNormals: a.hasNormals,
         edges: a.edges,
+        ...(a.meta ? { meta: a.meta } : {}),
         loaded: await db.hasModel(a.name, groupOf(a), a.store),
       });
     }
@@ -460,7 +467,8 @@ export const assetHandlers: Record<string, ApiHandler> = {
     const replace = p.replace === true;
     const opts = isRecord(p.options) ? p.options : {};
     const file = new File([bytes], fileName);
-    return await importAndReport(file, p.format, folder, store, replace, opts);
+    const meta = isRecord(p.meta) ? p.meta : undefined;
+    return await importAndReport(file, p.format, folder, store, replace, opts, false, meta);
   },
 
   // The VIEWER downloads each URL (nothing rides postMessage). Every file
@@ -552,7 +560,16 @@ export const assetHandlers: Record<string, ApiHandler> = {
       // hand the import lock to the importer (it re-acquires + shows its own
       // dialog); release before importing or it would see the lock busy.
       await releaseOnce();
-      return await importAndReport(file, p.format, folder, store, replace, opts);
+      return await importAndReport(
+        file,
+        p.format,
+        folder,
+        store,
+        replace,
+        opts,
+        false,
+        isRecord(p.meta) ? p.meta : undefined,
+      );
     } finally {
       await releaseOnce();
       await deleteFile(await uploadsTempDir(), `${uploadId}.part`);

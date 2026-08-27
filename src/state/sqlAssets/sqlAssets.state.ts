@@ -13,6 +13,10 @@ export interface SqlDbEntry {
   path: string;
   size: number;
   modified: number;
+  /** Host metadata attached at import (`meta` on the import command) and
+   *  returned by `sql.list` — e.g. the md5 of the COMPRESSED artifact the host
+   *  serves, for its own freshness checks. Opaque to the viewer. */
+  meta?: Record<string, unknown>;
   /** MD5 of the source bytes AS DELIVERED at import time — recorded before
    *  the WAL normalization rewrites the file, never updated by later edits.
    *  Absent for databases imported before this existed or created in-app. */

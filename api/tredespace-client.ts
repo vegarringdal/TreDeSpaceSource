@@ -91,6 +91,10 @@
 //                                  surfaces it via its onProgress option)
 //   'assets.load:progress'       — per-model load progress (assetsLoad /
 //                                  assetsSetLoaded, same onProgress option)
+//   'sql.importUrl:progress'     — per-file + per-chunk SQL import progress
+//                                  (sqlImport / sqlImportUrl onProgress)
+//   'sql.execute:progress'       — per-statement + per-N-rows batch progress
+//                                  (sqlExecute onProgress)
 //
 // COMMON FLOWS (each step is one method below — see its JSDoc):
 //   Sync hosted models:   assetsList → compare each asset's md5 against a hash
@@ -245,6 +249,9 @@ export interface SettingsGetResult {
 
 export interface AssetInfo {
   id: string;
+  /** whatever `meta` the import attached — your own bookkeeping, returned
+   *  verbatim (e.g. the md5 of the COMPRESSED artifact you serve) */
+  meta?: Record<string, unknown>;
   /** the store this asset belongs to (default 'main') */
   store: string;
   name: string;
@@ -287,6 +294,9 @@ export interface ImportUrlFile {
   /** URL the viewer fetches (subject to the VIEWER origin's CORS, not yours). */
   url: string;
   format: ImportFormat;
+  /** metadata to store with the produced asset(s) and read back from
+   *  `assetsList` — a converter that yields several assets tags them all */
+  meta?: Record<string, unknown>;
   /** name to store the asset under; defaults to the URL's last path segment. */
   fileName?: string;
   folder?: string;
@@ -342,6 +352,8 @@ export interface ImportUrlProgress {
  *  what an ATTACH string literal references. */
 export interface SqlDbInfo {
   store: string;
+  /** whatever `meta` the import attached, returned verbatim */
+  meta?: Record<string, unknown>;
   fileName: string;
   path: string;
   size: number;
@@ -370,6 +382,27 @@ export interface SqlImportUrlFile {
   url: string;
   /** name to store the database under; defaults to the URL's last path segment. */
   fileName?: string;
+  /** metadata to store with it and read back from `sqlList` */
+  meta?: Record<string, unknown>;
+}
+
+/** Progress tick for a SQL import. `download` repeats as bytes arrive (URL
+ *  imports), `import` = writing into OPFS + the WAL normalization, then
+ *  `done` / `error`. Files are imported one at a time, so `completed`/`total`
+ *  give you "fetching file X of Y" and `loaded`/`totalBytes` the percentage. */
+export interface SqlImportProgress {
+  completed: number;
+  total: number;
+  /** index into the `files` array you passed */
+  index: number;
+  fileName: string;
+  /** the URL being fetched (URL imports only) */
+  url?: string;
+  phase: 'download' | 'import' | 'done' | 'error';
+  /** bytes downloaded so far (download phase) */
+  loaded?: number;
+  /** total bytes, when the server sent a content-length */
+  totalBytes?: number;
 }
 
 export interface SqlImportUrlResult extends SqlImportResult {
@@ -542,6 +575,42 @@ export interface SqlStatementResult {
   rowCount: number;
   /** present + true when `rows` was cut to `maxRows`. */
   truncated?: boolean;
+}
+
+/** One statement of a `sqlExecute` batch — the contract the viewer's SQL
+ *  editor (and the original sqllitedebug tool) run on. */
+export interface SqlStatementInput {
+  /** label echoed in the result and in statement-progress ticks */
+  name?: string;
+  sql: string;
+  /** One value array per execution. Several rows = the statement is prepared
+   *  once and stepped per row (bulk INSERT without a giant SQL string);
+   *  exactly one row = a plain bound statement. `null` binds NULL. */
+  binding?: (string | number | null)[][];
+  /** keep this statement's rows (default false — a write returns nothing) */
+  collect?: boolean;
+}
+
+export interface SqlExecuteStatementResult extends SqlStatementResult {
+  /** the `name` you gave, when any */
+  name?: string;
+}
+
+export interface SqlExecuteResult {
+  /** one entry per statement, in order; rows only for `collect: true` */
+  statements: SqlExecuteStatementResult[];
+  ms: number;
+}
+
+/** Progress tick for a `sqlExecute` batch. `statement` ticks fire as each
+ *  statement FINISHES (`no` = its index, `total` = statement count, `name` its
+ *  label when given); `row` ticks fire every `progressSize` rows within the
+ *  current statement (`total` is null — sqlite can't know it up front). */
+export interface SqlExecuteProgress {
+  type: 'statement' | 'row';
+  no: number;
+  total: number | null;
+  name?: string;
 }
 
 export interface SqlQueryResult {
@@ -809,6 +878,8 @@ export class TredespaceClient {
     replace?: boolean;
     /** per-format options, e.g. { normals: true, edges: true } for glb-standard */
     options?: Record<string, unknown>;
+    /** metadata stored with the produced asset(s), returned by `assetsList` */
+    meta?: Record<string, unknown>;
     /** upload progress (0..1); only fires for chunk-streamed large files */
     onProgress?: (fraction: number) => void;
   }): Promise<Result<AssetsImportResult>> {
@@ -1052,8 +1123,13 @@ export class TredespaceClient {
     /** destination store (default 'main'); must be a known store name */
     store?: string;
     replace?: boolean;
+    /** metadata stored with the database, returned by `sqlList` */
+    meta?: Record<string, unknown>;
+    /** per-phase progress; also silences the viewer's own dialogs */
+    onProgress?: (p: SqlImportProgress) => void;
   }): Promise<Result<SqlImportResult>> {
-    const { bytes, ...payload } = input;
+    const { bytes, onProgress, ...rest } = input;
+    const { payload, done } = this.sqlProgress(rest, onProgress);
     // A picked File must be read HERE and transferred — a File reference does
     // not survive postMessage into the viewer (NotReadableError otherwise).
     if (bytes instanceof Blob) {
@@ -1061,9 +1137,29 @@ export class TredespaceClient {
         .arrayBuffer()
         .then((buf) =>
           this.send<SqlImportResult>('sql.import', payload, { bytes: buf, timeoutMs: this.importTimeoutMs }),
-        );
+        )
+        .finally(done);
     }
-    return this.send<SqlImportResult>('sql.import', payload, { bytes, timeoutMs: this.importTimeoutMs });
+    return this.send<SqlImportResult>('sql.import', payload, { bytes, timeoutMs: this.importTimeoutMs }).finally(done);
+  }
+
+  /** Subscribe to this batch's SQL import ticks and tag the payload so the
+   *  viewer keeps its own dialogs down while the host draws progress. */
+  private sqlProgress(
+    payload: Record<string, unknown>,
+    onProgress?: (p: SqlImportProgress) => void,
+  ): { payload: Record<string, unknown>; done: () => void } {
+    if (!onProgress) {
+      return { payload, done: () => undefined };
+    }
+    const batchId = `${this.idPrefix}-sql-${this.nextId++}`;
+    const off = this.on('sql.importUrl:progress', (p) => {
+      const pr = p as SqlImportProgress & { batchId?: string };
+      if (pr.batchId === batchId) {
+        onProgress(pr);
+      }
+    });
+    return { payload: { ...payload, batchId, progress: true }, done: off };
   }
 
   /** Batch-import .db/.sqlite files the VIEWER downloads by URL — nothing
@@ -1080,8 +1176,14 @@ export class TredespaceClient {
     /** destination store (default 'main'); must be a known store name */
     store?: string;
     replace?: boolean;
+    /** per-file AND per-chunk progress — "fetching file X of Y" plus a real
+     *  download percentage from `loaded`/`totalBytes`. Passing it also
+     *  silences the viewer's own import dialogs. */
+    onProgress?: (p: SqlImportProgress) => void;
   }): Promise<Result<SqlImportUrlResult>> {
-    return this.send<SqlImportUrlResult>('sql.importUrl', input, { timeoutMs: this.importTimeoutMs });
+    const { onProgress, ...rest } = input;
+    const { payload, done } = this.sqlProgress(rest, onProgress);
+    return this.send<SqlImportUrlResult>('sql.importUrl', payload, { timeoutMs: this.importTimeoutMs }).finally(done);
   }
 
   /** Pre-flight a SQL script WITHOUT running it: which databases does it
@@ -1230,6 +1332,50 @@ export class TredespaceClient {
     maxRows?: number;
   }): Promise<Result<SqlQueryResult>> {
     return this.send('sql.query', { ...input }, { timeoutMs: this.importTimeoutMs });
+  }
+
+  /** Run a BATCH of statements against `mainDb` in ONE transaction, with the
+   *  full per-statement contract: bindings (bulk rows step a prepared
+   *  statement), `collect` per statement, names for readable results. The
+   *  whole batch commits or rolls back together (with `lockmode: 'exclusive'`;
+   *  'shared' is read-only). `attach` lists extra database paths to lock; any
+   *  `ATTACH DATABASE '…'` literal in a statement is locked automatically as
+   *  well. `onProgress` gets a tick per finished statement and every
+   *  `progressSize` (default 1000) rows — use it for long loads. Same row cap
+   *  rules as `sqlQuery`. */
+  sqlExecute(input: {
+    mainDb: string;
+    statements: SqlStatementInput[];
+    attach?: string[];
+    lockmode?: 'shared' | 'exclusive';
+    maxRows?: number;
+    /** rows between `row` ticks (default 1000); smaller = more ticks, slower */
+    progressSize?: number;
+    onProgress?: (p: SqlExecuteProgress) => void;
+  }): Promise<Result<SqlExecuteResult>> {
+    const { onProgress, ...rest } = input;
+    const { payload, done } = this.progressFor('sql.execute:progress', rest, onProgress);
+    return this.send<SqlExecuteResult>('sql.execute', payload, { timeoutMs: this.importTimeoutMs }).finally(done);
+  }
+
+  /** Subscribe to one batch's ticks on `eventType` and tag the payload with
+   *  the batch id + `progress: true`; `done` unsubscribes. */
+  private progressFor<T>(
+    eventType: string,
+    payload: Record<string, unknown>,
+    onProgress?: (p: T) => void,
+  ): { payload: Record<string, unknown>; done: () => void } {
+    if (!onProgress) {
+      return { payload, done: () => undefined };
+    }
+    const batchId = `${this.idPrefix}-${eventType.replace(/[^a-z]/gi, '')}-${this.nextId++}`;
+    const off = this.on(eventType, (p) => {
+      const pr = p as T & { batchId?: string };
+      if (pr.batchId === batchId) {
+        onProgress(pr);
+      }
+    });
+    return { payload: { ...payload, batchId, progress: true }, done: off };
   }
 
   /** Toggle kiosk mode (viewport only — panels hidden). Omit `on` to query

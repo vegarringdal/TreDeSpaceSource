@@ -11,6 +11,12 @@ export interface AssetBounds {
 }
 
 export interface AssetEntry {
+  /** Host metadata attached at import (`meta` on the import command) and
+   *  returned by `assets.list` — e.g. the md5 of the COMPRESSED artifact the
+   *  host serves, for its own freshness checks. Opaque to the viewer; a
+   *  converter that yields several assets from one file tags them all. */
+  meta?: Record<string, unknown>;
+
   id: string;
   /** Which store this asset belongs to (default 'main'). */
   store: string;

@@ -40,6 +40,38 @@ export function SqlQueryPanel({ dbs, mainDb, onMainDbChange }: SqlQueryPanelProp
     void run('sql.query', { mainDb, lockmode, sql }, () => c().sqlQuery({ sql, mainDb, lockmode }));
   };
 
+  // the full statement form: one transaction, bulk bindings stepped per row,
+  // collect only where wanted, progress per statement and per N rows
+  const handleExecute = () => {
+    if (!mainDb) {
+      line('err', 'run sql.list and pick a main db first');
+      return;
+    }
+
+    const rows = Array.from({ length: 2500 }, (_, i) => [i + 1, `TAG-${String(i + 1).padStart(4, '0')}`]);
+    const statements = [
+      { name: 'schema', sql: 'CREATE TABLE IF NOT EXISTS demo_tag(id INTEGER PRIMARY KEY, name TEXT)' },
+      { name: 'clear', sql: 'DELETE FROM demo_tag' },
+      { name: 'load', sql: 'INSERT INTO demo_tag(id, name) VALUES (?, ?)', binding: rows },
+      { name: 'count', sql: 'SELECT count(*) AS n FROM demo_tag', collect: true },
+    ];
+    void run('sql.execute', { mainDb, lockmode: 'exclusive', statements: '(4 statements, 2500 bound rows)' }, () =>
+      c().sqlExecute({
+        mainDb,
+        lockmode: 'exclusive',
+        statements,
+        progressSize: 500,
+        onProgress: (p) =>
+          line(
+            '',
+            p.type === 'statement'
+              ? `  … statement ${p.no + 1}/${p.total} done${p.name ? ` (${p.name})` : ''}`
+              : `  … ${p.no} rows`,
+          ),
+      }),
+    );
+  };
+
   return (
     <>
       <Hint>Run SQL against the picked main db (results to the log):</Hint>
@@ -48,6 +80,12 @@ export function SqlQueryPanel({ dbs, mainDb, onMainDbChange }: SqlQueryPanelProp
       <Row>
         <Select value={lockmode} onChange={handleLockChange} options={LOCK_OPTIONS} className="min-w-40" />
         <Button onClick={handleRun}>sql.query</Button>
+        <Button
+          tooltip="Batch demo: create + clear + bulk-insert 2500 bound rows + count, ONE transaction, with per-statement and per-500-rows progress"
+          onClick={handleExecute}
+        >
+          sql.execute (batch)
+        </Button>
         <Button
           tooltip="Pre-flight WITHOUT running: which dbs does this script reference (mainDb + ATTACH literals), do they exist, and their import-time md5"
           onClick={() =>

@@ -24,25 +24,27 @@ import { type SqlDbEntry, sqlAssetsState } from './sqlAssets.state';
  *  `refresh()` skips `.json` files, so the sidecar never lists as a database. */
 const META_FILE = 'SQL_Meta.json';
 
-type SqlMeta = Record<string, { md5: string }>;
+type SqlMetaEntry = { md5: string; meta?: Record<string, unknown> };
+type SqlMeta = Record<string, SqlMetaEntry>;
 
 async function readMeta(store: string): Promise<SqlMeta> {
   return (await readJson<SqlMeta>(await sqlStoreDir(store), META_FILE)) ?? {};
 }
 
-async function recordMd5(store: string, fileName: string, md5: string): Promise<void> {
+/** Record the import-time md5 and any host metadata for one database. */
+async function recordMeta(store: string, fileName: string, md5: string, meta?: Record<string, unknown>): Promise<void> {
   const dir = await sqlStoreDir(store);
-  const meta = (await readJson<SqlMeta>(dir, META_FILE)) ?? {};
-  meta[fileName] = { md5 };
-  await writeJson(dir, META_FILE, meta);
+  const all = (await readJson<SqlMeta>(dir, META_FILE)) ?? {};
+  all[fileName] = { md5, ...(meta ? { meta } : {}) };
+  await writeJson(dir, META_FILE, all);
 }
 
-async function dropMd5(store: string, fileName: string): Promise<void> {
+async function dropMeta(store: string, fileName: string): Promise<void> {
   const dir = await sqlStoreDir(store);
-  const meta = (await readJson<SqlMeta>(dir, META_FILE)) ?? {};
-  if (meta[fileName]) {
-    delete meta[fileName];
-    await writeJson(dir, META_FILE, meta);
+  const all = (await readJson<SqlMeta>(dir, META_FILE)) ?? {};
+  if (all[fileName]) {
+    delete all[fileName];
+    await writeJson(dir, META_FILE, all);
   }
 }
 
@@ -90,6 +92,30 @@ async function withDbLock<T>(path: string, body: () => Promise<T>): Promise<T | 
   });
 }
 
+/** Per-file progress for the SQL import paths. `download` repeats as bytes
+ *  arrive (URL imports only); `import` = writing into OPFS + the WAL
+ *  normalization; `done` / `error` end that file. */
+export interface SqlImportProgress {
+  completed: number;
+  total: number;
+  index: number;
+  fileName: string;
+  url?: string;
+  phase: 'download' | 'import' | 'done' | 'error';
+  loaded?: number;
+  totalBytes?: number;
+}
+
+export interface SqlImportOpts {
+  replace?: boolean;
+  /** Host metadata stored alongside the db and returned by `sql.list` — e.g.
+   *  the md5 of the COMPRESSED artifact the host actually serves. */
+  meta?: Record<string, unknown>;
+  /** Drive no dialogs — for a caller reporting progress itself. */
+  quiet?: boolean;
+  onProgress?: (p: SqlImportProgress) => void;
+}
+
 export const sqlAssetsActions = {
   /** Re-scan every store's sql_assets directory — the file system is the
    *  index, so this is the only "load" there is. */
@@ -104,14 +130,15 @@ export const sqlAssetsActions = {
         if (file.name.toLowerCase().endsWith('.json')) {
           continue;
         }
-        const md5 = meta[file.name]?.md5;
+        const rec = meta[file.name];
         dbs.push({
           store: st.name,
           fileName: file.name,
           path: sqlDbPath(st.name, file.name),
           size: file.size,
           modified: file.lastModified,
-          ...(md5 ? { md5 } : {}),
+          ...(rec?.md5 ? { md5: rec.md5 } : {}),
+          ...(rec?.meta ? { meta: rec.meta } : {}),
         });
       }
     }
@@ -137,7 +164,7 @@ export const sqlAssetsActions = {
   async importDatabases(
     files: File[],
     store: string,
-    opts: { replace?: boolean } = {},
+    opts: SqlImportOpts = {},
   ): Promise<{ imported: string[]; skipped: string[]; replaced: number }> {
     const result = { imported: [] as string[], skipped: [] as string[], replaced: 0 };
     if (!files.length) {
@@ -150,8 +177,12 @@ export const sqlAssetsActions = {
         .map((d) => d.fileName),
     );
     sqlAssetsState.set({ busy: true });
+    let completed = 0;
+    const tick = (index: number, fileName: string, phase: SqlImportProgress['phase']) =>
+      opts.onProgress?.({ completed, total: files.length, index, fileName, phase });
     try {
-      for (const file of files) {
+      for (const [index, file] of files.entries()) {
+        tick(index, file.name, 'import');
         if (existing.has(file.name)) {
           const replace =
             opts.replace ??
@@ -160,6 +191,8 @@ export const sqlAssetsActions = {
             }));
           if (!replace) {
             result.skipped.push(file.name);
+            completed++;
+            tick(index, file.name, 'done');
             continue;
           }
           result.replaced++;
@@ -173,19 +206,25 @@ export const sqlAssetsActions = {
           return true;
         });
         if (done) {
-          await recordMd5(store, file.name, md5);
+          await recordMeta(store, file.name, md5, opts.meta);
           result.imported.push(path);
           consoleActions.log('info', `SQL: imported ${path} (${(file.size / 1048576).toFixed(1)} MB)`);
           // convert out of WAL so it reads in shared/read-only mode later
           await normalizeOutOfWal(path);
+          completed++;
+          tick(index, file.name, 'done');
         } else {
           result.skipped.push(file.name);
+          completed++;
+          tick(index, file.name, 'error');
         }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       consoleActions.log('error', `SQL: import failed: ${msg}`);
-      dialogs.error(msg, 'Import failed');
+      if (!opts.quiet) {
+        dialogs.error(msg, 'Import failed');
+      }
     } finally {
       sqlAssetsState.set({ busy: false });
       await this.refresh();
@@ -204,9 +243,9 @@ export const sqlAssetsActions = {
    *  `failed` entry and never aborts the rest. `replace: false` skips an
    *  existing name WITHOUT downloading it. */
   async importDatabasesFromUrls(
-    files: { url: string; fileName: string }[],
+    files: { url: string; fileName: string; meta?: Record<string, unknown> }[],
     store: string,
-    opts: { replace?: boolean } = {},
+    opts: SqlImportOpts = {},
   ): Promise<{ imported: string[]; skipped: string[]; replaced: number; failed: { url: string; error: string }[] }> {
     const result = {
       imported: [] as string[],
@@ -225,11 +264,29 @@ export const sqlAssetsActions = {
         .map((d) => d.fileName),
     );
     sqlAssetsState.set({ busy: true });
+    let completed = 0;
+    const tick = (
+      index: number,
+      f: { url: string; fileName: string },
+      phase: SqlImportProgress['phase'],
+      bytes?: { loaded: number; totalBytes: number },
+    ) =>
+      opts.onProgress?.({
+        completed,
+        total: files.length,
+        index,
+        fileName: f.fileName,
+        url: f.url,
+        phase,
+        ...(bytes ?? {}),
+      });
     try {
-      for (const f of files) {
+      for (const [index, f] of files.entries()) {
         const existed = existing.has(f.fileName);
         if (existed && !opts.replace) {
           result.skipped.push(f.fileName);
+          completed++;
+          tick(index, f, 'done');
           continue;
         }
         const path = sqlDbPath(store, f.fileName);
@@ -242,6 +299,10 @@ export const sqlAssetsActions = {
           if (!body) {
             throw new Error('response has no body');
           }
+          // content-length lets the host show a real percentage; without it
+          // the ticks still report bytes so far
+          const totalBytes = Number(res.headers.get('content-length') ?? 0);
+          tick(index, f, 'download', { loaded: 0, totalBytes });
           const md5 = await withDbLock(path, async () => {
             const dir = await sqlStoreDir(store);
             const handle = await dir.getFileHandle(f.fileName, { create: true });
@@ -249,10 +310,20 @@ export const sqlAssetsActions = {
             try {
               const h = new Md5();
               const reader = body.getReader();
+              let loaded = 0;
+              let lastReport = 0;
               for (let r = await reader.read(); !r.done; r = await reader.read()) {
                 h.update(r.value);
                 await writable.write(r.value);
+                loaded += r.value.length;
+                // throttle: every 2% of a known total, else every 8 MB
+                const step = totalBytes > 0 ? totalBytes / 50 : 8 * 1024 * 1024;
+                if (loaded - lastReport >= step) {
+                  lastReport = loaded;
+                  tick(index, f, 'download', { loaded, totalBytes });
+                }
               }
+              tick(index, f, 'import', { loaded, totalBytes: totalBytes || loaded });
               await writable.close();
               return h.hex();
             } catch (e) {
@@ -267,9 +338,11 @@ export const sqlAssetsActions = {
           });
           if (md5 === null) {
             result.skipped.push(f.fileName);
+            completed++;
+            tick(index, f, 'error');
             continue;
           }
-          await recordMd5(store, f.fileName, md5);
+          await recordMeta(store, f.fileName, md5, f.meta);
           if (existed) {
             result.replaced++;
           }
@@ -278,10 +351,14 @@ export const sqlAssetsActions = {
           consoleActions.log('info', `SQL: imported ${path} from URL`);
           // convert out of WAL so it reads in shared/read-only mode later
           await normalizeOutOfWal(path);
+          completed++;
+          tick(index, f, 'done');
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           result.failed.push({ url: f.url, error: msg });
           consoleActions.log('error', `SQL: import of ${f.url} failed: ${msg}`);
+          completed++;
+          tick(index, f, 'error');
         }
       }
     } finally {
@@ -309,7 +386,7 @@ export const sqlAssetsActions = {
           return true;
         });
         if (done) {
-          await dropMd5(d.store, d.fileName);
+          await dropMeta(d.store, d.fileName);
           result.deleted.push(d.path);
           consoleActions.log('info', `SQL: deleted ${d.path}`);
         } else {
