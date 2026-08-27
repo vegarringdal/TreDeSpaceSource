@@ -938,9 +938,14 @@ export class TredespaceClient {
   /** Import then immediately load the produced assets - the "import a sample and
    *  show it" flow. Returns the import result plus how many were loaded. */
   async assetsImportAndLoad(
-    input: Parameters<TredespaceClient['assetsImport']>[0] & { fit?: boolean },
+    input: Parameters<TredespaceClient['assetsImport']>[0] & {
+      fit?: boolean;
+      /** place the camera instead of fitting — see `assetsLoad` */
+      camera?: CameraInput;
+      cameraFirst?: boolean;
+    },
   ): Promise<Result<AssetsImportResult & { loaded: number }>> {
-    const { fit, ...imp } = input;
+    const { fit, camera, cameraFirst, ...imp } = input;
     const res = await this.assetsImport(imp);
     if (res.error) {
       return { error: res.error };
@@ -949,7 +954,12 @@ export class TredespaceClient {
     const ids = data.entries.map((e) => e.id);
     let loaded = 0;
     if (ids.length) {
-      const lr = await this.assetsLoad(ids, { fit: fit ?? true, ...(input.store ? { store: input.store } : {}) });
+      const lr = await this.assetsLoad(ids, {
+        fit: fit ?? true,
+        ...(input.store ? { store: input.store } : {}),
+        ...(camera ? { camera } : {}),
+        ...(cameraFirst !== undefined ? { cameraFirst } : {}),
+      });
       if (lr.error) {
         return { error: lr.error };
       }
@@ -1078,7 +1088,16 @@ export class TredespaceClient {
    *  overlay, exactly like loading from the Model Assets panel. */
   assetsLoad(
     ids: string[],
-    opts?: { fit?: boolean; store?: string; camera?: CameraInput; concurrent?: number; onProgress?: LoadProgressFn },
+    opts?: {
+      fit?: boolean;
+      store?: string;
+      camera?: CameraInput;
+      /** With a `camera`: move BEFORE the models load (default true — the view
+       *  is in place as they appear) or after (`false`). */
+      cameraFirst?: boolean;
+      concurrent?: number;
+      onProgress?: LoadProgressFn;
+    },
   ): Promise<Result<{ loaded: number }>> {
     return this.loadCall('assets.load', { ids, fit: opts?.fit ?? true }, opts);
   }
@@ -1098,7 +1117,15 @@ export class TredespaceClient {
    *  requested ids that are not in the asset manager — import those first. */
   assetsSetLoaded(
     ids: string[],
-    opts?: { store?: string; fit?: boolean; camera?: CameraInput; concurrent?: number; onProgress?: LoadProgressFn },
+    opts?: {
+      store?: string;
+      fit?: boolean;
+      camera?: CameraInput;
+      /** With a `camera`: move BEFORE the loads (default true) or after (`false`). */
+      cameraFirst?: boolean;
+      concurrent?: number;
+      onProgress?: LoadProgressFn;
+    },
   ): Promise<Result<{ loaded: number; unloaded: number; missing: string[] }>> {
     return this.loadCall('assets.setLoaded', { ids, ...(opts?.fit !== undefined ? { fit: opts.fit } : {}) }, opts);
   }
@@ -1109,7 +1136,13 @@ export class TredespaceClient {
   private loadCall<T>(
     type: string,
     payload: Record<string, unknown>,
-    opts?: { store?: string; camera?: CameraInput; concurrent?: number; onProgress?: LoadProgressFn },
+    opts?: {
+      store?: string;
+      camera?: CameraInput;
+      cameraFirst?: boolean;
+      concurrent?: number;
+      onProgress?: LoadProgressFn;
+    },
   ): Promise<Result<T>> {
     const batchId = `${this.idPrefix}-load-${this.nextId++}`;
     const off = opts?.onProgress
@@ -1126,6 +1159,7 @@ export class TredespaceClient {
       ...(opts?.onProgress ? { progress: true } : {}),
       ...(opts?.store ? { store: opts.store } : {}),
       ...(opts?.camera ? { camera: opts.camera } : {}),
+      ...(opts?.cameraFirst !== undefined ? { cameraFirst: opts.cameraFirst } : {}),
       ...(opts?.concurrent !== undefined ? { concurrent: opts.concurrent } : {}),
     }).finally(() => off?.());
   }

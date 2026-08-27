@@ -617,13 +617,22 @@ export const assetHandlers: Record<string, ApiHandler> = {
       const entry = known.get(id);
       return entry !== undefined && (!store || entry.store === store);
     });
+    // an explicit camera REPLACES the fit, and by default moves FIRST — the
+    // view is already in place as the models appear, instead of the models
+    // popping in and the camera then travelling. `cameraFirst: false` moves
+    // after the load (e.g. to animate onto something that just arrived).
+    const camera = isRecord(p.camera) ? p.camera : null;
+    const cameraFirst = p.cameraFirst !== false;
+    if (camera && cameraFirst) {
+      applyCameraPayload(camera);
+    }
     const loadedIds = await loadWithProgress(wanted, p);
     if (loadedIds.length > 0) {
       viewerActions.bumpModelsVersion();
-      // an explicit camera REPLACES the fit — set the view in one step
-      // instead of framing the batch and then jumping somewhere else
-      if (isRecord(p.camera)) {
-        applyCameraPayload(p.camera);
+      if (camera) {
+        if (!cameraFirst) {
+          applyCameraPayload(camera);
+        }
       } else if (p.fit !== false) {
         const min = [Infinity, Infinity, Infinity];
         const max = [-Infinity, -Infinity, -Infinity];
@@ -690,14 +699,22 @@ export const assetHandlers: Record<string, ApiHandler> = {
       }
     }
 
+    // an explicit camera REPLACES the fit (and needs no opt-in: passing one
+    // IS the instruction to move); it moves BEFORE the loads unless
+    // `cameraFirst: false`
+    const camera = isRecord(p.camera) ? p.camera : null;
+    const cameraFirst = p.cameraFirst !== false;
+    if (camera && cameraFirst) {
+      applyCameraPayload(camera);
+    }
     const loaded = (await loadWithProgress(toLoad, p)).length;
     if (loaded > 0 || toUnload.length > 0) {
       viewerActions.bumpModelsVersion();
     }
-    // an explicit camera REPLACES the fit (and needs no opt-in: passing one
-    // IS the instruction to move)
-    if (isRecord(p.camera)) {
-      applyCameraPayload(p.camera);
+    if (camera) {
+      if (!cameraFirst) {
+        applyCameraPayload(camera);
+      }
     }
     // fit (opt-in — a background sync should not move the camera) frames the
     // union of the whole DESIRED set, not just what this call loaded

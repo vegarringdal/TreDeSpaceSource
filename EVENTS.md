@@ -393,7 +393,10 @@ known name) restricts loading to ids that belong to that store.
 The camera follows one of three rules: `fit: true` (default) frames what was
 loaded, `fit: false` leaves the camera untouched, and a `camera` object (same
 fields as `camera.set`) places it explicitly — replacing the fit, so the view
-never frames the models and then jumps somewhere else.
+never frames the models and then jumps somewhere else. With a `camera` the
+move happens BEFORE the models load by default (`cameraFirst: true` — the view
+is in place as they appear); `cameraFirst: false` moves after the load
+instead, e.g. to animate onto something that just arrived.
 
 Models load in PARALLEL (`concurrent`, default the viewer's load-pool setting,
 clamped to 16) with VRAM-budget residency swaps paused for the batch. While it
@@ -409,7 +412,10 @@ payload:  { ids: ['mdl8f2-k3j9x'], fit: true, store: 'project-x' }  // fit = fra
 response: { loaded: 1 }
 
 payload:  { ids: ['mdl8f2-k3j9x'], camera: { position: [30, -15, 18], target: [12, 3, 1] } }
-response: { loaded: 1 }                        // placed, not fitted
+response: { loaded: 1 }                        // placed (camera first), not fitted
+
+payload:  { ids: ['mdl8f2-k3j9x'], camera: { target: [12, 3, 1] }, cameraFirst: false }
+response: { loaded: 1 }                        // load, THEN move
 
 payload:  { ids: ['mdl8f2-k3j9x'], fit: false }   // load without moving the camera
 response: { loaded: 1 }
@@ -431,8 +437,9 @@ Unloads run before loads so VRAM frees first. `fit` is opt-in here (default
 false — a background sync should not move the camera); when true it frames the
 union of the whole desired set, not just what this call loaded. A `camera`
 object (same fields as `camera.set`) places the view explicitly instead and
-needs no opt-in — passing one IS the instruction to move. `concurrent` and
-`progress` behave as on `assets.load`, and the `assets.load:progress` events
+needs no opt-in — passing one IS the instruction to move; `cameraFirst`
+(default true) orders it before the loads, as on `assets.load`. `concurrent`
+and `progress` behave as on `assets.load`, and the `assets.load:progress` events
 cover the models this call actually had to load. `missing`
 lists requested ids that are not in the asset manager — import those first.
 

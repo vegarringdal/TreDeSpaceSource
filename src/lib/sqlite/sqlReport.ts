@@ -55,13 +55,19 @@ export interface BuildOpts {
 
 /** DROP/CREATE TEMP TABLE TREE_VIEW_ARGS(FULLNAME) + inserts for a fullname
  *  hierarchy. Shared by DETAIL runs and the SQL Editor (which seeds it from the
- *  last viewport click so you can test it without re-clicking). */
+ *  last viewport click so you can test it without re-clicking).
+ *
+ *  Rows go in LOWEST level first — the clicked item, then its parent, up to
+ *  the root — because that is the order a detail query wants to read them
+ *  in: the most specific match first (`… ORDER BY rowid LIMIT 1`), the
+ *  ancestors as fallbacks. The hierarchy path the model DB hands out is
+ *  root → leaf, so it is reversed here, in the one place both callers share. */
 export function treeViewArgsStatements(fullnames: string[]): Statement[] {
   const out: Statement[] = [
     { sql: 'DROP TABLE IF EXISTS TREE_VIEW_ARGS', useStatementInLog: false },
     { sql: 'CREATE TEMP TABLE TREE_VIEW_ARGS(FULLNAME TEXT)', useStatementInLog: false },
   ];
-  const names = fullnames.map((n) => [n] as (string | number)[]);
+  const names = [...fullnames].reverse().map((n) => [n] as (string | number)[]);
   if (names.length) {
     out.push({ sql: 'INSERT INTO TREE_VIEW_ARGS(FULLNAME) VALUES (?)', binding: names, useStatementInLog: false });
   }
