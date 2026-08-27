@@ -27,8 +27,7 @@ Everything is already wired. Import via the `@treDeSpaceUI` path alias:
 import { Button, Select, initTooltips } from '@treDeSpaceUI/widgets';
 import { DockView, definePanel, split, tabs, useDockManager } from '@treDeSpaceUI/dockable';
 import { hotkeysActions } from '@treDeSpaceUI/hotkeys';
-import { createStore } from '@treDeSpaceUI/lib/createStore';
-import { cn } from '@treDeSpaceUI/lib/cn';
+import { createStore, cn } from '@treDeSpaceUI/lib';
 ```
 
 ### As the `@tredespace/ui` npm package
@@ -65,10 +64,13 @@ Entry points mirror the in-repo folders:
 import { Button, Select, initTooltips } from '@tredespace/ui/widgets';
 import { DockView, definePanel, split, tabs, useDockManager } from '@tredespace/ui/dockable';
 import { hotkeysActions } from '@tredespace/ui/hotkeys';
+import { createStore, cn } from '@tredespace/ui/lib';   // the store pattern + class helper
 ```
 
 All examples below use the in-repo `@treDeSpaceUI/*` form — external consumers
-substitute `@tredespace/ui/*`.
+substitute `@tredespace/ui/*`. (`lib` is the one entry whose in-repo form the
+app itself often deep-imports as `@treDeSpaceUI/lib/createStore`; the package
+only exposes the `lib` index, so use `@tredespace/ui/lib`.)
 
 ### One-time boot calls
 

@@ -165,6 +165,9 @@ export function packUi() {
           './widgets': entry('widgets'),
           './dockable': entry('dockable'),
           './hotkeys': entry('hotkeys'),
+          // createStore + cn — the state pattern the README teaches, and the
+          // class helper; consumers were unable to reach either before
+          './lib': entry('lib'),
           './styles.css': './styles.css',
           './package.json': './package.json',
         },

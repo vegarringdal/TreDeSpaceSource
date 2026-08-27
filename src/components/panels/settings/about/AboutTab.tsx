@@ -1,5 +1,6 @@
 import { IconBook2, IconBrandGithub } from '@tabler/icons-react';
 import { Button, Collapsible } from '@treDeSpaceUI/widgets';
+import { openProductPage } from '../../../../lib/productUrl';
 import { LicenseDialog } from './LicenseDialog';
 import { ThirdPartyNotices } from './ThirdPartyNotices';
 
@@ -17,14 +18,15 @@ export function AboutTab() {
           </p>
           <p className="text-slate-400 leading-relaxed">
             Provided as-is, without warranty of any kind — use at your own risk. Licensed under the TreDeSpace License
-            (Elastic License 2.0 with attribution and public-improvement terms) — see “Show license” below for the full terms.
+            (Elastic License 2.0 with attribution and public-improvement terms) — see “Show license” below for the full
+            terms.
           </p>
         </div>
       </Collapsible>
       <Button
         icon={<IconBook2 size={14} />}
-        onClick={() => void window.open('docs/', '_blank', 'noopener')}
-        tooltip="Product page with the client API documentation and live demo — opens in a new tab"
+        onClick={() => openProductPage('docs/')}
+        tooltip="Product page with the client API documentation and live demo — opens in a new tab (on tredespace.com unless this is a dev/localhost instance)"
         shortcut="settings.showDocs"
       >
         Show product / client API docs

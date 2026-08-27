@@ -41,6 +41,7 @@ import { callSqlRun, openSqlEditorPanel } from '../components/panels/sql-editor/
 import { openSqlReportsPanel } from '../components/panels/sql-reports/sqlReportsPanel';
 import { openSqlTablePanel } from '../components/panels/sql-table/sqlTablePanel';
 import { openViewpointsPanel, openViewpointViewerPanel } from '../components/panels/viewpoints/viewpointsPanel';
+import { openProductPage } from '../lib/productUrl';
 import { apiSecurityState } from '../state/apiSecurity.state';
 import { assetsActions } from '../state/assets/assets.actions';
 import { assetsState } from '../state/assets/assets.state';
@@ -471,7 +472,7 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 481',
     description: 'Open the product page with the client API documentation and live demo in a new tab',
     // relative to the app URL (base is './'), so it works under any deploy path
-    run: () => void window.open('docs/', '_blank', 'noopener'),
+    run: () => openProductPage('docs/'),
   },
   {
     id: 'settings.showSource',

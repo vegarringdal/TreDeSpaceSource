@@ -80,7 +80,26 @@
 //       subdomain is same-SITE) removes the cross-site ancestor entirely, and
 //       all of the above just works.
 //
-// EVENTS (unsolicited app → host; subscribe with on() or the typed helpers):
+// EVENTS (unsolicited app → host; subscribe with on() or the typed helpers).
+//   Every subscription returns its UNSUBSCRIBE function, and also takes
+//   { signal } like addEventListener. The subscription signal and the client's
+//   own constructor { signal } are INDEPENDENT: a global, app-lifetime client
+//   takes no signal (so no component can dispose it by accident), and each
+//   component owns just its subscriptions with its own AbortController. Keep
+//   the handler in a ref so a closure over changing state doesn't
+//   re-subscribe every render:
+//     export const client = new TredespaceClient(iframe, { targetOrigin }); // global
+//     …
+//     const latest = useRef(handler); latest.current = handler;
+//     useEffect(() => {
+//       const ac = new AbortController();
+//       client.onTreeSelect((e) => latest.current(e), { signal: ac.signal });
+//       client.onThemeChanged((e) => setTheme(e.theme), { signal: ac.signal });
+//       return () => ac.abort();   // ends these subscriptions; the client lives on
+//     }, []);
+//   Pass { signal } to the CONSTRUCTOR only when the client should die with a
+//   scope (a modal that embeds its own viewer): abort() then disposes it too.
+//   dispose() drops the message listener wholesale — nothing fires after it.
 //   'tree.select'                — user selected a tree row / clicked the model
 //   'instance.changed'           — the shared instance-data blob changed
 //   'viewpoints.bookmark'        — user clicked the host bookmark button
@@ -647,10 +666,20 @@ export interface TreeSelectEvent {
 export interface TredespaceClientOptions {
   /** The viewer's origin, e.g. 'https://viewer.example.com'. Required. */
   targetOrigin: string;
+  /** Aborting this signal calls `dispose()` — one AbortController can own the
+   *  client AND every subscription made with `{ signal }`. */
+  signal?: AbortSignal;
   /** Per-command timeout (ms). Imports use importTimeoutMs. Default 30 000. */
   timeoutMs?: number;
   /** Timeout for assets.import (conversions can be long). Default 600 000. */
   importTimeoutMs?: number;
+}
+
+/** Options for `on()` and the typed `on*` helpers. */
+export interface SubscribeOptions {
+  /** Aborting the signal unsubscribes — the `addEventListener` idiom, so one
+   *  AbortController can end many subscriptions (and the client) at once. */
+  signal?: AbortSignal;
 }
 
 interface Pending {
@@ -685,6 +714,11 @@ export class TredespaceClient {
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.importTimeoutMs = opts.importTimeoutMs ?? 600_000;
     window.addEventListener('message', this.onMessage);
+    if (opts.signal?.aborted) {
+      this.dispose();
+    } else {
+      opts.signal?.addEventListener('abort', () => this.dispose(), { once: true });
+    }
   }
 
   /** Resolves once the viewer has announced app.ready (queues until then). */
@@ -1256,8 +1290,8 @@ export class TredespaceClient {
 
   /** Subscribe to the bookmark-button click event (see
    *  `viewpointsSetBookmarkButton`). Returns an unsubscribe function. */
-  onViewpointsBookmark(handler: (e: ViewpointsBookmarkEvent) => void): () => void {
-    return this.on('viewpoints.bookmark', (payload) => handler(payload as ViewpointsBookmarkEvent));
+  onViewpointsBookmark(handler: (e: ViewpointsBookmarkEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('viewpoints.bookmark', (payload) => handler(payload as ViewpointsBookmarkEvent), opts);
   }
 
   // ── external dialogs (open external-app modals) ───────────────────────────
@@ -1450,32 +1484,37 @@ export class TredespaceClient {
 
   /** Listen for an app event (`id: null` messages) — the event types are
    *  listed in the file header ("EVENTS"). Returns an unsubscribe function. */
-  on(type: string, handler: (payload: unknown) => void): () => void {
+  on(type: string, handler: (payload: unknown) => void, opts?: SubscribeOptions): () => void {
+    if (opts?.signal?.aborted) {
+      return () => undefined; // never subscribed — same as addEventListener
+    }
     let set = this.eventHandlers.get(type);
     if (!set) {
       set = new Set();
       this.eventHandlers.set(type, set);
     }
     set.add(handler);
-    return () => void set.delete(handler);
+    const off = () => void set.delete(handler);
+    opts?.signal?.addEventListener('abort', off, { once: true });
+    return off;
   }
 
   /** Typed convenience for the tree-click event. */
-  onTreeSelect(handler: (e: TreeSelectEvent) => void): () => void {
-    return this.on('tree.select', (p) => handler(p as TreeSelectEvent));
+  onTreeSelect(handler: (e: TreeSelectEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('tree.select', (p) => handler(p as TreeSelectEvent), opts);
   }
 
   /** Typed convenience for viewer theme changes — fired whichever way the
    *  theme switched (Settings tab, hotkey, `uiTheme`, or another tab syncing
    *  its settings over), so a host page and every embedded app can restyle in
    *  step with the viewer. */
-  onThemeChanged(handler: (e: { theme: 'dark' | 'light' }) => void): () => void {
-    return this.on('theme.changed', (p) => handler(p as { theme: 'dark' | 'light' }));
+  onThemeChanged(handler: (e: { theme: 'dark' | 'light' }) => void, opts?: SubscribeOptions): () => void {
+    return this.on('theme.changed', (p) => handler(p as { theme: 'dark' | 'light' }), opts);
   }
 
   /** Typed convenience for instance-data changes (any dialog called instance.set). */
-  onInstanceChanged(handler: (e: { data: Record<string, unknown> }) => void): () => void {
-    return this.on('instance.changed', (p) => handler(p as { data: Record<string, unknown> }));
+  onInstanceChanged(handler: (e: { data: Record<string, unknown> }) => void, opts?: SubscribeOptions): () => void {
+    return this.on('instance.changed', (p) => handler(p as { data: Record<string, unknown> }), opts);
   }
 
   // ── plumbing ──────────────────────────────────────────────────────────────
