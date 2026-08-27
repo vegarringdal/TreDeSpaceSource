@@ -565,6 +565,14 @@ export class Renderer {
     this.camera.fit(min, max);
   }
 
+  /** A caller has placed the camera deliberately (postMessage `camera.set`, or
+   *  a `camera` on a load): the first-model default view must NOT override
+   *  it — that reset also cancels an in-flight move. Later loads never touch
+   *  the camera here anyway; the assets loader decides. */
+  markViewChosen() {
+    this.hadFirstFit = true;
+  }
+
   /** Upload the clip uniform (260 floats, ClipData layout) when it changed.
    * The last data is kept CPU-side for the residency manager's clip test. */
   setClip(data: Float32Array) {

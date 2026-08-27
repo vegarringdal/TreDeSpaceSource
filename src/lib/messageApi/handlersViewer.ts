@@ -70,19 +70,26 @@ function poseFromPayload(p: Record<string, unknown>): CameraPose | null {
   };
 }
 
-/** Move the camera per a payload. Returns the applied pose, or null when the
- *  renderer is not up yet. `animate: false` snaps instead of gliding. Shared
- *  with the asset-load commands, where a `camera` replaces their `fit`. */
-export function applyCameraPayload(p: Record<string, unknown>): CameraPose | null {
-  const cam = getRenderer()?.camera;
+/** Move the camera per a payload and resolve once it has ARRIVED (the move
+ *  is an animation the render loop drives — resolving earlier let a load
+ *  start, or a command respond, mid-flight). Returns the applied pose, or null
+ *  when the renderer is not up yet. `animate: false` snaps instead of
+ *  gliding. Shared with the asset-load commands, where a `camera` replaces
+ *  their `fit`; marking the view as chosen keeps the first-model default view
+ *  from overriding it. */
+export async function applyCameraPayload(p: Record<string, unknown>): Promise<CameraPose | null> {
+  const r = getRenderer();
+  const cam = r?.camera;
   const pose = poseFromPayload(p);
-  if (!cam || !pose) {
+  if (!r || !cam || !pose) {
     return null;
   }
   if (typeof p.orthographic === 'boolean') {
     viewerActions.setProjection(p.orthographic);
   }
+  r.markViewChosen();
   cam.goToPose(pose.target, pose.azimuth, pose.elevation, pose.distance, p.animate === false ? 0.01 : 0.5);
+  await cam.settled();
   return pose;
 }
 
@@ -171,8 +178,8 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     };
   },
 
-  'camera.set': ({ p }) => {
-    const pose = applyCameraPayload(p);
+  'camera.set': async ({ p }) => {
+    const pose = await applyCameraPayload(p);
     if (!pose) {
       throw new ApiError('not-found', 'the renderer is not up yet');
     }

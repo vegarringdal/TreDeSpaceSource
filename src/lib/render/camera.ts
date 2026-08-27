@@ -416,6 +416,27 @@ export class CameraController {
     return this.anim !== null;
   }
 
+  /** Resolves once the current move (dolly / goToPose / snapView) has landed.
+   *  The render loop drives the animation, so this polls per frame; the cap
+   *  keeps a command from hanging if that loop is stalled (hidden tab) or
+   *  something else cancels the move. */
+  settled(maxMs = 3000): Promise<void> {
+    if (!this.anim) {
+      return Promise.resolve();
+    }
+    const t0 = performance.now();
+    return new Promise((resolve) => {
+      const tick = () => {
+        if (!this.anim || performance.now() - t0 > maxMs) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
   // View + projection (both reversed-Z). Perspective: infinite far.
   // Orthographic: half-height from the focus distance (matches perspective
   // framing at the focal plane); depth slab [orthoNear, orthoFar].

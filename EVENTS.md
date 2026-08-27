@@ -394,9 +394,11 @@ The camera follows one of three rules: `fit: true` (default) frames what was
 loaded, `fit: false` leaves the camera untouched, and a `camera` object (same
 fields as `camera.set`) places it explicitly — replacing the fit, so the view
 never frames the models and then jumps somewhere else. With a `camera` the
-move happens BEFORE the models load by default (`cameraFirst: true` — the view
-is in place as they appear); `cameraFirst: false` moves after the load
-instead, e.g. to animate onto something that just arrived.
+move happens BEFORE the models load by default (`cameraFirst: true` — the
+camera is awaited, so it has ARRIVED before the first model appears);
+`cameraFirst: false` moves after the load instead, e.g. to animate onto
+something that just arrived. Either way the command responds after the camera
+has settled.
 
 Models load in PARALLEL (`concurrent`, default the viewer's load-pool setting,
 clamped to 16) with VRAM-budget residency swaps paused for the batch. While it
@@ -848,7 +850,10 @@ Move the camera. Give an eye `position` + `target`, or `target` +
 `azimuth`/`elevation`/`distance` (radians / world units); anything omitted
 keeps its current value, so `{ target: [x,y,z] }` re-pivots without turning.
 `orthographic` switches projection, `animate: false` snaps instead of gliding.
-Responds with the pose actually applied.
+Responds with the pose actually applied — and only once the camera has
+ARRIVED (the glide is an animation; a chained command sees the final view).
+An explicit placement also keeps the viewer's first-model default view from
+overriding it.
 
 ```js
 payload:  { position: [30, -15, 18], target: [12, 3, 1], animate: false }

@@ -624,14 +624,14 @@ export const assetHandlers: Record<string, ApiHandler> = {
     const camera = isRecord(p.camera) ? p.camera : null;
     const cameraFirst = p.cameraFirst !== false;
     if (camera && cameraFirst) {
-      applyCameraPayload(camera);
+      await applyCameraPayload(camera);
     }
     const loadedIds = await loadWithProgress(wanted, p);
     if (loadedIds.length > 0) {
       viewerActions.bumpModelsVersion();
       if (camera) {
         if (!cameraFirst) {
-          applyCameraPayload(camera);
+          await applyCameraPayload(camera);
         }
       } else if (p.fit !== false) {
         const min = [Infinity, Infinity, Infinity];
@@ -705,7 +705,7 @@ export const assetHandlers: Record<string, ApiHandler> = {
     const camera = isRecord(p.camera) ? p.camera : null;
     const cameraFirst = p.cameraFirst !== false;
     if (camera && cameraFirst) {
-      applyCameraPayload(camera);
+      await applyCameraPayload(camera);
     }
     const loaded = (await loadWithProgress(toLoad, p)).length;
     if (loaded > 0 || toUnload.length > 0) {
@@ -713,7 +713,7 @@ export const assetHandlers: Record<string, ApiHandler> = {
     }
     if (camera) {
       if (!cameraFirst) {
-        applyCameraPayload(camera);
+        await applyCameraPayload(camera);
       }
     }
     // fit (opt-in — a background sync should not move the camera) frames the

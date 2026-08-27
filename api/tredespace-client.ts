@@ -1092,8 +1092,9 @@ export class TredespaceClient {
       fit?: boolean;
       store?: string;
       camera?: CameraInput;
-      /** With a `camera`: move BEFORE the models load (default true — the view
-       *  is in place as they appear) or after (`false`). */
+      /** With a `camera`: move BEFORE the models load (default true — the
+       *  move is awaited, so the view has arrived as they appear) or after
+       *  (`false`). */
       cameraFirst?: boolean;
       concurrent?: number;
       onProgress?: LoadProgressFn;
@@ -1274,7 +1275,9 @@ export class TredespaceClient {
 
   /** Move the camera. Give an eye `position` + `target`, or orbit parameters;
    *  omitted fields keep their current value. `animate: false` snaps instead
-   *  of gliding. To place the camera as models appear, prefer the `camera`
+   *  of gliding. Resolves once the camera has ARRIVED, so a chained call sees
+   *  the final view; an explicit placement also keeps the first-model default
+   *  view from overriding it. To place the camera as models appear, prefer the `camera`
    *  option on `assetsLoad` / `assetsSetLoaded` — it replaces their framing
    *  step, so the view never fits first and then jumps. */
   cameraSet(

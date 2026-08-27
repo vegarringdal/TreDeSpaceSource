@@ -126,3 +126,54 @@ describe('near plane', () => {
     expect(cam.near).toBeLessThan(big / 100);
   });
 });
+
+describe('camera.settled()', () => {
+  // the render loop is what advances a move; stand in for it with a rAF stub
+  // that steps the camera one frame per callback
+  function driveFrames(cam: CameraController, dt: number) {
+    const raf = (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 1) as unknown as number;
+    (globalThis as { requestAnimationFrame?: typeof requestAnimationFrame }).requestAnimationFrame = (cb) => {
+      cam.update(dt);
+      return raf(cb);
+    };
+  }
+
+  it('resolves immediately when nothing is moving', async () => {
+    const cam = new CameraController();
+    await expect(cam.settled()).resolves.toBeUndefined();
+  });
+
+  it('waits until a goToPose has landed — the pose is in place on resolve', async () => {
+    const cam = new CameraController();
+    driveFrames(cam, 0.033);
+    cam.goToPose([10, 20, 5], 1.2, 0.3, 40, 0.2);
+    expect(cam.animating).toBe(true);
+    await cam.settled();
+    expect(cam.animating).toBe(false);
+    expect(cam.target[0]).toBeCloseTo(10, 3);
+    expect(cam.orbitDistance).toBeCloseTo(40, 3);
+  });
+
+  it('also waits for a snap (animate:false = a 10 ms move) and lands it exactly', async () => {
+    const cam = new CameraController();
+    driveFrames(cam, 0.033);
+    cam.goToPose([3, 4, 5], 0.9, -0.2, 25, 0.01); // what animate:false sends
+    expect(cam.animating).toBe(true); // a snap is still a (very short) move
+    await cam.settled();
+    expect(cam.animating).toBe(false);
+    expect(Array.from(cam.target)).toEqual([3, 4, 5]);
+    expect(cam.orbitDistance).toBe(25);
+  });
+
+  it('gives up after the cap when the render loop never advances', async () => {
+    const cam = new CameraController();
+    // rAF that fires but never steps the camera — a stalled loop
+    (globalThis as { requestAnimationFrame?: typeof requestAnimationFrame }).requestAnimationFrame = (cb) =>
+      setTimeout(() => cb(performance.now()), 1) as unknown as number;
+    cam.goToPose([1, 1, 1], 0, 0, 10, 0.2);
+    const t0 = performance.now();
+    await cam.settled(60);
+    expect(performance.now() - t0).toBeGreaterThanOrEqual(55);
+    expect(cam.animating).toBe(true); // still mid-move: the cap resolved, not arrival
+  });
+});
