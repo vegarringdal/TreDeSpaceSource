@@ -1,5 +1,6 @@
 import { IconCube, IconDatabase, IconFolder } from '@tabler/icons-react';
 import type { MouseEvent as ReactMouseEvent, RefObject } from 'react';
+import { HiddenBadge } from './HiddenBadge';
 import { groupKey, keyOf, type Row } from './hierarchyModel';
 
 /** The visible tree rows: expand carets, folder/mesh icons, selection
@@ -30,6 +31,7 @@ export function HierarchyRows({
               <div className="flex w-full min-w-0 select-none items-center gap-1 border-slate-800 border-t bg-slate-900/70 px-2 py-0.5 text-slate-500">
                 <IconDatabase size={12} className="shrink-0" />
                 <span className="min-w-0 truncate text-[10px] uppercase tracking-wider">{r.name}</span>
+                <HiddenBadge hidden={r.hidden} />
               </div>
             </li>
           );
@@ -69,7 +71,8 @@ export function HierarchyRows({
                 // dark cube on non-root rows so every level indents the same
                 <IconCube size={14} className="mr-1 shrink-0 text-slate-600" />
               )}
-              <span className="min-w-0 truncate">{r.name}</span>
+              <span className={`min-w-0 truncate ${r.hidden === 'all' ? 'text-slate-500 italic' : ''}`}>{r.name}</span>
+              <HiddenBadge hidden={r.hidden} />
             </button>
           </li>
         );

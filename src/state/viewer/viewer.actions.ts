@@ -146,6 +146,9 @@ export function applyStateUpdates(updates: StateUpdate[]) {
     renderer.writeItemStates(u.model, u.states);
   }
   refreshHasTransparency();
+  if (updates.length) {
+    selectionState.set((p) => ({ stateVersion: p.stateVersion + 1 }));
+  }
 }
 
 /** Upload a worker-produced bulk state result (snapshot import): per-model
@@ -171,6 +174,59 @@ async function refreshSelectionMeta(active: SelectionStateActive = null) {
   });
 }
 type SelectionStateActive = { model: number; entry: number } | null | undefined;
+
+/** Active keys whose entry lies UNDER any of `removed` (same model) — their
+ *  items just went with the removed subtree, so they must stop being roots or
+ *  the tree keeps painting them selected (a Shift range makes every visible
+ *  row its own root, descendants included). */
+async function keysUnder(actives: string[], model: number, removed: number[]): Promise<Set<string>> {
+  const gone = new Set<string>();
+  const removedSet = new Set(removed);
+  await Promise.all(
+    actives.map(async (k) => {
+      const [m, e] = k.split(':').map(Number);
+      if (m !== model || removedSet.has(e)) {
+        return;
+      }
+      const path = await db.pathForEntry(model, e);
+      if (path.some((anc) => anc !== e && removedSet.has(anc))) {
+        gone.add(k);
+      }
+    }),
+  );
+  return gone;
+}
+
+/** For a node being deselected: the highest ACTIVE ancestor on its path (if
+ *  any) and the keys of the sibling subtrees along that path that stay fully
+ *  selected — what replaces the ancestor as selection roots. */
+async function splitActiveAncestor(
+  model: number,
+  entry: number,
+): Promise<{ ancestorKeys: string[]; siblingKeys: string[] } | null> {
+  const actives = new Set(selectionState.get().actives);
+  const path = await db.pathForEntry(model, entry); // root … entry
+  const top = path.findIndex((e, i) => i < path.length - 1 && actives.has(`${model}:${e}`));
+  if (top < 0) {
+    return null;
+  }
+  // EVERY active ancestor on the path is no longer fully selected — a Shift
+  // range can make the root, the child and the grandchild roots at once, and
+  // demoting only the highest would leave the next one painting the branch
+  const ancestorKeys = path
+    .slice(0, -1)
+    .filter((e) => actives.has(`${model}:${e}`))
+    .map((e) => `${model}:${e}`);
+  const siblingKeys: string[] = [];
+  for (let i = top; i < path.length - 1; i++) {
+    for (const kid of await db.children(model, path[i])) {
+      if (kid.entry !== path[i + 1]) {
+        siblingKeys.push(`${model}:${kid.entry}`);
+      }
+    }
+  }
+  return { ancestorKeys, siblingKeys };
+}
 
 export const viewerActions = {
   update(patch: Partial<ViewerState>) {
@@ -337,10 +393,25 @@ export const viewerActions = {
     applyStateUpdates(updates);
     viewerState.set({ suppressTintOnOverride: false });
     const key = `${model}:${entry}`;
-    selectionState.set((p) => ({
-      activeGroup: null,
-      actives: added ? [...p.actives.filter((k) => k !== key), key] : p.actives.filter((k) => k !== key),
-    }));
+    // Toggling OFF a node that sits under an ACTIVE root (a Shift range over an
+    // expanded parent and its children puts the parent in `actives`): the tree
+    // paints every row under an active root as selected, so dropping only the
+    // child's key would leave it highlighted while its items are gone. Split
+    // that root: it stops being a root and its remaining fully-selected
+    // siblings along the path become roots instead — the tree then matches
+    // the worker's selection exactly.
+    const split = added ? null : await splitActiveAncestor(model, entry);
+    // descendants that were roots of their own (range rows) lose their items
+    // with this subtree — drop their keys too, or they stay painted selected
+    const under = added ? new Set<string>() : await keysUnder(selectionState.get().actives, model, [entry]);
+    selectionState.set((p) => {
+      let actives = p.actives.filter((k) => k !== key && !under.has(k));
+      if (split) {
+        const demoted = new Set(split.ancestorKeys);
+        actives = [...actives.filter((k) => !demoted.has(k)), ...split.siblingKeys];
+      }
+      return { activeGroup: null, actives: added ? [...actives, key] : actives };
+    });
     await refreshSelectionMeta(added ? { model, entry } : undefined);
   },
 
@@ -368,10 +439,24 @@ export const viewerActions = {
     viewerState.set({ suppressTintOnOverride: false });
     const gk = groupSelKey(group, store);
     const keys = new Set(roots.map((r) => `${r.model}:${r.entry}`));
+    // same descendant pruning as toggleSubtree, per model of the removed roots
+    const under = new Set<string>();
+    if (!added) {
+      const byModel = new Map<number, number[]>();
+      for (const r of roots) {
+        byModel.set(r.model, [...(byModel.get(r.model) ?? []), r.entry]);
+      }
+      const actives = selectionState.get().actives;
+      for (const [m, entries] of byModel) {
+        for (const k of await keysUnder(actives, m, entries)) {
+          under.add(k);
+        }
+      }
+    }
     selectionState.set((p) => ({
       activeGroup: null,
       activeGroups: added ? [...new Set([...p.activeGroups, gk])] : p.activeGroups.filter((g) => g !== gk),
-      actives: added ? [...new Set([...p.actives, ...keys])] : p.actives.filter((k) => !keys.has(k)),
+      actives: added ? [...new Set([...p.actives, ...keys])] : p.actives.filter((k) => !keys.has(k) && !under.has(k)),
     }));
     await refreshSelectionMeta(null);
   },

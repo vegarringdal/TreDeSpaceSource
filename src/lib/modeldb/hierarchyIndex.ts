@@ -2,7 +2,15 @@
 // maps, cached name arrays, and the interleaved GPU state upload.
 import * as Comlink from 'comlink';
 import type { Hierarchy } from '../model/format';
-import { type DbModel, NO_PARENT, type StateUpdate } from './dbState';
+import {
+  type DbModel,
+  HAS_OPACITY_OVERRIDE,
+  IS_HIDDEN,
+  NO_PARENT,
+  OPACITY_MASK,
+  OPACITY_SHIFT,
+  type StateUpdate,
+} from './dbState';
 
 const decoder = new TextDecoder();
 
@@ -28,6 +36,62 @@ export function itemForId(h: Hierarchy, id: number): number {
     }
   }
   return -1;
+}
+
+/** Per-entry subtree sums of `weight(item)` over every item beneath the
+ *  entry (its own included). One post-order pass over the children CSR —
+ *  O(entries + items), no recursion (explicit stack). */
+function subtreeCounts(m: DbModel, weight: (item: number) => number): Uint32Array {
+  const n = m.hierarchy.entryParent.length;
+  const out = new Uint32Array(n);
+  // own weight first
+  for (let e = 0; e < n; e++) {
+    const item = itemForId(m.hierarchy, m.hierarchy.entryId[e]);
+    if (item >= 0) {
+      out[e] = weight(item);
+    }
+  }
+  // post-order: push children onto parents, deepest first
+  const order: number[] = [];
+  const stack: number[] = Array.from(m.roots);
+  while (stack.length) {
+    const e = stack.pop()!;
+    order.push(e);
+    for (let c = m.childStart[e]; c < m.childStart[e + 1]; c++) {
+      stack.push(m.childList[c]);
+    }
+  }
+  for (let i = order.length - 1; i >= 0; i--) {
+    const e = order[i];
+    const p = m.hierarchy.entryParent[e];
+    if (p !== NO_PARENT) {
+      out[p] += out[e];
+    }
+  }
+  return out;
+}
+
+/** `hiddenUnder`, refreshed when the model's states changed since it was last
+ *  computed. Every state mutation is uploaded through packStates (which bumps
+ *  `stateVersion`), so no hide/show site needs to know about this — the cost
+ *  is one O(entries + items) pass per changed model, on the next tree fetch. */
+export function hiddenAggregate(m: DbModel): Uint32Array {
+  const v = m.stateVersion ?? 0;
+  if (!m.hiddenUnder || m.hiddenAggVersion !== v) {
+    m.hiddenUnder = subtreeCounts(m, (item) => (isEffectivelyHidden(m.states[item * 2]) ? 1 : 0));
+    m.hiddenAggVersion = v;
+  }
+  return m.hiddenUnder;
+}
+
+/** Hidden as the USER sees it: the hide flag, or an opacity override of 0 —
+ *  Set Color's "opacity 0" (its quick "hidden" toggle) makes an item just as
+ *  invisible as a hide, so the tree must report both the same way. */
+export function isEffectivelyHidden(flags: number): boolean {
+  if (flags & IS_HIDDEN) {
+    return true;
+  }
+  return (flags & HAS_OPACITY_OVERRIDE) !== 0 && (flags & OPACITY_MASK) >>> OPACITY_SHIFT === 0;
 }
 
 export function buildIndexes(m: DbModel) {
@@ -63,6 +127,9 @@ export function buildIndexes(m: DbModel) {
   m.childStart = childStart;
   m.childList = childList;
   m.roots = roots;
+  m.itemsUnder = subtreeCounts(m, () => 1);
+  m.hiddenUnder = undefined;
+  m.hiddenAggVersion = undefined;
 
   // item -> leaf entry
   m.itemToEntry = new Uint32Array(m.itemCount).fill(NO_PARENT);
@@ -87,6 +154,7 @@ export function interleaveStates(m: DbModel): Uint32Array {
 }
 
 export function packStates(m: DbModel, modelIdx: number): StateUpdate {
+  m.stateVersion = (m.stateVersion ?? 0) + 1;
   const states = interleaveStates(m);
   return Comlink.transfer({ model: modelIdx, states }, [states.buffer]);
 }

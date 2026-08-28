@@ -104,8 +104,8 @@ own. Key facts, kept here so the port history isn't lost:
   per-domain undo/redo.
 - **Coloring**: quick swatches + Color Panel (manual color, color opacity),
   opacity overrides, per-domain undo/redo.
-- **Hierarchy**: worker-built tree, search (expression engine,
-  `searchExpr.ts`), reveal-on-select, U/P navigation, collapse-all.
+- **Hierarchy**: worker-built tree, name search (plain contains / equals via
+  the worker's `db.search`), reveal-on-select, U/P navigation, collapse-all.
 - **Scene Labels** (`LabelOverlay.ts`, `labels/` panel): world-anchored,
   draggable DOM text labels with leader lines (same projection path as the
   measurement overlay). Native has this only as backlog (its 8.3 labels item);
@@ -114,7 +114,9 @@ own. Key facts, kept here so the port history isn't lost:
   cube with a label atlas; DOM hit-test for face/edge/corner click-to-snap.
 - **Assets / Import**: Model Assets + Import Manager panels over OPFS-persisted
   projects (`opfs.ts`, `project.ts`) — load/stage cooked models, save/load the
-  whole project.
+  whole project. The Model Assets search is the `&` / `|` / parentheses
+  expression engine (`searchExpr.ts`); its grammar and how matches imply
+  parent folders/stores are written up in `docs/search-expressions.md`.
 
 ## UI conventions
 

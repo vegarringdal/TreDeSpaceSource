@@ -19,6 +19,9 @@ export interface SelectionState {
   reveal: { model: number; path: number[] } | null;
   /** bumped whenever models are added/removed so the tree reloads */
   modelsVersion: number;
+  /** Bumped on every item-state upload (hide/show, colors, selection) — the
+   *  tree re-reads its per-row visibility badges on change. */
+  stateVersion: number;
   colorUndoDepth: number;
   colorRedoDepth: number;
   transformUndoDepth: number;
@@ -35,6 +38,7 @@ export const selectionState = createStore<SelectionState>({
   activeGroups: [],
   reveal: null,
   modelsVersion: 0,
+  stateVersion: 0,
   colorUndoDepth: 0,
   colorRedoDepth: 0,
   transformUndoDepth: 0,

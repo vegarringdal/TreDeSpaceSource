@@ -20,6 +20,16 @@ export interface Row {
   isRoot?: boolean;
   /** row is the active selection or lives under it (highlight) */
   selected: boolean;
+  /** every item beneath this row is hidden ('all'), or only some ('some') */
+  hidden?: 'all' | 'some';
+}
+
+/** The visibility badge for a node from its subtree counts. */
+function hiddenOf(n: { itemsUnder: number; hiddenUnder: number }): 'all' | 'some' | undefined {
+  if (n.hiddenUnder === 0) {
+    return undefined;
+  }
+  return n.hiddenUnder >= n.itemsUnder ? 'all' : 'some';
 }
 
 /** Worker-fetched data cached across rebuilds (cleared on model changes). */
@@ -61,6 +71,7 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         name: n.name,
         hasChildren: n.hasChildren,
         selected: isActive,
+        hidden: hiddenOf(n),
       });
       if (n.hasChildren && exp.has(keyOf(model, n.entry))) {
         const k = keyOf(model, n.entry);
@@ -107,7 +118,9 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
   };
 
   let onlyStore: string | null = null;
-  const emitGroupRoots = async (path: string, depth: number, groupActive: boolean) => {
+  /** Model roots of one import group (cached until the next state change),
+   *  narrowed to the current store band. */
+  const rootsOf = async (path: string) => {
     let roots = caches.groupRoots.get(path);
     if (!roots) {
       roots = await db.groupRoots(path);
@@ -116,6 +129,27 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
     if (onlyStore != null) {
       roots = roots.filter((r) => caches.modelStore.get(r.model) === onlyStore);
     }
+    return roots;
+  };
+  /** Hidden badge for a folder row ('' = the whole store band): the item /
+   *  hidden totals of every model root at or below that folder path, so a
+   *  collapsed folder or store still says something under it is hidden. */
+  const groupHidden = async (path: string): Promise<'all' | 'some' | undefined> => {
+    let itemsUnder = 0;
+    let hiddenUnder = 0;
+    for (const g of caches.groups) {
+      if (path !== '' && g.group !== path && !g.group.startsWith(`${path}/`)) {
+        continue;
+      }
+      for (const r of await rootsOf(g.group)) {
+        itemsUnder += r.node.itemsUnder;
+        hiddenUnder += r.node.hiddenUnder;
+      }
+    }
+    return hiddenOf({ itemsUnder, hiddenUnder });
+  };
+  const emitGroupRoots = async (path: string, depth: number, groupActive: boolean) => {
+    const roots = await rootsOf(path);
     for (const r of roots) {
       const rootActive = groupActive || activeSet.has(keyOf(r.model, r.node.entry));
       out.push({
@@ -126,6 +160,7 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         hasChildren: r.node.hasChildren,
         isRoot: true,
         selected: rootActive,
+        hidden: hiddenOf(r.node),
       });
       if (exp.has(keyOf(r.model, r.node.entry))) {
         const k = keyOf(r.model, r.node.entry);
@@ -160,6 +195,7 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         group: node.path,
         inStore: onlyStore ?? undefined,
         selected: groupActive,
+        hidden: await groupHidden(node.path),
       });
       if (exp.has(groupKey(node.path)) || (onlyStore != null && exp.has(groupKey(node.path, onlyStore)))) {
         if (node.isGroup) {
@@ -185,8 +221,17 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
     return out;
   }
   for (const store of loadedStores) {
-    out.push({ model: -1, entry: -1, depth: 0, name: store, hasChildren: false, store, selected: false });
     onlyStore = store;
+    out.push({
+      model: -1,
+      entry: -1,
+      depth: 0,
+      name: store,
+      hasChildren: false,
+      store,
+      selected: false,
+      hidden: await groupHidden(''),
+    });
     await walkGroups(buildTop(store), 0, false);
   }
   onlyStore = null;

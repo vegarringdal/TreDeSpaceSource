@@ -5,6 +5,31 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.08.28** (>0.0.68):
+  Docs: `docs/search-expressions.md` explains the Model Assets search — the
+  `& | ( )` grammar, contains vs Equals (`*`) mode, that each term matches ANY
+  of name / folder path / store, and how a matching asset implies its parent
+  folders and store in the filtered tree.
+- **2026.08.28** (>0.0.68):
+  Hierarchy shows visibility: a row whose items are all hidden is dimmed with
+  an eye-off badge, and a parent with SOME hidden items beneath it gets a
+  dotted-eye badge — so hidden content is visible from any level, even
+  collapsed. An opacity-0 override (Set Color's "hidden" quick toggle) counts
+  as hidden too, since it is just as invisible. Folder rows and store bands
+  carry the badge as well (summed over the model roots beneath them), so a
+  fully collapsed tree still points at where the hidden content is. Costs
+  nothing per row: the worker keeps per-entry subtree counts
+  (items / hidden items), rebuilt lazily in one pass when a model's states
+  change, and the tree reads them as O(1) lookups.
+- **2026.08.28** (>0.0.68):
+  Hierarchy: Ctrl+click can again deselect a row inside a Shift-selected
+  range. The range had made the expanded PARENT a selection root, and the tree
+  paints every row under an active root as selected — so the child's items
+  were deselected but its row stayed highlighted. Deselecting under an active
+  root now splits that root into its remaining sibling subtrees, and any
+  range-selected rows BENEATH the deselected node stop being roots too (their
+  items went with it) — so it works at every depth, not just the top level,
+  and the tree stays in step with the actual selection.
+- **2026.08.28** (>0.0.68):
   Model Assets tree: EVERYTHING starts collapsed — stores and every folder
   inside them, so expanding a store shows its folders still folded — and a
   search no longer force-expands the tree. The count each row already shows

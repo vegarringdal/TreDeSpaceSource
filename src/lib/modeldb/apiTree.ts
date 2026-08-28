@@ -2,7 +2,7 @@
 // fullname resolvers over the global index, and root→leaf path helpers.
 import { type DbModel, models, NO_PARENT, type TreeNode } from './dbState';
 import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel, liveHits } from './globalNameIndex';
-import { ensureNames, entryName, itemForId, itemsUnder } from './hierarchyIndex';
+import { ensureNames, entryName, hiddenAggregate, itemForId, itemsUnder } from './hierarchyIndex';
 import { transforms } from './transformPool';
 
 /** Label-anchor snap: if `c` lies inside NO item's AABB (a bent run whose
@@ -149,6 +149,8 @@ export const treeApi = {
       name: entryName(m, entry),
       hasChildren: m.childStart[entry + 1] > m.childStart[entry],
       item: itemForId(m.hierarchy, m.hierarchy.entryId[entry]),
+      itemsUnder: m.itemsUnder?.[entry] ?? 0,
+      hiddenUnder: hiddenAggregate(m)[entry],
     };
   },
 

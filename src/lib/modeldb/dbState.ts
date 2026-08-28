@@ -34,6 +34,15 @@ export interface DbModel {
   roots: Uint32Array;
   /** dense item -> hierarchy entry (leaves), 0xFFFFFFFF when unmapped. */
   itemToEntry: Uint32Array;
+  /** Per-entry subtree aggregates for the tree's visibility badges: items in
+   *  the subtree (built once with the indexes) and how many of them are
+   *  hidden (recomputed lazily — see hiddenAggregate). */
+  itemsUnder?: Uint32Array;
+  hiddenUnder?: Uint32Array;
+  /** Bumped by packStates on EVERY state upload; hiddenUnder is stamped with
+   *  the version it was computed for and refreshed when they differ. */
+  stateVersion?: number;
+  hiddenAggVersion?: number;
   /** lowercase entry names, built on first search */
   namesLower: string[] | null;
   /** per-item state, interleaved [flags, colorRGBA8] (color/select bits). */
@@ -65,6 +74,10 @@ export interface TreeNode {
   hasChildren: boolean;
   /** dense item index when this entry is a leaf with geometry, else -1 */
   item: number;
+  /** items in this entry's subtree, and how many of them are hidden — the
+   *  tree's "hidden / partly hidden" badge, O(1) per row */
+  itemsUnder: number;
+  hiddenUnder: number;
 }
 
 export type StateUpdate = { model: number; states: Uint32Array };

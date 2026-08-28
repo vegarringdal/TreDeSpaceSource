@@ -142,6 +142,18 @@ export function useHierarchyTree(): HierarchyTree {
     void rebuild(expandedRef.current);
   }, [sel.actives, sel.activeGroup, sel.activeGroups, rebuild]);
 
+  // item states uploaded (hide/show, color rules, snapshots…) -> the nodes'
+  // visibility counts are stale: drop the cached nodes so the rebuild refetches
+  // them (the worker recomputes its aggregate lazily, once per change)
+  useEffect(() => {
+    if (sel.stateVersion === 0) {
+      return;
+    }
+    caches.current.children.clear();
+    caches.current.groupRoots.clear();
+    void rebuild(expandedRef.current);
+  }, [sel.stateVersion, rebuild]);
+
   useEffect(() => {
     registerHierarchyCollapse(collapseAll);
     return () => registerHierarchyCollapse(null);
