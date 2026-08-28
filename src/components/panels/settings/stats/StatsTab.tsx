@@ -12,7 +12,21 @@ export function StatsTab() {
   return (
     <Collapsible title="Stats">
       <StatsReadout />
-      <Check label="Show overlay in viewport" checked={v.showStats} onChange={(x) => act.update({ showStats: x })} />
+      <Check
+        label="Show overlay in viewport"
+        tooltip="Draw the stats list in the viewport corner; turning it on also turns on GPU pass timing. Untick rows above to leave them out of the overlay"
+        shortcut="stats.overlay"
+        checked={v.showStats}
+        onChange={(x) => act.update(x ? { showStats: true, gpuTimings: true } : { showStats: false })}
+      />
+      <Check
+        label="Dimmed background behind overlay"
+        tooltip="Paint a dark translucent box behind the overlay text so it stays readable over bright models"
+        shortcut="stats.backdrop"
+        checked={v.statsBackdrop}
+        disabled={!v.showStats}
+        onChange={(x) => act.update({ statsBackdrop: x })}
+      />
       <Check
         label="Measure GPU pass times (timestamp query)"
         checked={v.gpuTimings}

@@ -133,6 +133,11 @@ export interface ViewerState {
   debugBuf: 0 | 1 | 2 | 3 | 4 | 5; // off/normal/depth/item id/edge/ao
   // stats
   showStats: boolean;
+  /** stat row keys (statsRows.ts) the viewport overlay leaves out — every
+   *  row shows by default; unticked in Settings → Stats */
+  statsHidden: string[];
+  /** dark backdrop behind the overlay text so it reads over bright models */
+  statsBackdrop: boolean;
   /** measure per-pass GPU times with timestamp-query (Stats tab) */
   gpuTimings: boolean;
   /** verbose performance tracing to the Console (Stats tab) — dev diagnostic */
@@ -220,6 +225,8 @@ export const initialViewerState: ViewerState = {
   joystickY: 50,
   debugBuf: 0,
   showStats: false, // stats live in Settings → Stats; overlay is opt-in
+  statsHidden: [],
+  statsBackdrop: true,
   gpuTimings: false,
   trace: false,
 };

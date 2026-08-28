@@ -35,6 +35,7 @@ import { labelsState } from '../../../state/viewer/labels.state';
 import { navActions, navState } from '../../../state/viewer/nav.state';
 import { residency } from '../../../state/viewer/residency';
 import { selectionState } from '../../../state/viewer/selection.state';
+import { collectStats, formatOverlay } from '../../../state/viewer/statsRows';
 import { registerRenderer, viewerActions } from '../../../state/viewer/viewer.actions';
 import { viewerState } from '../../../state/viewer/viewer.state';
 import { consoleActions } from '../console/console.actions';
@@ -799,22 +800,16 @@ export const viewport: PanelDefinition = {
 
         const st = viewerState.get();
         setError(renderer.gpuError ? `GPU ERROR: ${renderer.gpuError}` : '');
-        let text = '';
-        if (st.showStats) {
-          const s = renderer.stats;
-          text =
-            `models ${s.models}  meshlets ${s.meshlets.toLocaleString()}  tris ${s.tris.toLocaleString()}\n` +
-            (renderer.cullMode === 'full'
-              ? 'no culling (no MDI; enable vertex-pull culling)\n'
-              : `${renderer.cullMode === 'vp' ? 'VP' : 'MDI'} cull — drawn: p1 ${renderer.drawnPass1.toLocaleString()}  p2 ${renderer.drawnPass2.toLocaleString()}\n`) +
-            `vram ${((renderer.vramBuffers + renderer.vramTextures) / 1048576).toFixed(0)} MB` +
-            (renderer.idle
-              ? '  idle'
-              : `  fps ${renderer.fps.toFixed(0)}  cpu ${renderer.cpuMs.toFixed(2)} ms` +
-                (renderer.accumCount > 0 ? `  AA ${renderer.accumCount}/${renderer.aaMax}` : ''));
-        }
+        // the same row list as Settings → Stats, minus the rows unticked there
+        const text = st.showStats ? formatOverlay(collectStats(renderer), st.statsHidden) : '';
         if (hud.textContent !== text) {
           hud.textContent = text;
+        }
+        const backdrop = text && st.statsBackdrop ? 'rgba(8,10,14,0.72)' : '';
+        if (hud.style.background !== backdrop) {
+          hud.style.background = backdrop;
+          hud.style.padding = backdrop ? '4px 6px' : '';
+          hud.style.borderRadius = backdrop ? '3px' : '';
         }
 
         // VRAM-budget activity chip: working / settled / waiting-for-idle

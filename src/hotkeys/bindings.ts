@@ -2137,6 +2137,23 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => labelsActions.setSnapToItem(!labelsState.get().snapToItem),
   },
   {
+    id: 'stats.overlay',
+    category: 'View',
+    label: 'Stats: viewport overlay',
+    defaultKeys: 'ALT + 1214',
+    description: 'Toggle the stats overlay in the viewport corner (turning it on also enables GPU pass timing)',
+    run: () =>
+      viewerActions.update(viewerState.get().showStats ? { showStats: false } : { showStats: true, gpuTimings: true }),
+  },
+  {
+    id: 'stats.backdrop',
+    category: 'View',
+    label: 'Stats: overlay backdrop',
+    defaultKeys: 'ALT + 1215',
+    description: 'Toggle the dark translucent box behind the viewport stats overlay',
+    run: () => viewerActions.update({ statsBackdrop: !viewerState.get().statsBackdrop }),
+  },
+  {
     id: 'stats.gpuTimings',
     category: 'View',
     label: 'Stats: GPU pass times',

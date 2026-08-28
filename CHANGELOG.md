@@ -4,6 +4,15 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.08.28** (>0.0.70):
+  Stats overlay: the viewport overlay is now the SAME list as Settings → Stats
+  (label/value lines, GPU pass times as a second block) instead of a terse
+  summary line; each row in the Stats readout has a checkbox that leaves it out
+  of the overlay (persisted). "Show overlay" also switches on GPU pass timing,
+  and has a hotkey (ALT+1214). New `culled` row: % of meshlets culled this frame
+  (drawn of total), in both places. A "Dimmed background" checkbox (default
+  on, ALT+1215) paints a dark box behind the overlay so it reads over bright
+  models.
 - **2026.08.28** (>0.0.68):
   Docs: `docs/search-expressions.md` explains the Model Assets search — the
   `& | ( )` grammar, contains vs Equals (`*`) mode, that each term matches ANY
