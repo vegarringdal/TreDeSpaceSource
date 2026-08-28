@@ -72,7 +72,8 @@ export function AssetsLibraryTree({ m }: { m: AssetsLibraryModel }) {
         selected={m.selectedSet}
         onSelect={m.setSelection}
         defaultCollapsed={m.defaultCollapsed}
-        expandAll={m.searching}
+        collapseAllSignal={m.treeCollapseSignal}
+        expandAllSignal={m.treeExpandSignal}
         onAddFolder={(parent) => {
           const ref = parent ? parseDirRef(parent) : { store: MAIN_STORE, path: '' };
           if (ref) {

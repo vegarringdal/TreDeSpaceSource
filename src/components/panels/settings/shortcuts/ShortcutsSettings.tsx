@@ -1,6 +1,6 @@
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { hotkeysActions, hotkeysState } from '@treDeSpaceUI/hotkeys';
-import { Button, Collapsible, InfoButton } from '@treDeSpaceUI/widgets';
+import { formatSequence, hotkeysActions, hotkeysState } from '@treDeSpaceUI/hotkeys';
+import { Button, Collapsible, InfoButton, TextInput } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { CameraControlsSection } from './CameraControlsSection';
 import { ShortcutRow } from './ShortcutRow';
@@ -19,11 +19,29 @@ const SHORTCUTS_INFO = (
 export function ShortcutsSettings() {
   const { defs, order, overrides } = hotkeysState.use();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [query, setQuery] = useState('');
   const { recordingId, record, doExport, picker } = useShortcutsEditing();
 
-  // group ids by category, preserving registration order
+  // search across everything a user might remember a shortcut by: its label,
+  // description, id, category and the combo it is currently bound to
+  const needle = query.trim().toLowerCase();
+  const matches = (id: string): boolean => {
+    if (!needle) {
+      return true;
+    }
+    const d = defs[id];
+    const seq = hotkeysActions.sequenceFor(id);
+    const hay = [id, d?.label, d?.description, d?.category, seq ? formatSequence(seq) : ''].join(' ').toLowerCase();
+    return hay.includes(needle);
+  };
+
+  // group ids by category, preserving registration order; while searching,
+  // only matching rows are grouped and empty categories vanish
   const groups: { category: string; ids: string[] }[] = [];
   for (const id of order) {
+    if (!matches(id)) {
+      continue;
+    }
     const cat = defs[id]?.category ?? 'Other';
     let g = groups.find((x) => x.category === cat);
     if (!g) {
@@ -48,8 +66,16 @@ export function ShortcutsSettings() {
         </div>
       </Collapsible>
 
+      <TextInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Search shortcuts — name, description, key combo (e.g. END, ALT + 6)…"
+      />
+      {needle && groups.length === 0 && <div className="text-slate-500 text-xs">No shortcut matches “{query}”.</div>}
+
       {groups.map(({ category, ids }) => {
-        const isCollapsed = collapsed[category] ?? true; // collapsed by default
+        // collapsed by default; a search opens every group that has a hit
+        const isCollapsed = needle ? false : (collapsed[category] ?? true);
         const customCount = ids.filter((id) => id in overrides).length;
         return (
           <div key={category} className="border border-slate-800">

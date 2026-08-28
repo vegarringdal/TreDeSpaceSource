@@ -388,6 +388,15 @@ interface StoredIndex {
 }
 
 export const assetsActions = {
+  /** Collapse every store/folder in the Model Assets tree. */
+  collapseTree() {
+    assetsState.set((s) => ({ treeCollapseSignal: s.treeCollapseSignal + 1 }));
+  },
+  /** Expand every store/folder in the Model Assets tree. */
+  expandTree() {
+    assetsState.set((s) => ({ treeExpandSignal: s.treeExpandSignal + 1 }));
+  },
+
   /** Read index.json once (panel mount). The shared store registry is loaded
    *  separately by storesActions.init() — callers run that FIRST (one-way
    *  dependency: stores never import assets state, assets never import store

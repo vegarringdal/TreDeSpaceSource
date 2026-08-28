@@ -69,7 +69,13 @@ export function ClipBoxFaceGroups() {
       </RibbonSection>
 
       <RibbonSection title="Additional">
-        <RibbonButton icon={<IconShape />} label="Shapes" onClick={act.shapes} />
+        <RibbonButton
+          icon={<IconShape />}
+          label="Shapes"
+          tooltip="Open the Clip Shapes panel — sphere / cylinder / box clip volumes beyond the default box"
+          shortcut="clipShapes.open"
+          onClick={act.shapes}
+        />
       </RibbonSection>
     </>
   );

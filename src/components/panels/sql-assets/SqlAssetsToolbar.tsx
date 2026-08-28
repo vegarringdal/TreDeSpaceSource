@@ -87,6 +87,24 @@ export function SqlAssetsToolbar() {
         >
           Deselect all
         </Button>
+        <Button
+          className="h-auto min-h-6 py-1 leading-tight"
+          disabled={dbs.length === 0}
+          shortcut="sql.collapseAll"
+          onClick={() => act.collapseTree()}
+          tooltip="Collapse every store in the tree"
+        >
+          Collapse all
+        </Button>
+        <Button
+          className="h-auto min-h-6 py-1 leading-tight"
+          disabled={dbs.length === 0}
+          shortcut="sql.expandAll"
+          onClick={() => act.expandTree()}
+          tooltip="Expand every store in the tree"
+        >
+          Expand all
+        </Button>
       </div>
     </>
   );

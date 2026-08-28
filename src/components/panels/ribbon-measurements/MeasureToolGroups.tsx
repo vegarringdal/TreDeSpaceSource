@@ -1,6 +1,7 @@
 import {
   IconAngle,
   IconArrowAutofitHeight,
+  IconArrowsExchange,
   IconBan,
   IconChartArea,
   IconCircleDashed,
@@ -52,6 +53,17 @@ export function MeasureToolGroups() {
             onClick={() => act.setTool(id)}
           />
         ))}
+      </RibbonSection>
+
+      <RibbonSection title="Options">
+        <RibbonButton
+          icon={<IconArrowsExchange />}
+          label="Off when ribbon switch"
+          selected={s.offOnRibbonSwitch}
+          tooltip="Leaving this ribbon — another ribbon tab, or a layout switch via the Layout ribbon / F-keys — puts the tool back to Off, so a measuring mode never lingers while you work elsewhere. Default on."
+          shortcut="measure.offOnSwitch"
+          onClick={() => act.toggleOffOnRibbonSwitch()}
+        />
       </RibbonSection>
 
       <RibbonSection title="Lock">

@@ -13,6 +13,32 @@ export const ribbonMeasurementsActions = {
     measurementsActions.setTool(tool === 'off' ? null : tool);
     log(`Tool → ${tool}`);
   },
+  /** The "Off when ribbon switch" preference (default on). */
+  setOffOnRibbonSwitch(on: boolean) {
+    ribbonMeasurementsState.set({ offOnRibbonSwitch: on });
+    log(`Off when ribbon switch → ${on ? 'on' : 'off'}`);
+  },
+  toggleOffOnRibbonSwitch() {
+    ribbonMeasurementsActions.setOffOnRibbonSwitch(!ribbonMeasurementsState.get().offOnRibbonSwitch);
+  },
+  /** App startup feeds every active-ribbon change here: leaving the
+   *  Measurements ribbon with a tool armed turns it off (when the preference
+   *  is on). Arriving on it, or moving between other ribbons, does nothing. */
+  ribbonChanged(prev: string | undefined, next: string | undefined) {
+    if (prev === 'ribbonMeasurements' && next !== 'ribbonMeasurements') {
+      ribbonMeasurementsActions.disarmForSwitch();
+    }
+  },
+  /** A layout slot was activated (Layout ribbon / F-keys) — same rule. */
+  layoutSwitched() {
+    ribbonMeasurementsActions.disarmForSwitch();
+  },
+  disarmForSwitch() {
+    const s = ribbonMeasurementsState.get();
+    if (s.offOnRibbonSwitch && s.tool !== 'off') {
+      ribbonMeasurementsActions.setTool('off');
+    }
+  },
   setLock(lock: MeasureLock) {
     measurementsActions.setLock(lock);
     log(`Lock → ${lock}`);

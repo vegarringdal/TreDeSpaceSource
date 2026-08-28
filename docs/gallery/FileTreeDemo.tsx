@@ -1,5 +1,5 @@
 import { IconDatabase } from '@tabler/icons-react';
-import { FileTree, type TreeDir } from '@treDeSpaceUI/widgets';
+import { Button, FileTree, type TreeDir } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { Section } from './Section';
 
@@ -43,10 +43,14 @@ const demoTree: TreeDir = {
 /** Gallery section for FileTree. */
 export function FileTreeDemo() {
   const [selected, setSelected] = useState<Set<string>>(new Set(['Huldra.glb']));
+  // collapse/expand-all are edge-triggered counters: bump to act, the tree
+  // keeps owning the per-folder state in between
+  const [collapseAll, setCollapseAll] = useState(0);
+  const [expandAll, setExpandAll] = useState(0);
   return (
     <Section
       title="FileTree"
-      note="A file-tree picker with desktop-file-manager selection: click, Ctrl+click to toggle, Shift+click for a range over the visible rows; clicking a folder (de)selects everything under it. Optional drag-and-drop moves and a right-click folder menu via the onMove/onAddFolder/… callbacks. A dir with variant: 'section' renders as a dimmed category band (grouping chrome, e.g. a store — here 'project-x' starts collapsed via defaultCollapsed); icon overrides the folder icon."
+      note="A file-tree picker with desktop-file-manager selection: click, Ctrl+click to toggle, Shift+click for a range over the visible rows; clicking a folder (de)selects everything under it. Optional drag-and-drop moves and a right-click folder menu via the onMove/onAddFolder/… callbacks. A dir with variant: 'section' renders as a dimmed category band (grouping chrome, e.g. a store — here 'project-x' starts collapsed via defaultCollapsed); icon overrides the folder icon. collapseAllSignal / expandAllSignal are counters the parent bumps (a toolbar button, a hotkey) to fold or open every dir at once — the tree keeps owning the per-folder state in between."
       props={['FileTreeProps', 'TreeDir', 'TreeFile', 'TreeNode']}
       code={`function ModelPicker() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -56,11 +60,26 @@ export function FileTreeDemo() {
         { kind: 'file', name: 'Huldra.glb', path: 'Huldra.glb', note: '48 MB' },
       ] },
   ] };
-  return <FileTree root={tree} selected={selected} onSelect={setSelected}
-    defaultCollapsed={['store:project-x']} />;
+  const [collapseAll, setCollapseAll] = useState(0); // bump = collapse every dir
+  return <>
+    <Button onClick={() => setCollapseAll((n) => n + 1)}>Collapse all</Button>
+    <FileTree root={tree} selected={selected} onSelect={setSelected}
+      defaultCollapsed={['store:project-x']} collapseAllSignal={collapseAll} />
+  </>;
 }`}
     >
-      <FileTree root={demoTree} selected={selected} onSelect={setSelected} defaultCollapsed={['store:project-x']} />
+      <div className="mb-2 flex gap-2">
+        <Button onClick={() => setCollapseAll((n) => n + 1)}>Collapse all</Button>
+        <Button onClick={() => setExpandAll((n) => n + 1)}>Expand all</Button>
+      </div>
+      <FileTree
+        root={demoTree}
+        selected={selected}
+        onSelect={setSelected}
+        defaultCollapsed={['store:project-x']}
+        collapseAllSignal={collapseAll}
+        expandAllSignal={expandAll}
+      />
       <p className="m-0 mt-2 text-slate-500 text-xs">{selected.size} selected</p>
     </Section>
   );

@@ -2,7 +2,7 @@ import type { TreeDir } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { compileSearch } from '../../../lib/searchExpr';
 import { type AssetEntry, assetsState } from '../../../state/assets/assets.state';
-import { MAIN_STORE, storesState, TEMP_STORE } from '../../../state/stores/stores.state';
+import { storesState, TEMP_STORE } from '../../../state/stores/stores.state';
 
 // -----------------------------------------------------------------------------
 // types
@@ -24,6 +24,9 @@ export type AssetsLibraryModel = Readonly<{
   sectionStores: string[];
   /** Section paths that start collapsed (every store but "main"). */
   defaultCollapsed: string[];
+  /** Edge-triggered Collapse all / Expand all counters (see FileTree). */
+  treeCollapseSignal: number;
+  treeExpandSignal: number;
   /** Remount key for the tree — collapse state re-derives when stores change. */
   treeKey: string;
   tree: TreeDir;
@@ -48,6 +51,21 @@ export function parseDirRef(dirPath: string): DirRef | null {
     return i < 0 ? { store: rest, path: '' } : { store: rest.slice(0, i), path: rest.slice(i + 1) };
   }
   return null;
+}
+
+/** Every dir path in a tree (root excluded) — the initial collapsed set. */
+function allDirPaths(root: TreeDir): string[] {
+  const out: string[] = [];
+  const walk = (d: TreeDir) => {
+    for (const c of d.children) {
+      if (c.kind === 'dir') {
+        out.push(c.path);
+        walk(c);
+      }
+    }
+  };
+  walk(root);
+  return out;
 }
 
 /** One store's subtree: folder paths ("A/B") become dirs-in-dirs (paths
@@ -98,7 +116,7 @@ function buildStoreChildren(store: string, storeAssets: AssetEntry[], extraFolde
 /** The unified Model Assets view: every store as a section band in ONE tree,
  *  one search and one global selection across all of them. */
 export function useAssetsLibrary(exact: boolean): AssetsLibraryModel {
-  const { assets, selected, extraFolders } = assetsState.use();
+  const { assets, selected, extraFolders, treeCollapseSignal, treeExpandSignal } = assetsState.use();
   const { stores } = storesState.use();
   const [query, setQuery] = useState('');
 
@@ -140,7 +158,14 @@ export function useAssetsLibrary(exact: boolean): AssetsLibraryModel {
     selectedOne,
     setSelection,
     sectionStores,
-    defaultCollapsed: sectionStores.filter((s) => s !== MAIN_STORE).map((s) => `store:${s}`),
+    // EVERYTHING starts collapsed — every store (main included) and every
+    // folder inside them — so a big library opens as a short list of stores,
+    // and expanding a store shows its folders still folded. Each row's count
+    // (files beneath it) is what you read instead; while a search filters the
+    // tree those counts are the match counts, and nothing auto-expands.
+    defaultCollapsed: allDirPaths(tree),
+    treeCollapseSignal,
+    treeExpandSignal,
     treeKey: sectionStores.join('|'),
     tree,
   };

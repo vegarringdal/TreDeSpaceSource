@@ -1,5 +1,8 @@
 # Project context for Claude
 
+
+
+
 **Main project (this root): TypeScript/WebGPU CAD viewer** — React 19 + the
 dockable panel shell, with the renderer as a library in `src/lib/`, organized
 as one folder per domain (`render/` — `renderer.ts`, `shaders/` WGSL,
@@ -28,7 +31,21 @@ per-sample edges, VBAO. Measured within 5-10% of the native Vulkan renderer.
   If a newly *vendored* third-party crate is added (a copied lib under
   `rust_src/`, like `meshopt`/`tess2-rust`), also add it to the
   `VENDORED` list in `scripts/gen-third-party-notices.mjs` — `cargo tree` can't
-  attribute path deps. Always check this when dependencies move.
+  attribute path deps. Always check this when dependencies move.  
+
+- **CHANGELOG.md — add an entry for EVERY change.** The version in
+  `package.json` is bumped by the director at release time; between bumps,
+  each piece of work gets a bullet under a date heading so the diff between
+  two versions reads as prose, not commits. Append at the TOP of the file:
+
+  ```md
+  - **YYYY.MM.DD** (>PACKAGEVERSION):
+    Description — what changed and, when it matters, why.
+  ```
+
+  `PACKAGEVERSION` is the version currently in `package.json` (the entry is
+  "after" that release). Several changes on one day share the date heading
+  as separate lines. Write it in the same pass as the code.
 
 - **postMessage API — changing the SDK requires updating the docs.** When you
   add, rename, or change a command on `api/tredespace-client.ts` (the copy-paste

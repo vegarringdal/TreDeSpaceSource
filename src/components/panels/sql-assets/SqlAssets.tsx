@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { sqlAssetsActions as act } from '../../../state/sqlAssets/sqlAssets.actions';
 import { type SqlDbEntry, sqlAssetsState } from '../../../state/sqlAssets/sqlAssets.state';
 import { storesActions } from '../../../state/stores/stores.actions';
-import { MAIN_STORE, storesState } from '../../../state/stores/stores.state';
+import { storesState } from '../../../state/stores/stores.state';
 import { DataStoresHeader, StoreAdmin } from '../shared/StoreAdmin';
 import { SqlAssetsToolbar } from './SqlAssetsToolbar';
 
@@ -44,7 +44,7 @@ function buildDbTree(storeNames: string[], dbs: SqlDbEntry[]): TreeDir {
 export function SqlAssets() {
   useMinSize(260, 260);
   const { stores } = storesState.use();
-  const { dbs, selected } = sqlAssetsState.use();
+  const { dbs, selected, treeCollapseSignal, treeExpandSignal } = sqlAssetsState.use();
   const storeNames = stores.map((s) => s.name);
   const selectedSet = new Set(dbs.filter((d) => selected[d.path]).map((d) => d.path));
 
@@ -67,7 +67,9 @@ export function SqlAssets() {
           root={buildDbTree(storeNames, dbs)}
           selected={selectedSet}
           onSelect={(next) => act.setSelection(next)}
-          defaultCollapsed={storeNames.filter((s) => s !== MAIN_STORE).map((s) => `store:${s}`)}
+          defaultCollapsed={storeNames.map((s) => `store:${s}`)}
+          collapseAllSignal={treeCollapseSignal}
+          expandAllSignal={treeExpandSignal}
           fileIcon={<IconFile size={13} className="shrink-0 text-slate-400" />}
         />
         <p className="note m-0 shrink-0 text-slate-500">

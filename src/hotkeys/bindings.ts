@@ -4,7 +4,7 @@
 // auto-numbered: inserting a binding must not renumber the others.
 
 import { type HotkeyDef, hotkeysActions, setHotkeyAnnouncer, validateBindings } from '@treDeSpaceUI/hotkeys';
-import { requestClipShapesLoad } from '../components/panels/clip-shapes/clipShapesPanel';
+import { openClipShapesPanel, requestClipShapesLoad } from '../components/panels/clip-shapes/clipShapesPanel';
 import { ribbonClipShapesActions as clipshape } from '../components/panels/clip-shapes/ribbonClipShapes.actions';
 import { consoleActions } from '../components/panels/console/console.actions';
 import { exportActions } from '../components/panels/export/export.actions';
@@ -50,6 +50,7 @@ import { layoutsActions } from '../state/layouts.state';
 import { pickerSwatchesActions } from '../state/pickerSwatches.state';
 import { sqlAssetsActions } from '../state/sqlAssets/sqlAssets.actions';
 import { sqlEditorActions } from '../state/sqlAssets/sqlEditor.actions';
+import { sqlEditorState } from '../state/sqlAssets/sqlEditor.state';
 import { storesActions } from '../state/stores/stores.actions';
 import { clipShapesActions as clipShapeData } from '../state/viewer/clipShapes.actions';
 import { labelsActions } from '../state/viewer/labels.actions';
@@ -1533,7 +1534,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.assets',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: open SQL Assets',
     defaultKeys: 'ALT + 631',
     description: 'Open the SQL Assets panel (SQLite databases per store)',
@@ -1541,7 +1542,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.editor',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: open SQL Editor',
     defaultKeys: 'ALT + 632',
     description: 'Open the SQL Editor panel',
@@ -1549,7 +1550,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.editor.asTable',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL Editor: run as table',
     defaultKeys: 'ALT + 643',
     description: 'Run the editor SQL and show it in the SQL Table panel',
@@ -1557,7 +1558,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.editor.colorWhite',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL Editor: color white',
     defaultKeys: 'ALT + 644',
     description: 'Paint every returned fullname white',
@@ -1565,7 +1566,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.editor.colorHidden',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL Editor: color hidden',
     defaultKeys: 'ALT + 645',
     description: 'Hide every returned fullname',
@@ -1573,7 +1574,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.editor.colorSet',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL Editor: color set',
     defaultKeys: 'ALT + 646',
     description: 'Append a per-row Multi rule to Set Color and run it',
@@ -1581,7 +1582,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.editor.asDetail',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL Editor: use as detail',
     defaultKeys: 'ALT + 647',
     description: 'Bind the editor SQL to the SQL Detail panel',
@@ -1589,7 +1590,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.reports',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: open SQL Reports',
     defaultKeys: 'ALT + 640',
     description: 'Open the SQL Reports panel (saved queries → table/coloring/detail)',
@@ -1597,7 +1598,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.table.open',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: open SQL Table',
     defaultKeys: 'ALT + 641',
     description: 'Open the SQL Table panel (last report result)',
@@ -1605,7 +1606,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.detail.open',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: open SQL Detail',
     defaultKeys: 'ALT + 642',
     description: 'Open the SQL Detail panel (click-following report form)',
@@ -1613,7 +1614,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.import',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: import database',
     defaultKeys: 'ALT + 633',
     description: 'Pick SQLite files to import into the main store',
@@ -1621,7 +1622,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.deleteSelected',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: delete checked databases',
     defaultKeys: 'ALT + 634',
     description: 'Delete every checked database (SQL Assets)',
@@ -1629,7 +1630,7 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.run',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: run script',
     defaultKeys: 'ALT + 635',
     description: "Run the SQL Editor's script (same as Ctrl+Enter in the editor)",
@@ -1637,19 +1638,75 @@ export const HOTKEYS: HotkeyDef[] = [
   },
   {
     id: 'sql.lockmode',
-    category: 'Home',
+    category: 'SQL',
     label: 'SQL: toggle lock mode',
     defaultKeys: 'ALT + 636',
     description: 'Switch between shared (read-only) and exclusive (write) locking',
     run: () => sqlEditorActions.toggleLockmode(),
   },
   {
+    id: 'sql.collapseAll',
+    category: 'SQL',
+    label: 'SQL Assets: collapse all',
+    defaultKeys: 'ALT + 1208',
+    description: 'Collapse every store in the SQL Assets tree',
+    run: () => sqlAssetsActions.collapseTree(),
+  },
+  {
+    id: 'sql.expandAll',
+    category: 'SQL',
+    label: 'SQL Assets: expand all',
+    defaultKeys: 'ALT + 1209',
+    description: 'Expand every store in the SQL Assets tree',
+    run: () => sqlAssetsActions.expandTree(),
+  },
+  {
+    id: 'clipShapes.open',
+    category: 'Clipping',
+    label: 'Clip Shapes: open panel',
+    defaultKeys: 'ALT + 1212',
+    description: 'Open the Clip Shapes panel (docked right; the column is recreated if it was closed)',
+    run: () => openClipShapesPanel(),
+  },
+  {
+    id: 'measure.offOnSwitch',
+    category: 'Measure',
+    label: 'Measure: off when ribbon switch',
+    defaultKeys: 'ALT + 1213',
+    description:
+      'Toggle whether leaving the Measurements ribbon (another tab or a layout switch) turns the measurement tool off',
+    run: () => measure.toggleOffOnRibbonSwitch(),
+  },
+  {
     id: 'sql.kill',
-    category: 'Home',
-    label: 'SQL: kill worker',
-    defaultKeys: 'ALT + 637',
-    description: 'Terminate the SQLite worker — cancels the query and releases its file locks',
+    category: 'SQL',
+    label: 'SQL: kill running query',
+    defaultKeys: 'END',
+    description:
+      'Terminate the SQLite worker — cancels the running query and releases its file locks (only while a query runs)',
+    // the query was almost certainly started from the editor, so focus is in
+    // a text field when you need this — hotkeys are normally muted there
+    allowInInput: true,
+    // gated to a RUNNING query: END keeps its plain "end of line" meaning in
+    // the editor the rest of the time, and an idle worker is never killed
+    context: () => sqlEditorState.get().running,
     run: () => sqlEditorActions.kill(),
+  },
+  {
+    id: 'assets.collapseAll',
+    category: 'Home',
+    label: 'Model Assets: collapse all',
+    defaultKeys: 'ALT + 1210',
+    description: 'Collapse every store and folder in the Model Assets tree',
+    run: () => assetsActions.collapseTree(),
+  },
+  {
+    id: 'assets.expandAll',
+    category: 'Home',
+    label: 'Model Assets: expand all',
+    defaultKeys: 'ALT + 1211',
+    description: 'Expand every store and folder in the Model Assets tree',
+    run: () => assetsActions.expandTree(),
   },
   {
     id: 'assets.rvm.pick',

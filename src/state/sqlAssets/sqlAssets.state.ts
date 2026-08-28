@@ -31,6 +31,10 @@ export interface SqlAssetsState {
   ready: boolean;
   /** An import/delete is running — buttons stay disabled meanwhile. */
   busy: boolean;
+  /** Edge-triggered counters the store tree listens to (Collapse all /
+   *  Expand all buttons and hotkeys). */
+  treeCollapseSignal: number;
+  treeExpandSignal: number;
 }
 
 export const sqlAssetsState = createStore<SqlAssetsState>({
@@ -38,4 +42,6 @@ export const sqlAssetsState = createStore<SqlAssetsState>({
   selected: {},
   ready: false,
   busy: false,
+  treeCollapseSignal: 0,
+  treeExpandSignal: 0,
 });

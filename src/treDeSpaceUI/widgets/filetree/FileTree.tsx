@@ -4,11 +4,11 @@
 // everything under it. Optional drag-and-drop moves and a right-click folder
 // menu — see FileTreeProps.
 import { IconFile3d } from '@tabler/icons-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../../lib/cn';
 import { FileTreeMenu, type FileTreeMenuState } from './FileTreeMenu';
 import { FileTreeRow } from './FileTreeRow';
-import { type TreeDir, visibleRows } from './fileTreeModel';
+import { dirPaths, type TreeDir, visibleRows } from './fileTreeModel';
 import { useFileTreeSelection } from './useFileTreeSelection';
 
 export type { TreeDir, TreeFile, TreeNode } from './fileTreeModel';
@@ -35,6 +35,11 @@ export interface FileTreeProps {
   /** Render every dir expanded regardless of collapse state (e.g. while a
    *  search filter is active); the stored state returns when turned off. */
   expandAll?: boolean;
+  /** Bump to collapse every directory (a counter the parent increments — a
+   *  toolbar button or hotkey; the tree keeps owning the per-dir state). */
+  collapseAllSignal?: number;
+  /** Bump to expand every directory. */
+  expandAllSignal?: number;
   /** Overrides the default max-h-64 scroll box (e.g. `min-h-0 flex-1` to fill). */
   className?: string;
 }
@@ -55,9 +60,26 @@ export function FileTree({
   fileIcon = <IconFile3d size={13} className="shrink-0 text-slate-400" />,
   defaultCollapsed,
   expandAll = false,
+  collapseAllSignal,
+  expandAllSignal,
   className,
 }: FileTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(defaultCollapsed));
+  // the signals are edge-triggered: only a CHANGE acts, so a remount with the
+  // same counter value (e.g. a `key` change) keeps `defaultCollapsed`
+  const lastSignal = useRef({ collapse: collapseAllSignal, expand: expandAllSignal });
+  useEffect(() => {
+    if (collapseAllSignal !== lastSignal.current.collapse) {
+      lastSignal.current.collapse = collapseAllSignal;
+      setCollapsed(new Set(dirPaths(root)));
+    }
+  }, [collapseAllSignal, root]);
+  useEffect(() => {
+    if (expandAllSignal !== lastSignal.current.expand) {
+      lastSignal.current.expand = expandAllSignal;
+      setCollapsed(new Set());
+    }
+  }, [expandAllSignal]);
   const [dropDir, setDropDir] = useState<string | null>(null);
   const [menu, setMenu] = useState<FileTreeMenuState | null>(null);
 

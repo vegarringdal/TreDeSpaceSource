@@ -522,6 +522,8 @@ type FileTreeProps = {
   fileIcon?: ReactNode;
   defaultCollapsed?: readonly string[]; // initial state only (re-applied on remount via key)
   expandAll?: boolean;                  // force-expand (e.g. while a search filter is active)
+  collapseAllSignal?: number;           // bump to collapse every dir (parent-held counter)
+  expandAllSignal?: number;             // bump to expand every dir
   className?: string;                   // overrides the default max-h-64 scroll box
 };
 ```

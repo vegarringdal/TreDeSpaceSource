@@ -117,6 +117,15 @@ export interface SqlImportOpts {
 }
 
 export const sqlAssetsActions = {
+  /** Collapse every store in the SQL Assets tree. */
+  collapseTree() {
+    sqlAssetsState.set((s) => ({ treeCollapseSignal: s.treeCollapseSignal + 1 }));
+  },
+  /** Expand every store in the SQL Assets tree. */
+  expandTree() {
+    sqlAssetsState.set((s) => ({ treeExpandSignal: s.treeExpandSignal + 1 }));
+  },
+
   /** Re-scan every store's sql_assets directory — the file system is the
    *  index, so this is the only "load" there is. */
   async refresh() {

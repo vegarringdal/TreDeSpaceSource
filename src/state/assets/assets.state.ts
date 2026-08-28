@@ -77,6 +77,10 @@ export interface AssetsState {
    *  Temp imports always load and ignore the store pick; keeping a file
    *  instead requires unticking this and choosing a store explicitly. */
   importTemp: boolean;
+  /** Edge-triggered counters the library tree listens to (Collapse all /
+   *  Expand all buttons and hotkeys) — the tree itself owns per-folder state. */
+  treeCollapseSignal: number;
+  treeExpandSignal: number;
   /** id → selected (multi-select for load/delete/rename-many later). */
   selected: Record<string, boolean>;
   /** Per-store folders that exist even while empty (store name → paths). */
@@ -141,6 +145,8 @@ export const assetsState = createStore<AssetsState>({
   keepCamera: false,
   loadAfterImport: true,
   importTemp: true,
+  treeCollapseSignal: 0,
+  treeExpandSignal: 0,
   selected: {},
   extraFolders: {},
   rvm: { level: 0, tolerance: 0.01, includeLines: false, lineWidth: 0.005, alignElements: false },

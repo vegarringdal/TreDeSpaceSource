@@ -1,6 +1,7 @@
 import { quatAxes } from '../../../lib/math/quat';
 import { db } from '../../../state/viewer/db';
 import { getRenderer } from '../../../state/viewer/viewer.actions';
+import { openClipShapesPanel } from '../clip-shapes/clipShapesPanel';
 import { consoleActions } from '../console/console.actions';
 import { type RibbonClippingBoxState, ribbonClippingBoxState } from './ribbonClippingBox.state';
 
@@ -148,5 +149,6 @@ export const ribbonClippingBoxActions = {
       center: [center[0] + a[0] * d, center[1] + a[1] * d, center[2] + a[2] * d],
     });
   },
-  shapes: () => log('Shapes — sphere/cylinder shapes come later'),
+  /** Open the Clip Shapes panel (docks right; the column is recreated if it was closed away). */
+  shapes: () => openClipShapesPanel(),
 };

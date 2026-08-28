@@ -15,6 +15,7 @@ import {
   registerExternalPanels,
 } from './components/panels/ribbon-external/externalPanels';
 import { registerKioskToggle, registerSoloToggle } from './components/panels/ribbon-home/soloPanels';
+import { ribbonMeasurementsActions } from './components/panels/ribbon-measurements/ribbonMeasurements.actions';
 import { registerSqlAssetsOpener } from './components/panels/sql-assets/sqlAssetsPanel';
 import { registerSqlDetailOpener } from './components/panels/sql-detail/sqlDetailPanel';
 import { registerSqlEditorOpener } from './components/panels/sql-editor/sqlEditorPanel';
@@ -198,18 +199,37 @@ export function useAppStartup(manager: DockManager): void {
     registerMeasurementsViewpointOpener(() => manager.openPanel('measurementsViewpoint'));
     registerMultiColorViewpointOpener(() => manager.openPanel('multiColorViewpoint'));
     registerSoloToggle(() => manager.toggleSolo());
+    let activeRibbon = findTopTabs(manager.saveLayout().root)?.activePanel;
     const unsubLayout = manager.subscribe(() => {
       try {
         // remember the last REAL ribbon tab so a slot Save records it (not the
         // Layout ribbon the user switches to for the Save click). The panel
         // arrangement itself is deliberately NOT persisted on edit.
-        noteActiveRibbon(findTopTabs(manager.saveLayout().root)?.activePanel);
+        const next = findTopTabs(manager.saveLayout().root)?.activePanel;
+        noteActiveRibbon(next);
+        if (next !== activeRibbon) {
+          // leaving the Measurements ribbon disarms its tool ("Off when
+          // ribbon switch", default on)
+          ribbonMeasurementsActions.ribbonChanged(activeRibbon, next);
+          activeRibbon = next;
+        }
       } catch {
         // non-fatal
       }
     });
+    // a layout slot switch (Layout ribbon / F-keys) disarms it too, even when
+    // the slot lands on the Measurements ribbon again
+    let selectedSlot = layoutsState.get().selected;
+    const unsubSlots = layoutsState.subscribe(() => {
+      const sel = layoutsState.get().selected;
+      if (sel !== selectedSlot) {
+        selectedSlot = sel;
+        ribbonMeasurementsActions.layoutSwitched();
+      }
+    });
     return () => {
       unsubLayout();
+      unsubSlots();
     };
   }, [manager]);
 }

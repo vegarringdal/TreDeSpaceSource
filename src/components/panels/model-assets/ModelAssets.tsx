@@ -1,6 +1,7 @@
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
+import { Button } from '@treDeSpaceUI/widgets';
 import { useEffect, useState } from 'react';
-import { assetsActions as act } from '../../../state/assets/assets.actions';
+import { assetsActions as act, assetsActions } from '../../../state/assets/assets.actions';
 import { storesActions } from '../../../state/stores/stores.actions';
 import { DataStoresHeader, StoreAdmin } from '../shared/StoreAdmin';
 import { AssetsLibraryTree } from './AssetsLibraryTree';
@@ -42,6 +43,24 @@ export function ModelAssets() {
           </p>
         ) : (
           <>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                className="h-auto min-h-6 flex-1 py-1 leading-tight"
+                shortcut="assets.collapseAll"
+                onClick={() => assetsActions.collapseTree()}
+                tooltip="Collapse every store and folder in the tree"
+              >
+                Collapse all
+              </Button>
+              <Button
+                className="h-auto min-h-6 flex-1 py-1 leading-tight"
+                shortcut="assets.expandAll"
+                onClick={() => assetsActions.expandTree()}
+                tooltip="Expand every store and folder in the tree"
+              >
+                Expand all
+              </Button>
+            </div>
             <StoreActionRows visibleIds={m.visibleIds} />
             <StoreSelectionRows
               visibleAssetIds={m.visibleAssets.map((a) => a.id)}

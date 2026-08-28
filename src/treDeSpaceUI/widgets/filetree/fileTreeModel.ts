@@ -39,6 +39,25 @@ export function filesUnder(node: TreeNode): TreeFile[] {
 
 /** Flatten the visible rows (children of `root`, skipping collapsed dirs
  *  unless `expandAll` overrides — e.g. while a search filter is active). */
+/** Every directory path under `root` (root itself excluded) — the set that
+ *  "collapse all" stores. */
+export function dirPaths(root: TreeDir): string[] {
+  const out: string[] = [];
+  const walk = (n: TreeNode) => {
+    if (n.kind !== 'dir') {
+      return;
+    }
+    if (n !== root) {
+      out.push(n.path);
+    }
+    for (const c of n.children) {
+      walk(c);
+    }
+  };
+  walk(root);
+  return out;
+}
+
 export function visibleRows(root: TreeDir, collapsed: ReadonlySet<string>, expandAll = false): TreeRow[] {
   const out: TreeRow[] = [];
   const walk = (n: TreeNode, depth: number) => {
