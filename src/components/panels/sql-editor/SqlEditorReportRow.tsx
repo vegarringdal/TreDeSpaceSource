@@ -12,7 +12,7 @@ export function SqlEditorReportRow() {
       <Button
         disabled={running}
         shortcut="sql.editor.asTable"
-        tooltip="Run and show the result in the SQL Table panel"
+        tooltip="Run and show the result in the SQL Table panel. TREE_VIEW_ARGS is seeded from the last viewport pick (like Run and the color buttons), so a detail-style query can be checked here with the values it will really see"
         onClick={() => void act.asTable()}
       >
         As Table

@@ -46,6 +46,10 @@ per-sample edges, VBAO. Measured within 5-10% of the native Vulkan renderer.
   `PACKAGEVERSION` is the version currently in `package.json` (the entry is
   "after" that release). Several changes on one day share the date heading
   as separate lines. Write it in the same pass as the code.
+  **Read `package.json` and today's date at the moment you write the entry**
+  — the version is bumped often, so never copy the heading of the entry
+  above: reuse an existing heading only when BOTH its date and its version
+  still match; otherwise start a new heading on top.
 
 - **postMessage API — changing the SDK requires updating the docs.** When you
   add, rename, or change a command on `api/tredespace-client.ts` (the copy-paste

@@ -16,6 +16,8 @@ import { parseAttachPaths, splitSqlStatements, stripSqlComments } from '../../li
 import { buildReportStatements } from '../../lib/sqlite/sqlReport';
 import type { Statement } from '../../lib/sqlite/types';
 import { killHint } from '../sqlAssets/sqlKillHint';
+import { db } from '../viewer/db';
+import { getLastPick } from '../viewer/pickListeners';
 import { viewerActions } from '../viewer/viewer.actions';
 import { type ReportDef, type ReportType, sqlReportsState } from './sqlReports.state';
 
@@ -88,6 +90,13 @@ function attachSetup(sql: string): Statement[] {
     .map((s) => ({ sql: s, useStatementInLog: false }));
 }
 
+/** The last viewport pick's fullname hierarchy (root → leaf), or [] with no
+ *  pick — what TREE_VIEW_ARGS is seeded from for every non-DETAIL run. */
+export async function lastPickTree(): Promise<string[]> {
+  const pick = getLastPick();
+  return pick ? await db.itemFullnamePath(pick.model, pick.item) : [];
+}
+
 /** The last (collected) statement's result. */
 interface RunResult {
   columns: string[];
@@ -108,6 +117,10 @@ async function execReport(
     progress?: boolean;
   },
 ): Promise<RunResult> {
+  // TREE_VIEW_ARGS: DETAIL brings the clicked hierarchy; every other run
+  // gets the last viewport pick's, so As Table / the color buttons see the
+  // same table a detail query would
+  const tree = extra.tree ?? (await lastPickTree());
   const statements = buildReportStatements({
     filters: report.filters,
     sql: report.sql,
@@ -115,8 +128,14 @@ async function execReport(
     loadAll: extra.loadAll,
     hasColorColumn: extra.hasColorColumn,
     colorProbe: extra.colorProbe,
-    treeFullnames: extra.tree,
+    treeFullnames: tree,
   });
+  if (type !== 'DETAIL' && tree.length && !extra.colorProbe) {
+    consoleActions.log(
+      'info',
+      `SQL: ${report.name} — TREE_VIEW_ARGS seeded with ${tree.length} level(s) from the last pick`,
+    );
+  }
   // report.db may be '' (None) → an in-memory scratch main; every real db is in
   // report.databases (never contains ''), so additional = databases minus main.
   const additionalDbPaths = report.databases.filter((p) => p !== report.db);

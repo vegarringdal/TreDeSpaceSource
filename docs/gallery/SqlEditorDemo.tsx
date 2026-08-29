@@ -15,7 +15,7 @@ export function SqlEditorDemo() {
   return (
     <Section
       title="SqlCodeEditor"
-      note="A dependency-free SQL editor: a transparent textarea over a highlighted layer, with a line gutter. Tab indents, Ctrl/Cmd+Enter fires onRun, onSelect reports the caret selection so a host can run only the highlighted text. Height comes from className; resizable adds a drag handle."
+      note="A dependency-free SQL editor: a transparent textarea over a highlighted layer, with a line gutter. Tab / Shift+Tab indent and outdent the selected lines (caret: insert / remove one indent), Enter keeps the indentation, Ctrl/Cmd+Enter fires onRun, onSelect reports the caret selection so a host can run only the highlighted text. Height comes from className; resizable adds a drag handle."
       props={['SqlCodeEditorProps']}
       code={`function QueryEditor() {
   const [sql, setSql] = useState('SELECT 1;');

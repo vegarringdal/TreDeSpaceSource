@@ -532,7 +532,11 @@ Omitting a callback hides that capability (no `onMove` → no drag, etc.).
 
 ### SqlCodeEditor
 
-A lightweight SQL editor with syntax highlighting.
+A lightweight SQL editor with syntax highlighting and the usual editor keys:
+**Tab / Shift+Tab** indent and outdent the selected lines (with a caret, Tab
+inserts two spaces and Shift+Tab removes one indent from the line), **Enter**
+keeps the current line's indentation, **Ctrl/Cmd+Enter** fires `onRun`. Edits
+go through the browser's insert command, so **Ctrl+Z** undoes them like typing.
 
 ```tsx
 <SqlCodeEditor value={sql} onChange={setSql} onRun={run} resizable className="h-32" />

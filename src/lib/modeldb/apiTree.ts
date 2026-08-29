@@ -402,9 +402,11 @@ export const treeApi = {
     return path;
   },
 
-  /** The clicked item's fullname hierarchy, root→leaf — each ancestor entry's
-   *  full name (the same strings findEntriesByNames matches). Feeds the SQL
-   *  Detail panel's TREE_VIEW_ARGS so a report can key off any level. */
+  /** The item's row path as the Hierarchy panel shows it, top → leaf: the
+   *  model's import-folder segments first (each folder level is a row in the
+   *  tree; the store band is chrome and is NOT a level), then the entry
+   *  chain from the model root down to the item. This is what TREE_VIEW_ARGS
+   *  is built from, so a detail query can match on any level a user sees. */
   itemFullnamePath(model: number, item: number): string[] {
     const m = models[model];
     if (!m || m.removed) {
@@ -422,7 +424,8 @@ export const treeApi = {
       }
       e = m.hierarchy.entryParent[e];
     }
-    return names;
+    const folders = m.group.split('/').filter((seg) => seg.length > 0);
+    return [...folders, ...names];
   },
 
   /** Root→entry chain for a hierarchy entry (drives U/P nav from a tree click). */

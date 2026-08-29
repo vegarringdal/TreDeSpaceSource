@@ -4,6 +4,27 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.08.29** (>0.0.74):
+  SQL editor keys: Tab / Shift+Tab indent and outdent the selected lines (a
+  caret gets one indent inserted / removed on its line), Enter keeps the
+  current line's indentation; edits go through the browser's insert command so
+  Ctrl+Z undoes them like typing. (`@treDeSpaceUI` SqlCodeEditor — README and
+  gallery note updated.)
+  TREE_VIEW_ARGS now holds the FULL tree-view path: the import-folder levels
+  above the model (each folder row) as well as the entry chain, leaf first —
+  it used to start at the model root, skipping the folders. The store band is
+  chrome, not a level, and is not included.
+  Fix: SQL Detail kept running the PREVIOUS query after a new "As Detail"
+  from the SQL Editor (and after re-binding an edited saved report) — the
+  click subscription was keyed on the report id, which the editor reuses.
+  It now follows the bound report itself, clears the old fields, and re-runs
+  the last viewport pick immediately so the new query answers without
+  another click.
+  SQL Editor: As Table, Color White, Color Hidden and Color Set (and every
+  SQL Reports table/coloring run) now seed `TREE_VIEW_ARGS` from the last
+  viewport pick, exactly as Run and detail queries do — so a detail-style
+  query can be checked As Table with the values it will really see. The
+  Console notes how many levels were seeded.
 - **2026.08.29** (>0.0.72):
   Security: `?apiOrigins=` is no longer trusted blindly in a top-level window.
   Inside an iframe it works as before (storage partitioning means an embedder
@@ -18,7 +39,6 @@ version at release time. See CLAUDE.md for the rule.
   enabled/inverted flags, world-space min/max (axis-aligned envelope) and the
   exact center/size/rotation, so a host can load only the models that
   intersect it.
-- **2026.08.28** (>0.0.70):
   Hierarchy context menu: "Disable / Enable item edges on selected" — item-
   boundary edge lines off (or back on) per item, undoable like a hide, hotkeys
   ALT+802 / ALT+803. Only visible while Settings → Edges → item edges is on;
@@ -28,6 +48,7 @@ version at release time. See CLAUDE.md for the rule.
   Fix: after a viewport pick, collapsing a folder in the Hierarchy did
   nothing — the reveal had opened it under two keys (store-qualified and
   plain) and the chevron only removed one.
+- **2026.08.29** (>0.0.71):
   SQL coloring / selection results no longer exist as strings on the main
   thread: a COLORING run packs `fullname[, fullname_color]` in the SQL worker
   into flat buffers (one UTF-8 blob + offsets + per-row color/opacity,
@@ -41,6 +62,7 @@ version at release time. See CLAUDE.md for the rule.
   `sql.query` apply `maxRows` inside the worker (rows past the cap are never
   kept; `rowCount` still reports the true total), and uncollected statements
   no longer keep their rows at all.
+- **2026.08.28** (>0.0.71):
   Stats overlay: the viewport overlay is now the SAME list as Settings → Stats
   (label/value lines, GPU pass times as a second block) instead of a terse
   summary line; each row in the Stats readout has a checkbox that leaves it out

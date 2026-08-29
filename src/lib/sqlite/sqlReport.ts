@@ -51,13 +51,18 @@ export interface BuildOpts {
    *  of the coloring select — the collected result is the query's column names,
    *  which decides whether the real run includes `fullname_color`. */
   colorProbe?: boolean;
-  /** DETAIL only: the clicked item's fullname hierarchy → TREE_VIEW_ARGS. */
+  /** The fullname hierarchy → TREE_VIEW_ARGS. DETAIL passes the clicked
+   *  item's; every other run type seeds it from the LAST viewport pick, so a
+   *  query can be checked As Table / colored with the same table a detail
+   *  run would see. Omitted/empty = no table. */
   treeFullnames?: string[];
 }
 
-/** DROP/CREATE TEMP TABLE TREE_VIEW_ARGS(FULLNAME) + inserts for a fullname
- *  hierarchy. Shared by DETAIL runs and the SQL Editor (which seeds it from the
- *  last viewport click so you can test it without re-clicking).
+/** DROP/CREATE TEMP TABLE TREE_VIEW_ARGS(FULLNAME) + inserts for a tree-view
+ *  path — the import-folder levels above the model AND the entry chain, i.e.
+ *  every row the Hierarchy panel shows above the item (the store band is not
+ *  a level). Shared by DETAIL runs and the SQL Editor / report runs (seeded
+ *  from the last viewport click so you can test without re-clicking).
  *
  *  Rows go in LOWEST level first — the clicked item, then its parent, up to
  *  the root — because that is the order a detail query wants to read them
@@ -89,8 +94,9 @@ export function buildReportStatements(o: BuildOpts): Statement[] {
     out.push({ sql: 'INSERT INTO FILTER_ARGS(k, v) VALUES (?, ?)', binding: rows, useStatementInLog: false });
   }
 
-  // TREE_VIEW_ARGS (detail only)
-  if (o.type === 'DETAIL') {
+  // TREE_VIEW_ARGS — DETAIL always (its clicked hierarchy, possibly empty);
+  // any other type when a hierarchy was supplied (the last viewport pick)
+  if (o.type === 'DETAIL' || o.treeFullnames?.length) {
     out.push(...treeViewArgsStatements(o.treeFullnames ?? []));
   }
 

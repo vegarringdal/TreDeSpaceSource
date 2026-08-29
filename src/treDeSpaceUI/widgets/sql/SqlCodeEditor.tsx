@@ -1,9 +1,27 @@
 import { useLayoutEffect, useRef } from 'react';
 import { cn } from '../../lib/cn';
+import { indentSelection, newlineKeepIndent, outdentSelection, type TextEdit } from './sqlEditKeys';
 import { EDITOR_TEXT, highlightSql } from './sqlHighlight';
 
 // A small SQL code editor with no dependencies: a transparent <textarea> sits
 // exactly on top of a highlighted <pre>, and a gutter counts the lines.
+// Editor keys: Tab / Shift+Tab indent and outdent the selected lines, Enter
+// keeps the indentation, Ctrl/Cmd+Enter runs.
+
+/** Apply a text edit through the browser's own insert command so it lands on
+ *  the textarea's native undo stack (Ctrl+Z still works); falls back to
+ *  setRangeText where execCommand is unavailable. */
+function applyEdit(ta: HTMLTextAreaElement, edit: TextEdit, onChange: (v: string) => void): void {
+  ta.setSelectionRange(edit.replaceStart, edit.replaceEnd);
+  const inserted = typeof document.execCommand === 'function' && document.execCommand('insertText', false, edit.text);
+  if (!inserted) {
+    ta.setRangeText(edit.text, edit.replaceStart, edit.replaceEnd, 'end');
+    onChange(ta.value);
+  }
+  // synchronously — the DOM value is already updated, and a deferred restore
+  // would jump the caret back under keys typed in the meantime
+  ta.setSelectionRange(edit.selStart, edit.selEnd);
+}
 
 export interface SqlCodeEditorProps {
   value: string;
@@ -79,16 +97,24 @@ export function SqlCodeEditor({ value, onChange, onRun, onSelect, resizable, cla
           onScroll={syncScroll}
           onSelect={(e) => onSelect?.(e.currentTarget.selectionStart, e.currentTarget.selectionEnd)}
           onKeyDown={(e) => {
+            const ta = e.currentTarget;
+            const { selectionStart: a, selectionEnd: b } = ta;
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
               e.preventDefault();
               onRun?.();
+              return;
+            }
+            if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+              e.preventDefault();
+              applyEdit(ta, newlineKeepIndent(ta.value, a, b), onChange);
+              return;
             }
             if (e.key === 'Tab') {
               e.preventDefault();
-              const ta = e.currentTarget;
-              const { selectionStart: a, selectionEnd: b } = ta;
-              onChange(`${value.slice(0, a)}  ${value.slice(b)}`);
-              requestAnimationFrame(() => ta.setSelectionRange(a + 2, a + 2));
+              const edit = e.shiftKey ? outdentSelection(ta.value, a, b) : indentSelection(ta.value, a, b);
+              if (edit) {
+                applyEdit(ta, edit, onChange);
+              }
             }
           }}
           className={cn(

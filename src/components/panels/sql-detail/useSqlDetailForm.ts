@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { sqlReportsActions } from '../../../state/sqlReports/sqlReports.actions';
 import type { ReportDef } from '../../../state/sqlReports/sqlReports.state';
 import { db } from '../../../state/viewer/db';
-import { onViewportPick } from '../../../state/viewer/pickListeners';
+import { getLastPick, onViewportPick } from '../../../state/viewer/pickListeners';
 
 type DetailField = Readonly<{ col: string; val: unknown; key: string }>;
 
@@ -29,32 +29,49 @@ export function useSqlDetailForm(report: ReportDef | null): SqlDetailForm {
   const [filter, setFilter] = useState('');
   const [hideEmpty, setHideEmpty] = useState(true);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-subscribe when the bound report OR listening changes
+  // (Re)bind: follow the report OBJECT, not its id — the SQL Editor binds a
+  // fresh report under the same id ('__editor__') every time, and a saved
+  // report re-bound after an edit is a new object too; keying on the id kept
+  // the click handler running the OLD SQL. Rebinding also re-runs the last
+  // pick right away, so the new query answers without another click.
   useEffect(() => {
+    setForm(null);
+    setStatus('');
     if (!report || !listening) {
       return;
     }
-    return onViewportPick(({ model, item }) => {
-      void (async () => {
-        const tree = await db.itemFullnamePath(model, item);
-        if (!tree.length) {
-          return;
-        }
-        setStatus('running…');
-        const res = await sqlReportsActions.runDetail(report, tree);
-        if (res.error) {
-          setStatus(res.error);
-          setForm(null);
-        } else if (res.rows.length) {
-          setForm({ columns: res.columns, row: res.rows[0] });
-          setStatus('');
-        } else {
-          setForm(null);
-          setStatus('no match');
-        }
-      })();
-    });
-  }, [report?.id, listening]);
+    let alive = true;
+    const runFor = async (model: number, item: number) => {
+      const tree = await db.itemFullnamePath(model, item);
+      if (!tree.length || !alive) {
+        return;
+      }
+      setStatus('running…');
+      const res = await sqlReportsActions.runDetail(report, tree);
+      if (!alive) {
+        return;
+      }
+      if (res.error) {
+        setStatus(res.error);
+        setForm(null);
+      } else if (res.rows.length) {
+        setForm({ columns: res.columns, row: res.rows[0] });
+        setStatus('');
+      } else {
+        setForm(null);
+        setStatus('no match');
+      }
+    };
+    const last = getLastPick();
+    if (last) {
+      void runFor(last.model, last.item);
+    }
+    const off = onViewportPick(({ model, item }) => void runFor(model, item));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [report, listening]);
 
   // fields in SELECT order, with the current filter + hide-empty applied
   const fields = useMemo(() => {

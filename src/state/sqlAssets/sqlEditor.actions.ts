@@ -13,10 +13,8 @@ import { openSqlTablePanel } from '../../components/panels/sql-table/sqlTablePan
 import { killSqliteWorker, sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements } from '../../lib/sqlite/sqlAttach';
 import { treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
-import { sqlReportsActions } from '../sqlReports/sqlReports.actions';
+import { lastPickTree, sqlReportsActions } from '../sqlReports/sqlReports.actions';
 import type { ReportDef } from '../sqlReports/sqlReports.state';
-import { db } from '../viewer/db';
-import { getLastPick } from '../viewer/pickListeners';
 import { sqlEditorState } from './sqlEditor.state';
 import { killHint } from './sqlKillHint';
 
@@ -92,8 +90,7 @@ export const sqlEditorActions = {
 
     // Seed TREE_VIEW_ARGS from the last viewport click so a query can read it
     // (e.g. testing a detail SELECT) without clicking the model again.
-    const pick = getLastPick();
-    const tree = pick ? await db.itemFullnamePath(pick.model, pick.item) : [];
+    const tree = await lastPickTree();
     const setup = tree.length ? treeViewArgsStatements(tree) : [];
 
     const additionalDbPaths = parseAttachPaths(sql).filter((p) => p !== s.mainDbPath);
