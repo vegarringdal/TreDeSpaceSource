@@ -66,10 +66,12 @@ function parseStatement(v: unknown, i: number): Statement {
 
 /** Rows capped per statement, with the pre-cut count kept — shared by
  *  `sql.query` and `sql.execute`. */
-function capRows(rowsUnknown: unknown, maxRows: number) {
+/** The worker already kept at most `maxRows` (Statement.maxRows); `rowCount`
+ *  is what the statement really returned. */
+function capRows(rowsUnknown: unknown, rowCount: number | undefined) {
   const rows = (rowsUnknown ?? []) as unknown[];
-  const truncated = rows.length > maxRows;
-  return { rows: truncated ? rows.slice(0, maxRows) : rows, rowCount: rows.length, truncated };
+  const total = rowCount ?? rows.length;
+  return { rows, rowCount: total, truncated: total > rows.length };
 }
 
 export const sqlHandlers: Record<string, ApiHandler> = {
@@ -214,14 +216,20 @@ export const sqlHandlers: Record<string, ApiHandler> = {
       : undefined;
 
     const result = await sqliteClient().execute(
-      sqlOptions({ mainDbPath, additionalDbPaths, lockmode, statements, progressSize }),
+      sqlOptions({
+        mainDbPath,
+        additionalDbPaths,
+        lockmode,
+        statements: statements.map((st) => (st.collect ? { ...st, maxRows } : st)),
+        progressSize,
+      }),
       onProgress,
     );
     if (result.err) {
       throw new ApiError('internal', result.err.msg);
     }
     const out = statements.map((st, i) => {
-      const { rows, rowCount, truncated } = capRows(result.data?.[i], maxRows);
+      const { rows, rowCount, truncated } = capRows(result.data?.[i], result.rowCounts?.[i]);
       return {
         ...(st.name ? { name: st.name } : {}),
         columns: result.columns[i] ?? null,
@@ -259,14 +267,14 @@ export const sqlHandlers: Record<string, ApiHandler> = {
         mainDbPath,
         additionalDbPaths,
         lockmode,
-        statements: statements.map((s) => ({ sql: s, collect: true })),
+        statements: statements.map((s) => ({ sql: s, collect: true, maxRows })),
       }),
     );
     if (result.err) {
       throw new ApiError('internal', result.err.msg);
     }
     const out = (result.data ?? []).map((rowsUnknown, i) => {
-      const { rows, rowCount, truncated } = capRows(rowsUnknown, maxRows);
+      const { rows, rowCount, truncated } = capRows(rowsUnknown, result.rowCounts?.[i]);
       return {
         columns: result.columns[i] ?? null,
         rows,

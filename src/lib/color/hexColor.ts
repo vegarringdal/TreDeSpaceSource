@@ -41,3 +41,24 @@ export function parseColor(token: string): number | null {
   }
   return packHex(hex);
 }
+
+/** `color[:opacity]` token as the two-column Multi filter and a COLORING
+ *  report's `fullname_color` cell write it: `yellow`, `#ff0000:50`,
+ *  `default:` — opacity 0-100, omitted/blank = 100 (reported as undefined).
+ *  null when the color part does not parse. */
+export function parseColorToken(token: string): { color: number; opacity?: number } | null {
+  const t = token.trim();
+  // hex/name never contain ':', so the split is safe
+  const ci = t.indexOf(':');
+  const colorPart = ci === -1 ? t : t.slice(0, ci);
+  const opPart = ci === -1 ? '' : t.slice(ci + 1).trim();
+  const color = parseColor(colorPart);
+  if (color == null) {
+    return null;
+  }
+  const op = opPart === '' ? 100 : Number(opPart);
+  if (Number.isFinite(op) && op < 100) {
+    return { color, opacity: Math.max(0, Math.round(op)) };
+  }
+  return { color };
+}

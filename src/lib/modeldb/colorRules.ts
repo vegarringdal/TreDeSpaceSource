@@ -3,6 +3,7 @@
 // apiColor — the selection-based override actions live there; the shared
 // STATE undo stack lives in colorUndo.
 
+import { PACKED_NO_COLOR, PACKED_NO_OPACITY, type PackedNames, packedName } from '../color/packedNames';
 import { type ColorUndoRecord, captureColorRuns, pushColorUndo } from './colorUndo';
 import {
   type DbModel,
@@ -31,9 +32,14 @@ export interface ColorRuleSpec {
   filters: {
     op: 'append' | 'remove';
     /** contains | single (equals, * at start/end) | starts | ends |
-     *  wildcard (equals, * anywhere) | multi (one name per line) */
-    mode: 'contains' | 'single' | 'multi' | 'starts' | 'ends' | 'wildcard';
+     *  wildcard (equals, * anywhere) | multi (one name per line) |
+     *  packed (a PackedNames buffer set in `packed`; `value` unused) */
+    mode: 'contains' | 'single' | 'multi' | 'starts' | 'ends' | 'wildcard' | 'packed';
     value: string;
+    /** `packed` mode: the flat fullname list with per-row color/opacity — a
+     *  big SQL result. Semantically one Multi filter + perNameColor /
+     *  perNameOpacity, without any of it existing as strings or Records. */
+    packed?: PackedNames;
     /** Hierarchy level the filter is applied TO: the row matches only the
      *  NAMES at that level, and each match includes its whole subtree.
      *  Levels count like the tree panel — import-folder segments included,
@@ -104,7 +110,81 @@ export function applyColorRules(
   //   names[] → multi paste: resolve each via the model's nameIndex (O(tags));
   //             keeps the raw name set for folder-level tests
   //   fn      → contains/equals wildcard: must scan entries
-  type Matcher = 'all' | { byModel: Map<number, number[]>; names: Set<string> } | { fn: (n: string) => boolean } | null;
+  type PerName = Map<number, [number, number][]>;
+  type Matcher =
+    | 'all'
+    | { byModel: Map<number, number[]>; names: Set<string>; perColor?: PerName; perOpacity?: PerName }
+    | { fn: (n: string) => boolean }
+    | null;
+  /** Union per-model [entry, value] lists (packed filters add theirs to the
+   *  rule's perNameColor/perNameOpacity). Later entries win in the flood. */
+  const mergePerName = (into: PerName | null, add: PerName | undefined): PerName | null => {
+    if (!add) {
+      return into;
+    }
+    if (!into) {
+      return add;
+    }
+    for (const [mi, list] of add) {
+      const cur = into.get(mi);
+      if (!cur) {
+        into.set(mi, list);
+        continue;
+      }
+      for (const pair of list) {
+        cur.push(pair);
+      }
+    }
+    return into;
+  };
+  /** A packed list: decode each name ONCE, straight into per-model entry
+   *  lists (+ per-row color/opacity) — nothing per row is kept. The name Set
+   *  (folder-level tests) is only built when the row targets a level. */
+  const packedMatcher = (p: PackedNames, level: number): Matcher => {
+    if (!p.count) {
+      return null;
+    }
+    const byModel = new Map<number, number[]>();
+    const perColor: PerName = new Map();
+    const perOpacity: PerName = new Map();
+    const names = new Set<string>();
+    const decoder = new TextDecoder();
+    for (let i = 0; i < p.count; i++) {
+      const name = packedName(p, i, decoder);
+      if (level > 0) {
+        names.add(name);
+      }
+      const c = p.colors[i];
+      const o = p.opacity[i];
+      liveHits(name, (h) => {
+        const mi = hitModel(h);
+        const e = hitEntry(h);
+        const list = byModel.get(mi);
+        if (list) {
+          list.push(e);
+        } else {
+          byModel.set(mi, [e]);
+        }
+        if (c !== PACKED_NO_COLOR) {
+          const l = perColor.get(mi);
+          if (l) {
+            l.push([e, c]);
+          } else {
+            perColor.set(mi, [[e, c]]);
+          }
+        }
+        if (o !== PACKED_NO_OPACITY) {
+          const l = perOpacity.get(mi);
+          if (l) {
+            l.push([e, o]);
+          } else {
+            perOpacity.set(mi, [[e, o]]);
+          }
+        }
+      });
+    }
+    return { byModel, names, perColor, perOpacity };
+  };
   /** Resolve names ONCE via the global index into per-model entry lists —
    *  O(names) total instead of O(names × models). */
   const resolveNames = (names: string[]): Map<number, number[]> => {
@@ -139,6 +219,9 @@ export function applyColorRules(
     return byModel;
   };
   const rowMatcher = (row: ColorRuleSpec['filters'][number]): Matcher => {
+    if (row.mode === 'packed') {
+      return row.packed ? packedMatcher(row.packed, row.level ?? 0) : null;
+    }
     if (row.mode === 'multi') {
       const names = row.value
         .split(/\r?\n/)
@@ -244,9 +327,16 @@ export function applyColorRules(
       }
       return 'byModel' in mt ? mt.names.has(segName) : mt.fn(segName);
     };
-    // per-name colour/opacity resolved ONCE globally → per-model [entry, value]
-    const perColor = rule.perNameColor ? resolvePerName(rule.perNameColor) : null;
-    const perOpacity = rule.perNameOpacity ? resolvePerName(rule.perNameOpacity) : null;
+    // per-name colour/opacity resolved ONCE globally → per-model [entry, value];
+    // packed filters bring theirs pre-resolved
+    let perColor = rule.perNameColor ? resolvePerName(rule.perNameColor) : null;
+    let perOpacity = rule.perNameOpacity ? resolvePerName(rule.perNameOpacity) : null;
+    for (const { m: mt } of matchers) {
+      if (mt && mt !== 'all' && 'byModel' in mt) {
+        perColor = mergePerName(perColor, mt.perColor);
+        perOpacity = mergePerName(perOpacity, mt.perOpacity);
+      }
+    }
     const allowed = rule.models ? new Set(rule.models) : null;
 
     models.forEach((m, idx) => {
@@ -326,8 +416,8 @@ export function applyColorRules(
 
         // own per-name values (pre-resolved per model), then flood down
         const sProp = acc ? clk() : 0;
-        const col = rule.perNameColor ? new Float64Array(n).fill(NONE) : null;
-        const opa = rule.perNameOpacity ? new Int16Array(n).fill(NONE) : null;
+        const col = perColor ? new Float64Array(n).fill(NONE) : null;
+        const opa = perOpacity ? new Int16Array(n).fill(NONE) : null;
         if (col && perColor) {
           for (const [e, c] of perColor.get(idx) ?? []) {
             col[e] = c;
@@ -479,8 +569,8 @@ export function applyColorRules(
         return;
       }
       const sPerName = acc ? clk() : 0;
-      const itemColor = rule.perNameColor ? new Map<number, number>() : null;
-      const itemOpacity = rule.perNameOpacity ? new Map<number, number>() : null;
+      const itemColor = perColor ? new Map<number, number>() : null;
+      const itemOpacity = perOpacity ? new Map<number, number>() : null;
       if (itemColor && perColor) {
         for (const [e, c] of perColor.get(idx) ?? []) {
           for (const it of itemsUnder(m, e)) {

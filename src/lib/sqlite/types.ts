@@ -1,3 +1,5 @@
+import type { PackedNames } from '../color/packedNames';
+
 export type ProgressCallback = (type: 'STATEMENT' | 'ROW', no: number, total: number | null) => void;
 
 export type SqlExecuteOption = {
@@ -83,9 +85,19 @@ export type Statement = {
    */
   binding?: (string | number)[][];
   /**
-   * if you need to collect results
+   * if you need to collect results. `'packedNames'` collects a
+   * `fullname[, color]` projection into ONE flat PackedNames buffer set
+   * (lowercased names, per-row color/opacity) instead of row arrays —
+   * the memory-flat form the coloring / selection consumers take.
    */
-  collect?: boolean;
+  collect?: boolean | 'packedNames';
+  /**
+   * stop KEEPING rows past this many (the statement still runs to the end and
+   * the true count is reported in `rowCounts`) — a cap applied in the worker so
+   * a huge result is never materialised just to be sliced on the main thread.
+   * Ignored for 'packedNames'.
+   */
+  maxRows?: number;
 };
 
 export type WorkerMessageEvent =
@@ -122,6 +134,12 @@ export type resolveFN = (value: unknown) => void;
 
 export type SqlWorkerResult = {
   data: unknown[] | null;
+  /** parallel to `data`: the PackedNames of a `collect: 'packedNames'`
+   *  statement (its `data` slot is an empty array), else null */
+  packed?: (PackedNames | null)[];
+  /** parallel to `data`: rows the statement RETURNED (≥ rows kept when
+   *  `maxRows` capped them) */
+  rowCounts?: number[];
   /** Column names per collected statement, parallel to `data` (null when that
    *  statement returned no rows / wasn't a query). Rows themselves stay compact
    *  value arrays — the column list is what the Table grid and Detail form

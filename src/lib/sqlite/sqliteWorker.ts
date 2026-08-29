@@ -2,6 +2,7 @@
 // with one behavioural fix: files are keyed by their FULL OPFS path so nested
 // paths (sql_assets/<store>/<db>) work — see SyncOpfsVfs.
 import sqlite3InitModule, { type Database, type Sqlite3Static } from '@sqlite.org/sqlite-wasm';
+import { type PackedNames, PackedNamesBuilder, packedTransferables } from '../color/packedNames';
 import { LogCollector } from './LogCollector';
 import { type FileMap, SyncOpfsVfs } from './SyncOpfsVfs';
 import type { ProgressCallback, SqlExecuteOption, SqlWorkerResult, WorkerMessageEvent } from './types';
@@ -11,8 +12,10 @@ import type { ProgressCallback, SqlExecuteOption, SqlWorkerResult, WorkerMessage
  */
 let sqlite3: Sqlite3Static | null = null;
 
-/** postMessage, typed against the worker protocol. */
-const post = (msg: WorkerMessageEvent): void => globalThis.postMessage(msg);
+/** postMessage, typed against the worker protocol; `transfer` moves buffers
+ *  (a packed result) instead of cloning them. */
+const post = (msg: WorkerMessageEvent, transfer: Transferable[] = []): void =>
+  globalThis.postMessage(msg, { transfer });
 
 // supress internal logs
 (globalThis as Record<string, unknown>).sqlite3ApiConfig = {
@@ -161,11 +164,14 @@ globalThis.onmessage = async (e) => {
         type: 'PROGRESS',
       });
     });
-    post({
-      id: data.id,
-      result,
-      type: 'RESULT',
-    });
+    post(
+      {
+        id: data.id,
+        result,
+        type: 'RESULT',
+      },
+      (result.packed ?? []).flatMap((p) => (p ? packedTransferables(p) : [])),
+    );
   }
 };
 
@@ -208,6 +214,8 @@ async function execute(
 
   let err: SqlWorkerResult['err'] = null;
   const statementResults: unknown[] = [];
+  const statementPacked: (PackedNames | null)[] = [];
+  const rowCounts: number[] = [];
   const statementColumns: (string[] | null)[] = [];
 
   try {
@@ -319,6 +327,21 @@ async function execute(
       const statement = options.statements[i];
       const binding = statement.binding || [];
       let rowno = 0;
+      // where a collected row goes: the packed builder (fullname[, color] →
+      // flat buffers, never a row array), or the row list up to `maxRows`;
+      // an uncollected statement keeps nothing
+      const packed = statement.collect === 'packedNames' ? new PackedNamesBuilder() : null;
+      const maxRows = packed ? Infinity : (statement.maxRows ?? Infinity);
+      const keep = (row: unknown): void => {
+        if (packed) {
+          const r = Array.isArray(row) ? row : [row];
+          packed.pushWithToken(String(r[0] ?? ''), r.length > 1 && r[1] != null ? String(r[1]) : null);
+          return;
+        }
+        if (statement.collect && statementResult.length < maxRows) {
+          statementResult.push(row);
+        }
+      };
       // column names for THIS statement (filled by the collecting paths below)
       let columnNames: string[] | null = null;
 
@@ -340,7 +363,7 @@ async function execute(
               if (!columnNames) {
                 columnNames = stmt.getColumnNames([]);
               }
-              statementResult.push(stmt.get([]));
+              keep(stmt.get([]));
             }
             progressCallback('ROW', rowno, null);
             rowno++;
@@ -351,7 +374,7 @@ async function execute(
               if (!columnNames) {
                 columnNames = stmt.getColumnNames([]);
               }
-              statementResult.push(stmt.get([]));
+              keep(stmt.get([]));
             }
             progressCallback('ROW', rowno, null);
             rowno++;
@@ -371,7 +394,7 @@ async function execute(
           returnValue: 'resultRows',
           columnNames: cols,
           callback: (row) => {
-            statementResult.push(row);
+            keep(row);
             progressCallback('ROW', rowno, null);
             rowno++;
           },
@@ -385,6 +408,8 @@ async function execute(
 
       statementResults.push(statementResult);
       statementColumns.push(columnNames);
+      statementPacked.push(packed ? packed.finish() : null);
+      rowCounts.push(rowno);
 
       logger.log(`Statement done  ${i.toString().padStart(3, '0')}`);
     }
@@ -452,6 +477,8 @@ async function execute(
   return {
     data: err ? null : statementResults,
     columns: err ? [] : statementColumns,
+    packed: err ? [] : statementPacked,
+    rowCounts: err ? [] : rowCounts,
     logs: loggerResult.logs,
     transferedLogtime: logger.transferAbsoluteLogTimes(),
     err,

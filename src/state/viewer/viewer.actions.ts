@@ -1,6 +1,7 @@
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
 import { quickColorsState } from '../../components/panels/quick-colors/quickColors.state';
+import type { PackedNames } from '../../lib/color/packedNames';
 import type { ColorRuleSpec, StateUpdate } from '../../lib/modeldb/modeldbWorker';
 import type { Renderer } from '../../lib/render/renderer';
 import { startTrace, traceEnabled } from '../../lib/trace';
@@ -385,6 +386,31 @@ export const viewerActions = {
     });
     await refreshSelectionMeta({ model: first.model, entry: first.entry });
     return { matched: hits.length, missed };
+  },
+
+  /** selectByFullnames for a packed list (a big SQL result): the names never
+   *  exist as strings on the main thread — the worker resolves and selects
+   *  them and hands back flat (model, entry) pairs for the tree highlight. */
+  async selectByPacked(p: PackedNames): Promise<{ matched: number; missed: number }> {
+    const r = await db.selectPacked(p);
+    applyStateUpdates(r.updates);
+    if (r.matched === 0) {
+      return { matched: 0, missed: r.missed };
+    }
+    viewerState.set({ suppressTintOnOverride: false });
+    const actives: string[] = new Array(r.matched);
+    for (let i = 0; i < r.matched; i++) {
+      actives[i] = `${r.pairs[i * 2]}:${r.pairs[i * 2 + 1]}`;
+    }
+    const first = { model: r.pairs[0], entry: r.pairs[1] };
+    selectionState.set({
+      activeGroup: null,
+      activeGroups: [],
+      actives,
+      reveal: { model: first.model, path: await db.pathForEntry(first.model, first.entry) },
+    });
+    await refreshSelectionMeta(first);
+    return { matched: r.matched, missed: r.missed };
   },
 
   /** Ctrl+click: toggle a subtree in/out of the selection. */

@@ -1,13 +1,14 @@
 import { IconChevronDown, IconChevronRight, IconPencil } from '@tabler/icons-react';
 import { Button } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
+import type { PackedNames } from '../../../lib/color/packedNames';
 import { richTextHtml } from '../../../lib/richText';
 import { sqlReportsActions as act } from '../../../state/sqlReports/sqlReports.actions';
 import { type ReportDef, sqlReportsState } from '../../../state/sqlReports/sqlReports.state';
 import { ColorApplyBox } from './ColorApplyBox';
 import { ReportFilterInput } from './ReportFilterInput';
 import { ReportRunButtons } from './ReportRunButtons';
-import { type ColorRow, seedVals, stringOr, stringsOr } from './reportValues';
+import { seedVals, stringOr, stringsOr } from './reportValues';
 
 /** One saved report in run mode: collapsible header, description, run-time
  *  filter inputs (ephemeral — defaults come from the report) and the per-type
@@ -17,7 +18,7 @@ export function ReportRow({ report }: { report: ReportDef }) {
   const open = openId === report.id;
   // ephemeral filter values (defaults come from the report; not persisted per keystroke)
   const [vals, setVals] = useState<Record<string, string | string[]>>(() => seedVals(report.filters));
-  const [colorRows, setColorRows] = useState<ColorRow[] | null>(null);
+  const [colorRows, setColorRows] = useState<PackedNames | null>(null);
 
   const effective: ReportDef = {
     ...report,

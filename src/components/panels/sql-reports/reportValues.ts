@@ -1,7 +1,6 @@
 import type { ReportFilter } from '../../../state/sqlReports/sqlReports.state';
 
 /** One row of a COLORING result, ready to hand to the color actions. */
-export type ColorRow = { fullname: string; color: string };
 
 // -----------------------------------------------------------------------------
 // run-time filter values

@@ -7,6 +7,9 @@ import { consoleActions } from '../../components/panels/console/console.actions'
 import { ruleToSpec } from '../../components/panels/multi-color/multiColor.actions';
 import { type ColorRule, multiColorState } from '../../components/panels/multi-color/multiColor.state';
 import { setTablePayload } from '../../components/panels/sql-table/sqlTablePanel';
+import { parseColor } from '../../lib/color/hexColor';
+import type { PackedNames } from '../../lib/color/packedNames';
+import type { ColorRuleSpec } from '../../lib/modeldb/modeldbWorker';
 import { readJson, sqlStoreDir, writeJson } from '../../lib/opfs/opfs';
 import { sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements, stripSqlComments } from '../../lib/sqlite/sqlAttach';
@@ -29,26 +32,24 @@ function everythingRule(o: { color: string | null; opacity: number }): ColorRule
   };
 }
 
-/** The sql result as ONE appended Multi rule: `fullname\tcolor` per line, so
- *  ruleToSpec lifts the per-row colors/opacity exactly as a manual Multi paste. */
-function resultRule(rows: { fullname: string; color: string }[]): ColorRule {
-  const value = rows.map((r) => `${r.fullname}\t${r.color}`).join('\n');
+/** The sql result as ONE appended rule: a `packed` filter carrying the flat
+ *  fullname list with its per-row colors/opacity. Rows without a color get
+ *  the rule color — yellow, as the two-column Multi paste defaults. The
+ *  worker reads it exactly like a Multi filter + perNameColor, minus the
+ *  strings. */
+function packedSpec(p: PackedNames): ColorRuleSpec {
   return {
-    comment: 'sql result',
-    enabled: true,
-    filters: [{ op: 'append', mode: 'multi', value, comment: '', level: 0 }],
-    color: null,
-    opacity: 1,
-    store: '',
+    filters: [{ op: 'append', mode: 'packed', value: '', packed: p, level: 0 }],
+    colorRGBA8: parseColor('yellow'),
+    opacityPct: null,
   };
 }
 
-/** Run a LOCAL (unsaved) Set Color config the same way the panel's Run does:
- *  enabled rules → ruleToSpec → applyColorRules (reset clears overrides first,
- *  append layers). Behind the "please wait" dialog. Never touches panel state. */
-async function runColorConfig(label: string, config: { mode: 'reset' | 'append' | 'hide'; rules: ColorRule[] }) {
-  const specs = config.rules.filter((r) => r.enabled).map(ruleToSpec);
-  await timedColor(label, () => viewerActions.applyColorRules(specs, config.mode));
+/** Run LOCAL (unsaved) rule specs the same way the panel's Run does:
+ *  applyColorRules (reset clears overrides first, append layers). Behind the
+ *  "please wait" dialog. Never touches panel state. */
+async function runColorSpecs(label: string, specs: ColorRuleSpec[], mode: 'reset' | 'append' | 'hide') {
+  await timedColor(label, () => viewerActions.applyColorRules(specs, mode));
 }
 
 /** Run a coloring apply behind a "please wait" dialog and log how long it took
@@ -91,6 +92,8 @@ function attachSetup(sql: string): Statement[] {
 interface RunResult {
   columns: string[];
   rows: unknown[][];
+  /** the flat fullname list when the statement collected `packedNames` */
+  packed: PackedNames | null;
   error?: string;
 }
 
@@ -151,12 +154,13 @@ async function execReport(
 function finishExec(result: Awaited<ReturnType<ReturnType<typeof sqliteClient>['execute']>>, _ms: number): RunResult {
   if (result.err) {
     const detail = result.err.err instanceof Error ? result.err.err.message : String(result.err.err ?? '');
-    return { columns: [], rows: [], error: `${result.err.msg}${detail ? ` — ${detail}` : ''}` };
+    return { columns: [], rows: [], packed: null, error: `${result.err.msg}${detail ? ` — ${detail}` : ''}` };
   }
   const last = (result.data?.length ?? 0) - 1;
   const rows = (last >= 0 ? (result.data?.[last] as unknown[][]) : []) ?? [];
   const columns = (last >= 0 ? result.columns?.[last] : null) ?? [];
-  return { columns, rows };
+  const packed = (last >= 0 ? result.packed?.[last] : null) ?? null;
+  return { columns, rows, packed };
 }
 
 export const sqlReportsActions = {
@@ -270,11 +274,12 @@ export const sqlReportsActions = {
     }
   },
 
-  /** COLORING: run and return the {fullname, color} rows for the color buttons.
-   *  A cheap column probe (temp view + pragma) runs first so the real query
-   *  projects `fullname, fullname_color` only when the color column exists —
-   *  never `SELECT *` — and a query without it (or a NULL cell) defaults to yellow. */
-  async runColoring(report: ReportDef): Promise<{ fullname: string; color: string }[] | null> {
+  /** COLORING: run and return the result as a PackedNames list for the color
+   *  buttons — the rows never exist as strings here. A cheap column probe
+   *  (temp view + pragma) runs first so the real query projects
+   *  `fullname, fullname_color` only when the color column exists — never
+   *  `SELECT *` — and a query without it (or a NULL cell) defaults to yellow. */
+  async runColoring(report: ReportDef): Promise<PackedNames | null> {
     sqlReportsState.set({ busy: true });
     try {
       // 1) probe the query's output columns (temp view + pragma_table_info)
@@ -290,24 +295,18 @@ export const sqlReportsActions = {
       }
       const hasColorColumn = cols.includes('fullname_color');
 
-      // 2) run for real, projecting fullname[, fullname_color] per the probe
+      // 2) run for real, projecting fullname[, fullname_color] per the probe —
+      // the worker packs them straight into flat buffers
       const res = await execReport(report, 'COLORING', { hasColorColumn, progress: true });
       if (res.error) {
         dialogs.error(res.error, 'Report failed');
         return null;
       }
-      const nameIdx = res.columns.findIndex((c) => c.toLowerCase() === 'fullname');
-      const colorIdx = res.columns.findIndex((c) => c.toLowerCase() === 'fullname_color');
-      if (nameIdx === -1) {
-        dialogs.error('The coloring query must return a "fullname" column.', 'Report failed');
+      if (!res.packed) {
+        dialogs.error('The coloring query returned no packed result.', 'Report failed');
         return null;
       }
-      return res.rows
-        .map((r) => {
-          const raw = colorIdx === -1 ? '' : String(r[colorIdx] ?? '');
-          return { fullname: String(r[nameIdx] ?? ''), color: raw.trim() || 'yellow' };
-        })
-        .filter((r) => r.fullname);
+      return res.packed;
     } finally {
       sqlReportsState.set({ busy: false });
     }
@@ -333,48 +332,47 @@ export const sqlReportsActions = {
   // applyColorRules). The panel's own state is never touched.
 
   /** White base coat + the result as a colored highlight. Fresh reset-mode
-   *  config: rule 1 appends white (opacity 1) over everything, rule 2 appends
-   *  the result as a per-row Multi. */
-  async colorWhite(rows: { fullname: string; color: string }[]) {
-    if (!rows.length) {
+   *  run: rule 1 appends white (opacity 1) over everything, rule 2 appends
+   *  the packed result. */
+  async colorWhite(p: PackedNames) {
+    if (!p.count) {
       return;
     }
-    await runColorConfig('white base + highlight', {
-      mode: 'reset',
-      rules: [everythingRule({ color: '#ffffff', opacity: 1 }), resultRule(rows)],
-    });
+    await runColorSpecs(
+      'white base + highlight',
+      [ruleToSpec(everythingRule({ color: '#ffffff', opacity: 1 })), packedSpec(p)],
+      'reset',
+    );
   },
 
   /** Isolate the result. Same as colorWhite but the base rule fades everything
-   *  to opacity 0 (default color) instead of white; the result Multi (opacity 1)
-   *  then re-shows the hits with their own colors. Fresh reset-mode config. */
-  async colorHidden(rows: { fullname: string; color: string }[]) {
-    if (!rows.length) {
+   *  to opacity 0 (default color) instead of white; the packed result (opacity
+   *  restored) then re-shows the hits with their own colors. */
+  async colorHidden(p: PackedNames) {
+    if (!p.count) {
       return;
     }
-    await runColorConfig('hidden', {
-      mode: 'reset',
-      rules: [everythingRule({ color: null, opacity: 0 }), resultRule(rows)],
-    });
+    await runColorSpecs('hidden', [ruleToSpec(everythingRule({ color: null, opacity: 0 })), packedSpec(p)], 'reset');
   },
 
-  /** Layer the result ON TOP of the LIVE Set Color config: structural-clone the
-   *  panel's config (so its state is never mutated), append the result as one
-   *  extra Multi rule at the end, and run it in the panel's own reset/append
-   *  mode. Nothing is saved back to the panel. */
-  async colorSetColor(rows: { fullname: string; color: string }[]) {
-    if (!rows.length) {
+  /** Layer the result ON TOP of the LIVE Set Color config: the panel's
+   *  enabled rules as specs (its state is only read), the packed result
+   *  appended as one extra rule, run in the panel's own reset/append mode.
+   *  Nothing is saved back to the panel. */
+  async colorSetColor(p: PackedNames) {
+    if (!p.count) {
       return;
     }
-    const config = structuredClone(multiColorState.get());
-    config.rules.push(resultRule(rows));
-    await runColorConfig('set color', config);
+    const config = multiColorState.get();
+    const specs = config.rules.filter((r) => r.enabled).map(ruleToSpec);
+    specs.push(packedSpec(p));
+    await runColorSpecs('set color', specs, config.mode);
   },
 
-  async colorSelection(fullnames: string[]) {
-    if (!fullnames.length) {
+  async colorSelection(p: PackedNames) {
+    if (!p.count) {
       return;
     }
-    await viewerActions.selectByFullnames(fullnames);
+    await viewerActions.selectByPacked(p);
   },
 };

@@ -1,14 +1,14 @@
 import { Button } from '@treDeSpaceUI/widgets';
+import type { PackedNames } from '../../../lib/color/packedNames';
 import { sqlReportsActions as act } from '../../../state/sqlReports/sqlReports.actions';
 import type { ReportDef } from '../../../state/sqlReports/sqlReports.state';
 import { sqlReportsState } from '../../../state/sqlReports/sqlReports.state';
 import { bindDetailReport, openSqlDetailPanel } from '../sql-detail/sqlDetailPanel';
 import { openSqlTablePanel } from '../sql-table/sqlTablePanel';
-import type { ColorRow } from './reportValues';
 
 type ReportRunButtonsProps = Readonly<{
   effective: ReportDef;
-  onColorRows: (rows: ColorRow[] | null) => void;
+  onColorRows: (rows: PackedNames | null) => void;
 }>;
 
 /** The report's run buttons — one per enabled output type, running the

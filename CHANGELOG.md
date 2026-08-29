@@ -5,12 +5,26 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.08.28** (>0.0.70):
+  SQL coloring / selection results no longer exist as strings on the main
+  thread: a COLORING run packs `fullname[, fullname_color]` in the SQL worker
+  into flat buffers (one UTF-8 blob + offsets + per-row color/opacity,
+  ~45 B/row), transfers them, and the model-db worker resolves them straight
+  into per-model entry lists — a 4M-row result peaks around 200 MB instead of
+  ~4 GB (each name used to be copied ~10 times: row arrays, clone, objects, a
+  200 MB joined string, 4M-key Records, split/lowercase again). Same semantics
+  as the Multi paste (deepest level wins, per-row color:opacity, yellow
+  default); the coloring SELECT is DISTINCT. Selection from a result goes the
+  same way (`selectPacked`, flat (model, entry) pairs). `sql.execute` /
+  `sql.query` apply `maxRows` inside the worker (rows past the cap are never
+  kept; `rowCount` still reports the true total), and uncollected statements
+  no longer keep their rows at all.
   Stats overlay: the viewport overlay is now the SAME list as Settings → Stats
   (label/value lines, GPU pass times as a second block) instead of a terse
   summary line; each row in the Stats readout has a checkbox that leaves it out
   of the overlay (persisted). "Show overlay" also switches on GPU pass timing,
   and has a hotkey (ALT+1214). New `culled` row: % of meshlets culled this frame
-  (drawn of total), in both places. A "Dimmed background" checkbox (default
+  (drawn of total), in both places. The row set is fixed — a row that does not
+  apply right now shows `—` instead of vanishing, so nothing shifts. A "Dimmed background" checkbox (default
   on, ALT+1215) paints a dark box behind the overlay so it reads over bright
   models.
 - **2026.08.28** (>0.0.68):

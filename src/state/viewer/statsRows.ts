@@ -17,10 +17,14 @@ const MB = 1048576;
 
 const mb = (bytes: number): string => (bytes / MB).toFixed(0);
 
+const NONE = '—';
+
 /**
  * One snapshot of the renderer's live stats as label/value rows. Shared by
  * the Settings → Stats readout and the viewport overlay so both show the same
- * list; `key` is what the overlay's per-row checkbox toggles.
+ * list; `key` is what the overlay's per-row checkbox toggles. The row SET is
+ * fixed — a row whose value does not apply right now shows `—` instead of
+ * disappearing, so neither list ever shifts its layout.
  */
 export function collectStats(r: Renderer | null): StatsSnapshot {
   if (!r) {
@@ -30,6 +34,10 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
   const s = r.stats;
   const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0;
   const vram = r.vramBuffers + r.vramTextures;
+  const culls = r.cullMode !== 'full';
+  const drawn = r.drawnPass1 + r.drawnPass2;
+  const culledPct = s.meshlets > 0 ? (100 * (1 - drawn / s.meshlets)).toFixed(1) : '0.0';
+  const res = st.maxVramMb > 0 ? residency.statsSummary() : null;
   const rows: StatRow[] = [
     { key: 'adapter', label: 'adapter', value: r.adapterInfo },
     { key: 'models', label: 'models', value: String(s.models) },
@@ -40,66 +48,47 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
       label: 'culling',
       value: r.cullMode === 'full' ? 'none (no MDI; enable vertex-pull)' : r.cullMode === 'vp' ? 'vertex-pull' : 'MDI',
     },
+    {
+      key: 'drawn',
+      label: 'drawn p1 / p2',
+      value: culls ? `${r.drawnPass1.toLocaleString()} / ${r.drawnPass2.toLocaleString()}` : NONE,
+    },
+    {
+      key: 'culled',
+      label: 'culled',
+      value: culls ? `${culledPct}% (${drawn.toLocaleString()} of ${s.meshlets.toLocaleString()} meshlets)` : NONE,
+    },
+    {
+      key: 'vram',
+      label: 'vram (tracked)',
+      value: `${mb(vram)} MB (buf ${mb(r.vramBuffers)} + tex ${mb(r.vramTextures)})`,
+    },
+    {
+      key: 'vramBudget',
+      label: 'vram budget',
+      value: res ? `${st.maxVramMb} MB (${Math.round((vram / MB / st.maxVramMb) * 100)}% used)` : NONE,
+    },
+    {
+      key: 'residency',
+      label: 'residency',
+      value: res ? `${res.full} full / ${res.mixed} mixed / ${res.coarse} coarse / ${res.unloaded} unloaded` : NONE,
+    },
+    { key: 'jsHeap', label: 'js heap', value: `${mb(heap)} MB` },
+    { key: 'frame', label: 'frame', value: r.idle ? 'idle' : 'rendering' },
+    { key: 'fps', label: 'fps', value: r.idle ? NONE : r.fps.toFixed(0) },
+    { key: 'cpu', label: 'cpu', value: r.idle ? NONE : `${r.cpuMs.toFixed(2)} ms` },
+    { key: 'aa', label: 'AA accumulation', value: r.accumCount > 0 ? `${r.accumCount} / ${r.aaMax}` : NONE },
   ];
-  if (r.cullMode !== 'full') {
-    const drawn = r.drawnPass1 + r.drawnPass2;
-    const culledPct = s.meshlets > 0 ? (100 * (1 - drawn / s.meshlets)).toFixed(1) : '0.0';
-    rows.push(
-      {
-        key: 'drawn',
-        label: 'drawn p1 / p2',
-        value: `${r.drawnPass1.toLocaleString()} / ${r.drawnPass2.toLocaleString()}`,
-      },
-      {
-        key: 'culled',
-        label: 'culled',
-        value: `${culledPct}% (${drawn.toLocaleString()} of ${s.meshlets.toLocaleString()} meshlets)`,
-      },
-    );
-  }
-  rows.push({
-    key: 'vram',
-    label: 'vram (tracked)',
-    value: `${mb(vram)} MB (buf ${mb(r.vramBuffers)} + tex ${mb(r.vramTextures)})`,
-  });
-  if (st.maxVramMb > 0) {
-    const { full, mixed, coarse, unloaded } = residency.statsSummary();
-    rows.push(
-      {
-        key: 'vramBudget',
-        label: 'vram budget',
-        value: `${st.maxVramMb} MB (${Math.round((vram / MB / st.maxVramMb) * 100)}% used)`,
-      },
-      {
-        key: 'residency',
-        label: 'residency',
-        value: `${full} full / ${mixed} mixed / ${coarse} coarse / ${unloaded} unloaded`,
-      },
-    );
-  }
-  rows.push({ key: 'jsHeap', label: 'js heap', value: `${mb(heap)} MB` });
-  if (r.idle) {
-    rows.push({ key: 'frame', label: 'frame', value: 'idle' });
-  } else {
-    rows.push(
-      { key: 'fps', label: 'fps', value: r.fps.toFixed(0) },
-      { key: 'cpu', label: 'cpu', value: `${r.cpuMs.toFixed(2)} ms` },
-    );
-    if (r.accumCount > 0) {
-      rows.push({ key: 'aa', label: 'AA accumulation', value: `${r.accumCount} / ${r.aaMax}` });
-    }
-  }
-  const gpuRows: StatRow[] =
-    st.gpuTimings && r.gpuTimes.length
-      ? [
-          ...r.gpuTimes.map((p) => ({ key: gpuRowKey(p.label), label: p.label, value: `${p.ms.toFixed(2)} ms` })),
-          {
-            key: gpuRowKey('total'),
-            label: 'total',
-            value: `${r.gpuTimes.reduce((a, p) => a + p.ms, 0).toFixed(2)} ms`,
-          },
-        ]
-      : [];
+  const gpuRows: StatRow[] = st.gpuTimings
+    ? [
+        ...r.gpuTimes.map((p) => ({ key: gpuRowKey(p.label), label: p.label, value: `${p.ms.toFixed(2)} ms` })),
+        {
+          key: gpuRowKey('total'),
+          label: 'total',
+          value: r.gpuTimes.length ? `${r.gpuTimes.reduce((a, p) => a + p.ms, 0).toFixed(2)} ms` : NONE,
+        },
+      ]
+    : [];
   return { rows, gpuRows };
 }
 

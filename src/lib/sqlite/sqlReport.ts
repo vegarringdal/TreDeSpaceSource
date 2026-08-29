@@ -24,10 +24,12 @@ function wrapForType(sql: string, o: BuildOpts): string {
     // `fullname_color` is optional: runColoring probes the query's columns first
     // (temp view + pragma, see `colorProbe`) and passes hasColorColumn, so a
     // query without it falls back to `SELECT fullname` (each row → yellow in JS).
+    // DISTINCT: a coloring result repeats fullnames freely (joins); the
+    // duplicates would only cost transfer and resolve time
     if (o.hasColorColumn === false) {
-      return `SELECT fullname FROM (${sql})`;
+      return `SELECT DISTINCT fullname FROM (${sql})`;
     }
-    return `SELECT fullname, fullname_color FROM (${sql})`;
+    return `SELECT DISTINCT fullname, fullname_color FROM (${sql})`;
   }
   // DETAIL: the query wrapped to a single row, columns in SELECT order.
   if (o.type === 'DETAIL') {
@@ -112,6 +114,8 @@ export function buildReportStatements(o: BuildOpts): Statement[] {
     return out;
   }
 
-  out.push({ sql: wrapForType(finalSelect, o), collect: true });
+  // COLORING rows never become row arrays: the worker packs `fullname[, color]`
+  // straight into flat buffers (PackedNames) that go to the model-db worker
+  out.push({ sql: wrapForType(finalSelect, o), collect: o.type === 'COLORING' ? 'packedNames' : true });
   return out;
 }

@@ -1,6 +1,9 @@
+import * as Comlink from 'comlink';
+import { type PackedNames, packedName } from '../color/packedNames';
 // Selection domain: subtree/group/item selection, inversion, counts, and the
 // transform-aware world bounds of the current selection.
 import { IS_SELECTED, models, type StateUpdate } from './dbState';
+import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel } from './globalNameIndex';
 import { interleaveStates, itemsUnder, packStates } from './hierarchyIndex';
 import { transforms } from './transformPool';
 
@@ -162,6 +165,71 @@ export const selectionApi = {
       touched.add(model);
     }
     return Array.from(touched, (idx) => packStates(models[idx], idx));
+  },
+
+  /** Select every subtree named in a packed list (a big SQL result): each
+   *  name is decoded once and resolved through the global index (first live
+   *  model wins, as findEntriesByNames), items are marked per model in one
+   *  pass, and the (model, entry) hits come back as one flat Uint32Array —
+   *  no per-hit object for a 4M-row result. */
+  selectPacked(p: PackedNames): { updates: StateUpdate[]; matched: number; missed: number; pairs: Uint32Array } {
+    ensureGlobalIndex();
+    const updates = selectionApi.clearSelection();
+    const decoder = new TextDecoder();
+    const marks = new Map<number, Uint8Array>();
+    let pairs = new Uint32Array(Math.max(2, Math.min(p.count, 1024) * 2));
+    let n = 0;
+    let missed = 0;
+    for (let i = 0; i < p.count; i++) {
+      const h = firstLiveHit(packedName(p, i, decoder));
+      if (h === undefined) {
+        missed++;
+        continue;
+      }
+      const mi = hitModel(h);
+      const e = hitEntry(h);
+      if (n * 2 + 2 > pairs.length) {
+        const grown = new Uint32Array(pairs.length * 2);
+        grown.set(pairs);
+        pairs = grown;
+      }
+      pairs[n * 2] = mi;
+      pairs[n * 2 + 1] = e;
+      n++;
+      const m = models[mi];
+      let mark = marks.get(mi);
+      if (!mark) {
+        mark = new Uint8Array(m.itemCount);
+        marks.set(mi, mark);
+      }
+      for (const it of itemsUnder(m, e)) {
+        mark[it] = 1;
+      }
+    }
+    for (const [mi, mark] of marks) {
+      const m = models[mi];
+      let count = 0;
+      for (let i = 0; i < mark.length; i++) {
+        count += mark[i];
+      }
+      const sel = new Uint32Array(count);
+      let k = 0;
+      for (let i = 0; i < mark.length; i++) {
+        if (mark[i]) {
+          m.states[i * 2] |= IS_SELECTED;
+          sel[k++] = i;
+        }
+      }
+      m.selected = sel;
+      const existing = updates.find((u) => u.model === mi);
+      if (existing) {
+        existing.states = interleaveStates(m);
+      } else {
+        updates.push(packStates(m, mi));
+      }
+    }
+    const out = pairs.slice(0, n * 2);
+    return Comlink.transfer({ updates, matched: n, missed, pairs: out }, [out.buffer]);
   },
 
   selectItems(model: number, items: Uint32Array): StateUpdate[] {

@@ -239,6 +239,30 @@ project's cooked models *and* its databases (shared `stores.json`).
   first) decides which files get Web-Locked before a run — `shared` = several
   read-only readers, `exclusive` = writes. Results go to the Console panel.
 
+### Packed SQL results (coloring / selection)
+
+A COLORING run (`fullname[, fullname_color]`) never becomes row arrays. The SQL
+worker collects it with `collect: 'packedNames'` into a `PackedNames` set
+(`src/lib/color/packedNames.ts`): every name lowercased + trimmed into ONE
+UTF-8 blob, an offsets array, and per-row color (`Float64Array` — packed RGBA8
+is unsigned, an Int32 lane would sign-flip alpha-255 colors; `COLOR_DEFAULT` /
+`PACKED_NO_COLOR` sentinels are negative) and opacity (0-100, 255 = none).
+The worker posts it with the buffers as transferables; the main thread keeps
+only the handle (the Color/White/Hidden/Selection buttons can re-apply it) and
+hands it to the model-db worker as a `mode: 'packed'` filter. There
+`packedMatcher` decodes one name at a time into per-model entry lists plus
+per-model `[entry, color|opacity]` lists — the same shape a Multi paste's
+`perNameColor` resolves to — so the flood / deepest-level-wins / write code is
+shared and `tests/colorRulesPacked.test.ts` pins the parity. Selection goes
+through `selectPacked` (worker resolves + marks items, returns flat
+(model, entry) pairs). Cost: ~45 B/row instead of ~1 KB/row of duplicated
+strings/objects/Records (a 4M-row result ≈ 200 MB peak, was ≈ 4 GB). The
+main → worker hop is a structured clone, not a transfer, on purpose — the UI
+retains the result for repeated apply. Table / API results stay row arrays,
+capped INSIDE the worker (`Statement.maxRows`, true total in `rowCounts`).
+Follow-up if decode time ever matters: key the global name index by a 64-bit
+hash (the snapshot `hashIndex` already uses fnv1a64) and ship 12 B/row.
+
 ## postMessage host API
 
 Shipped: the viewer embeds (iframe or `window.open`) and is driven by a host
