@@ -36,6 +36,11 @@ export function HierarchyMenu({ menu, rows, onClose }: { menu: MenuState | null;
     }
   };
 
+  const setItemEdges = (on: boolean) => {
+    onClose();
+    void viewerActions.setItemEdgesOnSelection(on);
+  };
+
   /** Remove every file that owns a selected row (distinct models). */
   const removeSelected = () => {
     onClose();
@@ -82,6 +87,25 @@ export function HierarchyMenu({ menu, rows, onClose }: { menu: MenuState | null;
         }
       >
         Copy Selected same level
+      </button>
+      <div className="my-1 border-slate-700 border-t" />
+      <button
+        type="button"
+        className="px-3 py-1 text-left text-slate-200 hover:bg-slate-800"
+        data-shortcut="hierarchy.itemEdgesOff"
+        data-tooltip="No item-boundary edge lines on the selected items (only visible while Settings → Edges → item edges is on). Undo reverts it"
+        onClick={() => setItemEdges(false)}
+      >
+        Disable item edges on selected
+      </button>
+      <button
+        type="button"
+        className="px-3 py-1 text-left text-slate-200 hover:bg-slate-800"
+        data-shortcut="hierarchy.itemEdgesOn"
+        data-tooltip="Item-boundary edge lines back on for the selected items"
+        onClick={() => setItemEdges(true)}
+      >
+        Enable item edges on selected
       </button>
       <div className="my-1 border-slate-700 border-t" />
       <button

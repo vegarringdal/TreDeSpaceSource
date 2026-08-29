@@ -231,6 +231,16 @@ fn ld_depth(xy: vec2i, o: vec2i, dims: vec2i, s: i32) -> f32 {
 fn ld_normal(xy: vec2i, o: vec2i, dims: vec2i, s: i32) -> vec3f {
   return textureLoad(normal_tex, clamp(xy + o, vec2i(0), dims - 1), s).xyz * 2.0 - 1.0;
 }
+// edge tag bits of a G-buffer sample (normal alpha, quantized 8-bit)
+fn ld_tag(xy: vec2i, o: vec2i, dims: vec2i, s: i32) -> u32 {
+  return u32(round(textureLoad(normal_tex, clamp(xy + o, vec2i(0), dims - 1), s).w * 255.0));
+}
+// an id boundary draws on the HIGHER-id side (1px lines); a side whose item
+// has item edges OFF never draws, and if the higher side is off the lower
+// side takes over so the silhouette between the two survives
+fn id_edge(id_c: u32, id_n: u32, tag_n: u32) -> bool {
+  return id_n != id_c && (id_c > id_n || (tag_n & 4u) != 0u);
+}
 fn ld_id(xy: vec2i, o: vec2i, dims: vec2i, s: i32) -> u32 {
   let t = vec4u(round(textureLoad(id_tex, clamp(xy + o, vec2i(0), dims - 1), s) * 255.0));
   return t.x | (t.y << 8u) | (t.z << 16u) | (t.w << 24u);
@@ -328,13 +338,12 @@ fn fs(@builtin(position) fpos: vec4f) -> PostOut {
     col *= mix(1.0, ao, pp.ao_strength);
   }
 
-  // per-model edge tag from the G-buffer normal alpha (see RENDER_FS):
-  // 0 = flat mesh, 0.5 = authored normals (own thresholds), 1 = edges off.
-  // The 0.25/0.75 cuts are decoder constants for DISCRETE states — a future
-  // opt-in mode may re-encode this byte as a continuous per-model edge
-  // STRENGTH instead (DESIGN.md "Per-model edge tag / edge strength").
-  let gtag = textureLoad(normal_tex, xy, 0).w;
-  let smooth_mesh = gtag > 0.25 && gtag < 0.75;
+  // edge tag bits from the G-buffer normal alpha (see RENDER_FS): 1 = authored
+  // normals (own thresholds), 2 = edges off (asset option), 4 = ITEM edges off
+  // for this item. Five bits stay free for a per-model edge STRENGTH
+  // (DESIGN.md "Per-model edge tag / edge strength").
+  let gtag = ld_tag(xy, vec2i(0, 0), dims, 0);
+  let smooth_mesh = (gtag & 1u) != 0u;
   let use_depth_thr = select(pp.depth_thr, pp.sm_depth_thr, smooth_mesh);
   let use_normal_thr = select(pp.normal_thr, pp.sm_normal_thr, smooth_mesh);
   let use_fade_exp = select(pp.fade_exp, pp.sm_fade_exp, smooth_mesh);
@@ -368,13 +377,11 @@ fn fs(@builtin(position) fpos: vec4f) -> PostOut {
       // item edges: only the higher-id side of a boundary fires -> 1px lines;
       // background id 0 loses to everything, giving object silhouettes
       let id_c = ld_id(xy, vec2i(0, 0), dims, s);
-      if (id_c != 0u) {
-        let id_r = ld_id(xy, vec2i(1, 0), dims, s);
-        let id_l = ld_id(xy, vec2i(-1, 0), dims, s);
-        let id_d = ld_id(xy, vec2i(0, 1), dims, s);
-        let id_u = ld_id(xy, vec2i(0, -1), dims, s);
-        if ((id_r != id_c && id_c > id_r) || (id_l != id_c && id_c > id_l) ||
-            (id_d != id_c && id_c > id_d) || (id_u != id_c && id_c > id_u)) {
+      if (id_c != 0u && (ld_tag(xy, vec2i(0, 0), dims, s) & 4u) == 0u) {
+        if (id_edge(id_c, ld_id(xy, vec2i(1, 0), dims, s), ld_tag(xy, vec2i(1, 0), dims, s)) ||
+            id_edge(id_c, ld_id(xy, vec2i(-1, 0), dims, s), ld_tag(xy, vec2i(-1, 0), dims, s)) ||
+            id_edge(id_c, ld_id(xy, vec2i(0, 1), dims, s), ld_tag(xy, vec2i(0, 1), dims, s)) ||
+            id_edge(id_c, ld_id(xy, vec2i(0, -1), dims, s), ld_tag(xy, vec2i(0, -1), dims, s))) {
           item_cov += 1.0;
         }
       }
@@ -417,7 +424,7 @@ fn fs(@builtin(position) fpos: vec4f) -> PostOut {
   // edge-off switches: the per-asset tag (gtag 1) plus the global per-category
   // settings (flat / smooth-mesh edge lines in Settings -> Edges)
   let cat_off = select((pp.flags & 8192u) != 0u, (pp.flags & 4096u) != 0u, smooth_mesh);
-  let edges_off = gtag > 0.75 || cat_off;
+  let edges_off = (gtag & 2u) != 0u || cat_off;
   let edge = select(edge_raw, 0.0, edges_off);
   if ((pp.flags & 2048u) != 0u) {
     // sketch mode: white paper + edge lines in the sketch edge color — the

@@ -9,6 +9,10 @@ export const IS_HIDDEN = 1 << 0;
 export const IS_SELECTED = 1 << 2;
 export const HAS_COLOR_OVERRIDE = 1 << 4;
 export const HAS_OPACITY_OVERRIDE = 1 << 6;
+/** Item-boundary edge lines OFF for this item (Hierarchy context menu). Not
+ *  a native bit — the native layout leaves 8-24 unused; the scene shader
+ *  folds it into the G-buffer edge tag. */
+export const NO_ITEM_EDGES = 1 << 8;
 export const OPACITY_SHIFT = 25; // bits 25-31 hold 0-100 (native layout)
 export const OPACITY_MASK = 0x7f << OPACITY_SHIFT;
 

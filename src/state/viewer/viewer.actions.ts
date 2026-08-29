@@ -664,6 +664,13 @@ export const viewerActions = {
     await refreshSelectionMeta(undefined);
   },
 
+  /** Item-boundary edge lines on/off for the selected items (undoable like a
+   *  hide). Shows only while Settings → Edges → item edges is on. */
+  async setItemEdgesOnSelection(on: boolean) {
+    applyStateUpdates(await db.setItemEdgesOnSelection(on));
+    consoleActions.log('info', `Item edges ${on ? 'enabled' : 'disabled'} on the selection`);
+  },
+
   async isolateSelection() {
     applyStateUpdates(await db.isolateSelection());
     await refreshSelectionMeta(undefined);

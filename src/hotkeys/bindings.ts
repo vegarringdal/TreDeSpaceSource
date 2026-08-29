@@ -2879,6 +2879,22 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => collapseHierarchy(),
   },
   {
+    id: 'hierarchy.itemEdgesOff',
+    category: 'Hierarchy',
+    label: 'Item edges off on selection',
+    defaultKeys: 'ALT + 802',
+    description: 'No item-boundary edge lines on the selected items (shows only while item edges are on)',
+    run: () => void viewerActions.setItemEdgesOnSelection(false),
+  },
+  {
+    id: 'hierarchy.itemEdgesOn',
+    category: 'Hierarchy',
+    label: 'Item edges on on selection',
+    defaultKeys: 'ALT + 803',
+    description: 'Item-boundary edge lines back on for the selected items',
+    run: () => void viewerActions.setItemEdgesOnSelection(true),
+  },
+  {
     id: 'hierarchy.navUp',
     category: 'Hierarchy',
     label: 'Select parent',

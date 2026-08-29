@@ -591,11 +591,14 @@ Re-measure the "% busy" line before believing any of this has changed.
   scope: skinning (no vertex weights in the format/pipeline) and morph
   targets — both would be bigger projects than textures.
 - **Per-model edge tag / edge strength (reconsider when textures land).**
-  The G-buffer normal's alpha carries a DISCRETE per-model tag today:
-  `0` = flat mesh, `0.5` = authored normals (own edge thresholds),
-  `1` = edge lines off (asset import option + per-category settings; the
-  post pass decodes with fixed 0.25/0.75 bucket boundaries — those are
-  decoder constants for discrete states, deliberately NOT a setting).
+  The G-buffer normal's alpha is a BIT FIELD (quantized 8-bit, decoded with
+  `round(w * 255)`): bit 1 = authored normals (own edge thresholds), bit 2 =
+  edge lines off (asset import option), bit 4 = ITEM edges off for this
+  item (item-state flag `NO_ITEM_EDGES`, Hierarchy context menu → set on the
+  selection, undoable like a hide). The scene fragment shader folds the
+  per-item bit in at zero cost (it already reads the item state); the post
+  pass gates the id-boundary detector per pixel and lets the LOWER-id side
+  draw the silhouette when the higher side has edges off. Five bits free.
   Considered follow-up: a second, opt-in encoding where the byte carries a
   continuous per-model **edge STRENGTH** instead of on/off — e.g. split the
   range (0–0.45 = flat + strength, 0.55–1.0 = smooth + strength, ~100

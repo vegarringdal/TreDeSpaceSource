@@ -3,7 +3,7 @@
 // so the ribbon Undo reverts hides exactly like colorings.
 import { quatAxes } from '../math/quat';
 import { type ColorUndoRecord, captureColorRuns, pushColorUndo } from './colorUndo';
-import { type DbModel, IS_HIDDEN, models, type StateUpdate } from './dbState';
+import { type DbModel, IS_HIDDEN, models, NO_ITEM_EDGES, type StateUpdate } from './dbState';
 import { packStates } from './hierarchyIndex';
 import { itemWorldBounds, transforms } from './transformPool';
 
@@ -99,6 +99,30 @@ export const visibilityApi = {
       step.push(captureColorRuns(idx));
       for (const it of m.selected) {
         m.states[it * 2] |= IS_HIDDEN;
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return updates;
+  },
+
+  /** Item-boundary edge lines on/off for every selected item (undoable,
+   *  state domain). Only matters while Settings → Edges → item edges is on —
+   *  the flag is a per-item veto, not an enable. */
+  setItemEdgesOnSelection(on: boolean): StateUpdate[] {
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed || m.selected.length === 0) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (const it of m.selected) {
+        if (on) {
+          m.states[it * 2] &= ~NO_ITEM_EDGES;
+        } else {
+          m.states[it * 2] |= NO_ITEM_EDGES;
+        }
       }
       updates.push(packStates(m, idx));
     });

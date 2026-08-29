@@ -5,6 +5,15 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.08.28** (>0.0.70):
+  Hierarchy context menu: "Disable / Enable item edges on selected" — item-
+  boundary edge lines off (or back on) per item, undoable like a hide, hotkeys
+  ALT+802 / ALT+803. Only visible while Settings → Edges → item edges is on;
+  where an edge-off item meets one with edges on, the silhouette still draws
+  on the other item's side. Costs nothing: the flag rides the item state the
+  scene shader already reads and a spare bit of the G-buffer edge tag.
+  Fix: after a viewport pick, collapsing a folder in the Hierarchy did
+  nothing — the reveal had opened it under two keys (store-qualified and
+  plain) and the chevron only removed one.
   SQL coloring / selection results no longer exist as strings on the main
   thread: a COLORING run packs `fullname[, fullname_color]` in the SQL worker
   into flat buffers (one UTF-8 blob + offsets + per-row color/opacity,

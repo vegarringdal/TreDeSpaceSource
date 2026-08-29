@@ -191,6 +191,9 @@ struct VsOut {
   @location(3) @interpolate(flat) opacity: f32,
   // authored vertex normal (zero-length = flat-shade in the FS)
   @location(4) normal: vec3f,
+  // per-item edge tag bits for the post pass (4 = item edges off), read from
+  // the item state here so the fragment stage needs no extra fetch
+  @location(5) @interpolate(flat) edge_bits: u32,
 };
 
 `;
@@ -239,12 +242,11 @@ fn fs(in: VsOut) -> FsOut {
   // blend pass: alpha is the blend factor; otherwise it carries unlit luma
   let alpha = select(unlit_luma, in.opacity, (frame.flags.z & 2u) != 0u);
   o.color = vec4f(in.color.rgb * shade, alpha);
-  // normal alpha = per-model edge tag for the post pass:
-  //   0 = flat-shaded mesh, 0.5 = authored normals (own edge thresholds),
-  //   1 = edge lines OFF (asset import option)
-  var gtag = select(0.0, 0.5, model_uni.info.z == 1u);
-  if (model_uni.info.w == 1u) { gtag = 1.0; }
-  o.normal = vec4f(n * 0.5 + 0.5, gtag);
+  // normal alpha = edge tag BITS for the post pass (quantized to 8 bits):
+  //   1 = authored normals (own edge thresholds), 2 = edge lines OFF (asset
+  //   import option), 4 = item edges OFF for this item (item state)
+  let gtag = select(0u, 1u, model_uni.info.z == 1u) | select(0u, 2u, model_uni.info.w == 1u) | in.edge_bits;
+  o.normal = vec4f(n * 0.5 + 0.5, f32(gtag) / 255.0);
   o.id = vec4f(
     f32(in.id & 255u), f32((in.id >> 8u) & 255u),
     f32((in.id >> 16u) & 255u), f32((in.id >> 24u) & 255u),
@@ -343,9 +345,11 @@ fn vs(
     o.id = 0u;
     o.opacity = 1.0;
     o.normal = vec3f(0.0);
+    o.edge_bits = 0u;
     return o;
   }
   o.opacity = opacity;
+  o.edge_bits = select(0u, 4u, (item_states[info.item].flags & 256u) != 0u);
   let tid = item_states[info.item].tidx;
   let live = model_uni.info.y == 1u && (item_states[info.item].flags & 4u) != 0u;
   // Rebase FIRST on the untransformed path: aabb_min - origin is an exact
@@ -459,9 +463,11 @@ fn vs(
     o.id = 0u;
     o.opacity = 1.0;
     o.normal = vec3f(0.0);
+    o.edge_bits = 0u;
     return o;
   }
   o.opacity = opacity;
+  o.edge_bits = select(0u, 4u, (item_states[info.item].flags & 256u) != 0u);
   // rebase before dequantizing — see the MDI path for why
   let tid = item_states[info.item].tidx;
   let live = model_uni.info.y == 1u && (item_states[info.item].flags & 4u) != 0u;

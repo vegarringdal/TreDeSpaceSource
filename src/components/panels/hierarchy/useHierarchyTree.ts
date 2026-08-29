@@ -59,8 +59,15 @@ export function useHierarchyTree(): HierarchyTree {
   const toggle = (r: Row) => {
     const k = r.model === -1 ? groupKey(r.group!, r.inStore) : keyOf(r.model, r.entry);
     const exp = new Set(expanded);
-    if (exp.has(k)) {
+    // a folder is open when EITHER its store-qualified or its plain key is in
+    // the set (a reveal adds both) — so collapsing must drop both, or the
+    // reveal's plain key keeps it open
+    const open = exp.has(k) || (r.model === -1 && exp.has(groupKey(r.group!)));
+    if (open) {
       exp.delete(k);
+      if (r.model === -1) {
+        exp.delete(groupKey(r.group!));
+      }
     } else {
       exp.add(k);
     }
