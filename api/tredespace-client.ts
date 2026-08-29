@@ -254,6 +254,22 @@ export interface ClipShapeInput {
   showHelper?: boolean;
 }
 
+/** The default clipping box, from {@link TredespaceClient.clipBoxGet}. */
+export interface ClipBoxState {
+  /** true when the box is actually cutting: global clipping on AND the box itself on */
+  enabled: boolean;
+  /** cut INSIDE the box (a hole) instead of outside */
+  inverted: boolean;
+  /** world-space axis-aligned bounds — exact for an unrotated box, the
+   *  envelope of its 8 corners otherwise */
+  min: [number, number, number];
+  max: [number, number, number];
+  /** the exact oriented box */
+  center: [number, number, number];
+  size: [number, number, number];
+  rotation: [number, number, number, number];
+}
+
 export interface ColorRulesResult {
   rules: number;
   ran: boolean;
@@ -823,6 +839,13 @@ export class TredespaceClient {
   }
 
   // ── clipping box + shapes ─────────────────────────────────────────────────
+  /** The default clipping box: whether it is cutting, whether it is inverted,
+   *  its world-space `min`/`max` (axis-aligned envelope — exact unless the box
+   *  is rotated) plus the exact oriented box. Intersect `min`/`max` with your
+   *  own asset bounds to decide which models to load. */
+  clipBoxGet(): Promise<Result<ClipBoxState>> {
+    return this.send('clip.box.get', {});
+  }
   /** Fit the clip box to the current selection. `offset` adds a margin on every
    *  side for THIS call only (it doesn't change the panel's stored offset). */
   clipBoxFitSelected(offset?: number): Promise<Result<{ offset: number }>> {

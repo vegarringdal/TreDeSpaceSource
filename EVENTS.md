@@ -46,9 +46,16 @@ const { fullnames } = await client.selectionGet();
   allowed automatically) → the embed-time URL parameter
   (`?apiOrigins=https://portal.example.com,https://other.example.com`),
   honored only while "Allow ?apiOrigins= URL parameter" is on (default on;
-  turn it off for a strict settings-only allowlist). `*` is possible but
-  discouraged. Responses are posted back with the sender's origin as
-  `targetOrigin` — never `*`.
+  turn it off for a strict settings-only allowlist). **Inside an iframe** the
+  parameter is trusted as-is: the browser partitions storage per embedding
+  site, so an embedder only ever sees the empty viewer it is talking to itself.
+  **In a window another page opened** (`window.open`) the viewer has the user's
+  real local data, so there the parameter is only a request — the user is asked
+  to Allow/Deny those origins; Allow saves them to the settings list (removable
+  there) and then sends `app.ready` to the opener. A top-level window nobody
+  opened ignores it. `*` is possible in an iframe but discouraged, and is never
+  granted through the prompt. Responses are posted back with the sender's
+  origin as `targetOrigin` — never `*`.
 - **postMessage is the ONLY channel.** Cross-origin frames can never touch
   the app's DOM, globals, or storage — the browser isolates them. The attack
   surface is exactly the validated command list below; there is no eval, no
@@ -796,6 +803,20 @@ Reset the model's per-item color/opacity overrides — the same thing the in-app
 ```js
 payload:  {}
 response: {}
+```
+
+### clip.box.get
+The default clipping box. `enabled` is what the renderer honours — the global
+clip switch AND the box itself on. `min`/`max` are world-space axis-aligned
+bounds (exact for an unrotated box, the envelope of its corners otherwise);
+`center`/`size`/`rotation` are the exact oriented box. Intersect `min`/`max`
+with your own asset bounds to decide which models to load.
+
+```js
+payload:  { }
+response: { enabled: true, inverted: false,
+            min: [-5, -5, -5], max: [5, 5, 5],
+            center: [0, 0, 0], size: [10, 10, 10], rotation: [0, 0, 0, 1] }
 ```
 
 ### clip.box.fitSelected

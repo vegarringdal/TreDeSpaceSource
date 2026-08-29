@@ -8,6 +8,9 @@
 // This module is the inbound side (listener + command table); the outbound
 // side (origin allowlist, emitApiEvent, app.ready) lives in transport.ts, the
 // per-domain command implementations in the handlers* modules.
+import { dialogs } from '../../components/dialogs/dialogs.actions';
+import { apiSecurityActions } from '../../state/apiSecurity.actions';
+import { apiSecurityState } from '../../state/apiSecurity.state';
 import { assetsActions } from '../../state/assets/assets.actions';
 import { storesActions } from '../../state/stores/stores.actions';
 import { assetHandlers } from './handlersAssets';
@@ -17,7 +20,7 @@ import { sqlHandlers } from './handlersSql';
 import { uiHandlers } from './handlersUi';
 import { viewerHandlers } from './handlersViewer';
 import { ApiError, type ApiHandler, isRecord, PROTOCOL } from './protocol';
-import { allowApiOrigins, emitApiEvent, isApiReady, markApiReady, originAllowed } from './transport';
+import { allowApiOrigins, announceReady, emitApiEvent, isApiReady, markApiReady, originAllowed } from './transport';
 
 export { registerDialogCloser, registerKiosk, registerPanelControl } from './registry';
 export { allowApiOrigins, emitApiEvent, markApiReady };
@@ -39,16 +42,60 @@ export function initMessageApi() {
     return;
   }
   installed = true;
-  const param = new URLSearchParams(location.search).get('apiOrigins');
-  if (param) {
-    allowApiOrigins(
-      param
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    );
-  }
+  applyUrlParamOrigins();
   window.addEventListener('message', (e) => void onMessage(e));
+}
+
+/** `?apiOrigins=` is trusted as-is only INSIDE AN IFRAME: the browser partitions
+ *  storage per embedding site, so an embedder only ever talks to the empty
+ *  viewer it opened itself. A TOP-LEVEL window another page opened
+ *  (`window.open`) has the user's real OPFS/localStorage — any site could open
+ *  `viewer/?apiOrigins=https://evil` on a click and read every database over
+ *  the API — so there the parameter is only a request the user must Allow.
+ *  A top-level window with no opener has nobody who could post commands. */
+function applyUrlParamOrigins() {
+  const param = new URLSearchParams(location.search).get('apiOrigins');
+  const origins = (param ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!origins.length) {
+    return;
+  }
+  if (window.parent !== window) {
+    allowApiOrigins(origins);
+    return;
+  }
+  if (window.opener) {
+    void requestOriginConsent(origins);
+  }
+}
+
+/** Ask the user before a popup host's origins join the allowlist. Allow saves
+ *  them to Settings → External (removable there) and completes the app.ready
+ *  handshake for the waiting host; Deny leaves them ignored for this window.
+ *  `*` is never granted this way, and the prompt respects the
+ *  "Allow ?apiOrigins= URL parameter" switch. */
+async function requestOriginConsent(origins: string[]) {
+  if (!apiSecurityState.get().allowUrlParam) {
+    return;
+  }
+  const pending = origins.filter((o) => o !== '*' && !originAllowed(o));
+  if (!pending.length) {
+    return;
+  }
+  const ok = await dialogs.confirm(
+    `The page that opened this viewer — ${pending.join(', ')} — asks to control it over the postMessage API. ` +
+      'It would be able to read and change everything stored in this viewer: models, SQL databases and settings. ' +
+      'Allow only if you trust that site. Allowed origins are listed under Settings → External → API security, ' +
+      'where they can be removed again.',
+    { title: 'Allow API access?', okLabel: 'Allow', cancelLabel: 'Deny' },
+  );
+  if (!ok) {
+    return;
+  }
+  apiSecurityActions.addOrigins(pending);
+  announceReady();
 }
 
 async function onMessage(e: MessageEvent) {

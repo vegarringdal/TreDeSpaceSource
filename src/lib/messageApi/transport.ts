@@ -96,10 +96,29 @@ export function emitApiEvent(type: string, payload: unknown) {
   }
 }
 
+let readyVersion = '';
+
 /** Boot complete: answer commands and announce app.ready to parent/opener. */
 export function markApiReady(version: string) {
   apiReady = true;
-  const ready = { tredespace: PROTOCOL, id: null, type: 'app.ready', ok: true, payload: { version, api: PROTOCOL } };
+  readyVersion = version;
+  announceReady();
+}
+
+/** Post app.ready to the parent/opener for every allowed origin. Also re-run
+ *  when the allowlist grows AFTER boot (a `?apiOrigins=` popup host the user
+ *  just allowed) so a host waiting on the handshake gets it. */
+export function announceReady() {
+  if (!apiReady) {
+    return;
+  }
+  const ready = {
+    tredespace: PROTOCOL,
+    id: null,
+    type: 'app.ready',
+    ok: true,
+    payload: { version: readyVersion, api: PROTOCOL },
+  };
   const targets: (Window | null)[] = [window.parent !== window ? window.parent : null, window.opener as Window | null];
   const origins = allowedOriginCandidates();
   for (const t of targets) {

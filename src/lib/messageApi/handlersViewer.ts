@@ -3,10 +3,12 @@
 import { multiColorActions } from '../../components/panels/multi-color/multiColor.actions';
 import { multiColorState, normalizeRules } from '../../components/panels/multi-color/multiColor.state';
 import { ribbonClippingBoxActions } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.actions';
+import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonHomeActions } from '../../components/panels/ribbon-home/ribbonHome.actions';
 import { clipShapesActions } from '../../state/viewer/clipShapes.actions';
 import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { viewerState } from '../../state/viewer/viewer.state';
+import { obbWorldBounds } from '../math/obb';
 import { ApiError, type ApiHandler, records } from './protocol';
 
 const setOrAddColorRules: ApiHandler = async ({ type, p }) => {
@@ -136,6 +138,23 @@ export const viewerHandlers: Record<string, ApiHandler> = {
       fr.readAsDataURL(shot.blob);
     });
     return { dataUrl, width: shot.width, height: shot.height };
+  },
+
+  // the default clipping box; `enabled` is what the renderer honours (global
+  // clip switch AND the box itself on). min/max = world AABB of the possibly
+  // rotated box, center/size/rotation the exact oriented box.
+  'clip.box.get': () => {
+    const s = ribbonClippingBoxState.get();
+    const { min, max } = obbWorldBounds(s.center, s.size, s.rotation);
+    return {
+      enabled: s.enabled && s.boxOn,
+      inverted: s.inverted,
+      min,
+      max,
+      center: [...s.center],
+      size: [...s.size],
+      rotation: [...s.rotation],
+    };
   },
 
   'clip.box.fitSelected': async ({ p }) => {

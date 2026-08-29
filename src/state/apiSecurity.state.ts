@@ -10,9 +10,10 @@ export interface ApiSecurityState {
   enabled: boolean;
   /** Extra allowed origins, e.g. https://portal.example.com. */
   origins: string[];
-  /** Honor ?apiOrigins= from the embedding URL. An embedder controls its own
-   *  URL, so this only ever exposes THAT embedder's viewer instance to
-   *  itself — but it can be disabled for a strict settings-only allowlist. */
+  /** Honor ?apiOrigins= from the embedding URL. Inside an iframe that only
+   *  exposes the embedder's own (storage-partitioned) viewer instance to
+   *  itself; in a window another page opened the viewer asks the user first
+   *  (src/lib/messageApi/index.ts). Off = strict settings-only allowlist. */
   allowUrlParam: boolean;
 }
 

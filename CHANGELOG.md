@@ -4,6 +4,20 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.08.29** (>0.0.72):
+  Security: `?apiOrigins=` is no longer trusted blindly in a top-level window.
+  Inside an iframe it works as before (storage partitioning means an embedder
+  only ever sees the empty viewer it opened itself), but a window another page
+  opened with `window.open` has the user's real OPFS/localStorage, so any site
+  could open `viewer/?apiOrigins=https://evil` on a click and read every SQL
+  database and asset over the API. Such a window now asks the user to
+  Allow/Deny the requested origins; Allow saves them to Settings → External →
+  API security (removable there) and completes the app.ready handshake for
+  the host. A top-level window with no opener ignores the parameter.
+  API: `clip.box.get` (SDK `clipBoxGet`) — the default clipping box's
+  enabled/inverted flags, world-space min/max (axis-aligned envelope) and the
+  exact center/size/rotation, so a host can load only the models that
+  intersect it.
 - **2026.08.28** (>0.0.70):
   Hierarchy context menu: "Disable / Enable item edges on selected" — item-
   boundary edge lines off (or back on) per item, undoable like a hide, hotkeys

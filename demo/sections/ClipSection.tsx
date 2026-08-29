@@ -26,6 +26,7 @@ export function ClipSection() {
         <Button onClick={handleAddSphere}>clip.shapes.add (sphere r=5 @ origin)</Button>
       </Row>
       <Row>
+        <Button onClick={() => void run('clip.box.get', {}, () => c().clipBoxGet())}>clip.box.get</Button>
         <Button onClick={() => void run('clip.box.disable', {}, () => c().clipBoxDisable())}>clip.box.disable</Button>
         <Button onClick={() => void run('clip.reset', {}, () => c().clipReset())}>
           clip.reset (disable box + remove shapes)
