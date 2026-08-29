@@ -4,6 +4,12 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.08.29** (>0.0.75):
+  Home ribbon: Sketch gets its own group — the Sketch toggle plus three mini
+  buttons Off / Fill / Edges for the colour-from-mesh mode (ALT+1216/1217/1218),
+  so switching modes no longer needs Settings → Edges. Sketch defaults changed
+  to black ink with fade 0.10 (were grey `#a39d9d`, fade 0) — new installs and
+  "Reset viewer defaults"; stored settings keep their values.
 - **2026.08.29** (>0.0.74):
   SQL editor keys: Tab / Shift+Tab indent and outdent the selected lines (a
   caret gets one indent inserted / removed on its line), Enter keeps the

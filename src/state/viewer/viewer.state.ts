@@ -5,6 +5,10 @@ import { createStore } from '@treDeSpaceUI/lib/createStore';
  * the projection. The viewport panel copies this into the renderer each frame;
  * the ribbon and Settings panel are the writers (via viewerActions).
  */
+/** Sketch colour-from-mesh: off = paper + ink only, fill = mesh colours
+ *  washed onto the paper, edges = the ink takes the mesh colour. */
+export type SketchColorMode = 'off' | 'fill' | 'edges';
+
 export interface ViewerState {
   orthographic: boolean;
   /** Cull+draw via vertex pulling (core WebGPU, no MDI flag needed). */
@@ -66,7 +70,7 @@ export interface ViewerState {
   /** sketch colour-from-mesh: 'fill' washes coloured surfaces onto the paper,
    *  'edges' draws the ink in the mesh colour; colourless meshes
    *  (white/grey/black) always stay plain paper + ink */
-  sketchColorMode: 'off' | 'fill' | 'edges';
+  sketchColorMode: SketchColorMode;
   // ambient occlusion
   aoMode: 0 | 1 | 2; // off / motion / static
   aoRadius: number;
@@ -161,8 +165,8 @@ export const initialViewerState: ViewerState = {
   geoEdges: true,
   itemEdges: true,
   sketch: false,
-  sketchEdgeColor: '#a39d9d',
-  sketchFadeExp: 0,
+  sketchEdgeColor: '#000000',
+  sketchFadeExp: 0.1,
   sketchDepthThr: 0.075,
   sketchNormalThr: 0.25,
   cubeFaceColor: '#2f3641', // the cube's original palette (shaders.ts BASE_FACE…)
