@@ -44,6 +44,25 @@ export function ruleToSpec(r: ColorRule): ColorRuleSpec {
   };
 }
 
+/** The ENABLED rules as worker specs, store scopes resolved to model
+ *  indices (a store with nothing loaded scopes to [] — the rule matches
+ *  nothing). Shared by the panel's Run and the GUI-less colorRules.apply
+ *  API command. */
+export async function specsForRules(rules: ColorRule[]): Promise<ColorRuleSpec[]> {
+  const active = rules.filter((r) => r.enabled);
+  const specs = active.map(ruleToSpec);
+  const storeNames = [...new Set(active.map((r) => r.store).filter(Boolean))];
+  const idxByStore = new Map(
+    await Promise.all(storeNames.map(async (s) => [s, await loadedIndicesForStore(s)] as const)),
+  );
+  active.forEach((r, i) => {
+    if (r.store) {
+      specs[i].models = idxByStore.get(r.store) ?? [];
+    }
+  });
+  return specs;
+}
+
 /** Build a Set Color action set bound to a specific store — the global panel
  *  uses the persisted multiColorState; the "(viewpoint)" panel binds the same
  *  editor to the active viewpoint's own rules. */
@@ -148,21 +167,10 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       if (running || active.length === 0) {
         return;
       }
-      const specs: ColorRuleSpec[] = active.map(ruleToSpec);
       store.set({ running: true });
       dialogs.loading('Applying color rules…', 'Set Color');
       try {
-        // store-scoped rules only touch models loaded from that store; a
-        // store with nothing loaded scopes to [] (the rule matches nothing)
-        const storeNames = [...new Set(active.map((r) => r.store).filter(Boolean))];
-        const idxByStore = new Map(
-          await Promise.all(storeNames.map(async (s) => [s, await loadedIndicesForStore(s)] as const)),
-        );
-        active.forEach((r, i) => {
-          if (r.store) {
-            specs[i].models = idxByStore.get(r.store) ?? [];
-          }
-        });
+        const specs = await specsForRules(rules);
         const ran = await viewerActions.applyColorRules(specs, mode);
         // map the enabled-only counts back onto the full rule list
         let k = 0;

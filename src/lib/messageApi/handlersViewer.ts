@@ -1,10 +1,11 @@
 // Viewer-control commands: MultiColor rules, view state (sketch/screenshot),
 // clipping and navigation. See EVENTS.md for the payload contracts.
-import { multiColorActions } from '../../components/panels/multi-color/multiColor.actions';
+import { multiColorActions, specsForRules } from '../../components/panels/multi-color/multiColor.actions';
 import { multiColorState, normalizeRules } from '../../components/panels/multi-color/multiColor.state';
 import { ribbonClippingBoxActions } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.actions';
 import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonHomeActions } from '../../components/panels/ribbon-home/ribbonHome.actions';
+import { storesState, TEMP_STORE } from '../../state/stores/stores.state';
 import { clipShapesActions } from '../../state/viewer/clipShapes.actions';
 import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { viewerState } from '../../state/viewer/viewer.state';
@@ -15,6 +16,14 @@ const setOrAddColorRules: ApiHandler = async ({ type, p }) => {
   const incoming = normalizeRules(p.rules);
   if (!incoming.length) {
     throw new ApiError('bad-payload', 'rules must be a non-empty rule[]');
+  }
+  // a rule's `store` scopes it to that store's models; a typo would silently
+  // match nothing, so unknown names are rejected up front
+  const known = new Set([...storesState.get().stores.map((s) => s.name), TEMP_STORE]);
+  for (const r of incoming) {
+    if (r.store && !known.has(r.store)) {
+      throw new ApiError('not-found', `rule store "${r.store}" is not a known store — see assets.stores`);
+    }
   }
   const cur = multiColorState.get();
   const rules = type === 'colorRules.add' ? [...cur.rules, ...incoming] : incoming;
@@ -98,6 +107,23 @@ export async function applyCameraPayload(p: Record<string, unknown>): Promise<Ca
 export const viewerHandlers: Record<string, ApiHandler> = {
   'colorRules.set': setOrAddColorRules,
   'colorRules.add': setOrAddColorRules,
+
+  // run a rule set directly — the Set Color panel's own rules are untouched
+  'colorRules.apply': async ({ p }) => {
+    const rules = normalizeRules(p.rules);
+    if (!rules.length) {
+      throw new ApiError('bad-payload', 'rules must be a non-empty rule[]');
+    }
+    const known = new Set([...storesState.get().stores.map((s) => s.name), TEMP_STORE]);
+    for (const r of rules) {
+      if (r.store && !known.has(r.store)) {
+        throw new ApiError('not-found', `rule store "${r.store}" is not a known store — see assets.stores`);
+      }
+    }
+    const mode = p.mode === 'append' || p.mode === 'hide' ? p.mode : 'reset';
+    const matches = await viewerActions.applyColorRules(await specsForRules(rules), mode);
+    return { ran: true, matches };
+  },
 
   'colorRules.run': async () => {
     await multiColorActions.run();

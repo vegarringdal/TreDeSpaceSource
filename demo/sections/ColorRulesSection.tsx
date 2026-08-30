@@ -13,12 +13,17 @@ export function ColorRulesSection() {
     comment: 'demo rule',
     filters: [{ op: 'append' as const, mode: 'contains' as const, value: contains }],
     color: '#ff2020',
-    opacity: 60,
+    opacity: 0.6,
   });
 
   const handleSet = () => {
     const rules = [demoRule()];
     void run('colorRules.set', { rules, run: true }, () => c().colorRulesSet(rules, { run: true }));
+  };
+
+  const handleApply = () => {
+    const rules = [demoRule()];
+    void run('colorRules.apply', { rules }, () => c().colorRulesApply(rules));
   };
 
   const handleAdd = () => {
@@ -29,9 +34,13 @@ export function ColorRulesSection() {
   return (
     <DemoSection title="Color rules">
       <TextInput value={contains} onChange={setContains} />
-      <Hint>Contains-filter text; painted red at 60% opacity, then run.</Hint>
+      <Hint>
+        Contains-filter text; painted red at 60% opacity, then run. apply paints WITHOUT touching the Set Color panel —
+        the external-tooling form.
+      </Hint>
       <Row>
         <Button onClick={handleSet}>colorRules.set + run</Button>
+        <Button onClick={handleApply}>colorRules.apply (GUI untouched)</Button>
         <Button onClick={handleAdd}>colorRules.add + run</Button>
         <Button onClick={() => void run('colorRules.run', {}, () => c().colorRulesRun())}>colorRules.run</Button>
         <Button onClick={() => void run('colorRules.clear', {}, () => c().colorRulesClear())}>colorRules.clear</Button>

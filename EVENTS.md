@@ -204,13 +204,40 @@ hierarchy level (tree-panel counting, import folders included) — each match
 includes its whole subtree. Level 1 tests the import-folder name, so a hit
 takes everything under the folder; the models' root entries sit at
 folderDepth+1. Omitted/0 = match at any level.
+A rule's optional `store` scopes it to the models loaded from that store
+(a known store name, see `assets.stores`; omitted/'' = every store) — keeps a
+rule set safe when two stores hold same-named models. An unknown name is
+rejected with `not-found` rather than silently matching nothing.
+A `multi` line may carry its own colour after a TAB/space/comma —
+`name<TAB>#ff0000:50` (colour[:opacity 0-100], `default` = original colour) —
+which is how a per-row colour list is fed in.
 
 ```js
 payload: { mode: 'append', run: true, rules: [
-  { comment: 'inspection', enabled: true, color: '#ff8800', opacity: 1,
-    filters: [{ op: 'append', mode: 'contains', value: 'PIPE', comment: '' }] },
+  { comment: 'inspection', enabled: true, color: '#ff8800', opacity: 1, store: 'main',
+    filters: [{ op: 'append', mode: 'contains', value: 'PIPE', comment: '', level: 3 }] },
+  { comment: 'per-row colours', color: null,
+    filters: [{ op: 'append', mode: 'multi', value: '/TP400-PIPE-01\tred\n/TP400-PIPE-02\t#00ff00:50' }] },
 ] }
-response: { rules: 3, ran: true, matches: [192308] }
+response: { rules: 3, ran: true, matches: [192308, 2] }
+```
+
+### colorRules.apply
+Run a rule set DIRECTLY — same payload shape as `colorRules.set` (rules,
+`mode` defaulting to `reset`, `store`/`level`/`multi` all honoured), but the
+Set Color panel's own rules and mode are NOT touched: nothing appears in the
+GUI and nothing needs cleaning up afterwards. This is the form external
+tooling should use to drive colours — the user's own rule set in the panel
+stays exactly as they left it (`colorRules.set` is for hosts that want the
+rules visible and editable in the panel). Disabled rules are skipped;
+`matches` are the per-enabled-rule item counts. The paint itself is the same
+one step on the undo stack a panel Run makes.
+
+```js
+payload: { mode: 'reset', rules: [
+  { color: '#ff8800', filters: [{ op: 'append', mode: 'contains', value: 'PIPE' }] },
+] }
+response: { ran: true, matches: [192308] }
 ```
 
 ### colorRules.run / colorRules.clear

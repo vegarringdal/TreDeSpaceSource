@@ -262,7 +262,9 @@ export interface MeasurementInput {
 export interface FilterRowInput {
   op: 'append' | 'remove';
   /** contains | single (equals, * at start/end) | starts | ends |
-   *  wildcard (equals, * anywhere) | multi (one name per line) */
+   *  wildcard (equals, * anywhere) | multi (one name per line — a line may
+   *  carry its own colour after a TAB/space/comma: `name<TAB>#ff0000:50`,
+   *  colour[:opacity 0-100], `default` = original colour) */
   mode: 'contains' | 'single' | 'multi' | 'starts' | 'ends' | 'wildcard';
   value: string;
   comment?: string;
@@ -282,6 +284,10 @@ export interface ColorRuleInput {
   color: string | null;
   /** 0-1, 1 = default */
   opacity?: number;
+  /** Scope the rule to the models loaded from this store (a known store
+   *  name); omitted/'' = every store. Keeps a rule set safe when stores hold
+   *  same-named models. An unknown name is rejected (not-found). */
+  store?: string;
 }
 
 /** A clip shape to append (sphere / cylinder / box). Only `kind` is required;
@@ -863,6 +869,17 @@ export class TredespaceClient {
     return this.send('measurements.clear', {});
   }
 
+  /** Run a rule set DIRECTLY, without touching the Set Color panel — same
+   *  rule shape as {@link colorRulesSet}, but the panel's own rules/mode stay
+   *  as they are (nothing to clean up afterwards). `mode` defaults to
+   *  'reset'; disabled rules are skipped. Returns per-enabled-rule match
+   *  counts. */
+  colorRulesApply(
+    rules: ColorRuleInput[],
+    opts?: { mode?: 'reset' | 'append' | 'hide' },
+  ): Promise<Result<{ ran: boolean; matches: number[] }>> {
+    return this.send('colorRules.apply', { rules, mode: opts?.mode ?? 'reset' });
+  }
   /** Replace the Set-Color rules. `mode:'append'` keeps existing rules
    *  (default 'reset' replaces); `mode:'hide'` runs hide-model style — hide
    *  everything, the rules unhide and colour their matches; `run:true`

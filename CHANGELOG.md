@@ -4,6 +4,17 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.08.30** (>0.0.78):
+  API `colorRules.apply` (SDK `colorRulesApply`): run a rule set directly —
+  same shape as colorRules.set — WITHOUT loading it into the Set Color panel;
+  the panel's rules/mode stay untouched — the form for external tooling that
+  must not disturb the user's GUI. Internally the panel's Run and this share
+  one rules→specs path (store scoping included). Demo gained an apply button
+  (and its sample rule's opacity was fixed from 60 to 0.6 — the 0-1 scale).
+  API `colorRules.set/add`: a rule's `store` scope (already honoured) is now
+  typed in the SDK and documented, with unknown store names rejected
+  (`not-found`) instead of silently matching nothing; the docs also show
+  `level` and the `multi` per-line colour form.
 - **2026.08.30** (>0.0.77):
   Fix: TREE_VIEW_ARGS (SQL Detail, Run / As Table / the color buttons) was
   seeded from the last VIEWPORT pick only, so after a tree click or U / P the
