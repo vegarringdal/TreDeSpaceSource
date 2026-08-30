@@ -4,6 +4,29 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.08.30** (>0.0.76):
+  Hierarchy highlight now follows the actual item selection: a row whose
+  items are ALL selected is highlighted and a row with SOME selected gets a
+  blue left bar — at every level, collapsed or not — so invert, API and SQL
+  selections show in the tree (they set no tree roots and used to show
+  nothing). Derived from item state in the same lazy per-model pass as the
+  hidden badges. API: `selection.get { items: true, maxItems }` returns every
+  selected item's fullname (children included) with `itemCount` /
+  `truncated`, for selections that have no roots — "item" meaning every
+  selected NODE (grouping entries as well as the leaves), with
+  `skip: ['FRAME', 'BRACKET*']` prefix filtering.
+  Docs: EVENTS.md "Hosting: reverse-proxy the viewer under your own site"
+  (and the SDK header) — framing tredespace.com directly makes the host's own
+  panels/dialogs inside the viewer third-party (partitioned storage, no
+  cookies/SSO, silent BroadcastChannel); serve the viewer through your own
+  reverse proxy instead (nginx snippet), and host your own container / fork to
+  lock a version. Spelled out for internal networks: tredespace.com is public,
+  so internal panels would open inside a public-origin frame (frame-ancestors,
+  SSO cookies) and clients would need internet access — proxied, the viewer is
+  an internal URL and only the server talks to tredespace.com. Development
+  note: a localhost host app framing the public viewer hits the browser's
+  Private Network Access block when the viewer opens localhost panels — proxy
+  in dev too (Vite `server.proxy` example) or disable the flag locally.
 - **2026.08.29** (>0.0.75):
   Home ribbon: Sketch gets its own group — the Sketch toggle plus three mini
   buttons Off / Fill / Edges for the colour-from-mesh mode (ALT+1216/1217/1218),

@@ -80,6 +80,29 @@
 //       subdomain is same-SITE) removes the cross-site ancestor entirely, and
 //       all of the above just works.
 //
+// HOSTING — proxy the viewer under your own site (recommended):
+//   Framing tredespace.com directly makes the viewer a cross-site frame, so
+//   the panels/dialogs of YOURS that open inside it are third-party: storage
+//   partitioned, cookies/SSO not reaching them, BroadcastChannel silent. Put
+//   the viewer behind your reverse proxy (a path or a subdomain) and embed
+//   THAT — same-site, no ?apiOrigins= needed, your embedded panels keep their
+//   session. nginx: `location /tredespace/ { proxy_pass https://tredespace.com/;
+//   proxy_set_header Host tredespace.com; proxy_ssl_server_name on;
+//   proxy_ssl_name tredespace.com; }` (full snippet in EVENTS.md → Hosting).
+//   On an INTERNAL network this is not optional: tredespace.com is public, so
+//   framed directly your internal panels would open inside a public-origin
+//   frame (frame-ancestors refuses it, SSO cookies never arrive) and every
+//   client needs internet access; proxied, the viewer is an internal URL and
+//   only your server fetches tredespace.com.
+//   In DEV the same bites: a host on http://localhost framing the public
+//   viewer, which then opens your localhost panels = public → local request,
+//   blocked by Chrome/Edge (Private Network Access). Proxy in dev too (Vite
+//   server.proxy '/tredespace' → https://tredespace.com, changeOrigin) or, on
+//   your own machine only, disable the "private network" block in
+//   chrome://flags / edge://flags.
+//   A proxy always serves the CURRENT release; to lock a version, host your
+//   own container of a chosen build or fork the project.
+//
 // EVENTS (unsolicited app → host; subscribe with on() or the typed helpers).
 //   Every subscription returns its UNSUBSCRIBE function, and also takes
 //   { signal } like addEventListener. The subscription signal and the client's
@@ -181,9 +204,34 @@ export interface SelectionSetResult {
 }
 
 export interface SelectionGetResult {
+  /** selected items (children included) */
   count: number;
-  /** selection roots as fullnames */
+  /** selection ROOTS as fullnames — what was clicked / set; a tree root
+   *  stands for its whole subtree. Empty after invert or a viewport
+   *  rectangle select, which have no roots — use `items` for those. */
   fullnames: string[];
+  /** with { items: true }: every selected NODE's fullname — the leaves and
+   *  the grouping entries above them (every row the tree highlights, not
+   *  just the roots) — because the real tag is often on a parent row and
+   *  which level varies per model; minus `skip` prefixes, capped at
+   *  maxItems (default 10 000) */
+  items?: string[];
+  /** with { items: true }: the true number of selected nodes (after skip) */
+  itemCount?: number;
+  /** with { items: true }: `items` was cut at maxItems */
+  truncated?: boolean;
+}
+
+export interface SelectionGetOptions {
+  /** also return every selected node's fullname (grouping entries and
+   *  leaves, children included) */
+  items?: boolean;
+  /** drop nodes whose name STARTS WITH any of these (case-insensitive; a
+   *  trailing `*` is accepted): `['FRAME', 'BRACKET*']` */
+  skip?: string[];
+  /** cap for `items` (default 10 000) — a whole-model selection can be
+   *  hundreds of thousands of names */
+  maxItems?: number;
 }
 
 export interface LabelInput {
@@ -768,9 +816,13 @@ export class TredespaceClient {
   selectionClear(): Promise<Result<Record<string, never>>> {
     return this.send('selection.clear', {});
   }
-  /** Read the current selection roots as fullnames. */
-  selectionGet(): Promise<Result<SelectionGetResult>> {
-    return this.send('selection.get', {});
+  /** Read the current selection: the count, the selection roots as
+   *  fullnames, and with `{ items: true }` every selected node — grouping
+   *  entries and leaves, children included, minus `skip` prefixes, capped at
+   *  `maxItems` — the form to use after invert / API / SQL selections, which
+   *  have no tree roots. */
+  selectionGet(opts: SelectionGetOptions = {}): Promise<Result<SelectionGetResult>> {
+    return this.send('selection.get', { ...opts });
   }
 
   /** Replace all scene labels. Each label anchors either to a world-space

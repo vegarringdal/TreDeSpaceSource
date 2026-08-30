@@ -18,10 +18,22 @@ export interface Row {
   inStore?: string;
   /** row is a model file's ROOT entry (gets the mesh icon at any depth) */
   isRoot?: boolean;
-  /** row is the active selection or lives under it (highlight) */
+  /** highlighted: the active selection root / under it, OR every item
+   *  beneath the row is selected (derived from item state, so invert, API
+   *  and SQL selections show at every level without expanding) */
   selected: boolean;
+  /** some but not all items beneath the row are selected */
+  partial?: boolean;
   /** every item beneath this row is hidden ('all'), or only some ('some') */
   hidden?: 'all' | 'some';
+}
+
+type Agg = { itemsUnder: number; hiddenUnder: number; selectedUnder: number };
+
+/** Selection state of a node from its subtree counts. */
+function selectedOf(n: Agg): { all: boolean; partial: boolean } {
+  const all = n.selectedUnder > 0 && n.selectedUnder >= n.itemsUnder;
+  return { all, partial: n.selectedUnder > 0 && !all };
 }
 
 /** The visibility badge for a node from its subtree counts. */
@@ -64,13 +76,15 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
   const walk = async (model: number, nodes: TreeNode[], depth: number, underActive: boolean) => {
     for (const n of nodes) {
       const isActive = underActive || activeSet.has(keyOf(model, n.entry));
+      const sel = selectedOf(n);
       out.push({
         model,
         entry: n.entry,
         depth,
         name: n.name,
         hasChildren: n.hasChildren,
-        selected: isActive,
+        selected: isActive || sel.all,
+        partial: !isActive && sel.partial,
         hidden: hiddenOf(n),
       });
       if (n.hasChildren && exp.has(keyOf(model, n.entry))) {
@@ -131,27 +145,29 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
     }
     return roots;
   };
-  /** Hidden badge for a folder row ('' = the whole store band): the item /
-   *  hidden totals of every model root at or below that folder path, so a
-   *  collapsed folder or store still says something under it is hidden. */
-  const groupHidden = async (path: string): Promise<'all' | 'some' | undefined> => {
-    let itemsUnder = 0;
-    let hiddenUnder = 0;
+  /** Subtree totals for a folder row ('' = the whole store band): the item /
+   *  hidden / selected counts of every model root at or below that folder
+   *  path, so a collapsed folder or store still shows what is hidden or
+   *  selected under it. */
+  const groupAgg = async (path: string): Promise<Agg> => {
+    const agg: Agg = { itemsUnder: 0, hiddenUnder: 0, selectedUnder: 0 };
     for (const g of caches.groups) {
       if (path !== '' && g.group !== path && !g.group.startsWith(`${path}/`)) {
         continue;
       }
       for (const r of await rootsOf(g.group)) {
-        itemsUnder += r.node.itemsUnder;
-        hiddenUnder += r.node.hiddenUnder;
+        agg.itemsUnder += r.node.itemsUnder;
+        agg.hiddenUnder += r.node.hiddenUnder;
+        agg.selectedUnder += r.node.selectedUnder;
       }
     }
-    return hiddenOf({ itemsUnder, hiddenUnder });
+    return agg;
   };
   const emitGroupRoots = async (path: string, depth: number, groupActive: boolean) => {
     const roots = await rootsOf(path);
     for (const r of roots) {
       const rootActive = groupActive || activeSet.has(keyOf(r.model, r.node.entry));
+      const sel = selectedOf(r.node);
       out.push({
         model: r.model,
         entry: r.node.entry,
@@ -159,7 +175,8 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         name: r.node.name,
         hasChildren: r.node.hasChildren,
         isRoot: true,
-        selected: rootActive,
+        selected: rootActive || sel.all,
+        partial: !rootActive && sel.partial,
         hidden: hiddenOf(r.node),
       });
       if (exp.has(keyOf(r.model, r.node.entry))) {
@@ -186,6 +203,8 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         (qualified != null && activeGroup === qualified) ||
         activeGroupSet.has(node.path) ||
         (qualified != null && activeGroupSet.has(qualified));
+      const agg = await groupAgg(node.path);
+      const sel = selectedOf(agg);
       out.push({
         model: -1,
         entry: -1,
@@ -194,8 +213,9 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         hasChildren: true,
         group: node.path,
         inStore: onlyStore ?? undefined,
-        selected: groupActive,
-        hidden: await groupHidden(node.path),
+        selected: groupActive || sel.all,
+        partial: !groupActive && sel.partial,
+        hidden: hiddenOf(agg),
       });
       if (exp.has(groupKey(node.path)) || (onlyStore != null && exp.has(groupKey(node.path, onlyStore)))) {
         if (node.isGroup) {
@@ -230,7 +250,7 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
       hasChildren: false,
       store,
       selected: false,
-      hidden: await groupHidden(''),
+      hidden: hiddenOf(await groupAgg('')),
     });
     await walkGroups(buildTop(store), 0, false);
   }

@@ -130,9 +130,29 @@ response: {}
 ```
 
 ### selection.get
+`count` is the number of selected items (children included); `fullnames` are
+the selection ROOTS — what was clicked or set, each standing for its subtree.
+Roots are empty after an invert, a viewport rectangle select or a SQL
+selection (nothing was "clicked"), so pass `items: true` to get every selected
+**node** instead: each hierarchy entry whose items are all selected — the
+leaves with geometry AND the grouping entries above them (assembly, frame
+and template rows that own no mesh of their own), i.e. every row the tree
+highlights. Why nodes and not just leaves: the *real* tag is often carried by
+a parent or folder row (an assembly, an equipment group), and which level that
+is varies per model — so a host resolving "what is selected" needs every
+level and decides itself. `skip` drops names that START WITH any given prefix
+(case-insensitive, trailing `*` accepted) so structure-only rows (frames,
+brackets, templates) can be left out. Capped at `maxItems` (default 10 000); `itemCount` is the true total
+after skipping and `truncated` says the cap hit.
+
 ```js
 payload:  {}
-response: { count: 12, fullnames: ['/TP400-PIPE-01', ...] }  // selection roots
+response: { count: 3, fullnames: ['/TP400-BEAM-01'] }            // selection roots
+
+payload:  { items: true, skip: ['FRAME', 'BRACKET*', 'TEMPLATE'], maxItems: 50000 }
+response: { count: 3, fullnames: ['/TP400-BEAM-01'],
+            items: ['/TP400-BEAM-01', '/TP400-PLATE-01', '/TP400-PLATE-02'],
+            itemCount: 3 }                                          // truncated: true when capped
 ```
 
 ### labels.set / labels.add
@@ -1128,6 +1148,87 @@ What to do instead:
 - **Serve the viewer from the host's own site** (a path, or a subdomain — a
   subdomain is same-*site*): no cross-site ancestor, so every same-origin
   mechanism works normally.
+
+## Hosting: reverse-proxy the viewer under your own site
+
+The partitioning above is one symptom of a general rule: when the viewer is a
+**cross-site** frame, everything the host opens *inside* it (External-app
+panels, modal dialogs, popups) runs with a cross-site ancestor and inherits
+third-party restrictions — partitioned storage, third-party cookie rules,
+`BroadcastChannel` silence, stricter permission delegation. Sub panels that
+work on your site standalone can then fail to open or lose their session.
+
+The fix is to make the viewer **same-site**: serve it through your own
+reverse proxy (a path, or a subdomain of your site) instead of framing
+`tredespace.com` directly. Then your pages inside the viewer are first-party
+again, `?apiOrigins=` is unnecessary (same-origin needs no allow-list), and
+cookies/SSO on your domain reach your embedded panels. nginx example:
+
+```nginx
+location /tredespace/ {
+    proxy_pass https://tredespace.com/;
+    proxy_set_header Host tredespace.com;
+    proxy_ssl_server_name on;
+    proxy_ssl_name tredespace.com;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header "requested-by" "proxy";
+}
+```
+
+and embed `https://your-site.example.com/tredespace/`. The build uses relative asset paths, so a sub-path like `/tredespace/` works as-is.
+
+**Internal networks — this is not optional.** `tredespace.com` is a public
+site. If your host application lives on an internal network, framing the
+public viewer directly means every user's browser must reach the internet
+for the viewer itself, and — worse — your internal panels then open *inside
+a public-origin frame*: an internal app's `frame-ancestors` / `X-Frame-Options`
+policy (rightly) refuses a public ancestor, its SSO cookies are scoped to the
+internal domain and never arrive, and its API calls come from a third-party
+context. Behind your proxy the viewer *is* an internal URL: the browser only
+ever talks to your server (the server fetches `tredespace.com`, and can be the
+one machine with outbound access), your frame-ancestor rules keep allowing
+only your own domain, and the whole thing works on a network with no public
+egress for clients. Model data was never at stake either way — the viewer
+keeps files in the browser (OPFS) and uploads nothing — but the *application*
+delivery and the security context of your panels are, and the proxy fixes
+both.
+
+**Development (host app on `localhost`).** The same applies while you
+develop: a host page on `http://localhost:2080` that frames the public viewer,
+which then opens *your* localhost panels/dialogs, asks a public origin to load
+a **local** resource — Chrome and Edge block that (Private Network Access:
+"public website → private/local network"), and the panel simply never opens.
+Two ways out:
+
+- **Proxy in dev too** — your dev server forwards a path to the viewer, so the
+  viewer is `localhost` as well. Vite:
+
+  ```js
+  // vite.config.js of the HOST app
+  server: {
+    proxy: {
+      '/tredespace': {
+        target: 'https://tredespace.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/tredespace/, ''),
+      },
+    },
+  },
+  ```
+
+  and embed `http://localhost:2080/tredespace/`.
+- **Or relax the browser** for your own machine only: in `chrome://flags` /
+  `edge://flags` search "private network" and disable the block on insecure
+  private-network requests (the exact flag name moves between versions).
+  That is a per-developer setting, never something to ask users to do.
+
+**Versions.** A proxy always serves whatever `tredespace.com` currently ships
+— you get every update, and every change. If you need to **lock a version**
+(validation, regulated environments, a release train of your own), host the
+viewer yourself: run your own container of a chosen build, or fork the
+project — the proxy pattern is for staying current, not for pinning.
 
 ## Future (documented, not v1)
 

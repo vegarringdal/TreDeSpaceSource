@@ -42,7 +42,7 @@ export function HierarchyRows({
             <button
               type="button"
               data-key={k}
-              className={`${r.selected ? 'tree-row is-selected' : 'tree-row'} flex w-full min-w-0 items-center`}
+              className={`tree-row ${r.selected ? 'is-selected' : ''} relative flex w-full min-w-0 items-center`}
               style={{ paddingLeft: `${8 + r.depth * 12}px` }}
               onClick={(e) => onSelect(r, e)}
               onContextMenu={(e) => {
@@ -50,6 +50,14 @@ export function HierarchyRows({
                 onContextMenu(r, e);
               }}
             >
+              {r.partial && !r.selected && (
+                // some (not all) items beneath this row are selected — shown
+                // without expanding; the bar itself carries the explanation
+                <span
+                  className="partial-bar"
+                  data-tooltip="Partly selected: some of the items below this row are selected (not all). The row highlights fully once everything beneath it is selected — no need to expand to see where the selection is"
+                />
+              )}
               {r.hasChildren ? (
                 <span
                   className="mr-1 inline-block w-3 shrink-0 cursor-pointer select-none text-slate-400"

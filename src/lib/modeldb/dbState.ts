@@ -43,6 +43,10 @@ export interface DbModel {
    *  hidden (recomputed lazily — see hiddenAggregate). */
   itemsUnder?: Uint32Array;
   hiddenUnder?: Uint32Array;
+  /** selected items in the subtree — the tree's "all / partly selected"
+   *  highlight, derived from item state so invert / API / SQL selections show
+   *  at every level without expanding (same lazy refresh as hiddenUnder) */
+  selectedUnder?: Uint32Array;
   /** Bumped by packStates on EVERY state upload; hiddenUnder is stamped with
    *  the version it was computed for and refreshed when they differ. */
   stateVersion?: number;
@@ -82,6 +86,7 @@ export interface TreeNode {
    *  tree's "hidden / partly hidden" badge, O(1) per row */
   itemsUnder: number;
   hiddenUnder: number;
+  selectedUnder: number;
 }
 
 export type StateUpdate = { model: number; states: Uint32Array };

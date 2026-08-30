@@ -73,13 +73,24 @@ export const sceneHandlers: Record<string, ApiHandler> = {
     return {};
   },
 
-  'selection.get': async () => {
+  'selection.get': async ({ p }) => {
     const pairs = selectionState
       .get()
       .actives.map((k) => k.split(':').map(Number))
       .filter((x) => x.length === 2)
       .map(([model, entry]) => ({ model, entry }));
-    return { count: selectionState.get().count, fullnames: await db.entryNames(pairs) };
+    const base = { count: selectionState.get().count, fullnames: await db.entryNames(pairs) };
+    if (p.items !== true) {
+      return base;
+    }
+    // every selected NODE (grouping entries and leaves, children included) —
+    // minus `skip` prefixes, capped, the true total in itemCount
+    const maxItems = typeof p.maxItems === 'number' && p.maxItems > 0 ? Math.floor(p.maxItems) : 10_000;
+    const skip = (p.skip === undefined ? [] : strings(p.skip, 'skip'))
+      .map((x) => x.replace(/\*+$/, '').trim().toLowerCase())
+      .filter((x) => x.length > 0);
+    const { names, total, truncated } = await db.selectedNodeNames(maxItems, skip);
+    return { ...base, items: names, itemCount: total, ...(truncated ? { truncated: true } : {}) };
   },
 
   'labels.set': setOrAddLabels,

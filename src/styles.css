@@ -181,6 +181,16 @@ body {
   background: var(--color-blue-950);
   color: var(--color-blue-100);
 }
+/* some (not all) items beneath the row are selected: a 3px bar at the left
+   edge, with an 8px hover target so its tooltip is reachable */
+.partial-bar {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 8px;
+  background: linear-gradient(to right, var(--color-blue-600) 3px, transparent 3px);
+}
 .dot {
   width: 6px;
   height: 6px;

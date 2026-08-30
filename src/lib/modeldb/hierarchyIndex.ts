@@ -6,6 +6,7 @@ import {
   type DbModel,
   HAS_OPACITY_OVERRIDE,
   IS_HIDDEN,
+  IS_SELECTED,
   NO_PARENT,
   OPACITY_MASK,
   OPACITY_SHIFT,
@@ -71,17 +72,23 @@ function subtreeCounts(m: DbModel, weight: (item: number) => number): Uint32Arra
   return out;
 }
 
-/** `hiddenUnder`, refreshed when the model's states changed since it was last
- *  computed. Every state mutation is uploaded through packStates (which bumps
- *  `stateVersion`), so no hide/show site needs to know about this — the cost
- *  is one O(entries + items) pass per changed model, on the next tree fetch. */
-export function hiddenAggregate(m: DbModel): Uint32Array {
+/** `hiddenUnder` + `selectedUnder`, refreshed when the model's states changed
+ *  since they were last computed. Every state mutation is uploaded through
+ *  packStates (which bumps `stateVersion`), so no hide/select site needs to
+ *  know about this — the cost is one O(entries + items) pass per changed
+ *  model, on the next tree fetch. */
+export function stateAggregates(m: DbModel): { hidden: Uint32Array; selected: Uint32Array } {
   const v = m.stateVersion ?? 0;
-  if (!m.hiddenUnder || m.hiddenAggVersion !== v) {
+  if (!m.hiddenUnder || !m.selectedUnder || m.hiddenAggVersion !== v) {
     m.hiddenUnder = subtreeCounts(m, (item) => (isEffectivelyHidden(m.states[item * 2]) ? 1 : 0));
+    m.selectedUnder = subtreeCounts(m, (item) => ((m.states[item * 2] & IS_SELECTED) !== 0 ? 1 : 0));
     m.hiddenAggVersion = v;
   }
-  return m.hiddenUnder;
+  return { hidden: m.hiddenUnder, selected: m.selectedUnder };
+}
+
+export function hiddenAggregate(m: DbModel): Uint32Array {
+  return stateAggregates(m).hidden;
 }
 
 /** Hidden as the USER sees it: the hide flag, or an opacity override of 0 —

@@ -4,7 +4,7 @@ import { type PackedNames, packedName } from '../color/packedNames';
 // transform-aware world bounds of the current selection.
 import { IS_SELECTED, models, type StateUpdate } from './dbState';
 import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel } from './globalNameIndex';
-import { interleaveStates, itemsUnder, packStates } from './hierarchyIndex';
+import { entryName, interleaveStates, itemsUnder, packStates, stateAggregates } from './hierarchyIndex';
 import { transforms } from './transformPool';
 
 export const selectionApi = {
@@ -390,5 +390,43 @@ export const selectionApi = {
 
   selectionCount(): number {
     return models.reduce((n, m) => n + m.selected.length, 0);
+  },
+
+  /** Every selected NODE's fullname — each hierarchy entry whose items are
+   *  all selected: the leaves AND the grouping entries above them (assembly
+   *  and frame rows that own no geometry themselves), i.e. every row the tree
+   *  highlights — not just the roots. `skip` drops names starting with any
+   *  of the given prefixes (lowercased); capped at `maxItems`, `total` is the
+   *  count after skipping. */
+  selectedNodeNames(maxItems: number, skip: string[]): { names: string[]; total: number; truncated: boolean } {
+    const names: string[] = [];
+    let total = 0;
+    for (const m of models) {
+      if (m.removed || m.selected.length === 0) {
+        continue;
+      }
+      const { selected } = stateAggregates(m);
+      const itemsUnder = m.itemsUnder;
+      if (!itemsUnder) {
+        continue;
+      }
+      for (let e = 0; e < selected.length; e++) {
+        if (selected[e] === 0 || selected[e] < itemsUnder[e]) {
+          continue;
+        }
+        const name = entryName(m, e);
+        if (skip.length) {
+          const lower = name.toLowerCase();
+          if (skip.some((p) => lower.startsWith(p))) {
+            continue;
+          }
+        }
+        total++;
+        if (names.length < maxItems) {
+          names.push(name);
+        }
+      }
+    }
+    return { names, total, truncated: total > names.length };
   },
 };
