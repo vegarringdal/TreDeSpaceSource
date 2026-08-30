@@ -4,8 +4,9 @@ import { useSyncExternalStore } from 'react';
 import { getDetailReport, subscribeDetailReport } from './sqlDetailPanel';
 import { useSqlDetailForm } from './useSqlDetailForm';
 
-/** SQL Detail: bound to a DETAIL report. While Listening, every viewport click
- *  rebuilds TREE_VIEW_ARGS from the clicked item's fullname hierarchy, re-runs
+/** SQL Detail: bound to a DETAIL report. While Listening, every selection
+ *  change (viewport click, tree click, U / P) rebuilds TREE_VIEW_ARGS from
+ *  the selected node's tree-view path, re-runs
  *  the report's LIMIT 1 query, and shows the row as a two-column field list.
  *  The header + toolbar are fixed; only the fields scroll. */
 export function SqlDetail() {

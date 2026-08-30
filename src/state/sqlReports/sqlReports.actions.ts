@@ -16,8 +16,6 @@ import { parseAttachPaths, splitSqlStatements, stripSqlComments } from '../../li
 import { buildReportStatements } from '../../lib/sqlite/sqlReport';
 import type { Statement } from '../../lib/sqlite/types';
 import { killHint } from '../sqlAssets/sqlKillHint';
-import { db } from '../viewer/db';
-import { getLastPick } from '../viewer/pickListeners';
 import { viewerActions } from '../viewer/viewer.actions';
 import { type ReportDef, type ReportType, sqlReportsState } from './sqlReports.state';
 
@@ -90,11 +88,11 @@ function attachSetup(sql: string): Statement[] {
     .map((s) => ({ sql: s, useStatementInLog: false }));
 }
 
-/** The last viewport pick's fullname hierarchy (root → leaf), or [] with no
- *  pick — what TREE_VIEW_ARGS is seeded from for every non-DETAIL run. */
-export async function lastPickTree(): Promise<string[]> {
-  const pick = getLastPick();
-  return pick ? await db.itemFullnamePath(pick.model, pick.item) : [];
+/** The last SELECTION's tree-view path (folders, then root → leaf), or []
+ *  with nothing selected — what TREE_VIEW_ARGS is seeded from for every
+ *  non-DETAIL run. Follows tree clicks, viewport picks and U / P alike. */
+export async function lastSelectedTree(): Promise<string[]> {
+  return viewerActions.lastSelectedTree();
 }
 
 /** The last (collected) statement's result. */
@@ -120,7 +118,7 @@ async function execReport(
   // TREE_VIEW_ARGS: DETAIL brings the clicked hierarchy; every other run
   // gets the last viewport pick's, so As Table / the color buttons see the
   // same table a detail query would
-  const tree = extra.tree ?? (await lastPickTree());
+  const tree = extra.tree ?? (await lastSelectedTree());
   const statements = buildReportStatements({
     filters: report.filters,
     sql: report.sql,
@@ -133,7 +131,7 @@ async function execReport(
   if (type !== 'DETAIL' && tree.length && !extra.colorProbe) {
     consoleActions.log(
       'info',
-      `SQL: ${report.name} — TREE_VIEW_ARGS seeded with ${tree.length} level(s) from the last pick`,
+      `SQL: ${report.name} — TREE_VIEW_ARGS seeded with ${tree.length} level(s) from the last selection`,
     );
   }
   // report.db may be '' (None) → an in-memory scratch main; every real db is in

@@ -109,6 +109,23 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       }
     },
 
+    /** The "+" on a filter row: put the LAST selected name (the current
+     *  selection root — tree click, viewport pick, U / P) into the row:
+     *  replaces the text, or in Multi mode appends it as a new line. */
+    async insertSelectedName(i: number, j: number) {
+      const name = await viewerActions.lastSelectedName();
+      if (!name) {
+        consoleActions.log('warn', 'Set Color: nothing is selected — select in the tree or the viewport first');
+        return;
+      }
+      const f = store.get().rules[i]?.filters[j];
+      if (!f) {
+        return;
+      }
+      const value = f.mode === 'multi' && f.value.trim() ? `${f.value.replace(/\s+$/, '')}\n${name}` : name;
+      patchRule(i, { filters: store.get().rules[i].filters.map((x, k) => (k === j ? { ...x, value } : x)) });
+    },
+
     updateFilter(i: number, j: number, patch: Partial<FilterRow>) {
       const rule = store.get().rules[i];
       if (rule) {

@@ -712,7 +712,8 @@ export interface TreeSelectParent {
   path?: string;
 }
 
-/** Unsolicited `tree.select` event: the user clicked a row in the tree view. */
+/** Unsolicited `tree.select` event: the user clicked a row in the tree view,
+ *  picked an item in the viewport, or walked the selection with U / P. */
 export interface TreeSelectEvent {
   /** fullname of the clicked node (folder path for folder rows) */
   fullname: string;

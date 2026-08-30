@@ -1025,7 +1025,8 @@ SDK: `client.on(type, handler)` or the typed helpers; handlers get the payload.
 ### tree.select
 The user selected a node — a row in the tree view (Hierarchy panel or its
 search results) or an item picked by clicking the model in the viewport
-(including ctrl+click toggles and digit+click level selects). The payload
+(including ctrl+click toggles and digit+click level selects), or the
+selection walked up / down the hierarchy with the U / P keys. The payload
 carries the fullname plus every parent up to the root —
 import folders first (`type: 'folder'`, each with its cumulative `path`), then
 model hierarchy ancestors (`type: 'node'`) — enough for a host to mirror the

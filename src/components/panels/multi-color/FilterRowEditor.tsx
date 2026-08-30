@@ -1,4 +1,4 @@
-import { IconX } from '@tabler/icons-react';
+import { IconPlus, IconX } from '@tabler/icons-react';
 import { Button, Select, TextArea, TextInput } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
 import type { FilterRow } from './multiColor.state';
@@ -39,6 +39,12 @@ export function FilterRowEditor({ ruleIdx, idx, row }: { ruleIdx: number; idx: n
   return (
     <div className="flex flex-col gap-1 rounded border border-neutral-700/60 p-1">
       <div className="flex items-center gap-1">
+        <Button
+          iconOnly
+          icon={<IconPlus size={14} />}
+          tooltip="Insert the LAST selected name — whatever is the current selection root: the row you clicked in the tree, the item you picked in the viewport, or where U / P walked to. Replaces this row's text; in Multi mode it is appended as a new line instead"
+          onClick={() => void act.insertSelectedName(ruleIdx, idx)}
+        />
         <Tip
           className="min-w-0 flex-1"
           tip="Append adds this row's matches to the rule's result; Remove subtracts them from the rows above"

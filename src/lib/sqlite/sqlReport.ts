@@ -51,10 +51,11 @@ export interface BuildOpts {
    *  of the coloring select — the collected result is the query's column names,
    *  which decides whether the real run includes `fullname_color`. */
   colorProbe?: boolean;
-  /** The fullname hierarchy → TREE_VIEW_ARGS. DETAIL passes the clicked
-   *  item's; every other run type seeds it from the LAST viewport pick, so a
-   *  query can be checked As Table / colored with the same table a detail
-   *  run would see. Omitted/empty = no table. */
+  /** The fullname hierarchy → TREE_VIEW_ARGS. DETAIL passes the current
+   *  selection's; every other run type seeds it from the LAST selection too
+   *  (tree click, viewport pick, U / P), so a query can be checked As Table /
+   *  colored with the same table a detail run would see. Omitted/empty = no
+   *  table. */
   treeFullnames?: string[];
 }
 
@@ -62,7 +63,7 @@ export interface BuildOpts {
  *  path — the import-folder levels above the model AND the entry chain, i.e.
  *  every row the Hierarchy panel shows above the item (the store band is not
  *  a level). Shared by DETAIL runs and the SQL Editor / report runs (seeded
- *  from the last viewport click so you can test without re-clicking).
+ *  from the last selection — tree click, viewport pick or U / P).
  *
  *  Rows go in LOWEST level first — the clicked item, then its parent, up to
  *  the root — because that is the order a detail query wants to read them
@@ -95,7 +96,7 @@ export function buildReportStatements(o: BuildOpts): Statement[] {
   }
 
   // TREE_VIEW_ARGS — DETAIL always (its clicked hierarchy, possibly empty);
-  // any other type when a hierarchy was supplied (the last viewport pick)
+  // any other type when a hierarchy was supplied (the last selection)
   if (o.type === 'DETAIL' || o.treeFullnames?.length) {
     out.push(...treeViewArgsStatements(o.treeFullnames ?? []));
   }

@@ -7,7 +7,7 @@ import type { Renderer } from '../../lib/render/renderer';
 import { startTrace, traceEnabled } from '../../lib/trace';
 import { emitTreeSelect } from '../../lib/treeSelectEvent';
 import { db, transfer } from './db';
-import { emitViewportPick } from './pickListeners';
+import { emitViewportPick, getLastPick } from './pickListeners';
 import { residency } from './residency';
 import { groupSelKey, selectionState } from './selection.state';
 import { initialViewerState, type ViewerState, viewerState } from './viewer.state';
@@ -50,6 +50,7 @@ async function navSelect() {
     reveal: { model, path: subPath },
   });
   await refreshSelectionMeta({ model, entry });
+  emitTreeSelect(model, entry); // host event: U/P changed what is selected
 }
 
 /** Load cooked model bytes into the viewer. Returns the renderer slot index
@@ -356,6 +357,34 @@ export const viewerActions = {
     }
     navDepth++;
     await navSelect();
+  },
+
+  /** The tree-view path (import folders first, then the entry chain, top →
+   *  leaf) of what was selected LAST — the current selection root from a
+   *  tree click, a viewport pick, U / P or an API select; a selected folder
+   *  gives the folder path; a viewport pick with no root falls back to the
+   *  picked item. [] when nothing is selected. What TREE_VIEW_ARGS and the
+   *  Set Color "+" button are fed from. */
+  async lastSelectedTree(): Promise<string[]> {
+    const { active, activeGroup } = selectionState.get();
+    if (active) {
+      const chain = await db.entryChain(active.model, active.entry);
+      if (chain.nodes.length) {
+        return [...chain.group.split('/').filter(Boolean), ...chain.nodes.map((n) => n.name)];
+      }
+    }
+    if (activeGroup) {
+      return (activeGroup.split('\0').pop() ?? '').split('/').filter(Boolean);
+    }
+    const pick = getLastPick();
+    return pick ? await db.itemFullnamePath(pick.model, pick.item) : [];
+  },
+
+  /** The name of what was selected LAST (the leaf of lastSelectedTree), or
+   *  null when nothing is selected. */
+  async lastSelectedName(): Promise<string | null> {
+    const path = await viewerActions.lastSelectedTree();
+    return path[path.length - 1] ?? null;
   },
 
   /** Select one item by its model fullname (with/without leading '/') —

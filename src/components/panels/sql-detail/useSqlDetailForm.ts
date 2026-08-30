@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { sqlReportsActions } from '../../../state/sqlReports/sqlReports.actions';
 import type { ReportDef } from '../../../state/sqlReports/sqlReports.state';
-import { db } from '../../../state/viewer/db';
-import { getLastPick, onViewportPick } from '../../../state/viewer/pickListeners';
+import { selectionState } from '../../../state/viewer/selection.state';
+import { viewerActions } from '../../../state/viewer/viewer.actions';
 
 type DetailField = Readonly<{ col: string; val: unknown; key: string }>;
 
@@ -32,8 +32,10 @@ export function useSqlDetailForm(report: ReportDef | null): SqlDetailForm {
   // (Re)bind: follow the report OBJECT, not its id — the SQL Editor binds a
   // fresh report under the same id ('__editor__') every time, and a saved
   // report re-bound after an edit is a new object too; keying on the id kept
-  // the click handler running the OLD SQL. Rebinding also re-runs the last
-  // pick right away, so the new query answers without another click.
+  // the click handler running the OLD SQL. The form follows the SELECTION
+  // (tree click, viewport pick, U / P, API — anything that moves the
+  // selection root), not just viewport picks, and re-runs the current
+  // selection on rebind so the new query answers without another click.
   useEffect(() => {
     setForm(null);
     setStatus('');
@@ -41,8 +43,9 @@ export function useSqlDetailForm(report: ReportDef | null): SqlDetailForm {
       return;
     }
     let alive = true;
-    const runFor = async (model: number, item: number) => {
-      const tree = await db.itemFullnamePath(model, item);
+    let lastKey = '';
+    const run = async () => {
+      const tree = await viewerActions.lastSelectedTree();
       if (!tree.length || !alive) {
         return;
       }
@@ -62,11 +65,19 @@ export function useSqlDetailForm(report: ReportDef | null): SqlDetailForm {
         setStatus('no match');
       }
     };
-    const last = getLastPick();
-    if (last) {
-      void runFor(last.model, last.item);
-    }
-    const off = onViewportPick(({ model, item }) => void runFor(model, item));
+    const keyOf = () => {
+      const { active, activeGroup } = selectionState.get();
+      return active ? `${active.model}:${active.entry}` : (activeGroup ?? '');
+    };
+    lastKey = keyOf();
+    void run();
+    const off = selectionState.subscribe(() => {
+      const k = keyOf();
+      if (k && k !== lastKey) {
+        lastKey = k;
+        void run();
+      }
+    });
     return () => {
       alive = false;
       off();

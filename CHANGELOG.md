@@ -4,6 +4,18 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.08.30** (>0.0.77):
+  Fix: TREE_VIEW_ARGS (SQL Detail, Run / As Table / the color buttons) was
+  seeded from the last VIEWPORT pick only, so after a tree click or U / P the
+  SQL Detail panel kept showing the first-clicked item's attributes. It now
+  follows the last selection root of any kind (tree click, viewport pick,
+  U / P, API select), and SQL Detail re-runs on every selection change.
+  Set Color: a "+" button at the start of every filter row inserts the LAST
+  selected name (the current selection root — tree click, viewport pick or
+  U / P) as the row's text; in Multi mode it is appended as a new line. A
+  quick way to build a rule from what you are looking at.
+  API: `tree.select` now also fires when U / P walk the selection up or down
+  the hierarchy — the selection changes, so hosts following it get told.
 - **2026.08.30** (>0.0.76):
   Hierarchy highlight now follows the actual item selection: a row whose
   items are ALL selected is highlighted and a row with SOME selected gets a
