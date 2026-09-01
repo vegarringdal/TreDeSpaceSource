@@ -5,6 +5,7 @@ import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
 import { useDemo } from '../DemoContext';
 import { splitLines } from '../util';
+import { NameListPanel } from './NameListPanel';
 
 export function SelectionSection() {
   const { run, c } = useDemo();
@@ -55,6 +56,7 @@ export function SelectionSection() {
         items = every selected node (grouping rows and leaves); skip drops names starting with any comma-separated
         prefix, case-insensitive.
       </Hint>
+      <NameListPanel />
     </DemoSection>
   );
 }

@@ -10,7 +10,8 @@ import { measurementsState } from '../../state/viewer/measurements.state';
 import { selectionState } from '../../state/viewer/selection.state';
 import { viewerActions } from '../../state/viewer/viewer.actions';
 import { viewpointsActions } from '../../state/viewer/viewpoints.actions';
-import { ApiError, type ApiHandler, isRecord, records, strings } from './protocol';
+import { packedFromBytes } from '../color/packedNames';
+import { ApiError, type ApiHandler, isRecord, nameListBytes, records, strings } from './protocol';
 
 const setOrAddLabels: ApiHandler = async ({ type, p }) => {
   const inputs = records(p.labels, 'labels');
@@ -69,6 +70,15 @@ export const sceneHandlers: Record<string, ApiHandler> = {
   // `append: true` adds to the current selection instead of replacing it
   'selection.set': ({ p }) =>
     viewerActions.selectByFullnames(strings(p.fullnames, 'fullnames'), { append: p.append === true }),
+
+  // Big selections: the fullname list rides in `bytes` (UTF-8, one per line)
+  // and is packed straight into the model DB — no JS string per row, nothing
+  // to clone back. Same `append` semantics as selection.set.
+  'selection.setList': async ({ p, bytes }) => {
+    const packed = packedFromBytes(await nameListBytes(bytes, 'selection.setList'));
+    const r = await viewerActions.selectByPacked(packed, { append: p.append === true });
+    return { names: packed.count, matched: r.matched, missed: r.missed };
+  },
 
   'selection.clear': async () => {
     await viewerActions.clearSelection();

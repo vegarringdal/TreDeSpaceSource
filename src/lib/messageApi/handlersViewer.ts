@@ -5,12 +5,15 @@ import { multiColorState, normalizeRules } from '../../components/panels/multi-c
 import { ribbonClippingBoxActions } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.actions';
 import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonHomeActions } from '../../components/panels/ribbon-home/ribbonHome.actions';
+import { sqlReportsActions } from '../../state/sqlReports/sqlReports.actions';
 import { storesState, TEMP_STORE } from '../../state/stores/stores.state';
 import { clipShapesActions } from '../../state/viewer/clipShapes.actions';
 import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { viewerState } from '../../state/viewer/viewer.state';
+import { packedFromBytes } from '../color/packedNames';
 import { obbWorldBounds } from '../math/obb';
-import { ApiError, type ApiHandler, records } from './protocol';
+import { colorNameTable, parseColorMode } from './colorMode';
+import { ApiError, type ApiHandler, nameListBytes, records } from './protocol';
 
 const setOrAddColorRules: ApiHandler = async ({ type, p }) => {
   const incoming = normalizeRules(p.rules);
@@ -124,6 +127,21 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     const matches = await viewerActions.applyColorRules(await specsForRules(rules), mode);
     return { ran: true, matches };
   },
+
+  // Colour a list the HOST computed: the fullnames ride in `bytes` (UTF-8,
+  // one `fullname[<sep>color[:opacity]]` per line) and are packed viewer-side,
+  // so a million rows cost no per-row JSON. `mode` picks the same treatments
+  // the SQL editor's buttons give a query result.
+  'colorRules.applyList': async ({ p, bytes }) => {
+    const mode = parseColorMode(p.mode);
+    const packed = packedFromBytes(await nameListBytes(bytes, 'colorRules.applyList'));
+    await sqlReportsActions.colorPackedMode(packed, mode, { quiet: true });
+    return { mode: mode.type, names: packed.count };
+  },
+
+  // Every colour NAME the viewer accepts wherever a colour token is read —
+  // `fullname_color`, Multi rows, a mode's `color`. Hex always works too.
+  'colors.names': () => ({ names: colorNameTable() }),
 
   'colorRules.run': async () => {
     await multiColorActions.run();

@@ -35,6 +35,14 @@ export function SqlEditorReportRow() {
       </Button>
       <Button
         disabled={running}
+        shortcut="sql.editor.colorTransparent"
+        tooltip="Like Color White, but the base coat is white at 10% opacity — the rest of the model stays faintly visible behind the colored result"
+        onClick={() => void act.colorTransparent()}
+      >
+        Color Transparent
+      </Button>
+      <Button
+        disabled={running}
         shortcut="sql.editor.colorSet"
         tooltip="Run your current Set Color rules + the result appended as one extra Multi rule (fullname_color optional, defaults yellow). Nothing is saved to the Set Color panel."
         onClick={() => void act.colorSet()}

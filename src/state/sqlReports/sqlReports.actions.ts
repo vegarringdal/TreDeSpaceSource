@@ -5,7 +5,11 @@
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
 import { ruleToSpec } from '../../components/panels/multi-color/multiColor.actions';
-import { type ColorRule, multiColorState } from '../../components/panels/multi-color/multiColor.state';
+import {
+  type ColorRule,
+  type ColorRulesMode,
+  multiColorState,
+} from '../../components/panels/multi-color/multiColor.state';
 import { setTablePayload } from '../../components/panels/sql-table/sqlTablePanel';
 import { parseColor } from '../../lib/color/hexColor';
 import type { PackedNames } from '../../lib/color/packedNames';
@@ -37,32 +41,147 @@ function everythingRule(o: { color: string | null; opacity: number }): ColorRule
  *  the rule color — yellow, as the two-column Multi paste defaults. The
  *  worker reads it exactly like a Multi filter + perNameColor, minus the
  *  strings. */
-function packedSpec(p: PackedNames): ColorRuleSpec {
+function packedSpec(p: PackedNames, color = 'yellow', opacity?: number): ColorRuleSpec {
   return {
     filters: [{ op: 'append', mode: 'packed', value: '', packed: p, level: 0 }],
-    colorRGBA8: parseColor('yellow'),
-    opacityPct: null,
+    colorRGBA8: parseColor(color) ?? parseColor('yellow'),
+    opacityPct: opacity == null ? null : Math.max(0, Math.min(100, Math.round(opacity * 100))),
   };
+}
+
+/** How a packed result is painted. The four `default-*` types are the app's
+ *  own buttons; the `custom-*` ones let a host pick the highlight colour, and
+ *  bring their own base coat / Set Color config (e.g. one it stores itself).
+ *  Opacity is 0-1 throughout, like a Set Color rule's. */
+export type PackedColorMode =
+  | { type: 'default-white' }
+  | { type: 'default-hidden' }
+  /** white base at `opacity` (default 0.1) — the model shows through */
+  | { type: 'default-transparent'; opacity?: number }
+  /** the Set Color panel's LIVE rules as the base (its state is only read) */
+  | { type: 'default-set' }
+  | {
+      type: 'custom-color';
+      color: string;
+      opacity?: number;
+      /** what to paint first; 'none' layers the hits over the model as it is */
+      base?: 'white' | 'transparent' | 'hidden' | 'none';
+      /** 'transparent' base only (default 0.1) */
+      baseOpacity?: number;
+    }
+  | {
+      type: 'custom-set';
+      color?: string;
+      opacity?: number;
+      setConfig: { rules: ColorRule[]; mode?: ColorRulesMode };
+    };
+
+const DEFAULT_BASE_OPACITY = 0.1;
+
+/** The base coat a `custom-color` mode paints first, or null for 'none'. */
+function baseRule(kind: 'white' | 'transparent' | 'hidden' | 'none', opacity?: number): ColorRule | null {
+  if (kind === 'none') {
+    return null;
+  }
+  if (kind === 'hidden') {
+    return everythingRule({ color: null, opacity: 0 });
+  }
+  return everythingRule({ color: '#ffffff', opacity: kind === 'white' ? 1 : (opacity ?? DEFAULT_BASE_OPACITY) });
 }
 
 /** Run LOCAL (unsaved) rule specs the same way the panel's Run does:
  *  applyColorRules (reset clears overrides first, append layers). Behind the
- *  "please wait" dialog. Never touches panel state. */
-async function runColorSpecs(label: string, specs: ColorRuleSpec[], mode: 'reset' | 'append' | 'hide') {
-  await timedColor(label, () => viewerActions.applyColorRules(specs, mode));
+ *  "please wait" dialog unless the caller is quiet (host API). Never touches
+ *  panel state. */
+async function runColorSpecs(
+  label: string,
+  specs: ColorRuleSpec[],
+  mode: 'reset' | 'append' | 'hide',
+  opts: SqlRunOpts = {},
+) {
+  await timedColor(label, () => viewerActions.applyColorRules(specs, mode), opts);
 }
 
 /** Run a coloring apply behind a "please wait" dialog and log how long it took
  *  (the apply can churn over hundreds of thousands of items). */
-async function timedColor(label: string, run: () => Promise<unknown>) {
+async function timedColor(label: string, run: () => Promise<unknown>, opts: SqlRunOpts = {}) {
   const t0 = performance.now();
-  dialogs.loading('Applying to the model… please wait', 'Set Color');
+  if (!opts.quiet) {
+    dialogs.loading('Applying to the model… please wait', 'Set Color');
+  }
   try {
     await run();
   } finally {
-    dialogs.hideLoading();
+    if (!opts.quiet) {
+      dialogs.hideLoading();
+    }
   }
   consoleActions.log('info', `Set Color: ${label} in ${(performance.now() - t0).toFixed(0)} ms`);
+}
+
+/** How a run reports itself. The in-app buttons take the defaults (progress
+ *  and error dialogs); a host-API run passes `quiet` — no dialogs at all, the
+ *  error travels back to the caller — and may take row ticks as events. */
+export interface SqlRunOpts {
+  quiet?: boolean;
+  onRows?: (rows: number) => void;
+}
+
+/** Turn a colour mode into the rule specs to run, plus the run mode. The hit
+ *  rule is always LAST so it wins over the base coat. */
+function colorModeSpecs(
+  p: PackedNames,
+  mode: PackedColorMode,
+): { specs: ColorRuleSpec[]; runMode: ColorRulesMode; label: string } {
+  switch (mode.type) {
+    case 'default-hidden':
+      return {
+        specs: [ruleToSpec(everythingRule({ color: null, opacity: 0 })), packedSpec(p)],
+        runMode: 'reset',
+        label: 'hidden',
+      };
+    case 'default-transparent':
+      return {
+        specs: [
+          ruleToSpec(everythingRule({ color: '#ffffff', opacity: mode.opacity ?? DEFAULT_BASE_OPACITY })),
+          packedSpec(p),
+        ],
+        runMode: 'reset',
+        label: 'transparent base + highlight',
+      };
+    case 'default-set': {
+      const config = multiColorState.get();
+      return {
+        specs: [...config.rules.filter((r) => r.enabled).map(ruleToSpec), packedSpec(p)],
+        runMode: config.mode,
+        label: 'set color',
+      };
+    }
+    case 'custom-color': {
+      const base = baseRule(mode.base ?? 'white', mode.baseOpacity);
+      return {
+        specs: [...(base ? [ruleToSpec(base)] : []), packedSpec(p, mode.color, mode.opacity)],
+        // with no base coat there is nothing to clear — layer over the model
+        runMode: base ? 'reset' : 'append',
+        label: `custom ${mode.color}`,
+      };
+    }
+    case 'custom-set':
+      return {
+        specs: [
+          ...mode.setConfig.rules.filter((r) => r.enabled).map(ruleToSpec),
+          packedSpec(p, mode.color, mode.opacity),
+        ],
+        runMode: mode.setConfig.mode ?? 'reset',
+        label: 'custom set color',
+      };
+    default:
+      return {
+        specs: [ruleToSpec(everythingRule({ color: '#ffffff', opacity: 1 })), packedSpec(p)],
+        runMode: 'reset',
+        label: 'white base + highlight',
+      };
+  }
 }
 
 /** One file per store holds all of that store's reports. */
@@ -113,7 +232,7 @@ async function execReport(
     hasColorColumn?: boolean;
     colorProbe?: boolean;
     progress?: boolean;
-  },
+  } & SqlRunOpts,
 ): Promise<RunResult> {
   // TREE_VIEW_ARGS: DETAIL brings the clicked hierarchy; every other run
   // gets the last viewport pick's, so As Table / the color buttons see the
@@ -139,7 +258,9 @@ async function execReport(
   const additionalDbPaths = report.databases.filter((p) => p !== report.db);
   const t0 = performance.now();
   const hint = killHint();
-  if (extra.progress) {
+  const showDialog = !!extra.progress && !extra.quiet;
+  const ticking = !!extra.progress || !!extra.onRows;
+  if (showDialog) {
     dialogs.loading(`Running query…${hint}`, `Report: ${report.name}`);
   }
   try {
@@ -149,20 +270,24 @@ async function execReport(
         additionalDbPaths,
         lockmode: 'shared',
         statements,
-        progressSize: extra.progress ? 2000 : 0,
+        progressSize: ticking ? 2000 : 0,
       }),
       // live row counter — the worker emits every 2000 collected rows
-      extra.progress
+      ticking
         ? (kind, no) => {
-            if (kind === 'ROW') {
+            if (kind !== 'ROW') {
+              return;
+            }
+            if (showDialog) {
               dialogs.loading(`Collected ${no.toLocaleString()} rows…${hint}`, `Report: ${report.name}`);
             }
+            extra.onRows?.(no);
           }
         : undefined,
     );
     return finishExec(result, performance.now() - t0);
   } finally {
-    if (extra.progress) {
+    if (showDialog) {
       dialogs.hideLoading();
     }
   }
@@ -270,14 +395,17 @@ export const sqlReportsActions = {
   // consumers
   // -----------------------------------------------------------------------------
 
-  /** TABLE: run and push into the SQL Table panel. */
-  async runTable(report: ReportDef, loadAll = false) {
+  /** TABLE: run and push into the SQL Table panel. Returns what landed there
+   *  (the host API answers with the counts; the panel keeps the rows). */
+  async runTable(report: ReportDef, loadAll = false, opts: SqlRunOpts = {}): Promise<RunResult> {
     sqlReportsState.set({ busy: true });
     try {
-      const res = await execReport(report, 'TABLE', { loadAll, progress: true });
+      const res = await execReport(report, 'TABLE', { loadAll, progress: true, ...opts });
       if (res.error) {
-        dialogs.error(res.error, 'Report failed');
-        return;
+        if (!opts.quiet) {
+          dialogs.error(res.error, 'Report failed');
+        }
+        return res;
       }
       setTablePayload({
         title: report.name,
@@ -286,6 +414,7 @@ export const sqlReportsActions = {
         truncated: !loadAll && res.rows.length >= 50,
         reload: loadAll ? null : () => void sqlReportsActions.runTable(report, true),
       });
+      return res;
     } finally {
       sqlReportsState.set({ busy: false });
     }
@@ -297,33 +426,44 @@ export const sqlReportsActions = {
    *  `fullname, fullname_color` only when the color column exists — never
    *  `SELECT *` — and a query without it (or a NULL cell) defaults to yellow. */
   async runColoring(report: ReportDef): Promise<PackedNames | null> {
+    const r = await sqlReportsActions.runColoringResult(report);
+    if (r.error) {
+      dialogs.error(r.error, 'Report failed');
+      return null;
+    }
+    return r.packed;
+  },
+
+  /** The coloring run itself — probe, then the packed run — REPORTING its
+   *  error instead of showing it, so the host API can answer the caller.
+   *  `quiet` also drops the progress dialog. */
+  async runColoringResult(
+    report: ReportDef,
+    opts: SqlRunOpts = {},
+  ): Promise<{ packed: PackedNames | null; error?: string }> {
     sqlReportsState.set({ busy: true });
     try {
       // 1) probe the query's output columns (temp view + pragma_table_info)
-      const meta = await execReport(report, 'COLORING', { colorProbe: true });
+      const meta = await execReport(report, 'COLORING', { colorProbe: true, ...opts });
       if (meta.error) {
-        dialogs.error(meta.error, 'Report failed');
-        return null;
+        return { packed: null, error: meta.error };
       }
       const cols = meta.rows.map((r) => String(r[0] ?? '').toLowerCase());
       if (!cols.includes('fullname')) {
-        dialogs.error('The coloring query must return a "fullname" column.', 'Report failed');
-        return null;
+        return { packed: null, error: 'The coloring query must return a "fullname" column.' };
       }
       const hasColorColumn = cols.includes('fullname_color');
 
       // 2) run for real, projecting fullname[, fullname_color] per the probe —
       // the worker packs them straight into flat buffers
-      const res = await execReport(report, 'COLORING', { hasColorColumn, progress: true });
+      const res = await execReport(report, 'COLORING', { hasColorColumn, progress: true, ...opts });
       if (res.error) {
-        dialogs.error(res.error, 'Report failed');
-        return null;
+        return { packed: null, error: res.error };
       }
       if (!res.packed) {
-        dialogs.error('The coloring query returned no packed result.', 'Report failed');
-        return null;
+        return { packed: null, error: 'The coloring query returned no packed result.' };
       }
-      return res.packed;
+      return { packed: res.packed };
     } finally {
       sqlReportsState.set({ busy: false });
     }
@@ -351,45 +491,47 @@ export const sqlReportsActions = {
   /** White base coat + the result as a colored highlight. Fresh reset-mode
    *  run: rule 1 appends white (opacity 1) over everything, rule 2 appends
    *  the packed result. */
-  async colorWhite(p: PackedNames) {
+  async colorWhite(p: PackedNames, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-white' }, opts);
+  },
+
+  /** Paint a packed result per a colour MODE — the one entry every consumer
+   *  goes through (the app's buttons and the host API alike). Returns how
+   *  many names were painted. */
+  async colorPackedMode(p: PackedNames, mode: PackedColorMode, opts: SqlRunOpts = {}): Promise<number> {
     if (!p.count) {
-      return;
+      return 0;
     }
-    await runColorSpecs(
-      'white base + highlight',
-      [ruleToSpec(everythingRule({ color: '#ffffff', opacity: 1 })), packedSpec(p)],
-      'reset',
-    );
+    const { specs, runMode, label } = colorModeSpecs(p, mode);
+    await runColorSpecs(label, specs, runMode, opts);
+    return p.count;
   },
 
   /** Isolate the result. Same as colorWhite but the base rule fades everything
    *  to opacity 0 (default color) instead of white; the packed result (opacity
    *  restored) then re-shows the hits with their own colors. */
-  async colorHidden(p: PackedNames) {
-    if (!p.count) {
-      return;
-    }
-    await runColorSpecs('hidden', [ruleToSpec(everythingRule({ color: null, opacity: 0 })), packedSpec(p)], 'reset');
+  async colorHidden(p: PackedNames, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-hidden' }, opts);
+  },
+
+  /** White base at 10% (or `opacity`) + the hits: the model stays readable
+   *  behind the highlight instead of going flat white. */
+  async colorTransparent(p: PackedNames, opacity?: number, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-transparent', opacity }, opts);
   },
 
   /** Layer the result ON TOP of the LIVE Set Color config: the panel's
    *  enabled rules as specs (its state is only read), the packed result
    *  appended as one extra rule, run in the panel's own reset/append mode.
    *  Nothing is saved back to the panel. */
-  async colorSetColor(p: PackedNames) {
-    if (!p.count) {
-      return;
-    }
-    const config = multiColorState.get();
-    const specs = config.rules.filter((r) => r.enabled).map(ruleToSpec);
-    specs.push(packedSpec(p));
-    await runColorSpecs('set color', specs, config.mode);
+  async colorSetColor(p: PackedNames, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-set' }, opts);
   },
 
-  async colorSelection(p: PackedNames) {
+  async colorSelection(p: PackedNames, opts: { append?: boolean } = {}) {
     if (!p.count) {
-      return;
+      return { matched: 0, missed: 0 };
     }
-    await viewerActions.selectByPacked(p);
+    return await viewerActions.selectByPacked(p, opts);
   },
 };

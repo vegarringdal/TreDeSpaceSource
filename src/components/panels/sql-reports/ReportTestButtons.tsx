@@ -29,6 +29,12 @@ export function ReportTestButtons({ eff }: { eff: () => ReportDef }) {
         Color Hidden
       </Button>
       <Button
+        tooltip="Like Color White, but the base coat is white at 10% opacity — the rest of the model stays faintly visible"
+        onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorTransparent(rows))}
+      >
+        Color Transparent
+      </Button>
+      <Button
         tooltip="Run your current Set Color rules + the result appended as one extra Multi rule (Set Color panel untouched)"
         onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorSetColor(rows))}
       >

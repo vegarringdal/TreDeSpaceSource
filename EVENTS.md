@@ -125,6 +125,19 @@ payload:  { fullnames: ['/TP400-PIPE-01', '/TP400-PIPE-02'], append: false }
 response: { matched: 2, missed: [] }
 ```
 
+### selection.setList
+Select a LARGE fullname list. The list rides in the message's `bytes`
+side-channel as UTF-8 text — one `fullname` per line — and is packed straight
+into the model DB: no JSON array, no string per row on either side, and the
+buffer is transferred rather than cloned. Build it with the SDK's
+`encodeNameList()`. `append` behaves as in `selection.set`. Use this over
+`selection.set` from a few thousand names up.
+
+```js
+payload:  { append: false }        // + bytes: ArrayBuffer of "/PIPE-01\n/PIPE-02\n…"
+response: { names: 240000, matched: 239812, missed: 188 }
+```
+
 ### selection.clear
 ```js
 payload:  {}
@@ -240,6 +253,36 @@ payload: { mode: 'reset', rules: [
   { color: '#ff8800', filters: [{ op: 'append', mode: 'contains', value: 'PIPE' }] },
 ] }
 response: { ran: true, matches: [192308] }
+```
+
+### colorRules.applyList
+Colour a fullname list the HOST computed, without it becoming JSON. Same
+`bytes` transport as `selection.setList`, and the same line grammar the Set
+Color panel's Multi paste accepts: `fullname`, or
+`fullname<TAB>color[:opacity]` (`yellow`, `#ff0000:50`, `default` = restore the
+mesh colour). Names without a colour get yellow.
+
+`mode` is the same tagged object `sql.color` takes (see its table) — the
+`default-*` base coats, `custom-color` with your own highlight colour and base
+(`base: 'none'` paints over the model as it is), or `custom-set` with a Set
+Color config you keep host-side. Names carrying no colour of their own get the
+mode's colour, yellow by default.
+
+```js
+payload:  { mode: { type: 'custom-color', color: 'orange', base: 'transparent', baseOpacity: 0.1 } }
+          // + bytes: ArrayBuffer of "/PIPE-01\tyellow\n/PIPE-02\t#ff0000:50\n…"
+response: { mode: 'custom-color', names: 240000 }
+```
+
+### colors.names
+Every colour NAME the viewer accepts wherever a colour token is read — a
+query's `fullname_color`, a Multi rule row, a `mode`'s `color` — as
+`{ name: '#rrggbb' }` (the CSS/SVG set, ~147 entries). Hex codes always work
+too; this is the list for validating names or offering them in a host UI.
+
+```js
+payload:  {}
+response: { names: { aliceblue: '#f0f8ff', antiquewhite: '#faebd7', /* … */ yellowgreen: '#9acd32' } }
 ```
 
 ### colorRules.run / colorRules.clear
@@ -730,6 +773,104 @@ response: { dbs: [
   { path: 'sql_assets/main/meta.db', exists: true,
     size: 61440, modified: 1721600000000, md5: '9e107d9d372bb6826bd81d3542a419d6' },
   { path: 'sql_assets/main/tags.db', exists: false } ] }
+```
+
+### sql.color
+Colour the model FROM a query — the SQL editor's **Color White / Color Hidden /
+Color Set** buttons, over the API — and the reason to prefer this over
+`sql.query` + a colour rule: the result NEVER crosses the boundary. The
+viewer's SQL worker packs the query's fullnames into flat buffers (~45 B/row,
+duplicates dropped by `SELECT DISTINCT`) and transfers them straight to the
+model-DB worker, so a million-row colouring costs one message with a row count
+in it. Round-tripping the same result through a host page means materialising
+every row twice as JSON.
+
+The query must return a `fullname` column; `fullname_color` is optional
+(`'#ff0000'`, `'yellow'`, `'default'` = restore the mesh colour, with an
+optional `:opacity` suffix) and rows without it are yellow. A cheap column
+probe runs first, so only the columns that exist are projected — never
+`SELECT *`.
+
+`mode` is a tagged object (default `{ type: 'default-white' }`) — a base coat
+over the whole model, then the matched names on top. Opacities are 0-1, and a
+colour is `'#rrggbb'` or one of the ~147 names `colors.names` lists:
+
+| mode | base coat | hits |
+| --- | --- | --- |
+| `{ type: 'default-white' }` | white, opaque | their own colour, else yellow |
+| `{ type: 'default-hidden' }` | opacity 0 (an isolate) | their own colour, else yellow |
+| `{ type: 'default-transparent', opacity? }` | white at `opacity` (default 0.1) | their own colour, else yellow |
+| `{ type: 'default-set' }` | the viewer's LIVE Set Color rules | their own colour, else yellow |
+| `{ type: 'custom-color', color, opacity?, base?, baseOpacity? }` | `base`: `white` (default) / `transparent` / `hidden` / `none` | `color` |
+| `{ type: 'custom-set', color?, opacity?, setConfig }` | YOUR rules — `setConfig` is `{ rules, mode? }`, the `colorRules.set` shape | `color`, else yellow |
+
+`custom-set` is for a Set Color configuration the host stores itself: the rules
+run first, then the query's hits are layered on top. The viewer's own Set Color
+panel is neither read nor written by it. `base: 'none'` paints the hits over
+the model exactly as it is (nothing is cleared first).
+
+`filters` fills FILTER_ARGS before the query runs — `value` is one row,
+`values` one row per entry — so one saved query can be parameterised per call.
+`attach` locks extra databases (ATTACH literals are found anyway), and
+TREE_VIEW_ARGS is seeded from the last selection exactly as in the app.
+`progress: true` keeps the viewer's dialogs down and streams
+`sql.color:progress` row ticks instead.
+
+```js
+payload:  { mainDb: 'sql_assets/main/meta.db',
+            sql: "select fullname, fullname_color from paint_plan where system = (select v from FILTER_ARGS where k='sys')",
+            filters: [{ key: 'sys', value: 'HVAC' }],
+            mode: { type: 'default-transparent', opacity: 0.1 } }
+response: { mode: 'default-transparent', rows: 412339, ms: 1840 }
+```
+
+### sql.select
+Select what a query returns, through the same packed path as `sql.color` — the
+query's `fullname` column resolved inside the viewer, nothing shipped back.
+`append` adds to the current selection. Same `filters` / `attach` / `progress`
+options.
+
+```js
+payload:  { mainDb: 'sql_assets/main/meta.db',
+            sql: 'select fullname from defects where severity > 2',
+            append: false }
+response: { rows: 1204, matched: 1198, missed: 6, ms: 210 }
+```
+
+### sql.table
+Run a query and show it in the viewer's **SQL Table** panel. The rows land in
+the panel, not in the response — you get the columns and how many rows landed.
+`loadAll: true` lifts the 50-row preview cap to 250k, `name` titles the panel,
+`show: false` fills it without opening it.
+
+```js
+payload:  { mainDb: 'sql_assets/main/meta.db', sql: 'select * from defects',
+            name: 'Open defects', loadAll: false }
+response: { columns: ['id', 'fullname', 'severity'], rows: 50 }
+```
+
+### sql.detail
+Bind a query to a **SQL Detail** panel: every hierarchy click then runs it
+against the clicked node. Write it against TREE_VIEW_ARGS —
+`… where fullname in (select FULLNAME from TREE_VIEW_ARGS)`.
+
+`name` is the panel's IDENTITY as well as its tab title. Each distinct name
+gets its OWN detail panel, so several queries can follow the selection side by
+side; calling again with a name already in use re-binds that panel (and
+focuses it) instead of opening another. Omit `name` to use the viewer's
+built-in SQL Detail panel. `show: false` binds without opening the panel, and
+`panel` in the response is the dock panel id — pass it to `ui.showPanel` /
+`ui.hidePanel`.
+
+Named panels are SESSION-only, like host-managed external apps: a page reload
+drops them (a stale layout slot shows an "Unknown panel" placeholder until the
+host creates it again).
+
+```js
+payload:  { mainDb: 'sql_assets/main/meta.db',
+            sql: 'select * from part where fullname in (select FULLNAME from TREE_VIEW_ARGS)',
+            name: 'Part card' }
+response: { bound: true, name: 'Part card', panel: 'sqlDetail:Part card' }
 ```
 
 ### sql.query

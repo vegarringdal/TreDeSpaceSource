@@ -1,4 +1,4 @@
-import type { DockManager } from '@treDeSpaceUI/dockable';
+import { type DockManager, definePanel } from '@treDeSpaceUI/dockable';
 import { useEffect } from 'react';
 import { registerClipShapesOpener } from './components/panels/clip-shapes/clipShapesPanel';
 import { consoleActions } from './components/panels/console/console.actions';
@@ -17,7 +17,8 @@ import {
 import { registerKioskToggle, registerSoloToggle } from './components/panels/ribbon-home/soloPanels';
 import { ribbonMeasurementsActions } from './components/panels/ribbon-measurements/ribbonMeasurements.actions';
 import { registerSqlAssetsOpener } from './components/panels/sql-assets/sqlAssetsPanel';
-import { registerSqlDetailOpener } from './components/panels/sql-detail/sqlDetailPanel';
+import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
+import { detailPanelId, registerSqlDetailOpener } from './components/panels/sql-detail/sqlDetailPanel';
 import { registerSqlEditorOpener } from './components/panels/sql-editor/sqlEditorPanel';
 import { registerSqlReportsOpener } from './components/panels/sql-reports/sqlReportsPanel';
 import { registerSqlTableOpener } from './components/panels/sql-table/sqlTablePanel';
@@ -184,7 +185,15 @@ export function useAppStartup(manager: DockManager): void {
     registerSqlEditorOpener(() => manager.openPanel('sqlEditor'));
     registerSqlReportsOpener(() => manager.openPanelBeside('sqlReports', 'hierarchy', 'right'));
     registerSqlTableOpener(() => manager.openPanel('sqlTable'));
-    registerSqlDetailOpener(() => manager.openPanel('sqlDetail'));
+    // a NAMED detail panel is created on demand (session-only, like a
+    // host-managed external app); the built-in one is already defined
+    registerSqlDetailOpener((key, title) => {
+      const id = detailPanelId(key);
+      if (key) {
+        manager.registerPanel(definePanel({ id, title, home: 'right', component: SqlDetail }));
+      }
+      manager.openPanel(id);
+    });
     registerImportManagerOpener(() => manager.openPanel('importManager'));
     registerMultiColorOpener(() => manager.openPanel('multiColor'));
     registerLabelsOpener(() => manager.openPanel('labels'));

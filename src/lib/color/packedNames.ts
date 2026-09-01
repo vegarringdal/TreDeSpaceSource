@@ -52,14 +52,38 @@ export class PackedNamesBuilder {
     if (this.n + 1 >= this.offsets.length) {
       this.growNames();
     }
-    // worst case 3 bytes per UTF-16 unit
-    while (this.used + key.length * 3 > this.bytes.length) {
-      const next = new Uint8Array(this.bytes.length * 2);
-      next.set(this.bytes.subarray(0, this.used));
-      this.bytes = next;
-    }
+    this.ensureBytes(key.length * 3); // worst case 3 bytes per UTF-16 unit
     const { written } = this.encoder.encodeInto(key, this.bytes.subarray(this.used));
     this.used += written;
+    this.colors[this.n] = color;
+    this.opacity[this.n] = opacity;
+    this.n++;
+    this.offsets[this.n] = this.used;
+  }
+
+  /** Add a name straight from an ASCII byte range — the caller has checked
+   *  there is no byte >= 0x80, so lowercasing is the +0x20 shift and no JS
+   *  string is created. The bytes must already be trimmed. */
+  pushAsciiBytes(
+    src: Uint8Array,
+    start: number,
+    end: number,
+    color: number = PACKED_NO_COLOR,
+    opacity: number = PACKED_NO_OPACITY,
+  ): void {
+    const len = end - start;
+    if (len <= 0) {
+      return;
+    }
+    if (this.n + 1 >= this.offsets.length) {
+      this.growNames();
+    }
+    this.ensureBytes(len);
+    for (let i = 0; i < len; i++) {
+      const c = src[start + i];
+      this.bytes[this.used + i] = c >= 0x41 && c <= 0x5a ? c + 0x20 : c;
+    }
+    this.used += len;
     this.colors[this.n] = color;
     this.opacity[this.n] = opacity;
     this.n++;
@@ -86,6 +110,14 @@ export class PackedNamesBuilder {
       opacity: this.opacity.slice(0, this.n),
       count: this.n,
     };
+  }
+
+  private ensureBytes(extra: number): void {
+    while (this.used + extra > this.bytes.length) {
+      const next = new Uint8Array(this.bytes.length * 2);
+      next.set(this.bytes.subarray(0, this.used));
+      this.bytes = next;
+    }
   }
 
   private growNames(): void {
@@ -135,6 +167,90 @@ export function packedFromLines(value: string): PackedNames {
     }
   }
   return b.finish();
+}
+
+// -----------------------------------------------------------------------------
+// byte-level list parsing (the host API's binary name list)
+// -----------------------------------------------------------------------------
+
+const LF = 0x0a;
+const CR = 0x0d;
+const TAB = 0x09;
+const SPACE = 0x20;
+const COMMA = 0x2c;
+
+const isBlank = (c: number): boolean => c === SPACE || c === TAB || c === CR;
+const isSep = (c: number): boolean => c === SPACE || c === TAB || c === COMMA;
+
+/**
+ * `packedFromLines` read straight from UTF-8 BYTES — the form a host sends a
+ * large name list in. A line's name is copied byte for byte (lowercased in
+ * place) instead of becoming a JS string, so a multi-million-name list costs
+ * no per-row allocation on the way in; only a line containing non-ASCII falls
+ * back to decode + push(), which case-folds the way the rest of the app does.
+ * Grammar is the Multi paste's: `fullname` or `fullname<sep>color[:opacity]`,
+ * one per line, blank lines skipped.
+ */
+export function packedFromBytes(src: Uint8Array): PackedNames {
+  const b = new PackedNamesBuilder();
+  const decoder = new TextDecoder();
+  const n = src.length;
+  let i = 0;
+  while (i < n) {
+    let end = i;
+    while (end < n && src[end] !== LF) {
+      end++;
+    }
+    let s = i;
+    let e = end;
+    while (s < e && isBlank(src[s])) {
+      s++;
+    }
+    while (e > s && isBlank(src[e - 1])) {
+      e--;
+    }
+    if (s < e) {
+      pushLine(b, src, s, e, decoder);
+    }
+    i = end + 1;
+  }
+  return b.finish();
+}
+
+/** One trimmed line: split off a trailing color token when it parses (and
+ *  something is left in front of it), then append the name. */
+function pushLine(b: PackedNamesBuilder, src: Uint8Array, start: number, end: number, decoder: TextDecoder): void {
+  let nameEnd = end;
+  let color = PACKED_NO_COLOR;
+  let opacity = PACKED_NO_OPACITY;
+  let sep = end;
+  while (sep > start && !isSep(src[sep - 1])) {
+    sep--;
+  }
+  if (sep > start) {
+    const parsed = parseColorToken(decoder.decode(src.subarray(sep, end)));
+    let head = sep - 1;
+    while (head > start && isSep(src[head - 1])) {
+      head--;
+    }
+    if (parsed && head > start) {
+      nameEnd = head;
+      color = parsed.color;
+      opacity = parsed.opacity ?? PACKED_NO_OPACITY;
+    }
+  }
+  let ascii = true;
+  for (let k = start; k < nameEnd; k++) {
+    if (src[k] >= 0x80) {
+      ascii = false;
+      break;
+    }
+  }
+  if (ascii) {
+    b.pushAsciiBytes(src, start, nameEnd, color, opacity);
+    return;
+  }
+  b.push(decoder.decode(src.subarray(start, nameEnd)), color, opacity);
 }
 
 export { COLOR_DEFAULT };

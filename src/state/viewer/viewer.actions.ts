@@ -452,9 +452,10 @@ export const viewerActions = {
 
   /** selectByFullnames for a packed list (a big SQL result): the names never
    *  exist as strings on the main thread — the worker resolves and selects
-   *  them and hands back flat (model, entry) pairs for the tree highlight. */
-  async selectByPacked(p: PackedNames): Promise<{ matched: number; missed: number }> {
-    const r = await db.selectPacked(p);
+   *  them and hands back flat (model, entry) pairs for the tree highlight.
+   *  `append` adds to the current selection instead of replacing it. */
+  async selectByPacked(p: PackedNames, opts: { append?: boolean } = {}): Promise<{ matched: number; missed: number }> {
+    const r = await db.selectPacked(p, opts.append === true);
     applyStateUpdates(r.updates);
     if (r.matched === 0) {
       return { matched: 0, missed: r.missed };
@@ -465,12 +466,12 @@ export const viewerActions = {
       actives[i] = `${r.pairs[i * 2]}:${r.pairs[i * 2 + 1]}`;
     }
     const first = { model: r.pairs[0], entry: r.pairs[1] };
-    selectionState.set({
-      activeGroup: null,
-      activeGroups: [],
-      actives,
-      reveal: { model: first.model, path: await db.pathForEntry(first.model, first.entry) },
-    });
+    const reveal = { model: first.model, path: await db.pathForEntry(first.model, first.entry) };
+    selectionState.set((prev) =>
+      opts.append
+        ? { activeGroup: null, actives: [...new Set([...prev.actives, ...actives])], reveal }
+        : { activeGroup: null, activeGroups: [], actives, reveal },
+    );
     await refreshSelectionMeta(first);
     return { matched: r.matched, missed: r.missed };
   },

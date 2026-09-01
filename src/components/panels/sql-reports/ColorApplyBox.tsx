@@ -28,6 +28,12 @@ export function ColorApplyBox({ rows }: { rows: PackedNames }) {
         >
           Hidden
         </Button>
+        <Button
+          tooltip="White base at 10% opacity + the returned rows their own colors — the model stays faintly visible"
+          onClick={() => void act.colorTransparent(rows)}
+        >
+          Transparent
+        </Button>
         <Button tooltip="Select every returned fullname in the viewer" onClick={() => void act.colorSelection(rows)}>
           Selection
         </Button>

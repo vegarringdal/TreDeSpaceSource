@@ -5,6 +5,7 @@ import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
 import { useDemo } from '../DemoContext';
 import { must, splitLines } from '../util';
+import { SqlColorPanel } from './SqlColorPanel';
 import { SqlQueryPanel } from './SqlQueryPanel';
 
 export function SqlSection() {
@@ -135,6 +136,7 @@ export function SqlSection() {
         <Button onClick={handleImportUrl}>sql.importUrl</Button>
       </Row>
       <SqlQueryPanel dbs={dbs} mainDb={mainDb} onMainDbChange={setMainDb} />
+      <SqlColorPanel mainDb={mainDb} />
     </DemoSection>
   );
 }

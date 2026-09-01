@@ -172,9 +172,15 @@ export const selectionApi = {
    *  model wins, as findEntriesByNames), items are marked per model in one
    *  pass, and the (model, entry) hits come back as one flat Uint32Array —
    *  no per-hit object for a 4M-row result. */
-  selectPacked(p: PackedNames): { updates: StateUpdate[]; matched: number; missed: number; pairs: Uint32Array } {
+  selectPacked(
+    p: PackedNames,
+    append = false,
+  ): { updates: StateUpdate[]; matched: number; missed: number; pairs: Uint32Array } {
     ensureGlobalIndex();
-    const updates = selectionApi.clearSelection();
+    // append keeps what is already selected: nothing is cleared, and each
+    // touched model's marks start from its current selection so the rebuilt
+    // list is the union (models the list never names are left alone)
+    const updates = append ? [] : selectionApi.clearSelection();
     const decoder = new TextDecoder();
     const marks = new Map<number, Uint8Array>();
     let pairs = new Uint32Array(Math.max(2, Math.min(p.count, 1024) * 2));
@@ -208,6 +214,11 @@ export const selectionApi = {
     }
     for (const [mi, mark] of marks) {
       const m = models[mi];
+      if (append) {
+        for (const it of m.selected) {
+          mark[it] = 1;
+        }
+      }
       let count = 0;
       for (let i = 0; i < mark.length; i++) {
         count += mark[i];

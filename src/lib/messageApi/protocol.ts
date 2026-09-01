@@ -42,6 +42,20 @@ export function records(v: unknown, what: string): Record<string, unknown>[] {
   return v as Record<string, unknown>[];
 }
 
+/** A binary name list from the `bytes` side-channel — UTF-8 text, one
+ *  `fullname[<sep>color[:opacity]]` per line. An ArrayBuffer arrives
+ *  TRANSFERRED (zero-copy); a Blob is read once. The caller packs it without
+ *  ever making a JS string per row. */
+export async function nameListBytes(bytes: unknown, what: string): Promise<Uint8Array> {
+  if (bytes instanceof ArrayBuffer) {
+    return new Uint8Array(bytes);
+  }
+  if (bytes instanceof Blob) {
+    return new Uint8Array(await bytes.arrayBuffer());
+  }
+  throw new ApiError('bad-payload', `${what} needs the name list in \`bytes\` (an ArrayBuffer or Blob of UTF-8 text)`);
+}
+
 /** Validate an optional `store` payload field: undefined → undefined (no
  *  filter / default), a known store name → itself, an unknown name → not-found
  *  (hosts must fetch stores.list first). */

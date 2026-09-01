@@ -1,12 +1,17 @@
 // SQL database commands (SQLite in OPFS, stores shared with model assets).
 // See EVENTS.md for the payload contracts.
+import { bindDetailReport, detailPanelId, openSqlDetailPanel } from '../../components/panels/sql-detail/sqlDetailPanel';
+import { openSqlTablePanel } from '../../components/panels/sql-table/sqlTablePanel';
 import { type SqlImportProgress, sqlAssetsActions } from '../../state/sqlAssets/sqlAssets.actions';
 import { sqlAssetsState } from '../../state/sqlAssets/sqlAssets.state';
+import { type SqlRunOpts, sqlReportsActions } from '../../state/sqlReports/sqlReports.actions';
+import type { ReportDef, ReportFilter } from '../../state/sqlReports/sqlReports.state';
 import { sqliteClient, sqlOptions } from '../sqlite/client';
 import { parseAttachPaths, splitSqlStatements } from '../sqlite/sqlAttach';
 import type { Statement } from '../sqlite/types';
+import { parseColorMode } from './colorMode';
 import { fileNameFromUrl } from './handlersAssets';
-import { ApiError, type ApiHandler, isRecord, requireStoreOpt, strings } from './protocol';
+import { ApiError, type ApiHandler, isRecord, records, requireStoreOpt, strings } from './protocol';
 import { emitApiEvent } from './transport';
 
 /** Progress plumbing shared by `sql.import` and `sql.importUrl`: a host that
@@ -72,6 +77,94 @@ function capRows(rowsUnknown: unknown, rowCount: number | undefined) {
   const rows = (rowsUnknown ?? []) as unknown[];
   const total = rowCount ?? rows.length;
   return { rows, rowCount: total, truncated: total > rows.length };
+}
+
+// -----------------------------------------------------------------------------
+// report-shaped commands (color / select / table / detail)
+// -----------------------------------------------------------------------------
+// These reuse the SQL Reports pipeline the editor's buttons run on, so a host
+// gets the SAME packed transfer: the query's fullnames go SQL worker → model
+// DB as flat buffers and the rows never cross the postMessage boundary.
+
+/** `filters` → FILTER_ARGS rows. A `value` is one row; `values` is one row per
+ *  entry (what a report's DROPDOWN produces), for `… IN (SELECT v FROM
+ *  FILTER_ARGS WHERE k='…')`. */
+function parseFilters(v: unknown): ReportFilter[] {
+  if (v === undefined) {
+    return [];
+  }
+  return records(v, 'filters').map((f, i) => {
+    const key = typeof f.key === 'string' ? f.key.trim() : '';
+    if (!key) {
+      throw new ApiError('bad-payload', `filters[${i}].key must be a non-empty string`);
+    }
+    if (Array.isArray(f.values)) {
+      return { kind: 'DROPDOWN', key, label: key, selected: strings(f.values, `filters[${i}].values`) };
+    }
+    if (typeof f.value !== 'string' && typeof f.value !== 'number') {
+      throw new ApiError('bad-payload', `filters[${i}] needs a string/number \`value\` or a string[] \`values\``);
+    }
+    return { kind: 'INPUT', key, label: key, value: String(f.value) };
+  });
+}
+
+/** A throwaway ReportDef for one API call. `mainDb` may be omitted when the
+ *  SQL only ATTACHes files (the reports panel's "None" main db). */
+async function apiReport(p: Record<string, unknown>, name: string): Promise<ReportDef> {
+  const sql = typeof p.sql === 'string' ? p.sql : '';
+  if (!sql.trim()) {
+    throw new ApiError('bad-payload', 'sql is required');
+  }
+  const mainDb = typeof p.mainDb === 'string' ? p.mainDb : '';
+  const attach = p.attach === undefined ? [] : strings(p.attach, 'attach');
+  await sqlAssetsActions.refresh();
+  const known = new Set(sqlAssetsState.get().dbs.map((d) => d.path));
+  for (const path of [...(mainDb ? [mainDb] : []), ...attach]) {
+    if (!known.has(path)) {
+      throw new ApiError('not-found', `no database at "${path}" — call sql.list first`);
+    }
+  }
+  const databases = [...new Set([mainDb, ...attach, ...parseAttachPaths(sql)].filter(Boolean))];
+  if (!databases.length) {
+    throw new ApiError('bad-payload', 'mainDb is required unless the sql ATTACHes a database');
+  }
+  return {
+    id: 'api',
+    store: '',
+    db: mainDb,
+    name,
+    description: '',
+    types: ['COLORING'],
+    sql,
+    databases,
+    filters: parseFilters(p.filters),
+  };
+}
+
+/** `progress: true` runs the query without viewer dialogs and streams row
+ *  ticks back as events instead — the convention the import commands use. */
+function runOpts(p: Record<string, unknown>, event: string): SqlRunOpts {
+  if (p.progress !== true) {
+    return {};
+  }
+  const batchId = typeof p.batchId === 'string' ? p.batchId : undefined;
+  return {
+    quiet: true,
+    onRows: (rows) => emitApiEvent(event, { ...(batchId ? { batchId } : {}), rows }),
+  };
+}
+
+/** Run the coloring query and hand back the packed list, or fail the command
+ *  with the query's own error. */
+async function packedFor(p: Record<string, unknown>, name: string, event: string) {
+  const report = await apiReport(p, name);
+  const opts = runOpts(p, event);
+  const t0 = performance.now();
+  const res = await sqlReportsActions.runColoringResult(report, opts);
+  if (res.error || !res.packed) {
+    throw new ApiError('internal', res.error ?? 'the coloring query returned nothing');
+  }
+  return { packed: res.packed, opts, ms: Math.round(performance.now() - t0) };
 }
 
 export const sqlHandlers: Record<string, ApiHandler> = {
@@ -283,5 +376,52 @@ export const sqlHandlers: Record<string, ApiHandler> = {
       };
     });
     return { statements: out, ms: result.execTime };
+  },
+
+  // Colour the model FROM a query — the editor's Color White / Hidden / Set
+  // buttons over the API. The result never leaves the viewer: the host gets
+  // the row count.
+  'sql.color': async ({ p }) => {
+    const mode = parseColorMode(p.mode);
+    const { packed, opts, ms } = await packedFor(p, 'api color', 'sql.color:progress');
+    await sqlReportsActions.colorPackedMode(packed, mode, opts);
+    return { mode: mode.type, rows: packed.count, ms };
+  },
+
+  // Select what a query returns (fullname column), packed all the way into the
+  // model DB. `append` adds to the current selection.
+  'sql.select': async ({ p }) => {
+    const { packed, ms } = await packedFor(p, 'api select', 'sql.select:progress');
+    const r = await sqlReportsActions.colorSelection(packed, { append: p.append === true });
+    return { rows: packed.count, matched: r.matched, missed: r.missed, ms };
+  },
+
+  // Push a query's result into the SQL Table panel. The rows land in the
+  // panel, not in the response — the host gets the shape only.
+  'sql.table': async ({ p }) => {
+    const report = await apiReport(p, typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'API query');
+    const res = await sqlReportsActions.runTable(report, p.loadAll === true, runOpts(p, 'sql.table:progress'));
+    if (res.error) {
+      throw new ApiError('internal', res.error);
+    }
+    if (p.show !== false) {
+      openSqlTablePanel();
+    }
+    return { columns: res.columns, rows: res.rows.length };
+  },
+
+  // Bind a query to a SQL Detail panel: every hierarchy click runs it against
+  // the clicked node (write it against TREE_VIEW_ARGS). A `name` gives the
+  // query its OWN panel, titled with that name — calling again with the same
+  // name re-binds that panel instead of opening another; without a name the
+  // built-in SQL Detail panel is used.
+  'sql.detail': async ({ p }) => {
+    const name = typeof p.name === 'string' ? p.name.trim() : '';
+    const report = await apiReport(p, name || 'API detail');
+    bindDetailReport({ ...report, types: ['DETAIL'] }, name);
+    if (p.show !== false) {
+      openSqlDetailPanel(name, name || 'SQL Detail');
+    }
+    return { bound: true, name: report.name, panel: detailPanelId(name) };
   },
 };

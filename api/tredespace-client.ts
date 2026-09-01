@@ -137,12 +137,20 @@
 //                                  (sqlImport / sqlImportUrl onProgress)
 //   'sql.execute:progress'       — per-statement + per-N-rows batch progress
 //                                  (sqlExecute onProgress)
+//   'sql.color:progress'         — rows collected so far while a colouring
+//   'sql.select:progress'          query runs (sqlColor / sqlSelect
+//                                  onProgress)
 //
 // COMMON FLOWS (each step is one method below — see its JSDoc):
 //   Sync hosted models:   assetsList → compare each asset's md5 against a hash
 //     of your hosted file → assetsImportUrl the changed/missing (replace:true),
 //     assetsRemove the stale → assetsSetLoaded(desiredIds) applies the exact
 //     visible set (idempotent; unlisted models are unloaded).
+//   Colour from data:     sqlColor / sqlSelect run the query INSIDE the viewer
+//     and hand the packed fullnames straight to the model DB — nothing but a
+//     row count comes back, so million-row results are one message. For a list
+//     your own backend produced, encodeNameList() + colorApplyList /
+//     selectionSetList take the same packed path.
 //   Sync hosted SQL dbs:  sqlList (md5 = hash of the bytes you delivered) →
 //     sqlImportUrl only what changed (GB-safe: streamed straight into OPFS).
 //     Or per query: sqlCheck(sql) pre-flights which dbs the script references
@@ -721,6 +729,108 @@ export interface SqlExecuteProgress {
   name?: string;
 }
 
+/** One FILTER_ARGS entry for a report-shaped SQL call: `value` is one row,
+ *  `values` one row per entry — read them back with
+ *  `select v from FILTER_ARGS where k = '…'`. */
+export interface SqlFilterInput {
+  key: string;
+  value?: string | number;
+  values?: string[];
+}
+
+/** Common payload of the report-shaped SQL commands. `mainDb` may be omitted
+ *  when the SQL only ATTACHes files. */
+export interface SqlRunInput {
+  sql: string;
+  mainDb?: string;
+  /** extra database paths to lock alongside (ATTACH literals are found anyway) */
+  attach?: string[];
+  filters?: SqlFilterInput[];
+}
+
+/** A host's own Set Color configuration — the same `rules` shape
+ *  {@link TredespaceClient.colorRulesSet} takes, plus the run mode. Pass one
+ *  with `custom-set` to paint a config you store yourself (the viewer's Set
+ *  Color panel is neither read nor written). */
+export interface SetColorConfig {
+  rules: ColorRuleInput[];
+  /** 'reset' (default) clears existing overrides first, 'append' layers,
+   *  'hide' hides everything the rules do not match */
+  mode?: 'reset' | 'append' | 'hide';
+}
+
+/**
+ * How a colouring result is painted: a base coat over the whole model, then
+ * the matched names on top. The `default-*` types are the viewer's own
+ * buttons; the `custom-*` ones let you pick the highlight colour and bring
+ * your own base or rule set. Every opacity here is 0-1.
+ *
+ * A colour is `'#rrggbb'` or a CSS colour name — {@link TredespaceClient.colorsNames}
+ * lists the ~147 the viewer knows, and the same tokens work in a query's
+ * `fullname_color` column.
+ */
+export type ColorMode =
+  /** everything white, the hits in their own colours (yellow by default) */
+  | { type: 'default-white' }
+  /** everything faded to opacity 0, the hits re-shown — an isolate */
+  | { type: 'default-hidden' }
+  /** white base at `opacity` (default 0.1): the model stays faintly visible */
+  | { type: 'default-transparent'; opacity?: number }
+  /** the viewer's LIVE Set Color rules as the base (its state is only read) */
+  | { type: 'default-set' }
+  /** your colour for hits that carry none, over a base you choose */
+  | {
+      type: 'custom-color';
+      color: string;
+      /** opacity for the hits (default: fully opaque) */
+      opacity?: number;
+      /** base coat; 'none' paints the hits over the model as it is (default 'white') */
+      base?: 'white' | 'transparent' | 'hidden' | 'none';
+      /** 'transparent' base only (default 0.1) */
+      baseOpacity?: number;
+    }
+  /** your own Set Color config as the base, then the hits on top */
+  | { type: 'custom-set'; color?: string; opacity?: number; setConfig: SetColorConfig };
+
+export interface SqlColorResult {
+  /** the `type` of the mode that ran */
+  mode: string;
+  /** distinct fullnames the query returned — the rows themselves never left
+   *  the viewer */
+  rows: number;
+  ms: number;
+}
+
+export interface SqlSelectResult {
+  /** distinct fullnames the query returned */
+  rows: number;
+  /** how many resolved to something in the loaded models */
+  matched: number;
+  /** how many resolved to nothing */
+  missed: number;
+  ms: number;
+}
+
+/** One entry of a binary name list — what {@link encodeNameList} takes and
+ *  {@link decodeNameList} gives back. */
+export interface NameListEntry {
+  fullname: string;
+  /** '#ff0000', 'yellow', or 'default' to restore the mesh colour */
+  color?: string;
+  /** 0-100; omitted (or 100) = opaque */
+  opacity?: number;
+}
+
+export interface NameListResult {
+  /** names in the list you sent */
+  names: number;
+}
+
+export interface SelectionListResult extends NameListResult {
+  matched: number;
+  missed: number;
+}
+
 export interface SqlQueryResult {
   /** one entry per statement in the script, in order. */
   statements: SqlStatementResult[];
@@ -752,6 +862,65 @@ export interface TreeSelectEvent {
 }
 
 // ── client ───────────────────────────────────────────────────────────────────
+
+/**
+ * Encode fullnames as the binary list the viewer's packed path reads:
+ * UTF-8, one `fullname` (or `fullname\tcolor[:opacity]`) per line. Hand the
+ * result to {@link TredespaceClient.selectionSetList} or
+ * {@link TredespaceClient.colorApplyList} — it is transferred, so a million
+ * names cost one buffer instead of a million JSON strings on each side.
+ * Names are matched case-insensitively by the viewer.
+ */
+export function encodeNameList(entries: readonly (string | NameListEntry)[]): ArrayBuffer {
+  const lines: string[] = [];
+  for (const e of entries) {
+    if (typeof e === 'string') {
+      const name = e.trim();
+      if (name) {
+        lines.push(name);
+      }
+      continue;
+    }
+    const name = (e.fullname ?? '').trim();
+    if (!name) {
+      continue;
+    }
+    if (!e.color) {
+      lines.push(name);
+      continue;
+    }
+    const op = e.opacity == null || e.opacity >= 100 ? '' : `:${Math.max(0, Math.round(e.opacity))}`;
+    lines.push(`${name}\t${e.color}${op}`);
+  }
+  return new TextEncoder().encode(lines.join('\n')).buffer as ArrayBuffer;
+}
+
+/** Read a binary name list back (the inverse of {@link encodeNameList}) — for
+ *  a list you cached, or one you received from elsewhere. */
+export function decodeNameList(bytes: ArrayBuffer | Uint8Array): NameListEntry[] {
+  const text = new TextDecoder().decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+  const out: NameListEntry[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      continue;
+    }
+    const m = line.match(/^(.*?)[\t, ]+([^\t, ]+)$/);
+    const head = m?.[1].trim();
+    if (!m || !head) {
+      out.push({ fullname: line });
+      continue;
+    }
+    const [color, op] = m[2].split(':');
+    const opacity = op === undefined || op === '' ? undefined : Number(op);
+    out.push({
+      fullname: head,
+      color,
+      ...(opacity !== undefined && Number.isFinite(opacity) ? { opacity } : {}),
+    });
+  }
+  return out;
+}
 
 export interface TredespaceClientOptions {
   /** The viewer's origin, e.g. 'https://viewer.example.com'. Required. */
@@ -839,6 +1008,17 @@ export class TredespaceClient {
   selectionSet(fullnames: string[], opts?: { append?: boolean }): Promise<Result<SelectionSetResult>> {
     return this.send('selection.set', { fullnames, append: opts?.append ?? false });
   }
+  /** Select a LARGE fullname list: build it with {@link encodeNameList} and
+   *  it travels as one transferred buffer, packed straight into the model DB —
+   *  no per-row JSON on either side. `append` adds to the current selection.
+   *  For a handful of names {@link selectionSet} is simpler. */
+  selectionSetList(list: ArrayBuffer, opts?: { append?: boolean }): Promise<Result<SelectionListResult>> {
+    return this.send(
+      'selection.setList',
+      { append: opts?.append ?? false },
+      { bytes: list, timeoutMs: this.importTimeoutMs },
+    );
+  }
   /** Clear the current selection. */
   selectionClear(): Promise<Result<Record<string, never>>> {
     return this.send('selection.clear', {});
@@ -913,6 +1093,27 @@ export class TredespaceClient {
   /** Append Set-Color rules; `run:true` applies them immediately. */
   colorRulesAdd(rules: ColorRuleInput[], opts?: { run?: boolean }): Promise<Result<ColorRulesResult>> {
     return this.send('colorRules.add', { rules, run: opts?.run ?? false });
+  }
+  /** Colour a LARGE fullname list you computed yourself: build it with
+   *  {@link encodeNameList} (per-name colours optional) and it travels as one
+   *  transferred buffer, packed viewer-side. `mode` is the same
+   *  {@link ColorMode} {@link sqlColor} takes — including
+   *  `{ type: 'custom-color', base: 'none' }` to paint the list over the model
+   *  as it is. Names carrying no colour of their own get the mode's colour
+   *  (yellow by default). */
+  colorApplyList(list: ArrayBuffer, opts?: { mode?: ColorMode }): Promise<Result<NameListResult & { mode: string }>> {
+    return this.send(
+      'colorRules.applyList',
+      { mode: opts?.mode ?? { type: 'default-white' } },
+      { bytes: list, timeoutMs: this.importTimeoutMs },
+    );
+  }
+  /** Every colour NAME the viewer accepts wherever a colour token is read — a
+   *  query's `fullname_color`, a Multi rule row, a {@link ColorMode}'s
+   *  `color` — as `{ name: '#rrggbb' }`. Hex codes always work too; this is
+   *  the list for validating or offering names in your own UI. */
+  colorsNames(): Promise<Result<{ names: Record<string, string> }>> {
+    return this.send('colors.names', {});
   }
   /** Re-run the current rules against the model; returns matched item counts. */
   colorRulesRun(): Promise<Result<{ matches: number[] }>> {
@@ -1533,6 +1734,70 @@ export class TredespaceClient {
     maxRows?: number;
   }): Promise<Result<SqlQueryResult>> {
     return this.send('sql.query', { ...input }, { timeoutMs: this.importTimeoutMs });
+  }
+
+  /**
+   * Colour the model FROM a query — the SQL editor's Color White / Hidden /
+   * Set buttons, over the API. The query must return a `fullname` column and
+   * may return `fullname_color` (`'#ff0000'`, `'yellow'`, `'default'`, with an
+   * optional `:opacity` suffix); rows without one get yellow.
+   *
+   * Nothing but the counts crosses the boundary: the viewer packs the result
+   * inside its SQL worker and hands it to the model DB as flat buffers, so
+   * this is the form to use for million-row results — `sqlQuery` + a colour
+   * rule would ship every name to your page and back.
+   *
+   * `mode` picks the treatment — see {@link ColorMode}: the viewer's own
+   * white / hidden / transparent / set-colour base coats, or your own colour
+   * and rule set. Defaults to `{ type: 'default-white' }`.
+   */
+  sqlColor(
+    input: SqlRunInput & { mode?: ColorMode; onProgress?: (p: { rows: number }) => void },
+  ): Promise<Result<SqlColorResult>> {
+    const { onProgress, ...rest } = input;
+    const { payload, done } = this.progressFor('sql.color:progress', rest, onProgress);
+    return this.send<SqlColorResult>('sql.color', payload, { timeoutMs: this.importTimeoutMs }).finally(done);
+  }
+
+  /** Select what a query returns (its `fullname` column), through the same
+   *  packed path as {@link sqlColor} — the rows never reach your page.
+   *  `append` adds to the current selection instead of replacing it. */
+  sqlSelect(
+    input: SqlRunInput & { append?: boolean; onProgress?: (p: { rows: number }) => void },
+  ): Promise<Result<SqlSelectResult>> {
+    const { onProgress, ...rest } = input;
+    const { payload, done } = this.progressFor('sql.select:progress', rest, onProgress);
+    return this.send<SqlSelectResult>('sql.select', payload, { timeoutMs: this.importTimeoutMs }).finally(done);
+  }
+
+  /** Run a query and show it in the viewer's SQL Table panel (`loadAll` lifts
+   *  the 50-row preview cap to 250k). The rows land in the panel, not in the
+   *  response — you get the column names and the row count. `show: false`
+   *  fills the panel without opening it. */
+  sqlTable(
+    input: SqlRunInput & { name?: string; loadAll?: boolean; show?: boolean },
+  ): Promise<Result<{ columns: string[]; rows: number }>> {
+    return this.send('sql.table', { ...input }, { timeoutMs: this.importTimeoutMs });
+  }
+
+  /** Bind a query to a SQL Detail panel: every hierarchy click runs it against
+   *  the clicked node — write it against TREE_VIEW_ARGS, e.g.
+   *  `… where fullname in (select FULLNAME from TREE_VIEW_ARGS)`.
+   *
+   *  `name` is the panel's IDENTITY as well as its tab title: each distinct
+   *  name gets its OWN detail panel, so several queries can follow the
+   *  selection side by side, and calling again with a name already in use
+   *  re-binds that panel instead of opening another. Without a name the
+   *  viewer's built-in SQL Detail panel is used. `show: false` binds without
+   *  opening the panel. `panel` in the response is the dock panel id — pass it
+   *  to {@link uiShowPanel} / {@link uiHidePanel}.
+   *
+   *  Named panels last for the viewer SESSION (like host-managed external
+   *  apps): after a page reload, create them again. */
+  sqlDetail(
+    input: SqlRunInput & { name?: string; show?: boolean },
+  ): Promise<Result<{ bound: boolean; name: string; panel: string }>> {
+    return this.send('sql.detail', { ...input });
   }
 
   /** Run a BATCH of statements against `mainDb` in ONE transaction, with the

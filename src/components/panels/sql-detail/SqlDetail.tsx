@@ -1,7 +1,7 @@
-import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
+import { PanelBody, type PanelContext, useMinSize } from '@treDeSpaceUI/dockable';
 import { Button, TextInput } from '@treDeSpaceUI/widgets';
-import { useSyncExternalStore } from 'react';
-import { getDetailReport, subscribeDetailReport } from './sqlDetailPanel';
+import { useCallback, useSyncExternalStore } from 'react';
+import { detailKeyOf, getDetailReport, subscribeDetailReport } from './sqlDetailPanel';
 import { useSqlDetailForm } from './useSqlDetailForm';
 
 /** SQL Detail: bound to a DETAIL report. While Listening, every selection
@@ -9,9 +9,13 @@ import { useSqlDetailForm } from './useSqlDetailForm';
  *  the selected node's tree-view path, re-runs
  *  the report's LIMIT 1 query, and shows the row as a two-column field list.
  *  The header + toolbar are fixed; only the fields scroll. */
-export function SqlDetail() {
+export function SqlDetail({ ctx }: { ctx: PanelContext }) {
   useMinSize(260, 200);
-  const report = useSyncExternalStore(subscribeDetailReport, getDetailReport);
+  // one component serves every detail panel: the panel id carries which
+  // binding this instance shows (built-in, or a host-named one)
+  const key = detailKeyOf(ctx.id);
+  const snapshot = useCallback(() => getDetailReport(key), [key]);
+  const report = useSyncExternalStore(subscribeDetailReport, snapshot);
   const { listening, toggleListening, hasRow, fields, status, filter, setFilter, hideEmpty, setHideEmpty } =
     useSqlDetailForm(report);
 

@@ -4,6 +4,46 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.01** (>0.0.80):
+  Host API: colouring and selecting from SQL now take the SAME packed path the
+  SQL editor's buttons use, so a big result never crosses the postMessage
+  boundary. New `sql.color` (white / hidden / set — the three colour buttons),
+  `sql.select`, `sql.table` and `sql.detail`: the host sends the QUERY, the
+  viewer runs it, packs the fullnames inside the SQL worker (~45 B/row,
+  DISTINCT, column-probed) and transfers them to the model DB — the response
+  is a row count. Going through `sql.query` + a colour rule instead
+  materialises every row as JSON twice, which is what these commands exist to
+  avoid. All four take `filters` (FILTER_ARGS rows, so one query can be
+  parameterised per call), `attach`, and `progress: true` to run without
+  viewer dialogs and stream row ticks instead.
+  For lists the host itself computed there is now a binary channel:
+  `selection.setList` and `colorRules.applyList` take the fullnames as UTF-8
+  bytes (one `fullname[<TAB>color[:opacity]]` per line — the Multi paste
+  grammar) through the message's `bytes` side-channel, packed viewer-side with
+  no JS string per row (`packedFromBytes`); the SDK gained `encodeNameList()` /
+  `decodeNameList()` to build and read them. Packed selection also learned
+  `append`, matching `selection.set`.
+  Colour modes are now a tagged union instead of a loose string, shared by
+  `sql.color` and `colorRules.applyList`: `default-white` / `default-hidden` /
+  `default-transparent` (white base at 0.1, or your own opacity) /
+  `default-set`, plus `custom-color` (your highlight colour over a base of
+  `white` / `transparent` / `hidden` / `none`) and `custom-set` (your OWN Set
+  Color config runs first — for a config the host stores — then the hits on
+  top). Every colouring consumer, buttons included, now goes through one
+  `colorPackedMode` resolver. New `colors.names` returns the ~147 colour names
+  the viewer accepts anywhere a colour token is read, so a host can validate
+  or offer them. In the app: a **Color Transparent** button next to Color
+  White in the SQL editor, the report test row and the coloring apply box
+  (Alt&1220) — the same 10% white base, so the model stays readable behind the
+  highlight.
+  `sql.detail` can now create its OWN panel: `name` is the identity and the tab
+  title, so several queries follow the selection side by side, and calling
+  again with a name already in use re-binds that panel instead of opening
+  another (no name = the built-in SQL Detail panel). The panels are registered
+  on demand and are session-only, the same contract host-managed external apps
+  have; the response carries the dock panel id for `ui.showPanel` /
+  `ui.hidePanel`. One `SqlDetail` component now serves every detail panel,
+  keyed by its panel id.
 - **2026.09.01** (>0.0.79):
   Host API grew four things hosts kept asking for. `selection.set` takes
   `append: true` — build a selection up over several calls instead of

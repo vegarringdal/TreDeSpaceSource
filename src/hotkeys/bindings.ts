@@ -1597,6 +1597,14 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => void sqlEditorActions.colorHidden(),
   },
   {
+    id: 'sql.editor.colorTransparent',
+    category: 'SQL',
+    label: 'SQL editor: color transparent',
+    defaultKeys: 'ALT + 1220',
+    description: 'Run the editor SQL and color the result over a white base at 10% opacity',
+    run: () => void sqlEditorActions.colorTransparent(),
+  },
+  {
     id: 'sql.editor.colorSet',
     category: 'SQL',
     label: 'SQL Editor: color set',

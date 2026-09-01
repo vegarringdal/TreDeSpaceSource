@@ -205,6 +205,19 @@ export const sqlEditorActions = {
     }
   },
 
+  /** White base at 10% + the result colored: like Color White, but the rest of
+   *  the model stays faintly visible instead of going flat white. */
+  async colorTransparent() {
+    const r = editorReport();
+    if (!r) {
+      return;
+    }
+    const rows = await sqlReportsActions.runColoring(r);
+    if (rows) {
+      await sqlReportsActions.colorTransparent(rows);
+    }
+  },
+
   /** Append a per-row Multi rule (fullname + fullname_color) to Set Color and run it. */
   async colorSet() {
     const r = editorReport();

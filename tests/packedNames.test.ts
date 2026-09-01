@@ -5,6 +5,7 @@ import {
   PACKED_NO_COLOR,
   PACKED_NO_OPACITY,
   PackedNamesBuilder,
+  packedFromBytes,
   packedFromLines,
   packedName,
   packedTransferables,
@@ -69,5 +70,43 @@ describe('PackedNamesBuilder', () => {
       expect(p.colors[i]).toBe(m.perName[key] ?? PACKED_NO_COLOR);
       expect(p.opacity[i]).toBe(m.perOpacity[key] ?? PACKED_NO_OPACITY);
     }
+  });
+});
+
+describe('packedFromBytes', () => {
+  const enc = new TextEncoder();
+  const names = (p: ReturnType<typeof packedFromBytes>) =>
+    Array.from({ length: p.count }, (_, i) => packedName(p, i, dec));
+
+  it('reads the Multi grammar byte for byte, matching packedFromLines', () => {
+    const text = [
+      '  /A-PIPE  ',
+      '',
+      '/b/Bracket\tyellow',
+      '/c/Valve,#ff0000:50',
+      '/d/Flange default',
+      '/e/Ø-ÆØÅ yellow',
+      '/f/no color token here',
+      '   ',
+    ].join('\r\n');
+    const fromBytes = packedFromBytes(enc.encode(text));
+    const fromLines = packedFromLines(text);
+    expect(names(fromBytes)).toEqual(names(fromLines));
+    expect(Array.from(fromBytes.colors)).toEqual(Array.from(fromLines.colors));
+    expect(Array.from(fromBytes.opacity)).toEqual(Array.from(fromLines.opacity));
+  });
+
+  it('lowercases ASCII in place and still case-folds non-ASCII names', () => {
+    const p = packedFromBytes(enc.encode('/A-PIPE\n/B/Ø-ÆØÅ'));
+    expect(names(p)).toEqual(['/a-pipe', '/b/ø-æøå']);
+  });
+
+  it('grows past its initial capacity and ends on a name without a newline', () => {
+    const n = 5000;
+    const text = Array.from({ length: n }, (_, i) => `/name-${i}-${'x'.repeat(40)} yellow`).join('\n');
+    const p = packedFromBytes(enc.encode(text));
+    expect(p.count).toBe(n);
+    expect(packedName(p, n - 1, dec)).toBe(`/name-${n - 1}-${'x'.repeat(40)}`);
+    expect(p.colors[n - 1]).not.toBe(PACKED_NO_COLOR);
   });
 });
