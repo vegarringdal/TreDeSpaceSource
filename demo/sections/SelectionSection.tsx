@@ -1,4 +1,4 @@
-import { Button, TextArea, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, TextArea, TextInput } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { DemoSection } from '../components/DemoSection';
 import { Hint } from '../components/Hint';
@@ -9,12 +9,13 @@ import { splitLines } from '../util';
 export function SelectionSection() {
   const { run, c } = useDemo();
   const [names, setNames] = useState('');
+  const [append, setAppend] = useState(false);
   const [skip, setSkip] = useState('FRAME, BRACKET*');
   const [maxItems, setMaxItems] = useState('200');
 
   const handleSet = () => {
     const fullnames = splitLines(names);
-    void run('selection.set', { fullnames }, () => c().selectionSet(fullnames));
+    void run('selection.set', { fullnames, append }, () => c().selectionSet(fullnames, { append }));
   };
 
   /** selection.get with every selected node: skip prefixes are comma
@@ -37,6 +38,7 @@ export function SelectionSection() {
     <DemoSection title="Selection">
       <TextArea value={names} onChange={setNames} rows={3} />
       <Hint>One fullname per line (load a model first, e.g. via Import Manager).</Hint>
+      <Checkbox checked={append} onChange={setAppend} label="append (add to the current selection)" />
       <Row>
         <Button onClick={handleSet}>selection.set</Button>
         <Button onClick={() => void run('selection.get', {}, () => c().selectionGet())}>selection.get</Button>

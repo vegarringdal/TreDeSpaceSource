@@ -66,7 +66,9 @@ const setOrAddMeasurements: ApiHandler = ({ type, p }) => {
 };
 
 export const sceneHandlers: Record<string, ApiHandler> = {
-  'selection.set': ({ p }) => viewerActions.selectByFullnames(strings(p.fullnames, 'fullnames')),
+  // `append: true` adds to the current selection instead of replacing it
+  'selection.set': ({ p }) =>
+    viewerActions.selectByFullnames(strings(p.fullnames, 'fullnames'), { append: p.append === true }),
 
   'selection.clear': async () => {
     await viewerActions.clearSelection();

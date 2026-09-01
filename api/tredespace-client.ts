@@ -330,6 +330,25 @@ export interface ColorRulesResult {
   matches: number[];
 }
 
+export interface ModelResetOptions {
+  /** drop every color override */
+  color?: boolean;
+  /** drop every opacity override */
+  opacity?: boolean;
+  /** unhide every hidden item */
+  hidden?: boolean;
+  /** put every moved item back on its cooked placement */
+  transform?: boolean;
+}
+
+/** Which kinds `model.reset` actually reset (an empty request resets all). */
+export interface ModelResetResult {
+  color: boolean;
+  opacity: boolean;
+  hidden: boolean;
+  transform: boolean;
+}
+
 export interface SettingsGetResult {
   version: string;
   /** the persisted viewer-settings snapshot (read-only) */
@@ -815,9 +834,10 @@ export class TredespaceClient {
   // ── commands (one method per EVENTS.md entry) ─────────────────────────────
 
   /** Replace the selection by fullname (reveals the first hit in the tree).
+   *  `append: true` keeps what is already selected and adds to it instead.
    *  `missed` lists fullnames that resolved to nothing. */
-  selectionSet(fullnames: string[]): Promise<Result<SelectionSetResult>> {
-    return this.send('selection.set', { fullnames });
+  selectionSet(fullnames: string[], opts?: { append?: boolean }): Promise<Result<SelectionSetResult>> {
+    return this.send('selection.set', { fullnames, append: opts?.append ?? false });
   }
   /** Clear the current selection. */
   selectionClear(): Promise<Result<Record<string, never>>> {
@@ -907,6 +927,13 @@ export class TredespaceClient {
   colorRulesResetModel(): Promise<Result<Record<string, never>>> {
     return this.send('colorRules.resetModel', {});
   }
+  /** Reset the model's overrides — colors, opacity overrides, hidden items and
+   *  item transforms. Naming kinds resets ONLY those (`{ hidden: true }`
+   *  unhides and leaves the colors alone); an empty payload resets all four.
+   *  The response echoes which kinds were reset. */
+  modelReset(opts?: ModelResetOptions): Promise<Result<ModelResetResult>> {
+    return this.send('model.reset', { ...opts });
+  }
 
   // ── clipping box + shapes ─────────────────────────────────────────────────
   /** The default clipping box: whether it is cutting, whether it is inverted,
@@ -936,14 +963,24 @@ export class TredespaceClient {
 
   // ── navigation ────────────────────────────────────────────────────────────
   /** Fly the camera to a node by fullname. `select` also selects it (default
-   *  just flies). `matched` is false when the fullname isn't found. */
-  navFlyTo(fullname: string, opts?: { select?: boolean }): Promise<Result<{ matched: boolean }>> {
-    return this.send('nav.flyTo', { fullname, select: opts?.select ?? false });
+   *  just flies); `wait` responds only once the camera has ARRIVED, so a
+   *  chained screenshot or command sees the final view. `matched` is false
+   *  when the fullname isn't found. */
+  navFlyTo(fullname: string, opts?: { select?: boolean; wait?: boolean }): Promise<Result<{ matched: boolean }>> {
+    return this.send('nav.flyTo', { fullname, select: opts?.select ?? false, wait: opts?.wait ?? false });
   }
   /** Set the orbit pivot to a node by fullname (camera stays); `select` also
-   *  selects it. `matched` is false when the fullname isn't found. */
-  navOrbit(fullname: string, opts?: { select?: boolean }): Promise<Result<{ matched: boolean }>> {
-    return this.send('nav.orbit', { fullname, select: opts?.select ?? false });
+   *  selects it, `wait` responds only once the re-pivot has landed. `matched`
+   *  is false when the fullname isn't found. */
+  navOrbit(fullname: string, opts?: { select?: boolean; wait?: boolean }): Promise<Result<{ matched: boolean }>> {
+    return this.send('nav.orbit', { fullname, select: opts?.select ?? false, wait: opts?.wait ?? false });
+  }
+  /** Frame everything currently VISIBLE — every item that is not hidden,
+   *  moved geometry included — as tightly as the viewport allows. `wait`
+   *  responds only once the camera has arrived. `fitted` is false when
+   *  nothing visible is left to frame. */
+  navFitVisible(opts?: { wait?: boolean }): Promise<Result<{ fitted: boolean }>> {
+    return this.send('nav.fitVisible', { wait: opts?.wait ?? false });
   }
 
   /** Read-only snapshot of the persisted viewer settings, plus the app version. */

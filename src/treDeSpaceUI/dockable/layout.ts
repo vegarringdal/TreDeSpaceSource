@@ -184,6 +184,11 @@ export interface MeasureEnv {
   splitterSize: number;
   /** Effective (definition + runtime override) minimum for a panel. */
   panelMin(panelId: string): Size;
+  /** MEASURED height of a tabs node's strip, when the host tracks it: a strip
+   *  whose tabs wrapped onto extra rows is taller than `headerHeight`, and
+   *  folding the real height in here makes the GROUP grow instead of the extra
+   *  rows eating into the panel body. Falls back to `headerHeight`. */
+  stripHeight?(nodeId: string): number;
 }
 
 /** Smallest box a node can be squeezed into, in px. */
@@ -200,7 +205,7 @@ export function measureMin(node: LayoutNode, env: MeasureEnv): Size {
       width = Math.max(width, m.width || DEFAULT_MIN_W);
       height = Math.max(height, m.height || DEFAULT_MIN_H);
     }
-    const header = node.hideTabs ? 0 : env.headerHeight;
+    const header = node.hideTabs ? 0 : Math.max(env.headerHeight, env.stripHeight?.(node.id) ?? 0);
     // the padlock floor: a size-locked group's minimum is the size it was
     // locked at — folding it in HERE makes it hold through any nesting
     if (node.sizeLocked && node.lockedSize) {

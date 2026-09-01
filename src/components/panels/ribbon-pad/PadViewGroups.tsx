@@ -1,6 +1,7 @@
 import {
   IconArrowBigDown,
   IconArrowBigUp,
+  IconArrowsMaximize,
   IconFocus2,
   IconFocusCentered,
   IconLayoutDistributeVertical,
@@ -44,6 +45,13 @@ export function PadViewGroups() {
           tooltip="Re-pivot on the selection center — camera stays put"
           shortcut="camera.focusSelection"
           onClick={() => void viewerActions.focusSelection()}
+        />
+        <RibbonButton
+          icon={<IconArrowsMaximize />}
+          label="Fit visible"
+          tooltip="Frame everything that is not hidden — hide or isolate first to zoom onto a set"
+          shortcut="camera.fitVisible"
+          onClick={() => void viewerActions.fitVisible()}
         />
         <RibbonButton
           icon={<IconLayoutDistributeVertical />}

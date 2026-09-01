@@ -2006,6 +2006,14 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => void viewerActions.focusSelection(),
   },
   {
+    id: 'camera.fitVisible',
+    category: 'Camera',
+    label: 'Fit visible',
+    defaultKeys: 'ALT + 1219',
+    description: 'Frame everything that is not hidden as tightly as the viewport allows',
+    run: () => void viewerActions.fitVisible(),
+  },
+  {
     id: 'editor.swatches.reset',
     category: 'View',
     label: 'Reset picker swatches',

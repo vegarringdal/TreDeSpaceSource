@@ -236,7 +236,8 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     if (!fullname) {
       throw new ApiError('bad-payload', 'fullname is required');
     }
-    return { matched: await viewerActions.flyToFullname(fullname, p.select === true) };
+    const opts = { select: p.select === true, wait: p.wait === true };
+    return { matched: await viewerActions.flyToFullname(fullname, opts) };
   },
 
   'nav.orbit': async ({ p }) => {
@@ -244,6 +245,30 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     if (!fullname) {
       throw new ApiError('bad-payload', 'fullname is required');
     }
-    return { matched: await viewerActions.orbitFullname(fullname, p.select === true) };
+    const opts = { select: p.select === true, wait: p.wait === true };
+    return { matched: await viewerActions.orbitFullname(fullname, opts) };
+  },
+
+  // frame everything not hidden — the Fit-visible button over the API
+  'nav.fitVisible': async ({ p }) => {
+    const fitted = await viewerActions.fitVisible({ wait: p.wait === true });
+    return { fitted };
+  },
+
+  // Reset the model's overrides. Naming a kind resets ONLY the named ones;
+  // an empty payload resets all four. Colour/opacity/hidden share the state
+  // undo domain (one step); transforms have their own.
+  'model.reset': async ({ p }) => {
+    const named = ['color', 'opacity', 'hidden', 'transform'].some((k) => typeof p[k] === 'boolean');
+    const want = (key: string): boolean => (named ? p[key] === true : true);
+    const kinds = { color: want('color'), opacity: want('opacity'), hidden: want('hidden') };
+    const transform = want('transform');
+    if (kinds.color || kinds.opacity || kinds.hidden) {
+      await viewerActions.clearOverrides(kinds);
+    }
+    if (transform) {
+      await viewerActions.resetAllTransforms();
+    }
+    return { ...kinds, transform };
   },
 };

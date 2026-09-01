@@ -116,10 +116,12 @@ Hosts should queue commands until `app.ready` (commands before it get
 
 ### selection.set
 Replace the selection by fullnames (reveals the first hit in the tree —
-same as the internal `selectByFullnames`).
+same as the internal `selectByFullnames`). `append: true` ADDS to the current
+selection instead of replacing it, so a host can build a selection up over
+several calls (each call still reveals its own first hit).
 
 ```js
-payload:  { fullnames: ['/TP400-PIPE-01', '/TP400-PIPE-02'] }
+payload:  { fullnames: ['/TP400-PIPE-01', '/TP400-PIPE-02'], append: false }
 response: { matched: 2, missed: [] }
 ```
 
@@ -931,11 +933,39 @@ response: { target: [12, 3, 1], azimuth: 0.61, elevation: 0.5, distance: 42.7 }
 ### nav.flyTo / nav.orbit
 Drive the camera to a node by fullname. `flyTo` frames it; `orbit` re-pivots on
 it (camera stays put). `select: true` also selects it — otherwise the selection
-is left untouched. `matched` is false when the fullname isn't found.
+is left untouched. `wait: true` responds only once the camera has ARRIVED (the
+move is an animation the render loop drives), so a chained `view.screenshot`
+or `camera.get` sees the final view; without it the response comes back
+immediately and the camera is still gliding. `matched` is false when the
+fullname isn't found.
 
 ```js
-payload:  { fullname: '/SITE/ZONE-1/PIPE-401', select: false }
+payload:  { fullname: '/SITE/ZONE-1/PIPE-401', select: false, wait: true }
 response: { matched: true }
+```
+
+### nav.fitVisible
+Frame everything currently VISIBLE — every item that is not hidden, moved
+geometry included — as tightly as the viewport allows (the same framing as
+"fly to selection", applied to the visible set). Hiding or isolating first and
+then calling this is the way to zoom onto an arbitrary set. `wait: true`
+responds only once the camera has arrived. `fitted` is false when the model is
+not up yet or every item with geometry is hidden.
+
+```js
+payload:  { wait: true }
+response: { fitted: true }
+```
+
+### model.reset
+Reset the model's overrides. Naming kinds resets ONLY those — `{ hidden: true }`
+unhides everything and leaves the colors alone; an EMPTY payload resets all
+four. Color, opacity and hidden share one undo step; transforms are their own
+undo domain. The response echoes what was reset.
+
+```js
+payload:  { color: true, opacity: true, hidden: true, transform: false }
+response: { color: true, opacity: true, hidden: true, transform: false }
 ```
 
 ### ui.dialogs

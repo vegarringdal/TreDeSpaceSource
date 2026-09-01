@@ -230,6 +230,31 @@ async function splitActiveAncestor(
   return { ancestorKeys, siblingKeys };
 }
 
+// -----------------------------------------------------------------------------
+// camera helpers
+// -----------------------------------------------------------------------------
+
+/** Glide the camera to frame a world box: pivot on its centre at the distance
+ *  that puts the bounding sphere (13% margin) inside the vertical FOV — the
+ *  same framing camera.fit() uses for the load view. */
+function flyToBounds(bounds: { min: readonly number[]; max: readonly number[] }, smoothTime = 0.6) {
+  if (!renderer) {
+    return;
+  }
+  const { min, max } = bounds;
+  const center: [number, number, number] = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+  const radius = Math.max(0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]), 0.5);
+  renderer.camera.dolly(center, (radius * 1.3) / Math.tan(renderer.camera.fovY / 2), smoothTime);
+}
+
+/** Await the end of an in-flight camera move when the caller asked to wait —
+ *  host commands that must not respond mid-glide. */
+async function settleCamera(wait?: boolean): Promise<void> {
+  if (wait && renderer) {
+    await renderer.camera.settled();
+  }
+}
+
 export const viewerActions = {
   update(patch: Partial<ViewerState>) {
     viewerState.set(patch);
@@ -394,25 +419,33 @@ export const viewerActions = {
   },
 
   /** Select many items by fullname (replaces the selection, reveals the
-   *  first). Returns what matched and which names resolved to nothing —
-   *  hosts driving the app over postMessage need the misses. */
-  async selectByFullnames(names: string[]): Promise<{ matched: number; missed: string[] }> {
+   *  first). `append` keeps what is already selected and adds to it — the
+   *  host API's additive selection. Returns what matched and which names
+   *  resolved to nothing — hosts driving the app over postMessage need the
+   *  misses. */
+  async selectByFullnames(
+    names: string[],
+    opts: { append?: boolean } = {},
+  ): Promise<{ matched: number; missed: string[] }> {
     const hits = await db.findEntriesByNames(names);
     const foundLower = new Set(hits.map((h) => h.name.toLowerCase().replace(/^\//, '')));
     const missed = names.filter((n) => !foundLower.has(n.trim().toLowerCase().replace(/^\//, '')));
     if (hits.length === 0) {
       return { matched: 0, missed };
     }
-    applyStateUpdates(await db.clearSelection());
+    if (!opts.append) {
+      applyStateUpdates(await db.clearSelection());
+    }
     applyStateUpdates(await db.addSubtrees(hits.map((h) => ({ model: h.model, entry: h.entry }))));
     viewerState.set({ suppressTintOnOverride: false });
     const first = hits[0];
-    selectionState.set({
-      activeGroup: null,
-      activeGroups: [],
-      actives: hits.map((h) => `${h.model}:${h.entry}`),
-      reveal: { model: first.model, path: await db.pathForEntry(first.model, first.entry) },
-    });
+    const keys = hits.map((h) => `${h.model}:${h.entry}`);
+    const reveal = { model: first.model, path: await db.pathForEntry(first.model, first.entry) };
+    selectionState.set((prev) =>
+      opts.append
+        ? { activeGroup: null, actives: [...new Set([...prev.actives, ...keys])], reveal }
+        : { activeGroup: null, activeGroups: [], actives: keys, reveal },
+    );
     await refreshSelectionMeta({ model: first.model, entry: first.entry });
     return { matched: hits.length, missed };
   },
@@ -576,11 +609,7 @@ export const viewerActions = {
     if (!bounds) {
       return;
     }
-    const { min, max } = bounds;
-    const center: [number, number, number] = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
-    const radius = Math.max(0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]), 0.5);
-    const dist = (radius * 1.3) / Math.tan(renderer.camera.fovY / 2);
-    renderer.camera.dolly(center, dist, 0.6);
+    flyToBounds(bounds);
   },
 
   /** Focus = Alt+click replay: re-pivot on the last clicked point, camera stays. */
@@ -617,42 +646,42 @@ export const viewerActions = {
   },
 
   /** Host API `nav.flyTo`: fly the camera to a fullname's subtree; `select`
-   *  also selects it, otherwise the selection is left untouched. Returns
-   *  whether the name matched anything. */
-  async flyToFullname(fullname: string, select = false): Promise<boolean> {
+   *  also selects it, otherwise the selection is left untouched. `wait`
+   *  resolves only once the move has landed (the glide is an animation the
+   *  render loop drives). Returns whether the name matched anything. */
+  async flyToFullname(fullname: string, opts: { select?: boolean; wait?: boolean } = {}): Promise<boolean> {
     if (!renderer) {
       return false;
     }
     if ((await db.findEntriesByNames([fullname])).length === 0) {
       return false;
     }
-    if (select) {
+    if (opts.select) {
       await viewerActions.selectByFullnames([fullname]);
       await viewerActions.flyToSelection();
+      await settleCamera(opts.wait);
       return true;
     }
     const bounds = await db.boundsForNames([fullname]);
     if (!bounds) {
       return true; // matched, but no geometry to frame
     }
-    const { min, max } = bounds;
-    const center: [number, number, number] = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
-    const radius = Math.max(0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]), 0.5);
-    const dist = (radius * 1.3) / Math.tan(renderer.camera.fovY / 2);
-    renderer.camera.dolly(center, dist, 0.6);
+    flyToBounds(bounds);
+    await settleCamera(opts.wait);
     return true;
   },
 
   /** Host API `nav.orbit`: set the orbit pivot to a fullname's centre (camera
-   *  stays put); `select` also selects it. Returns whether the name matched. */
-  async orbitFullname(fullname: string, select = false): Promise<boolean> {
+   *  stays put); `select` also selects it, `wait` resolves once the re-pivot
+   *  has landed. Returns whether the name matched. */
+  async orbitFullname(fullname: string, opts: { select?: boolean; wait?: boolean } = {}): Promise<boolean> {
     if (!renderer) {
       return false;
     }
     if ((await db.findEntriesByNames([fullname])).length === 0) {
       return false;
     }
-    if (select) {
+    if (opts.select) {
       await viewerActions.selectByFullnames([fullname]);
     }
     const bounds = await db.boundsForNames([fullname]);
@@ -661,6 +690,23 @@ export const viewerActions = {
     }
     const { min, max } = bounds;
     renderer.camera.rePivot([(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2]);
+    await settleCamera(opts.wait);
+    return true;
+  },
+
+  /** Frame everything that is NOT hidden (the host API `nav.fitVisible` and
+   *  the Fit-visible button): the union box of every visible item, moved
+   *  geometry included. False when nothing visible is left to frame. */
+  async fitVisible(opts: { wait?: boolean } = {}): Promise<boolean> {
+    if (!renderer) {
+      return false;
+    }
+    const bounds = await db.visibleWorldBounds();
+    if (!bounds) {
+      return false;
+    }
+    flyToBounds(bounds);
+    await settleCamera(opts.wait);
     return true;
   },
 
@@ -786,7 +832,13 @@ export const viewerActions = {
    *  reset all opacity (the Alt&R hotkey / "Clear all" button) — one worker
    *  call, ONE undo step. */
   async clearAllOverrides() {
-    applyStateUpdates(await db.clearAllOverrides());
+    await viewerActions.clearOverrides({ color: true, opacity: true, hidden: true });
+  },
+
+  /** Clear only the chosen override kinds everywhere (host API `model.reset`),
+   *  as one undo step. */
+  async clearOverrides(kinds: { color?: boolean; opacity?: boolean; hidden?: boolean }) {
+    applyStateUpdates(await db.clearOverrides(kinds));
     await refreshSelectionMeta(undefined);
   },
 

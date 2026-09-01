@@ -429,10 +429,21 @@ type InlinePanelProps = {
   defaultOpen?: boolean;
   open?: boolean;
   onToggle?: (open: boolean) => void;
-  actions?: ReactNode;    // extra controls at the right end of the header
+  actions?: ReactNode;        // extra controls at the right end of the header
+  titleUppercase?: boolean;   // default true — the dock-panel look
+  titleClassName?: string;    // classes merged over the header text styling
   children: ReactNode;
   className?: string;
 };
+```
+
+The header text is uppercased by default. `titleUppercase={false}` shows the
+title as written; `titleClassName` restyles it (`"text-sm normal-case"`), and
+a `title` node takes over the rendering entirely:
+
+```tsx
+<InlinePanel title="Pump P-101" titleUppercase={false}>…</InlinePanel>
+<InlinePanel title={<TagBadge tag="P-101" />}>…</InlinePanel>
 ```
 
 ### InfoBox / InfoButton
@@ -1020,7 +1031,9 @@ type DockManagerOptions = {
   panels: PanelDefinition[];
   layout: LayoutNode;
   windows?: FloatingWindow[];
-  headerHeight?: number;      // tab strip px, default 22
+  headerHeight?: number;      // ONE tab ROW, px, default 22 — a strip whose tabs
+                              // wrap keeps every row this tall, and the taller
+                              // strip is folded into the group's minimum size
   tabMinWidth?: number;
   splitterSize?: number;      // default 6; hit area widens on touch
   windowBarHeight?: number;   // default 26

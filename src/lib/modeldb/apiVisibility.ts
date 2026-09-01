@@ -85,6 +85,35 @@ export const visibilityApi = {
     });
   },
 
+  /** World AABB of every NON-hidden item that has geometry, across all live
+   * models — what "fit visible" frames. Transformed items contribute their
+   * moved box. null when nothing visible is left. */
+  visibleWorldBounds(): { min: [number, number, number]; max: [number, number, number] } | null {
+    const wb = new Float32Array(6);
+    const min: [number, number, number] = [Infinity, Infinity, Infinity];
+    const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+    let any = false;
+    for (const m of models) {
+      if (m.removed) {
+        continue;
+      }
+      for (let i = 0; i < m.itemCount; i++) {
+        if (m.states[i * 2] & IS_HIDDEN) {
+          continue;
+        }
+        if (!itemWorldBounds(m.itemBounds, m.tidx, i, wb)) {
+          continue;
+        }
+        any = true;
+        for (let k = 0; k < 3; k++) {
+          min[k] = Math.min(min[k], wb[k]);
+          max[k] = Math.max(max[k], wb[k + 3]);
+        }
+      }
+    }
+    return any ? { min, max } : null;
+  },
+
   /** Hide every selected item (undoable, state domain). */
   hideSelection(): StateUpdate[] {
     const updates: StateUpdate[] = [];

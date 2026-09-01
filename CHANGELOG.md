@@ -4,6 +4,30 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.01** (>0.0.79):
+  Host API grew four things hosts kept asking for. `selection.set` takes
+  `append: true` — build a selection up over several calls instead of
+  replacing it. `nav.flyTo` / `nav.orbit` take `wait: true` — the response
+  comes back only once the camera has ARRIVED, so a chained screenshot no
+  longer catches the glide mid-flight. New `nav.fitVisible` frames everything
+  that is not hidden (hide/isolate first, then fit) — also an in-app button in
+  the pad ribbon's View group and the hierarchy toolbar, on Alt&1219. New
+  `model.reset` resets the model's overrides by kind — `color`, `opacity`,
+  `hidden`, `transform`, any subset; an empty payload resets all four. Colour,
+  opacity and hidden still clear as ONE undo step (the existing "Clear all"
+  now runs through the same bit-masked path).
+  @treDeSpaceUI: `InlinePanel` no longer forces UPPERCASE headers —
+  `titleUppercase={false}` keeps the title as written and `titleClassName`
+  restyles the header text (a node as `title` still takes over completely).
+  Dock: a tab strip whose tabs wrap onto extra rows kept only ONE row's worth
+  of height between them — every row was squeezed to its line box, so a
+  two-row strip looked half as tall per row as a one-row one. Rows now sit at
+  the top at the full `headerHeight` each, stacked flush (the row gap is gone)
+  with a 1px rule under each row, so stacked rows read as rows instead of one
+  run-on line of labels — a single-row strip is untouched. The strip's
+  MEASURED height (ResizeObserver per strip) is also folded into the group's
+  minimum size, so the extra rows can no longer squeeze a panel body below its
+  own minimum.
 - **2026.08.30** (>0.0.78):
   API `colorRules.apply` (SDK `colorRulesApply`): run a rule set directly —
   same shape as colorRules.set — WITHOUT loading it into the Set Color panel;

@@ -5,7 +5,6 @@
 
 import { applyColorRules } from './colorRules';
 import {
-  COLOR_UNDO_BITS,
   type ColorUndoRecord,
   captureColorRuns,
   colorRedoDepth,
@@ -17,6 +16,7 @@ import {
 import {
   HAS_COLOR_OVERRIDE,
   HAS_OPACITY_OVERRIDE,
+  IS_HIDDEN,
   models,
   OPACITY_MASK,
   OPACITY_SHIFT,
@@ -95,9 +95,24 @@ export const colorApi = {
     return updates;
   },
 
-  /** "Clear all": unhide everything + reset every color and opacity override,
-   *  as ONE undo step (the whole state band is cleared in one pass). */
-  clearAllOverrides(): StateUpdate[] {
+  /** Clear the chosen override kinds EVERYWHERE as ONE undo step: `color`
+   *  drops color overrides, `opacity` the opacity band, `hidden` unhides.
+   *  All three together is the "Clear all" action. */
+  clearOverrides(kinds: { color?: boolean; opacity?: boolean; hidden?: boolean }): StateUpdate[] {
+    let mask = 0;
+    if (kinds.color) {
+      mask |= HAS_COLOR_OVERRIDE;
+    }
+    if (kinds.opacity) {
+      mask |= HAS_OPACITY_OVERRIDE | OPACITY_MASK;
+    }
+    if (kinds.hidden) {
+      mask |= IS_HIDDEN;
+    }
+    mask = mask >>> 0;
+    if (mask === 0) {
+      return [];
+    }
     const updates: StateUpdate[] = [];
     const step: ColorUndoRecord[] = [];
     models.forEach((m, idx) => {
@@ -106,7 +121,7 @@ export const colorApi = {
       }
       let any = false;
       for (let i = 0; i < m.itemCount; i++) {
-        if (m.states[i * 2] & COLOR_UNDO_BITS) {
+        if (m.states[i * 2] & mask) {
           any = true;
           break;
         }
@@ -116,12 +131,18 @@ export const colorApi = {
       }
       step.push(captureColorRuns(idx));
       for (let i = 0; i < m.itemCount; i++) {
-        m.states[i * 2] = (m.states[i * 2] & ~COLOR_UNDO_BITS) >>> 0;
+        m.states[i * 2] = (m.states[i * 2] & ~mask) >>> 0;
       }
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
     return updates;
+  },
+
+  /** "Clear all": unhide everything + reset every color and opacity override,
+   *  as ONE undo step (the whole state band is cleared in one pass). */
+  clearAllOverrides(): StateUpdate[] {
+    return colorApi.clearOverrides({ color: true, opacity: true, hidden: true });
   },
 
   applyColorRules,

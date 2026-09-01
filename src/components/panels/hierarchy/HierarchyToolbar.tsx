@@ -1,4 +1,4 @@
-import { IconFocus2, IconFocusCentered, IconFoldUp, IconPlaneTilt } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconFocus2, IconFocusCentered, IconFoldUp, IconPlaneTilt } from '@tabler/icons-react';
 import { Button } from '@treDeSpaceUI/widgets';
 import { selectionState } from '../../../state/viewer/selection.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
@@ -37,6 +37,13 @@ export function HierarchyToolbar({
         shortcut="camera.focusSelection"
         disabled={sel.count === 0}
         onClick={() => void viewerActions.focusSelection()}
+      />
+      <Button
+        iconOnly
+        icon={<IconArrowsMaximize />}
+        tooltip={'Fit visible\n(frame everything not hidden)'}
+        shortcut="camera.fitVisible"
+        onClick={() => void viewerActions.fitVisible()}
       />
       <Button
         iconOnly

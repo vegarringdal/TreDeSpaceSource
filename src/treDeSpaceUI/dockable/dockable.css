@@ -136,9 +136,10 @@ body.kiosk .dock-slot:has(> [data-node='top']) + .dock-splitter {
   flex: 0 0 auto;
   /* tabs stack into extra rows when the strip is too narrow for tabs + icons;
      the action icons stay pinned to the top-right corner (padding keeps the
-     first tab row clear of them) */
+     first tab row clear of them). Rows sit at the top at their natural
+     height — never stretched or squeezed to share the strip's box. */
   flex-wrap: wrap;
-  row-gap: 3px;
+  align-content: flex-start;
   padding-right: 46px;
   align-items: stretch;
   overflow: hidden;
@@ -158,8 +159,13 @@ body.kiosk .dock-slot:has(> [data-node='top']) + .dock-splitter {
 
 .dock-tab {
   display: inline-flex;
+  box-sizing: border-box; /* a boxed tab (wrapped strip) stays one row tall */
   align-items: center;
   gap: 5px;
+  /* EVERY row is a full header row: without this the tabs of a wrapped strip
+     collapse to their line box (the strip's min-height only sizes one row),
+     so a two-row strip looked half as tall per row as a one-row one. */
+  min-height: var(--dock-header-h, 22px);
   max-width: 200px;
   padding: 0 5px 0 8px;
   border: 0;
@@ -173,6 +179,13 @@ body.kiosk .dock-slot:has(> [data-node='top']) + .dock-splitter {
   cursor: pointer;
   touch-action: none;
   user-select: none;
+}
+/* Wrapped strip: the right-hand divider alone separates tabs on ONE line, but
+   once they stack the rows run together — so each row is underlined too. No
+   box and no top border: the strip's own edges must not double up. Only the
+   wrapped state changes; a single-row strip keeps the flat look. */
+.dock-tabstrip.is-wrapped .dock-tab {
+  border-bottom: 1px solid var(--dock-line);
 }
 .dock-tab:hover {
   color: var(--dock-text);

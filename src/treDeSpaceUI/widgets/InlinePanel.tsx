@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react';
+import { cn } from '../lib/cn';
 
 export interface InlinePanelProps {
   title: ReactNode;
@@ -9,6 +10,13 @@ export interface InlinePanelProps {
   onToggle?: (open: boolean) => void;
   /** Extra controls rendered at the right end of the header. */
   actions?: ReactNode;
+  /** The header text is UPPERCASED by default (the dock-panel look); set
+   *  false to show the title exactly as written. */
+  titleUppercase?: boolean;
+  /** Classes for the header text — merged over the default styling, so
+   *  `titleClassName="text-sm normal-case text-sky-300"` restyles it without
+   *  replacing the widget. Pass a node as `title` for full control. */
+  titleClassName?: string;
   children: ReactNode;
   className?: string;
 }
@@ -23,6 +31,8 @@ export function InlinePanel({
   open,
   onToggle,
   actions,
+  titleUppercase = true,
+  titleClassName,
   children,
   className = '',
 }: InlinePanelProps) {
@@ -50,7 +60,15 @@ export function InlinePanel({
           >
             <path d="M2 0l4 4-4 4z" />
           </svg>
-          <span className="truncate font-medium text-xs uppercase leading-4 tracking-wide">{title}</span>
+          <span
+            className={cn(
+              'truncate font-medium text-xs leading-4 tracking-wide',
+              titleUppercase && 'uppercase',
+              titleClassName,
+            )}
+          >
+            {title}
+          </span>
         </button>
         {actions && <span className="flex shrink-0 items-center gap-1">{actions}</span>}
       </header>

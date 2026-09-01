@@ -147,6 +147,9 @@ export class DockManager {
   private drag: Drag | null = null;
   private frame = 0;
   private zTop = 1;
+  /** Measured tab-strip height per tabs node (see watchStrips). */
+  private stripHeights = new Map<string, number>();
+  private stripObserver: ResizeObserver | null = null;
 
   readonly coarse = coarse();
   readonly headerHeight: number;
@@ -185,6 +188,9 @@ export class DockManager {
   unmount() {
     window.removeEventListener('blur', this.onWindowBlur);
     window.removeEventListener('focus', this.onWindowFocus);
+    this.stripObserver?.disconnect();
+    this.stripObserver = null;
+    this.stripHeights.clear();
     this.onWindowFocus(); // stop the iframe-focus poll
     this.unbindDragListeners();
     for (const host of this.hosts.values()) {
@@ -734,6 +740,7 @@ export class DockManager {
     headerHeight: 0,
     splitterSize: 0,
     panelMin: (id) => this.panelMin(id),
+    stripHeight: (nodeId) => this.stripHeights.get(nodeId) ?? this.headerHeight,
   };
 
   private panelMin(id: string): Size {
@@ -793,6 +800,73 @@ export class DockManager {
       return;
     }
     render(this.template(), this.container);
+    this.watchStrips();
+  }
+
+  /**
+   * Keep every tab strip under a ResizeObserver. A strip whose tabs wrapped
+   * onto extra rows is taller than `headerHeight`, and measureMin folds the
+   * MEASURED height into the group's minimum — so the wrapped rows raise the
+   * group's floor instead of squeezing the panel body below its own minimum.
+   * Observing is idempotent, so re-running it after every render costs
+   * nothing; a strip that is gone loses its entry.
+   */
+  private watchStrips() {
+    if (!this.container || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    this.stripObserver ??= new ResizeObserver((entries) => this.onStripResize(entries));
+    const seen = new Set<string>();
+    for (const el of this.container.querySelectorAll<HTMLElement>('.dock-tabstrip[data-node]')) {
+      const id = el.dataset.node;
+      if (!id) {
+        continue;
+      }
+      seen.add(id);
+      this.stripObserver.observe(el);
+    }
+    let dropped = false;
+    for (const id of [...this.stripHeights.keys()]) {
+      if (!seen.has(id)) {
+        this.stripHeights.delete(id);
+        dropped = true;
+      }
+    }
+    if (dropped) {
+      this.requestRender();
+    }
+  }
+
+  /** Whether a strip's tabs have wrapped onto more than one row (the measured
+   *  height cleared one row plus its gap) — such a strip boxes its tabs, or
+   *  the rows read as one run-on line of labels. */
+  private stripWrapped(nodeId: string): boolean {
+    return (this.stripHeights.get(nodeId) ?? 0) > this.headerHeight + 2;
+  }
+
+  /** A strip changed height: remember it and re-render so the new minimum
+   *  reaches the slot styles. Zero heights (a strip inside a hidden subtree)
+   *  are ignored — they would drop the group's floor to nothing. */
+  private onStripResize(entries: ResizeObserverEntry[]) {
+    let changed = false;
+    for (const e of entries) {
+      const el = e.target;
+      if (!(el instanceof HTMLElement)) {
+        continue;
+      }
+      const id = el.dataset.node;
+      const h = Math.round(e.borderBoxSize?.[0]?.blockSize ?? el.getBoundingClientRect().height);
+      if (!id || h <= 0) {
+        continue;
+      }
+      if (this.stripHeights.get(id) !== h) {
+        this.stripHeights.set(id, h);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.requestRender();
+    }
   }
 
   private template(): TemplateResult {
@@ -958,7 +1032,12 @@ export class DockManager {
           node.hideTabs
             ? nothing
             : html`
-              <header class="dock-tabstrip" role="tablist" style=${styleMap({ minHeight: `${this.headerHeight}px` })}>
+              <header
+                class=${classMap({ 'dock-tabstrip': true, 'is-wrapped': this.stripWrapped(node.id) })}
+                role="tablist"
+                data-node=${node.id}
+                style=${styleMap({ minHeight: `${this.headerHeight}px`, '--dock-header-h': `${this.headerHeight}px` })}
+              >
                 ${repeat(
                   node.panels,
                   (id) => id,

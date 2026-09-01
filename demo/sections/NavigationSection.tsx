@@ -10,16 +10,17 @@ export function NavigationSection() {
   const { run, c, line } = useDemo();
   const [name, setName] = useState('');
   const [select, setSelect] = useState(false);
+  const [wait, setWait] = useState(false);
   const [saved, setSaved] = useState<CameraState | null>(null);
 
   const handleFly = () => {
     const fullname = name.trim();
-    void run('nav.flyTo', { fullname, select }, () => c().navFlyTo(fullname, { select }));
+    void run('nav.flyTo', { fullname, select, wait }, () => c().navFlyTo(fullname, { select, wait }));
   };
 
   const handleOrbit = () => {
     const fullname = name.trim();
-    void run('nav.orbit', { fullname, select }, () => c().navOrbit(fullname, { select }));
+    void run('nav.orbit', { fullname, select, wait }, () => c().navOrbit(fullname, { select, wait }));
   };
 
   // camera.get → camera.set is a round trip: park a view, move around, restore
@@ -48,9 +49,16 @@ export function NavigationSection() {
     <DemoSection title="Navigation">
       <TextInput value={name} onChange={setName} placeholder="fullname (e.g. /SITE/ZONE-1/PIPE-401)" />
       <Checkbox checked={select} onChange={setSelect} label="also select it" />
+      <Checkbox checked={wait} onChange={setWait} label="wait for the camera to arrive before responding" />
       <Row>
         <Button onClick={handleFly}>nav.flyTo</Button>
         <Button onClick={handleOrbit}>nav.orbit</Button>
+        <Button
+          tooltip="Frame everything that is not hidden — hide or isolate first, then fit"
+          onClick={() => void run('nav.fitVisible', { wait }, () => c().navFitVisible({ wait }))}
+        >
+          nav.fitVisible
+        </Button>
       </Row>
       <Hint>
         Camera: get the current pose, move the view around by hand, then restore it. The same object works as the{' '}
