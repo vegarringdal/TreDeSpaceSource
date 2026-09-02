@@ -43,7 +43,28 @@ version at release time. See CLAUDE.md for the rule.
   on demand and are session-only, the same contract host-managed external apps
   have; the response carries the dock panel id for `ui.showPanel` /
   `ui.hidePanel`. One `SqlDetail` component now serves every detail panel,
-  keyed by its panel id.
+  keyed by its panel id. Closing a named panel removes it completely by
+  default (`autoRemove`, and an **Auto-remove / Keep** button in the panel
+  header lets the user override the host's choice); with Keep on, the panel
+  stays in the Panels list with its query. A layout change is not a close.
+  @treDeSpaceUI: the dock gained `PanelDefinition.onClose` (a REAL close only —
+  a layout swap disposes content without firing it, so it is the hook a
+  runtime panel can safely clean up from) and `manager.unregisterPanel(id)`,
+  which closes the panel silently and forgets its definition, location and
+  title.
+  `stores.list` counted 3D models only, which made a store holding just SQL
+  databases look empty: it now reports `modelCount` and `sqlCount` with
+  `count` as their total, and re-scans the SQL index first (the filesystem IS
+  that index, so a database imported elsewhere was invisible until then).
+  `stores.create` returns the same shape.
+  New `sql.editor` (SDK `sqlEditor`): hand SQL to the SQL Editor PANEL for the
+  user to read and run, instead of running it headless. `replace` (default
+  true) swaps the script; `replace: false` appends it as a titled block
+  (`-- name` between two rules, name defaulting to `sql`) so a host can stack
+  queries; the text selection is cleared either way, or the panel's buttons
+  would run a slice of the old script. `store` + `fileName` point the Main db
+  at a database without the host building OPFS paths (`mainDb` still takes a
+  path, `''` = None), and `show: false` fills the panel without opening it.
 - **2026.09.01** (>0.0.79):
   Host API grew four things hosts kept asking for. `selection.set` takes
   `append: true` — build a selection up over several calls instead of

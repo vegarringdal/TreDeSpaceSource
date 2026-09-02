@@ -15,7 +15,7 @@ export function ModelStoresSection() {
   const [replace, setReplace] = useState(true);
 
   const store = selected ?? undefined;
-  const storeOptions = stores.map((s) => ({ value: s.name, label: `${s.name} (${s.count})` }));
+  const storeOptions = stores.map((s) => ({ value: s.name, label: `${s.name} (${s.modelCount} models)` }));
 
   const handleList = () => {
     void run('stores.list', {}, async () => {

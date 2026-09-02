@@ -1,9 +1,17 @@
 // SQL database commands (SQLite in OPFS, stores shared with model assets).
 // See EVENTS.md for the payload contracts.
-import { bindDetailReport, detailPanelId, openSqlDetailPanel } from '../../components/panels/sql-detail/sqlDetailPanel';
+import {
+  bindDetailReport,
+  detailPanelId,
+  getDetailAutoRemove,
+  openSqlDetailPanel,
+} from '../../components/panels/sql-detail/sqlDetailPanel';
+import { openSqlEditorPanel } from '../../components/panels/sql-editor/sqlEditorPanel';
 import { openSqlTablePanel } from '../../components/panels/sql-table/sqlTablePanel';
 import { type SqlImportProgress, sqlAssetsActions } from '../../state/sqlAssets/sqlAssets.actions';
 import { sqlAssetsState } from '../../state/sqlAssets/sqlAssets.state';
+import { sqlEditorActions } from '../../state/sqlAssets/sqlEditor.actions';
+import { sqlEditorState } from '../../state/sqlAssets/sqlEditor.state';
 import { type SqlRunOpts, sqlReportsActions } from '../../state/sqlReports/sqlReports.actions';
 import type { ReportDef, ReportFilter } from '../../state/sqlReports/sqlReports.state';
 import { sqliteClient, sqlOptions } from '../sqlite/client';
@@ -139,6 +147,37 @@ async function apiReport(p: Record<string, unknown>, name: string): Promise<Repo
     databases,
     filters: parseFilters(p.filters),
   };
+}
+
+/** The database `sql.editor` should point the panel at: an explicit `mainDb`
+ *  path, or `store` + `fileName` (what a host knows without building OPFS
+ *  paths). '' is the panel's "None — attach only". undefined = leave the
+ *  editor's current pick alone. */
+async function editorMainDb(p: Record<string, unknown>): Promise<string | undefined> {
+  const store = typeof p.store === 'string' ? p.store.trim() : '';
+  const fileName = typeof p.fileName === 'string' ? p.fileName.trim() : '';
+  if (typeof p.mainDb === 'string') {
+    if (!p.mainDb) {
+      return ''; // explicit None
+    }
+    await sqlAssetsActions.refresh();
+    if (!sqlAssetsState.get().dbs.some((d) => d.path === p.mainDb)) {
+      throw new ApiError('not-found', `no database at "${p.mainDb}" — call sql.list first`);
+    }
+    return p.mainDb;
+  }
+  if (!store && !fileName) {
+    return undefined;
+  }
+  if (!store || !fileName) {
+    throw new ApiError('bad-payload', 'store and fileName go together (or pass a mainDb path)');
+  }
+  await sqlAssetsActions.refresh();
+  const hit = sqlAssetsState.get().dbs.find((d) => d.store === store && d.fileName === fileName);
+  if (!hit) {
+    throw new ApiError('not-found', `no database "${fileName}" in store "${store}" — call sql.list first`);
+  }
+  return hit.path;
 }
 
 /** `progress: true` runs the query without viewer dialogs and streams row
@@ -410,6 +449,27 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     return { columns: res.columns, rows: res.rows.length };
   },
 
+  // Put SQL into the SQL Editor panel — for a host that wants the USER to see,
+  // tweak and run a query rather than running it headless. `store` +
+  // `fileName` (or a `mainDb` path) also point the editor at a database.
+  'sql.editor': async ({ p }) => {
+    const sql = typeof p.sql === 'string' ? p.sql : '';
+    if (!sql.trim()) {
+      throw new ApiError('bad-payload', 'sql is required');
+    }
+    const mainDb = await editorMainDb(p);
+    if (mainDb !== undefined) {
+      sqlEditorActions.setMainDbPath(mainDb);
+    }
+    const replace = p.replace !== false;
+    const name = typeof p.name === 'string' ? p.name : undefined;
+    const text = sqlEditorActions.setEditorSql(sql, { replace, ...(name === undefined ? {} : { name }) });
+    if (p.show !== false) {
+      openSqlEditorPanel();
+    }
+    return { replaced: replace, mainDb: sqlEditorState.get().mainDbPath, chars: text.length };
+  },
+
   // Bind a query to a SQL Detail panel: every hierarchy click runs it against
   // the clicked node (write it against TREE_VIEW_ARGS). A `name` gives the
   // query its OWN panel, titled with that name — calling again with the same
@@ -417,11 +477,14 @@ export const sqlHandlers: Record<string, ApiHandler> = {
   // built-in SQL Detail panel is used.
   'sql.detail': async ({ p }) => {
     const name = typeof p.name === 'string' ? p.name.trim() : '';
+    // only an EXPLICIT autoRemove overrides: re-binding a new query to a panel
+    // the user has switched to Keep must not silently revert their choice
+    const autoRemove = typeof p.autoRemove === 'boolean' ? p.autoRemove : undefined;
     const report = await apiReport(p, name || 'API detail');
-    bindDetailReport({ ...report, types: ['DETAIL'] }, name);
+    bindDetailReport({ ...report, types: ['DETAIL'] }, name, autoRemove);
     if (p.show !== false) {
       openSqlDetailPanel(name, name || 'SQL Detail');
     }
-    return { bound: true, name: report.name, panel: detailPanelId(name) };
+    return { bound: true, name: report.name, panel: detailPanelId(name), autoRemove: getDetailAutoRemove(name) };
   },
 };

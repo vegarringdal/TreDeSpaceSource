@@ -992,6 +992,7 @@ type PanelDefinition = {
   dockableIn?: string | string[]; // pin to node id(s) — no floating/splitting elsewhere
   home?: string;                // soft default node to reopen into (does NOT pin)
   tabMinWidth?: number;         // align a strip of tabs
+  onClose?: (panelId) => void;  // the panel was CLOSED (tab ×, closePanel) — see below
   render: PanelRenderer;        // (host, ctx) => disposer | undefined  — plain DOM
 };
 
@@ -1071,9 +1072,31 @@ manager.toggleSizeLock(nodeId)         // padlock: capture current size as the n
 manager.toggleSolo(); manager.isSolo() // maximize the active group / restore
 manager.nodeOf(panelId)                // containing tabs-node id, or null
 manager.registerPanel(def)             // add a panel definition at runtime
+manager.unregisterPanel(id)            // forget one (closes it first, silently)
 manager.dragPanelFrom(e, panelId)      // start a dock-drag from your own pointerdown
                                        // (e.g. dragging a button out of a ribbon)
 ```
+
+**Runtime panels.** `registerPanel` + `openPanel` create a panel on demand (a
+host-driven report view, one tab per opened document); `unregisterPanel` drops
+it again, closing it first and forgetting its remembered location, so an id
+reused later starts clean. Pair them with `onClose` for panels that should not
+outlive their tab:
+
+```ts
+manager.registerPanel(
+  definePanel({
+    id, title, component: ReportPanel,
+    onClose: () => manager.unregisterPanel(id), // a closed tab is gone for good
+  }),
+);
+manager.openPanel(id);
+```
+
+`onClose` fires only on a REAL close — the tab ×, `closePanel`, `togglePanel`.
+A layout swap (`loadLayout`, solo, kiosk) unmounts panel content too, but that
+is not a close and must not delete anything; that is why the render disposer is
+the wrong hook for this.
 
 Persistence example:
 

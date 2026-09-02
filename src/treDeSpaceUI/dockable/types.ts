@@ -130,6 +130,11 @@ export interface PanelDefinition {
   home?: string;
   /** Minimum width of the tab button, px. Use it to align a strip of tabs. */
   tabMinWidth?: number;
+  /** Called when the panel is CLOSED — the tab ×, `closePanel`, `togglePanel`.
+   *  NOT called when a layout swap (loadLayout / solo / kiosk) unmounts the
+   *  content, so a runtime panel can clean itself up on a real close without
+   *  disappearing every time the layout changes. */
+  onClose?: (panelId: string) => void;
   render: PanelRenderer;
 }
 

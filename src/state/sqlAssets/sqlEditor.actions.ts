@@ -56,6 +56,15 @@ function logRows(name: string, rows: unknown[]) {
   }
 }
 
+/** The rule under an appended block's title — wide enough to read as a
+ *  separator in the editor's monospace gutter. */
+const BANNER = '-'.repeat(49);
+
+/** A titled SQL block: two rules around the name, then the statement. */
+function titledBlock(sql: string, name: string): string {
+  return `${BANNER}\n-- ${name}\n${BANNER}\n\n${sql}`;
+}
+
 export const sqlEditorActions = {
   setMainDbPath(mainDbPath: string) {
     sqlEditorState.set({ mainDbPath });
@@ -63,6 +72,21 @@ export const sqlEditorActions = {
 
   setSql(sql: string) {
     sqlEditorState.set({ sql });
+  },
+
+  /** Host API `sql.editor`: put SQL into the panel. Replacing swaps the whole
+   *  script; appending adds it below the current one as a titled block, so a
+   *  host can stack several queries a user can read and run one by one. The
+   *  text selection is reset either way — a stale one would make the action
+   *  buttons run a slice of the OLD script. Returns the resulting text. */
+  setEditorSql(sql: string, opts: { replace?: boolean; name?: string } = {}): string {
+    const body = sql.trim();
+    const current = sqlEditorState.get().sql;
+    const replace = opts.replace !== false;
+    const block = opts.name !== undefined || !replace ? titledBlock(body, opts.name?.trim() || 'sql') : body;
+    const next = replace || !current.trim() ? block : `${current.replace(/\s+$/, '')}\n\n${block}`;
+    sqlEditorState.set({ sql: next, selStart: 0, selEnd: 0 });
+    return next;
   },
 
   /** Track the editor's text selection — the action buttons run only the

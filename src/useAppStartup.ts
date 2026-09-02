@@ -18,7 +18,12 @@ import { registerKioskToggle, registerSoloToggle } from './components/panels/rib
 import { ribbonMeasurementsActions } from './components/panels/ribbon-measurements/ribbonMeasurements.actions';
 import { registerSqlAssetsOpener } from './components/panels/sql-assets/sqlAssetsPanel';
 import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
-import { detailPanelId, registerSqlDetailOpener } from './components/panels/sql-detail/sqlDetailPanel';
+import {
+  detailPanelId,
+  getDetailAutoRemove,
+  registerSqlDetailOpener,
+  removeDetailBinding,
+} from './components/panels/sql-detail/sqlDetailPanel';
 import { registerSqlEditorOpener } from './components/panels/sql-editor/sqlEditorPanel';
 import { registerSqlReportsOpener } from './components/panels/sql-reports/sqlReportsPanel';
 import { registerSqlTableOpener } from './components/panels/sql-table/sqlTablePanel';
@@ -190,7 +195,23 @@ export function useAppStartup(manager: DockManager): void {
     registerSqlDetailOpener((key, title) => {
       const id = detailPanelId(key);
       if (key) {
-        manager.registerPanel(definePanel({ id, title, home: 'right', component: SqlDetail }));
+        manager.registerPanel(
+          definePanel({
+            id,
+            title,
+            home: 'right',
+            component: SqlDetail,
+            // closing a named panel throws it away unless its Keep toggle is
+            // on — a layout swap does NOT count as a close (see onClose)
+            onClose: () => {
+              if (!getDetailAutoRemove(key)) {
+                return;
+              }
+              removeDetailBinding(key);
+              manager.unregisterPanel(id);
+            },
+          }),
+        );
       }
       manager.openPanel(id);
     });

@@ -386,7 +386,12 @@ export interface AssetInfo {
 export interface StoreInfo {
   name: string;
   description: string;
+  /** everything the store holds: `modelCount + sqlCount` */
   count: number;
+  /** model assets in the store */
+  modelCount: number;
+  /** SQL databases in the store */
+  sqlCount: number;
 }
 
 /** Conversion pipeline for an imported file. `tdp` is an already-cooked
@@ -1780,6 +1785,44 @@ export class TredespaceClient {
     return this.send('sql.table', { ...input }, { timeoutMs: this.importTimeoutMs });
   }
 
+  /**
+   * Put SQL into the viewer's **SQL Editor** panel — for when the USER should
+   * see, tweak and run a query rather than the host running it headless.
+   * Nothing is executed.
+   *
+   * `replace` (default true) swaps the whole script; `false` appends the SQL
+   * below what is there as a titled block:
+   *
+   * ```sql
+   * -------------------------------------------------
+   * -- daily defects
+   * -------------------------------------------------
+   *
+   * select …
+   * ```
+   *
+   * so several queries can be stacked for the user to run one by one. `name`
+   * titles that block (default `sql`); passing one also titles a replacing
+   * script. Any text selection is cleared, so the panel's run buttons act on
+   * the whole script.
+   *
+   * `store` + `fileName` point the editor's Main db at a database without the
+   * host building OPFS paths (`mainDb` takes a path directly, `''` = the
+   * panel's "None — attach only"); omit them and the current pick stands.
+   * `show: false` fills the panel without opening it.
+   */
+  sqlEditor(input: {
+    sql: string;
+    replace?: boolean;
+    name?: string;
+    store?: string;
+    fileName?: string;
+    mainDb?: string;
+    show?: boolean;
+  }): Promise<Result<{ replaced: boolean; mainDb: string; chars: number }>> {
+    return this.send('sql.editor', { ...input });
+  }
+
   /** Bind a query to a SQL Detail panel: every hierarchy click runs it against
    *  the clicked node — write it against TREE_VIEW_ARGS, e.g.
    *  `… where fullname in (select FULLNAME from TREE_VIEW_ARGS)`.
@@ -1792,11 +1835,19 @@ export class TredespaceClient {
    *  opening the panel. `panel` in the response is the dock panel id — pass it
    *  to {@link uiShowPanel} / {@link uiHidePanel}.
    *
+   *  `autoRemove` (default true) decides what CLOSING a named panel does:
+   *  true deletes the panel and its query outright, false keeps it in the
+   *  viewer's Panels list so reopening restores the query. The panel header
+   *  carries the same switch (an Auto-remove / Keep button); OMIT the field
+   *  when re-binding a query and whatever the user chose there stands — pass
+   *  it only to set it. A layout change (kiosk, a layout slot) never counts as
+   *  a close. The response reports the value in effect.
+   *
    *  Named panels last for the viewer SESSION (like host-managed external
    *  apps): after a page reload, create them again. */
   sqlDetail(
-    input: SqlRunInput & { name?: string; show?: boolean },
-  ): Promise<Result<{ bound: boolean; name: string; panel: string }>> {
+    input: SqlRunInput & { name?: string; show?: boolean; autoRemove?: boolean },
+  ): Promise<Result<{ bound: boolean; name: string; panel: string; autoRemove: boolean }>> {
     return this.send('sql.detail', { ...input });
   }
 

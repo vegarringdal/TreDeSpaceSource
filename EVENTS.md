@@ -467,10 +467,15 @@ List the asset stores (projects). "main" always exists. Call this FIRST — the
 `store` field on the asset commands below rejects an unknown name, so a host
 must know the valid names before targeting one.
 
+A store holds BOTH kinds of asset, so it is counted both ways: `modelCount`
+(3D models) and `sqlCount` (SQL databases), with `count` their total. The SQL
+index is re-scanned on every call — the filesystem is that index — so a
+database imported by another tab shows up here.
+
 ```js
 payload:  {}
-response: { stores: [{ name: 'main', description: '', count: 12 },
-                     { name: 'project-x', description: 'Client X', count: 3 }] }
+response: { stores: [{ name: 'main', description: '', count: 14, modelCount: 12, sqlCount: 2 },
+                     { name: 'project-x', description: 'Client X', count: 3, modelCount: 3, sqlCount: 0 }] }
 ```
 
 ### stores.create
@@ -482,7 +487,8 @@ so a host can call this to ensure a store exists before importing into it.
 
 ```js
 payload:  { name: 'project-x', description: 'Client X' }
-response: { created: true, store: { name: 'project-x', description: 'Client X', count: 0 } }
+response: { created: true, store: { name: 'project-x', description: 'Client X',
+                                   count: 0, modelCount: 0, sqlCount: 0 } }
 ```
 
 ### assets.load / assets.unload
@@ -849,6 +855,40 @@ payload:  { mainDb: 'sql_assets/main/meta.db', sql: 'select * from defects',
 response: { columns: ['id', 'fullname', 'severity'], rows: 50 }
 ```
 
+### sql.editor
+Put SQL into the **SQL Editor** panel — for when the USER should see, tweak
+and run a query, rather than the host running it headless. Nothing is
+executed.
+
+`replace` (default true) swaps the whole script. `replace: false` appends the
+SQL below what is already there as a titled block, so a host can stack several
+queries the user runs one by one:
+
+```sql
+-------------------------------------------------
+-- daily defects
+-------------------------------------------------
+
+select …
+```
+
+`name` titles that block (default `sql`); passing a name titles a replacing
+script too. Any text selection is cleared — the panel's action buttons run the
+selected text when there is one, and a stale selection would slice the OLD
+script.
+
+`store` + `fileName` point the editor's Main db at a database without the host
+building OPFS paths; `mainDb` takes a path directly (`''` selects "None —
+attach only"), and omitting all three leaves the current pick alone.
+`show: false` fills the panel without opening it.
+
+```js
+payload:  { sql: 'select * from defects where severity > 2',
+            store: 'project-x', fileName: 'meta.db',
+            name: 'daily defects', replace: false }
+response: { replaced: false, mainDb: 'sql_assets/project-x/meta.db', chars: 412 }
+```
+
 ### sql.detail
 Bind a query to a **SQL Detail** panel: every hierarchy click then runs it
 against the clicked node. Write it against TREE_VIEW_ARGS —
@@ -862,6 +902,15 @@ built-in SQL Detail panel. `show: false` binds without opening the panel, and
 `panel` in the response is the dock panel id — pass it to `ui.showPanel` /
 `ui.hidePanel`.
 
+`autoRemove` (default true) decides what CLOSING a named panel does: true
+deletes the panel and its query outright, false keeps it in the viewer's
+Panels list so reopening it restores the query. The panel header carries the
+same switch — an **Auto-remove** / **Keep** button — so the user can change
+their mind about a panel a host created; OMIT the field when re-binding a
+query and their choice stands, pass it only to set it. The response reports
+the value in effect. A layout change (kiosk, switching a layout slot) is not a
+close and never removes anything.
+
 Named panels are SESSION-only, like host-managed external apps: a page reload
 drops them (a stale layout slot shows an "Unknown panel" placeholder until the
 host creates it again).
@@ -869,8 +918,8 @@ host creates it again).
 ```js
 payload:  { mainDb: 'sql_assets/main/meta.db',
             sql: 'select * from part where fullname in (select FULLNAME from TREE_VIEW_ARGS)',
-            name: 'Part card' }
-response: { bound: true, name: 'Part card', panel: 'sqlDetail:Part card' }
+            name: 'Part card', autoRemove: true }
+response: { bound: true, name: 'Part card', panel: 'sqlDetail:Part card', autoRemove: true }
 ```
 
 ### sql.query

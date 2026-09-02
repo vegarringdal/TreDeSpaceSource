@@ -21,19 +21,52 @@ export function detailKeyOf(panelId: string): string {
   return panelId.startsWith(`${BASE_ID}:`) ? panelId.slice(BASE_ID.length + 1) : DEFAULT_DETAIL_KEY;
 }
 
-const bound = new Map<string, ReportDef>();
+/** A named panel's binding: the report it runs, and whether closing the panel
+ *  throws it away (the default) or keeps it for when the panel is reopened. */
+type DetailEntry = { report: ReportDef; autoRemove: boolean };
+
+const bound = new Map<string, DetailEntry>();
 const subs = new Set<() => void>();
 
-/** Bind (or re-bind) the report a detail panel runs on viewport clicks. */
-export function bindDetailReport(report: ReportDef, key: string = DEFAULT_DETAIL_KEY) {
-  bound.set(key, report);
+function notify() {
   for (const fn of subs) {
     fn();
   }
 }
 
+/** Bind (or re-bind) the report a detail panel runs on viewport clicks. */
+export function bindDetailReport(report: ReportDef, key: string = DEFAULT_DETAIL_KEY, autoRemove?: boolean) {
+  const prev = bound.get(key);
+  bound.set(key, { report, autoRemove: autoRemove ?? prev?.autoRemove ?? true });
+  notify();
+}
+
 export function getDetailReport(key: string = DEFAULT_DETAIL_KEY): ReportDef | null {
-  return bound.get(key) ?? null;
+  return bound.get(key)?.report ?? null;
+}
+
+/** Whether closing this panel removes it completely. Only named panels are
+ *  ever removed — the built-in one always stays. */
+export function getDetailAutoRemove(key: string): boolean {
+  return bound.get(key)?.autoRemove ?? true;
+}
+
+export function setDetailAutoRemove(key: string, on: boolean) {
+  const entry = bound.get(key);
+  if (!entry || entry.autoRemove === on) {
+    return;
+  }
+  bound.set(key, { ...entry, autoRemove: on });
+  notify();
+}
+
+/** Drop a named panel's binding (its panel definition is unregistered by the
+ *  app's opener). The built-in panel keeps its binding. */
+export function removeDetailBinding(key: string) {
+  if (!key || !bound.delete(key)) {
+    return;
+  }
+  notify();
 }
 
 export function subscribeDetailReport(fn: () => void): () => void {
@@ -42,7 +75,8 @@ export function subscribeDetailReport(fn: () => void): () => void {
 }
 
 /** App.tsx registers how to open a detail panel: the built-in one by id, a
- *  NAMED one by registering a panel definition for it first. */
+ *  NAMED one by registering a panel definition for it first (that definition
+ *  carries the onClose that honours {@link getDetailAutoRemove}). */
 type DetailOpener = (key: string, title: string) => void;
 let opener: DetailOpener | null = null;
 

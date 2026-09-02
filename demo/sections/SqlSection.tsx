@@ -19,7 +19,8 @@ export function SqlSection() {
   const picker = useFilePicker('.db,.sqlite,.sqlite3,.db3,.sqlite-db', setFile);
 
   const store = selected ?? undefined;
-  const storeOptions = stores.map((s) => ({ value: s.name, label: `${s.name} (${s.count})` }));
+  // sqlCount is what matters here; stores.list also reports modelCount + the total
+  const storeOptions = stores.map((s) => ({ value: s.name, label: `${s.name} (${s.sqlCount} db)` }));
 
   const handleStoresList = () => {
     void run('stores.list', {}, async () => {

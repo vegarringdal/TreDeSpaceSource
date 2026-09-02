@@ -216,6 +216,20 @@ export class DockManager {
     this.defs.set(def.id, def);
   }
 
+  /** Forget a panel definition — for panels registered at runtime. Closes it
+   *  first if it is open (without firing `onClose`: the caller is the one
+   *  removing it), and drops its remembered location, title and min size, so
+   *  a later panel reusing the id starts clean. */
+  unregisterPanel(panelId: string) {
+    if (this.isOpen(panelId)) {
+      this.closePanel(panelId, { silent: true });
+    }
+    this.defs.delete(panelId);
+    this.lastLocation.delete(panelId);
+    this.titleOverrides.delete(panelId);
+    this.runtimeMin.delete(panelId);
+  }
+
   getPanel(id: string) {
     return this.defs.get(id);
   }
@@ -299,7 +313,7 @@ export class DockManager {
     this.openPanelBeside(panelId, siblingId, 'bottom');
   }
 
-  closePanel(panelId: string) {
+  closePanel(panelId: string, opts: { silent?: boolean } = {}) {
     if (!this.isOpen(panelId)) {
       return;
     }
@@ -317,6 +331,9 @@ export class DockManager {
     }
     this.runtimeMin.delete(panelId);
     this.commit();
+    if (!opts.silent) {
+      this.defs.get(panelId)?.onClose?.(panelId);
+    }
   }
 
   /** Every registered panel definition (drives a Panels toggle bar). */

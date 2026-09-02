@@ -5,7 +5,7 @@ import { makeRun, type RunFn } from './runCommand';
 import { useDemoEvents } from './useDemoEvents';
 import { type LogCls, type LogLine, useDemoLog } from './useDemoLog';
 
-export type StoreInfo = Readonly<{ name: string; count: number }>;
+export type StoreInfo = Readonly<{ name: string; count: number; modelCount: number; sqlCount: number }>;
 
 type DemoContextValue = Readonly<{
   lines: readonly LogLine[];

@@ -1,50 +1,14 @@
-import { Button, Checkbox, Select, type SelectOption, SqlCodeEditor, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Select, SqlCodeEditor, TextInput } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
-import type { ColorMode } from '../../api/tredespace-client';
+
 import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
 import { useDemo } from '../DemoContext';
+import { COLOR_MODE_OPTIONS, type ModeKey, modeFor } from './colorModes';
 
 type SqlColorPanelProps = Readonly<{ mainDb: string | null }>;
 
 const DEFAULT_SQL = "SELECT fullname, 'yellow' AS fullname_color FROM part WHERE type = 'PIPE'";
-
-const MODE_OPTIONS: SelectOption[] = [
-  { value: 'default-white', label: 'default-white (white base + hits)' },
-  { value: 'default-hidden', label: 'default-hidden (isolate the hits)' },
-  { value: 'default-transparent', label: 'default-transparent (10% white base)' },
-  { value: 'default-set', label: 'default-set (over the Set Color rules)' },
-  { value: 'custom-color', label: 'custom-color (orange hits, no base)' },
-  { value: 'custom-set', label: 'custom-set (own rules + red hits)' },
-];
-
-type ModeKey = (typeof MODE_OPTIONS)[number]['value'];
-
-/** The demo's stand-in for a config a host would keep on its own side. */
-const DEMO_SET_CONFIG = {
-  rules: [
-    {
-      comment: 'host config',
-      filters: [{ op: 'append' as const, mode: 'contains' as const, value: '' }],
-      color: '#dddddd',
-    },
-  ],
-  mode: 'reset' as const,
-};
-
-/** Build the payload mode from the dropdown choice. */
-function modeFor(key: ModeKey): ColorMode {
-  if (key === 'default-transparent') {
-    return { type: 'default-transparent', opacity: 0.1 };
-  }
-  if (key === 'custom-color') {
-    return { type: 'custom-color', color: 'orange', base: 'none' };
-  }
-  if (key === 'custom-set') {
-    return { type: 'custom-set', color: 'red', setConfig: DEMO_SET_CONFIG };
-  }
-  return { type: key === 'default-hidden' || key === 'default-set' ? key : 'default-white' };
-}
 
 /** The SQL editor's colour/select/table/detail buttons, driven over the API —
  *  the query result stays inside the viewer. */
@@ -54,9 +18,10 @@ export function SqlColorPanel({ mainDb }: SqlColorPanelProps) {
   const [mode, setMode] = useState<ModeKey>('default-white');
   const [append, setAppend] = useState(false);
   const [detailName, setDetailName] = useState('Part card');
+  const [autoRemove, setAutoRemove] = useState(true);
 
   const handleModeChange = (v: string | null) => {
-    if (MODE_OPTIONS.some((o) => o.value === v)) {
+    if (COLOR_MODE_OPTIONS.some((o) => o.value === v)) {
       setMode(v as ModeKey);
     }
   };
@@ -96,7 +61,9 @@ export function SqlColorPanel({ mainDb }: SqlColorPanelProps) {
       return;
     }
     const name = detailName.trim();
-    void run('sql.detail', { mainDb, sql, name }, () => c().sqlDetail({ mainDb, sql, ...(name ? { name } : {}) }));
+    void run('sql.detail', { mainDb, sql, name, autoRemove }, () =>
+      c().sqlDetail({ mainDb, sql, autoRemove, ...(name ? { name } : {}) }),
+    );
   };
 
   return (
@@ -108,7 +75,7 @@ export function SqlColorPanel({ mainDb }: SqlColorPanelProps) {
       </Hint>
       <SqlCodeEditor value={sql} onChange={setSql} onRun={handleColor} className="h-20" resizable />
       <Row>
-        <Select value={mode} onChange={handleModeChange} options={MODE_OPTIONS} className="min-w-56" />
+        <Select value={mode} onChange={handleModeChange} options={COLOR_MODE_OPTIONS} className="min-w-56" />
         <Button onClick={handleColor}>sql.color</Button>
         <Button onClick={handleSelect}>sql.select</Button>
         <Checkbox checked={append} onChange={setAppend} label="append" />
@@ -118,6 +85,7 @@ export function SqlColorPanel({ mainDb }: SqlColorPanelProps) {
           sql.table
         </Button>
         <TextInput value={detailName} onChange={setDetailName} placeholder="panel name (blank = built-in)" />
+        <Checkbox checked={autoRemove} onChange={setAutoRemove} label="auto-remove on close" />
         <Button
           tooltip="Bind this SQL to a SQL Detail panel — hierarchy clicks then run it against the clicked node (use TREE_VIEW_ARGS). The name titles its own panel; the same name again re-binds it."
           onClick={handleDetail}

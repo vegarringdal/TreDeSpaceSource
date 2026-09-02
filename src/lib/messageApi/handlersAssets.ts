@@ -4,6 +4,8 @@
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { acquireImportLock, assetsActions, loadIdsPooled } from '../../state/assets/assets.actions';
 import { type AssetEntry, assetsState, groupOf } from '../../state/assets/assets.state';
+import { sqlAssetsActions } from '../../state/sqlAssets/sqlAssets.actions';
+import { sqlAssetsState } from '../../state/sqlAssets/sqlAssets.state';
 import { storesActions } from '../../state/stores/stores.actions';
 import { normalizeStoreName, storeExists, storesState } from '../../state/stores/stores.state';
 import { db } from '../../state/viewer/db';
@@ -396,14 +398,26 @@ async function loadWithProgress(ids: string[], p: Record<string, unknown>): Prom
   return ids.filter((id) => okSet.has(id));
 }
 
+/** What a store holds: models and SQL databases counted separately, `count`
+ *  their total. Callers refresh the SQL index first when it matters. */
+function storeCounts(
+  name: string,
+  description: string,
+): { name: string; description: string; count: number; modelCount: number; sqlCount: number } {
+  const modelCount = assetsState.get().assets.filter((a) => a.store === name).length;
+  const sqlCount = sqlAssetsState.get().dbs.filter((d) => d.store === name).length;
+  return { name, description, count: modelCount + sqlCount, modelCount, sqlCount };
+}
+
 export const assetHandlers: Record<string, ApiHandler> = {
-  'stores.list': () => ({
-    stores: storesState.get().stores.map((st) => ({
-      name: st.name,
-      description: st.description,
-      count: assetsState.get().assets.filter((a) => a.store === st.name).length,
-    })),
-  }),
+  // Counts cover EVERYTHING a store holds: `modelCount` + `sqlCount`, with
+  // `count` their total. The SQL index is re-scanned first (the filesystem is
+  // that index, so a database imported elsewhere is only visible after a
+  // refresh) — model assets are kept live in state.
+  'stores.list': async () => {
+    await sqlAssetsActions.refresh();
+    return { stores: storesState.get().stores.map((st) => storeCounts(st.name, st.description)) };
+  },
 
   // Create a store (project) with an optional description. Idempotent: an
   // existing name (or 'main') is not an error — `created:false` reports it.
@@ -418,11 +432,7 @@ export const assetHandlers: Record<string, ApiHandler> = {
     const store = storesState.get().stores.find((st) => st.name === name);
     return {
       created: !existed,
-      store: {
-        name,
-        description: store?.description ?? description,
-        count: assetsState.get().assets.filter((a) => a.store === name).length,
-      },
+      store: storeCounts(name, store?.description ?? description),
     };
   },
 

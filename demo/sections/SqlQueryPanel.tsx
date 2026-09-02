@@ -1,4 +1,4 @@
-import { Button, Select, type SelectOption, SqlCodeEditor } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Select, type SelectOption, SqlCodeEditor } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
@@ -22,6 +22,7 @@ export function SqlQueryPanel({ dbs, mainDb, onMainDbChange }: SqlQueryPanelProp
   const { run, c, line } = useDemo();
   const [sql, setSql] = useState(DEFAULT_SQL);
   const [lockmode, setLockmode] = useState<'shared' | 'exclusive'>('shared');
+  const [toEditorReplace, setToEditorReplace] = useState(true);
 
   const dbOptions = dbs.map((path) => ({ value: path, label: path }));
 
@@ -72,6 +73,18 @@ export function SqlQueryPanel({ dbs, mainDb, onMainDbChange }: SqlQueryPanelProp
     );
   };
 
+  /** Hand the SQL to the editor panel instead of running it: appending gives
+   *  the block a title so several can be stacked. */
+  const handleToEditor = () => {
+    const input = {
+      sql,
+      replace: toEditorReplace,
+      name: 'demo query',
+      ...(mainDb ? { mainDb } : {}),
+    };
+    void run('sql.editor', input, () => c().sqlEditor(input));
+  };
+
   return (
     <>
       <Hint>Run SQL against the picked main db (results to the log):</Hint>
@@ -93,6 +106,15 @@ export function SqlQueryPanel({ dbs, mainDb, onMainDbChange }: SqlQueryPanelProp
           }
         >
           sql.check
+        </Button>
+      </Row>
+      <Row>
+        <Checkbox checked={toEditorReplace} onChange={setToEditorReplace} label="replace editor text" />
+        <Button
+          tooltip="Hand this SQL to the viewer's SQL Editor panel for the user to run — replace the script, or append it as a titled block"
+          onClick={handleToEditor}
+        >
+          sql.editor
         </Button>
       </Row>
     </>

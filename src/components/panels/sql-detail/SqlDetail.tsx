@@ -1,7 +1,13 @@
 import { PanelBody, type PanelContext, useMinSize } from '@treDeSpaceUI/dockable';
 import { Button, TextInput } from '@treDeSpaceUI/widgets';
 import { useCallback, useSyncExternalStore } from 'react';
-import { detailKeyOf, getDetailReport, subscribeDetailReport } from './sqlDetailPanel';
+import {
+  detailKeyOf,
+  getDetailAutoRemove,
+  getDetailReport,
+  setDetailAutoRemove,
+  subscribeDetailReport,
+} from './sqlDetailPanel';
 import { useSqlDetailForm } from './useSqlDetailForm';
 
 /** SQL Detail: bound to a DETAIL report. While Listening, every selection
@@ -16,6 +22,8 @@ export function SqlDetail({ ctx }: { ctx: PanelContext }) {
   const key = detailKeyOf(ctx.id);
   const snapshot = useCallback(() => getDetailReport(key), [key]);
   const report = useSyncExternalStore(subscribeDetailReport, snapshot);
+  const autoRemoveSnapshot = useCallback(() => getDetailAutoRemove(key), [key]);
+  const autoRemove = useSyncExternalStore(subscribeDetailReport, autoRemoveSnapshot);
   const { listening, toggleListening, hasRow, fields, status, filter, setFilter, hideEmpty, setHideEmpty } =
     useSqlDetailForm(report);
 
@@ -40,6 +48,19 @@ export function SqlDetail({ ctx }: { ctx: PanelContext }) {
         >
           {listening ? 'Listening' : 'Paused'}
         </Button>
+        {key !== '' && (
+          <Button
+            active={!autoRemove}
+            tooltip={
+              autoRemove
+                ? 'Auto-remove is ON: closing this panel deletes it and its query. Click to KEEP it instead — it can then be reopened from the Panels list with its query intact.'
+                : 'Keep is ON: closing this panel leaves it in the Panels list with its query. Click to auto-remove it on close instead.'
+            }
+            onClick={() => setDetailAutoRemove(key, !autoRemove)}
+          >
+            {autoRemove ? 'Auto-remove' : 'Keep'}
+          </Button>
+        )}
       </div>
       {/* fixed toolbar */}
       <div className="flex shrink-0 items-center gap-2 border-slate-800 border-b p-2">
