@@ -4,6 +4,38 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.03** (>0.0.83):
+  External apps get a per-app iframe policy. Every panel and modal iframe
+  kept one hard-coded `sandbox="allow-scripts allow-same-origin allow-forms
+  allow-downloads"` and no `allow` attribute; that stays the base, and two
+  OPTIONAL lists on the entry widen it — `sandbox` (popups, which also let the
+  popup escape the sandbox; modals; pointer-lock; storage-access, so the page
+  may ask the browser for its own unpartitioned cookies/storage through the
+  Storage Access API) and `allow` (camera, microphone, geolocation,
+  fullscreen, clipboard-read/write, autoplay, display-capture,
+  publickey-credentials-get, identity-credentials-get, web-share,
+  picture-in-picture, payment). Both are empty unless set, so every existing
+  entry, saved or host-set, renders with exactly the attributes it always
+  had; top navigation is never offered. Settings → External shows them as two
+  checkbox rows per app; `externalApps.set` accepts them (unknown values are
+  `bad-payload`) and `externalApps.list` returns them. Cross-frame DOM and
+  storage access was never the sandbox's to grant — the same-origin policy
+  isolates any page on another origin — but a page on the VIEWER's own origin
+  gets everything, so the editor now warns on such an entry and
+  `externalApps.set` returns a `warning` for it (the bundled demo is exempt).
+  All in `src/state/externalAppPolicy.ts`; EVENTS.md → "Iframe policy".
+  `plans/VRAM_V2.md` — approved plan for VRAM residency v2, not started
+  (another fix comes first). It records what the "97 % idle" convergence
+  measurement hides — every swap resets TAA/AO accumulation, so a 176-swap
+  run renders ~1000 full-scene frames for a camera that never moved — and
+  lays out three phases: batched and quiet swap commits, a zero-seeded
+  visibility buffer, trigger-based visibility refresh and four fixes; a
+  target-set planner so each zone swaps at most once per rest, with
+  priority by projected coverage; and a suggested-budget hint from adapter
+  info, plus an opt-in "pause AO / TAA while optimizing" setting so a burst
+  renders single-sample frames and converges once at the end. Decisions
+  locked with the director: one re-convergence per batch by default, total
+  tracked VRAM stays the ceiling, `maxInFlight` 2 / 4 / 6.
 - **2026.09.03** (>0.0.82):
   SQL Detail now runs like a host listening to `tree.select`: every tree
   select — tree row, viewport pick, U / P, digit+click, a repeat click on the

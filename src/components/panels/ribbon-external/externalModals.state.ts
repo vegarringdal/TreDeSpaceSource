@@ -3,6 +3,7 @@
 // the app's config JSON: {"width": "600px", "height": "60%"} — px or % (of
 // the viewport), a number means px; default 70% × 70%.
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { externalAppIframePolicy, type IframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
 
 export interface OpenModal {
@@ -11,6 +12,8 @@ export interface OpenModal {
   appId: string;
   name: string;
   url: string;
+  /** The iframe's sandbox / allow attributes, resolved from the app at open time. */
+  policy: IframePolicy;
   width: string;
   height: string;
   /** Hidden but STILL MOUNTED: the iframe keeps running and keeps its state,
@@ -60,7 +63,10 @@ export function openExternalModal(app: ExternalApp): string {
     const size = initialSize(app.config);
     key = `${app.id}:${seq++}`;
     return {
-      open: [...s.open, { key, appId: app.id, name: app.name, url: externalAppUrl(app), ...size }],
+      open: [
+        ...s.open,
+        { key, appId: app.id, name: app.name, url: externalAppUrl(app), policy: externalAppIframePolicy(app), ...size },
+      ],
     };
   });
   return key;

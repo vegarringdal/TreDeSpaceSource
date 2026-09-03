@@ -1,8 +1,9 @@
 import { Button, Collapsible, Select, TextArea, TextInput } from '@treDeSpaceUI/widgets';
 import { type ExternalApp, type ExternalAppSize, externalAppsActions } from '../../../../state/externalApps.state';
 import { Check } from '../Check';
+import { ExternalAppPolicyEditor } from './ExternalAppPolicyEditor';
 
-/** One editable external-app entry (name, URL, section, size, flags). */
+/** One editable external-app entry (name, URL, section, size, flags, iframe policy). */
 export function ExternalAppEditor({ app }: { app: ExternalApp }) {
   const a = app;
 
@@ -53,6 +54,7 @@ export function ExternalAppEditor({ app }: { app: ExternalApp }) {
         }
         onChange={(v) => externalAppsActions.update(a.id, { config: v })}
       />
+      <ExternalAppPolicyEditor app={a} />
       <div className="flex flex-wrap items-center gap-3">
         <Check
           label="Multiple instances"

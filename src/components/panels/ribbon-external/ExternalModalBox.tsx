@@ -41,7 +41,8 @@ export function ExternalModalBox({ m }: { m: OpenModal }) {
         title={m.name}
         src={m.url}
         className="min-h-0 flex-1 border-0 bg-white"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+        sandbox={m.policy.sandbox}
+        allow={m.policy.allow}
       />
       {/* corner resize handle — above the iframe, pointer-captured so the drag
           keeps working once the cursor moves over the iframe */}

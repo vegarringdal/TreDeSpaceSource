@@ -39,7 +39,7 @@ export function ExternalAppButton({ app }: { app: ExternalApp }) {
       return;
     }
     const id = app.multiple ? `${externalPanelId(app.id)}:${(instanceSeq++).toString(36)}` : externalPanelId(app.id);
-    manager.registerPanel(makeExternalPanel(id, app.name, externalAppUrl(app)));
+    manager.registerPanel(makeExternalPanel(id, app));
     manager.openPanel(id);
   };
 

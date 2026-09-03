@@ -43,7 +43,7 @@ import {
   registerKiosk,
   registerPanelControl,
 } from './lib/messageApi';
-import { externalAppsState, externalAppUrl, registerExternalAppOpener } from './state/externalApps.state';
+import { externalAppsState, registerExternalAppOpener } from './state/externalApps.state';
 import { findTopTabs, layoutsActions, layoutsState, noteActiveRibbon, registerLayoutDock } from './state/layouts.state';
 import { initSettingsSync } from './state/settingsSync';
 
@@ -165,7 +165,7 @@ export function useAppStartup(manager: DockManager): void {
         return openExternalModal(a); // the dialog id the API addresses it by
       }
       const id = externalPanelId(a.id);
-      manager.registerPanel(makeExternalPanel(id, a.name, externalAppUrl(a)));
+      manager.registerPanel(makeExternalPanel(id, a));
       manager.openPanel(id);
       return null;
     });

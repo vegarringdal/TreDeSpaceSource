@@ -638,13 +638,27 @@ context without touching the user's settings. `openOnStart: true` opens that
 entry immediately (panels/modals only; new-window entries are never
 auto-opened — window.open without a user gesture is popup-blocked).
 
+Two OPTIONAL lists widen the page's iframe policy (see "Iframe policy" under
+External app hosting); omit both and the app gets exactly the base policy
+every app has always had. `sandbox` takes `'popups'`, `'modals'`,
+`'pointer-lock'`, `'storage-access'`; `allow` takes `'camera'`, `'microphone'`,
+`'geolocation'`, `'fullscreen'`, `'clipboard-read'`, `'clipboard-write'`,
+`'autoplay'`, `'display-capture'`, `'publickey-credentials-get'`,
+`'identity-credentials-get'`, `'web-share'`, `'picture-in-picture'`,
+`'payment'`. Unknown values are a `bad-payload` error. An entry on the
+VIEWER's own origin comes back with a `warning`: no sandbox isolates a
+same-origin page from the viewer window.
+
 ```js
 payload:  { apps: [
               { name: 'Projects', url: 'https://portal.example.com/picker',
                 modal: true, openOnStart: true,
                 // width/height size the dialog (default 70% × 70%)
                 config: { width: '480px', height: '320px', project: 'plant-7' } },
-              { name: 'Docs', url: 'https://portal.example.com/docs', section: 'Portal' },
+              { name: 'Docs', url: 'https://portal.example.com/docs', section: 'Portal',
+                // optional iframe policy — omit both for the base policy
+                sandbox: ['popups', 'storage-access'],
+                allow: ['clipboard-write', 'fullscreen'] },
               // home: the button sits on the HOME ribbon, not External;
               // homeAt picks which end of it ('start' default, or 'end')
               { name: 'Project', url: 'https://portal.example.com/projects',
@@ -653,6 +667,8 @@ response: { apps: [ { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/pick
                       dialogId: 'm3k9x-a1b2:0' },   // modal opened by this call
                     { id: 'm3k9x-c3d4', name: 'Docs', url: 'https://…/docs' } ],
             opened: 1 }
+// an entry on the viewer's own origin additionally carries
+//   warning: 'Same origin as the viewer: the page can read and change everything in this viewer window — …'
 ```
 
 ### externalApps.list
@@ -664,10 +680,12 @@ payload:  { }
 response: { apps: [
   { id: 'k2j4…', name: 'Reports', url: 'https://…', section: '', size: 'medium',
     multiple: false, newWindow: false, modal: false, openOnStart: false,
-    home: false, homeAt: 'start', hostManaged: false },
+    home: false, homeAt: 'start', sandbox: [], allow: ['clipboard-write'],
+    hostManaged: false },
   { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/picker', section: '',
     size: 'medium', multiple: false, newWindow: false, modal: true,
-    openOnStart: true, home: true, homeAt: 'end', hostManaged: true } ] }
+    openOnStart: true, home: true, homeAt: 'end', sandbox: [], allow: [],
+    hostManaged: true } ] }
 ```
 
 ### sql.list
@@ -1382,6 +1400,45 @@ The config JSON doubles as the modal's initial-size source — `width` and
 a bare number means px), defaulting to 70% × 70%. The rest of the object is
 still delivered verbatim to the page.
 
+### Iframe policy (Sandbox / Permissions)
+
+Every panel and modal iframe carries the base policy
+`sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"` and
+no `allow` attribute: the page runs on its own origin (its own site's cookies
+and storage, and a real origin for the postMessage allowlist), submits forms
+and downloads files, and gets no browser permission at all. Two per-app rows
+of checkboxes — both empty by default, so an entry saved before they existed
+behaves exactly as it always did — widen that:
+
+- **Sandbox**: *Popups* (window.open / target=_blank open a normal tab —
+  `allow-popups allow-popups-to-escape-sandbox`, since a popup that inherits
+  the sandbox is useless for sign-in flows), *Modals* (alert / confirm /
+  prompt / print), *Pointer lock*, and *Storage access*
+  (`allow-storage-access-by-user-activation`: the page may ask the browser
+  for its OWN unpartitioned cookies and storage through the Storage Access
+  API, a browser prompt — see the partitioning section below). Top
+  navigation is never offered: it would let a tool redirect the whole viewer
+  to a page of its choosing.
+- **Permissions** (the iframe `allow` attribute): camera, microphone,
+  geolocation, fullscreen, clipboard read / write, autoplay, screen capture,
+  passkeys (`publickey-credentials-get`), federated sign-in
+  (`identity-credentials-get`), Web Share, picture-in-picture, payment. Two
+  things to know before ticking one: the browser's permission prompt names
+  the VIEWER's origin, not the page's, so a grant is a trust decision per
+  app; and delegation chains — a viewer that is itself embedded can only
+  pass on what its own host granted it in ITS `allow`.
+
+What none of this changes: cross-frame DOM and storage access is governed by
+the browser's same-origin policy, not by the sandbox. A page on another
+origin can never read the viewer's document, localStorage or cookies whatever
+is ticked — it reaches the viewer only through the postMessage API. The one
+exception is a page on the **viewer's own origin** (a tool served under the
+same host as a path-proxied viewer, say): with scripts and same-origin both
+allowed it can read everything in the viewer window, and no sandbox option
+changes that. The editor shows a warning on such an entry and
+`externalApps.set` returns one; only add tools you fully trust there (the
+bundled demo is exempt — it is the viewer's own code).
+
 ## Host frames and storage partitioning
 
 A host page often ends up embedding the viewer, with the viewer embedding a
@@ -1411,6 +1468,12 @@ What to do instead:
 - **Between two of the host's pages inside the viewer** (two dialogs, or a
   dialog and a panel): they share one partition, so `BroadcastChannel` works
   between them directly.
+- **Let the nested page ask the browser itself**: tick the app's *Storage
+  access* sandbox option (or pass `sandbox: ['storage-access']` through
+  `externalApps.set`) and the page may call `document.requestStorageAccess()`
+  for its unpartitioned cookies and storage — a browser prompt, on a user
+  gesture. It is the browser's mechanism, not the viewer's; test your SSO
+  flow on it.
 - **Nested page ↔ the host's top page**: `postMessage` is unaffected by
   partitioning — the nested page's `window.parent.parent` is the top page
   (validate `event.origin` on both ends). Or relay through the viewer with

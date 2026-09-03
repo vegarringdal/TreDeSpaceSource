@@ -72,6 +72,10 @@
 //   setting and never something to build a product on. Use instead:
 //     - between two of YOUR pages inside the viewer: BroadcastChannel works
 //       (same partition) — no relay needed.
+//     - give the app `sandbox: ['storage-access']` and the nested page may ask
+//       the browser for its unpartitioned cookies/storage itself
+//       (document.requestStorageAccess(), a browser prompt) — test your SSO
+//       flow on it; it is the browser's answer, not the viewer's.
 //     - nested page ↔ your top page: postMessage directly (the nested page's
 //       window.parent.parent is your top page; validate event.origin), or
 //       relay through the viewer with instanceSet / onInstanceChanged — one
@@ -531,6 +535,37 @@ export interface SqlImportUrlResult extends SqlImportResult {
   failed: { url: string; error: string }[];
 }
 
+/** Sandbox opt-ins for an external app's iframe, beyond the base every app
+ *  gets (scripts on its own origin, forms, downloads). Top navigation is never
+ *  available — it would let a tool redirect the whole viewer.
+ *  - `'popups'`: window.open / target=_blank open a normal tab (the popup
+ *    escapes the sandbox — a sandboxed popup is useless for sign-in flows).
+ *  - `'modals'`: alert / confirm / prompt / print.
+ *  - `'pointer-lock'`: capture the mouse.
+ *  - `'storage-access'`: the page may ask for its OWN unpartitioned cookies and
+ *    storage through the Storage Access API (a browser prompt) — for an SSO
+ *    session that does not reach a nested frame. Never anything of the
+ *    viewer's. */
+export type ExternalAppSandboxOption = 'popups' | 'modals' | 'pointer-lock' | 'storage-access';
+
+/** Browser features an external app's iframe may be delegated through its
+ *  `allow` attribute (Permissions Policy). None is delegated unless listed —
+ *  the browser default for a cross-origin frame. */
+export type ExternalAppPermission =
+  | 'camera'
+  | 'microphone'
+  | 'geolocation'
+  | 'fullscreen'
+  | 'clipboard-read'
+  | 'clipboard-write'
+  | 'autoplay'
+  | 'display-capture'
+  | 'publickey-credentials-get'
+  | 'identity-credentials-get'
+  | 'web-share'
+  | 'picture-in-picture'
+  | 'payment';
+
 /** One SESSION-ONLY external app entry for
  *  {@link TredespaceClient.externalAppsSet}. Mirrors the Settings → External
  *  fields; only `name` and `url` are required. */
@@ -575,6 +610,16 @@ export interface HostExternalApp {
    *    config: { width: '480px', height: '320px', project: 'plant-7' } }
    *  ``` */
   config?: string | Record<string, unknown>;
+  /** Sandbox opt-ins for the page's iframe — see
+   *  {@link ExternalAppSandboxOption}. OPTIONAL: omit for the base policy every
+   *  app has always had. Unknown values are rejected as `bad-payload`. */
+  sandbox?: ExternalAppSandboxOption[];
+  /** Browser features delegated to the page through the iframe `allow`
+   *  attribute — see {@link ExternalAppPermission}. OPTIONAL: omit for none.
+   *  The permission prompt names the VIEWER's origin, not the page's, and a
+   *  viewer that is itself embedded can only pass on what its own host granted
+   *  it in ITS `allow`. Unknown values are rejected as `bad-payload`. */
+  allow?: ExternalAppPermission[];
 }
 
 /** Progress tick for one model in an {@link TredespaceClient.assetsLoad} or
@@ -652,6 +697,10 @@ export interface ExternalAppInfo {
   home: boolean;
   /** which end of the Home ribbon it sits at */
   homeAt: 'start' | 'end';
+  /** sandbox opt-ins beyond the base policy (empty = base) */
+  sandbox: ExternalAppSandboxOption[];
+  /** browser features delegated through the iframe `allow` attribute (empty = none) */
+  allow: ExternalAppPermission[];
   /** true = session-only entry set through the API; false = user-configured in Settings */
   hostManaged: boolean;
 }
@@ -1707,10 +1756,17 @@ export class TredespaceClient {
    *  immediately (panels/modals only — new-window entries are popup-blocked
    *  without a user gesture); a modal opened that way reports its `dialogId`,
    *  which `uiDialogHide` / `uiDialogShow` / `uiDialogClose` address. Call
-   *  with `[]` to clear the host-set entries. */
-  externalAppsSet(
-    apps: HostExternalApp[],
-  ): Promise<Result<{ apps: { id: string; name: string; url: string; dialogId?: string }[]; opened: number }>> {
+   *  with `[]` to clear the host-set entries. An entry whose URL is on the
+   *  VIEWER's own origin comes back with a `warning`: no sandbox isolates a
+   *  same-origin page from the viewer window, so only host pages you fully
+   *  trust belong there (a page on any other origin is isolated by the
+   *  browser's same-origin policy regardless of `sandbox` / `allow`). */
+  externalAppsSet(apps: HostExternalApp[]): Promise<
+    Result<{
+      apps: { id: string; name: string; url: string; dialogId?: string; warning?: string }[];
+      opened: number;
+    }>
+  > {
     return this.send('externalApps.set', { apps });
   }
 

@@ -3,6 +3,12 @@
 // through the postMessage API (EVENTS.md) — their origins are allowlisted
 // automatically at boot.
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import {
+  type PermissionOption,
+  readPermissionOptions,
+  readSandboxOptions,
+  type SandboxOption,
+} from './externalAppPolicy';
 
 export type ExternalAppSize = 'big' | 'medium' | 'small';
 /** Which end of the Home ribbon a promoted app's group sits at. */
@@ -36,6 +42,13 @@ export interface ExternalApp {
   modal: boolean;
   /** JSON config passed to the page as a stringified `?config=` URL param */
   config: string;
+  /** Sandbox opt-ins beyond the base set (popups, modals, …) — OPTIONAL, and
+   *  absent means exactly the base policy every app has always had. See
+   *  externalAppPolicy.ts. */
+  sandbox?: readonly SandboxOption[];
+  /** Browser features delegated to the page through the iframe `allow`
+   *  attribute (camera, clipboard, …) — OPTIONAL, absent = none. */
+  allow?: readonly PermissionOption[];
   /** SESSION-ONLY entry set by an embedding host through the postMessage API
    *  (`externalApps.set`): never persisted to localStorage and not editable in
    *  Settings — gone on reload until the host sets it again after app.ready. */
@@ -69,6 +82,9 @@ function load(): ExternalAppsState {
         homeAt: a.homeAt === 'end' ? 'end' : 'start',
         modal: a.modal === true,
         config: typeof a.config === 'string' ? a.config : '',
+        // policy lists are optional — unknown values from an older/newer save are dropped
+        sandbox: readSandboxOptions(a.sandbox).list,
+        allow: readPermissionOptions(a.allow).list,
       })),
     };
   } catch {
@@ -109,6 +125,8 @@ export const externalAppsActions = {
           homeAt: 'start',
           modal: false,
           config: '',
+          sandbox: [],
+          allow: [],
           ...preset,
         },
       ],

@@ -1,19 +1,25 @@
 import { definePanel } from '@treDeSpaceUI/dockable';
-import { externalAppsState, externalAppUrl } from '../../../state/externalApps.state';
+import { externalAppIframePolicy } from '../../../state/externalAppPolicy';
+import { type ExternalApp, externalAppsState, externalAppUrl } from '../../../state/externalApps.state';
 
-/** Iframe panel body for one external app URL. */
-export function makeExternalPanel(id: string, title: string, url: string) {
+/** Iframe panel body for one external app: its URL (with `?config=`) and its
+ *  per-app sandbox / allow policy (the base policy unless the app opted into
+ *  more — see externalAppPolicy.ts). */
+export function makeExternalPanel(id: string, app: ExternalApp) {
+  const url = externalAppUrl(app);
+  const policy = externalAppIframePolicy(app);
   return definePanel({
     id,
-    title,
+    title: app.name,
     home: 'right',
     component: () => (
       <iframe
-        title={title}
+        title={app.name}
         src={url}
         className="h-full w-full border-0 bg-white"
-        // no top-navigation / popups: the tool lives inside its panel
-        sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+        // never top-navigation: the tool lives inside its panel
+        sandbox={policy.sandbox}
+        allow={policy.allow}
       />
     ),
   });
@@ -32,7 +38,7 @@ export function registerExternalPanels(manager: {
 }) {
   const apps = externalAppsState.get().apps.filter((a) => a.name.trim() && a.url.trim() && !a.newWindow && !a.modal);
   for (const a of apps) {
-    manager.registerPanel(makeExternalPanel(externalPanelId(a.id), a.name, externalAppUrl(a)));
+    manager.registerPanel(makeExternalPanel(externalPanelId(a.id), a));
   }
   const restored = JSON.stringify(manager.saveLayout()).match(/"ext:[^"]+"/g) ?? [];
   for (const quoted of new Set(restored)) {
@@ -40,7 +46,7 @@ export function registerExternalPanels(manager: {
     const appId = id.slice(4).split(':')[0];
     const a = apps.find((x) => x.id === appId);
     if (a && id !== externalPanelId(a.id)) {
-      manager.registerPanel(makeExternalPanel(id, a.name, externalAppUrl(a)));
+      manager.registerPanel(makeExternalPanel(id, a));
     }
   }
 }
