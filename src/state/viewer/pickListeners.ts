@@ -1,33 +1,21 @@
-// A tiny fan-out for viewport item picks. selectFromPick emits (model, item)
-// on every successful pick — alongside the normal selection, which is
-// untouched — and panels that follow clicks (SQL Detail) subscribe while they
-// are listening. Kept separate from selection state so a subscriber never
-// perturbs navigation.
+// The most recent viewport pick. selectFromPick records it on every successful
+// hit; lastSelectedTree falls back to it when nothing is selected, so the SQL
+// Editor can rebuild TREE_VIEW_ARGS from the last click without re-clicking
+// the model. Panels that follow clicks subscribe to onTreeSelect
+// (lib/treeSelectEvent.ts), not here.
 export interface Pick {
   model: number;
   item: number;
 }
 
-type PickFn = (pick: Pick) => void;
-const listeners = new Set<PickFn>();
 let lastPick: Pick | null = null;
 
-/** Subscribe to viewport picks; returns an unsubscribe. */
-export function onViewportPick(fn: PickFn): () => void {
-  listeners.add(fn);
-  return () => void listeners.delete(fn);
-}
-
-/** Emitted by selectFromPick after a hit resolves. */
-export function emitViewportPick(model: number, item: number) {
+/** Called by selectFromPick after a hit resolves. */
+export function recordViewportPick(model: number, item: number) {
   lastPick = { model, item };
-  for (const fn of listeners) {
-    fn({ model, item });
-  }
 }
 
-/** The most recent viewport pick — lets the SQL Editor rebuild TREE_VIEW_ARGS
- *  from the last click without re-clicking the model. */
+/** The most recent viewport pick, or null before the first one. */
 export function getLastPick(): Pick | null {
   return lastPick;
 }

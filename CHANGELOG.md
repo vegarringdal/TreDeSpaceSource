@@ -4,6 +4,37 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.03** (>0.0.82):
+  SQL Detail now runs like a host listening to `tree.select`: every tree
+  select — tree row, viewport pick, U / P, digit+click, a repeat click on the
+  node already selected — runs the bound query the moment the click resolves,
+  from the same tree-view path the host event carries. It used to watch the
+  selection store for a CHANGE of active node, which arrived only after the
+  selection's bookkeeping round-trips, and never re-ran for the same node.
+  API selections (`selection.set`, `sql.select`) still reach it through the
+  store; a click that the store then settles on is not run twice. Only the
+  latest run may fill the form — two quick clicks could complete out of order
+  and leave the first click's row on screen. No rows now names the node
+  ("No data found for …"). The in-app fan-out is `onTreeSelect` in
+  `lib/treeSelectEvent.ts`, next to the host emit; the old viewport-pick
+  fan-out nobody subscribed to is gone (only the last pick is still recorded,
+  for TREE_VIEW_ARGS with nothing selected). Listening / Paused moved into
+  the panel binding so it survives a layout swap, and the header button's
+  `sql.detail.listen` hotkey (Alt&651) — declared but never bound — now
+  pauses or resumes every detail panel at once.
+  SQL Detail fields can carry several source rows and links. A column whose
+  value is a JSON ARRAY — `json_group_array(json_object('label', …, 'value',
+  …, 'value_link_label', …))` in the query — flattens into one field per
+  element in place of the column: `label` is the field name (repeats are
+  fine, rows are keyed by index), `value` the value, and a value that is an
+  http(s) URL renders as a link opening in a new tab, with
+  `value_link_label` as its text when given (the URL otherwise). Plain
+  columns holding an http(s) URL become links too, labelled "Open link", the
+  URL in the tooltip. Only http and https link. Anything that is not a
+  well-formed JSON array is shown as before, so existing reports keep their
+  shape; the filter box also matches link text and the source column name.
+  The rules live in `detailFields.ts` (unit-tested), documented under
+  `sql.detail` in EVENTS.md and in the report editor's SQL hint.
 - **2026.09.01** (>0.0.80):
   Host API: colouring and selecting from SQL now take the SAME packed path the
   SQL editor's buttons use, so a big result never crosses the postMessage

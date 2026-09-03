@@ -67,7 +67,10 @@ export function ReportEditorFields({ draft, dbs, patch, toggleType }: ReportEdit
         <InfoButton label="How report SQL runs">
           The last SQL statement is the report query; earlier statements run as setup. Use{' '}
           <code>SELECT v FROM FILTER_ARGS WHERE k='key'</code> for a filter, and (Detail){' '}
-          <code>SELECT FULLNAME FROM TREE_VIEW_ARGS</code> for the clicked hierarchy.
+          <code>SELECT FULLNAME FROM TREE_VIEW_ARGS</code> for the clicked hierarchy. In a Detail form, http(s) values
+          show as links and a JSON-array column —{' '}
+          <code>json_group_array(json_object(label, value, value_link_label))</code> — flattens into one field per
+          element.
         </InfoButton>
       </span>
       <SqlCodeEditor resizable className="h-32 min-h-16" value={draft.sql} onChange={(v) => patch({ sql: v })} />

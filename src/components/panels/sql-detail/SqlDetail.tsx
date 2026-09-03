@@ -1,6 +1,7 @@
 import { PanelBody, type PanelContext, useMinSize } from '@treDeSpaceUI/dockable';
 import { Button, TextInput } from '@treDeSpaceUI/widgets';
 import { useCallback, useSyncExternalStore } from 'react';
+import { DetailValue } from './DetailValue';
 import {
   detailKeyOf,
   getDetailAutoRemove,
@@ -10,11 +11,13 @@ import {
 } from './sqlDetailPanel';
 import { useSqlDetailForm } from './useSqlDetailForm';
 
-/** SQL Detail: bound to a DETAIL report. While Listening, every selection
- *  change (viewport click, tree click, U / P) rebuilds TREE_VIEW_ARGS from
- *  the selected node's tree-view path, re-runs
- *  the report's LIMIT 1 query, and shows the row as a two-column field list.
- *  The header + toolbar are fixed; only the fields scroll. */
+/** SQL Detail: bound to a DETAIL report. While Listening, every tree select
+ *  (viewport click, tree click, U / P — repeats included) and every API
+ *  selection rebuilds TREE_VIEW_ARGS from that node's tree-view path, re-runs
+ *  the report's query, and shows the first row as a two-column field list —
+ *  a JSON-array column flattened to one field per element, http(s) values as
+ *  links (see detailFields.ts). The header + toolbar are fixed; only the
+ *  fields scroll. */
 export function SqlDetail({ ctx }: { ctx: PanelContext }) {
   useMinSize(260, 200);
   // one component serves every detail panel: the panel id carries which
@@ -25,7 +28,7 @@ export function SqlDetail({ ctx }: { ctx: PanelContext }) {
   const autoRemoveSnapshot = useCallback(() => getDetailAutoRemove(key), [key]);
   const autoRemove = useSyncExternalStore(subscribeDetailReport, autoRemoveSnapshot);
   const { listening, toggleListening, hasRow, fields, status, filter, setFilter, hideEmpty, setHideEmpty } =
-    useSqlDetailForm(report);
+    useSqlDetailForm(report, key);
 
   if (!report) {
     return (
@@ -43,7 +46,7 @@ export function SqlDetail({ ctx }: { ctx: PanelContext }) {
         <Button
           active={listening}
           shortcut="sql.detail.listen"
-          tooltip="Follow viewport clicks — each click fills this form from the clicked object"
+          tooltip="Follow the selection — every tree click, viewport pick, U / P or API selection fills this form from that node"
           onClick={toggleListening}
         >
           {listening ? 'Listening' : 'Paused'}
@@ -82,11 +85,14 @@ export function SqlDetail({ ctx }: { ctx: PanelContext }) {
           <dl className="flex flex-col text-xs">
             {fields.map((f) => (
               <div key={f.key} className="flex gap-2 border-slate-800 border-b px-2 py-1">
-                <dt className="w-32 shrink-0 truncate text-slate-400" title={f.col}>
-                  {f.col}
+                <dt
+                  className="w-32 shrink-0 truncate text-slate-400"
+                  title={f.label === f.col ? f.col : `${f.col}: ${f.label}`}
+                >
+                  {f.label}
                 </dt>
                 <dd className="min-w-0 flex-1 break-words text-slate-200">
-                  {f.val == null || f.val === '' ? <span className="text-slate-600">null</span> : String(f.val)}
+                  <DetailValue field={f} />
                 </dd>
               </div>
             ))}

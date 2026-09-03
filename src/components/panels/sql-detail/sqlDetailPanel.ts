@@ -21,9 +21,10 @@ export function detailKeyOf(panelId: string): string {
   return panelId.startsWith(`${BASE_ID}:`) ? panelId.slice(BASE_ID.length + 1) : DEFAULT_DETAIL_KEY;
 }
 
-/** A named panel's binding: the report it runs, and whether closing the panel
+/** A panel's binding: the report it runs, whether it follows clicks
+ *  (Listening) or holds its row (Paused), and whether closing the panel
  *  throws it away (the default) or keeps it for when the panel is reopened. */
-type DetailEntry = { report: ReportDef; autoRemove: boolean };
+type DetailEntry = { report: ReportDef; listening: boolean; autoRemove: boolean };
 
 const bound = new Map<string, DetailEntry>();
 const subs = new Set<() => void>();
@@ -37,12 +38,43 @@ function notify() {
 /** Bind (or re-bind) the report a detail panel runs on viewport clicks. */
 export function bindDetailReport(report: ReportDef, key: string = DEFAULT_DETAIL_KEY, autoRemove?: boolean) {
   const prev = bound.get(key);
-  bound.set(key, { report, autoRemove: autoRemove ?? prev?.autoRemove ?? true });
+  bound.set(key, {
+    report,
+    listening: prev?.listening ?? true,
+    autoRemove: autoRemove ?? prev?.autoRemove ?? true,
+  });
   notify();
 }
 
 export function getDetailReport(key: string = DEFAULT_DETAIL_KEY): ReportDef | null {
   return bound.get(key)?.report ?? null;
+}
+
+/** Whether the panel follows clicks (true until paused; a panel with no
+ *  report has nothing to follow). */
+export function getDetailListening(key: string): boolean {
+  return bound.get(key)?.listening ?? true;
+}
+
+export function setDetailListening(key: string, on: boolean) {
+  const entry = bound.get(key);
+  if (!entry || entry.listening === on) {
+    return;
+  }
+  bound.set(key, { ...entry, listening: on });
+  notify();
+}
+
+/** Hotkey: pause every detail panel if any is listening, else resume all —
+ *  one key serves the built-in panel and however many named ones exist. */
+export function toggleAllDetailListening() {
+  const anyListening = [...bound.values()].some((e) => e.listening);
+  for (const [key, entry] of bound) {
+    bound.set(key, { ...entry, listening: !anyListening });
+  }
+  if (bound.size) {
+    notify();
+  }
 }
 
 /** Whether closing this panel removes it completely. Only named panels are

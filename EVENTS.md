@@ -892,7 +892,30 @@ response: { replaced: false, mainDb: 'sql_assets/project-x/meta.db', chars: 412 
 ### sql.detail
 Bind a query to a **SQL Detail** panel: every hierarchy click then runs it
 against the clicked node. Write it against TREE_VIEW_ARGS —
-`… where fullname in (select FULLNAME from TREE_VIEW_ARGS)`.
+`… where fullname in (select FULLNAME from TREE_VIEW_ARGS)`. The panel runs
+on every `tree.select` the host would receive (a repeat click on the current
+node included) the moment the click resolves, and on selections made through
+the API (`selection.set`, `sql.select`) once they land — so a host that
+listens to `tree.select` and runs its own query, and a bound detail panel,
+answer the same clicks.
+
+The panel shows the FIRST row as a field list, one field per column, with two
+conventions on top. A value that is an http(s) URL renders as a link (new
+tab) labelled "Open link". A column holding a JSON ARRAY flattens into one
+field per element, so several source rows — documents, links, tags — fold
+into one attribute: build it with `json_group_array(json_object(…))`, where
+`label` is the field name (repeats are fine), `value` the value, and, when the
+value is a link, `value_link_label` the link text shown instead of the URL.
+A malformed array stays a plain value.
+
+```sql
+select p.fullname,
+       json_group_array(json_object('label', d.doc_type,
+                                    'value', d.url,
+                                    'value_link_label', d.title)) as documents
+from part p left join documents d on d.part_id = p.id
+where p.fullname in (select FULLNAME from TREE_VIEW_ARGS limit 1)
+```
 
 `name` is the panel's IDENTITY as well as its tab title. Each distinct name
 gets its OWN detail panel, so several queries can follow the selection side by

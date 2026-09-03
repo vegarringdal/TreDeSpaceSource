@@ -7,7 +7,7 @@ import type { Renderer } from '../../lib/render/renderer';
 import { startTrace, traceEnabled } from '../../lib/trace';
 import { emitTreeSelect } from '../../lib/treeSelectEvent';
 import { db, transfer } from './db';
-import { emitViewportPick, getLastPick } from './pickListeners';
+import { getLastPick, recordViewportPick } from './pickListeners';
 import { residency } from './residency';
 import { groupSelKey, selectionState } from './selection.state';
 import { initialViewerState, type ViewerState, viewerState } from './viewer.state';
@@ -41,6 +41,7 @@ async function navSelect() {
   const { model, path } = navAnchor;
   const subPath = path.slice(0, navDepth);
   const entry = subPath[subPath.length - 1];
+  emitTreeSelect(model, entry); // host event + SQL Detail: U/P changed what is selected
   applyStateUpdates(await db.selectSubtree(model, entry));
   viewerState.set({ suppressTintOnOverride: false });
   selectionState.set({
@@ -50,7 +51,6 @@ async function navSelect() {
     reveal: { model, path: subPath },
   });
   await refreshSelectionMeta({ model, entry });
-  emitTreeSelect(model, entry); // host event: U/P changed what is selected
 }
 
 /** Load cooked model bytes into the viewer. Returns the renderer slot index
@@ -362,9 +362,9 @@ export const viewerActions = {
       return;
     }
     const idx = Math.min(level, path.length) - 1;
+    emitTreeSelect(model, path[idx]); // host event (EVENTS.md) + SQL Detail
     await viewerActions.selectSubtree(model, path[idx]);
     selectionState.set({ reveal: { model, path: path.slice(0, idx + 1) } });
-    emitTreeSelect(model, path[idx]); // host event (EVENTS.md)
   },
 
   /** U hotkey: select the parent of the current selection (walk up the tree). */
@@ -579,7 +579,7 @@ export const viewerActions = {
     if (!hit) {
       return;
     }
-    emitViewportPick(hit.model, hit.item); // feed click-following panels (SQL Detail)
+    recordViewportPick(hit.model, hit.item);
     const path = await db.pathForItem(hit.model, hit.item);
     if (path.length) {
       emitTreeSelect(hit.model, path[path.length - 1]); // host event (EVENTS.md)

@@ -36,7 +36,7 @@ import { ribbonSelectionTransformActions as tx } from '../components/panels/ribb
 import { logMeshletFill } from '../components/panels/settings/rendering/fillStats';
 import { settingsActions } from '../components/panels/settings/settings.actions';
 import { callSqlImport, openSqlAssetsPanel } from '../components/panels/sql-assets/sqlAssetsPanel';
-import { openSqlDetailPanel } from '../components/panels/sql-detail/sqlDetailPanel';
+import { openSqlDetailPanel, toggleAllDetailListening } from '../components/panels/sql-detail/sqlDetailPanel';
 import { callSqlRun, openSqlEditorPanel } from '../components/panels/sql-editor/sqlEditorPanel';
 import { openSqlReportsPanel } from '../components/panels/sql-reports/sqlReportsPanel';
 import { openSqlTablePanel } from '../components/panels/sql-table/sqlTablePanel';
@@ -1643,6 +1643,14 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 642',
     description: 'Open the SQL Detail panel (click-following report form)',
     run: () => openSqlDetailPanel(),
+  },
+  {
+    id: 'sql.detail.listen',
+    category: 'SQL',
+    label: 'SQL Detail: Listening on/off',
+    defaultKeys: 'ALT + 651',
+    description: 'Pause click-following in every SQL Detail panel, or resume it',
+    run: () => toggleAllDetailListening(),
   },
   {
     id: 'sql.import',
