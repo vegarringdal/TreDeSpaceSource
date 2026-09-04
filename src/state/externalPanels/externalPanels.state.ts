@@ -16,6 +16,10 @@ export interface OpenPanel {
   /** The tab title: the app entry's name until `ui.dialog.rename` changes it. */
   name: string;
   url: string;
+  /** Hidden for a deferred close (`ui.dialog.holdClose`): the tab is gone,
+   *  the page still mounted and flushing state until it releases the hold or
+   *  the timeout passes. */
+  closing?: boolean;
 }
 
 export const externalPanelsState = createStore<{ open: OpenPanel[] }>({ open: [] });

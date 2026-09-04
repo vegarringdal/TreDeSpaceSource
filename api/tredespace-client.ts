@@ -134,8 +134,9 @@
 //   'theme.changed'              — viewer theme switched, from any route
 //                                  (onThemeChanged) — restyle your frames
 //   'dialog.changed'             — an external dialog or panel opened / was
-//                                  hidden / shown / renamed / closed
-//                                  (onDialogChanged) — keeps your list current
+//                                  hidden / shown / renamed / is closing /
+//                                  closed (onDialogChanged; onDialogClosing
+//                                  gives YOUR page a last word before unmount)
 //   'assets.importUrl:progress'  — per-file import progress (assetsImportUrl
 //                                  surfaces it via its onProgress option)
 //   'assets.load:progress'       — per-model load progress (assetsLoad /
@@ -701,17 +702,23 @@ export interface DialogInfo {
   /** hidden but still mounted (its page keeps running and keeps its state);
    *  always false for a panel */
   hidden: boolean;
+  /** a held close is under way: the page asked to be told first
+   *  (`onDialogClosing`) and is flushing state, already hidden, until it is
+   *  done or the timeout passes */
+  closing: boolean;
 }
 
 /** One `dialog.changed` event, from {@link TredespaceClient.onDialogChanged}:
  *  the dialog or panel as {@link DialogInfo} lists it plus what just happened
  *  to it. `hidden` / `shown` are the `uiDialogHide` / `uiDialogShow` round
- *  trip (modal dialogs only; the page stays mounted); `closed` is the
- *  unmount, whichever way it happened (the ✕ on the title bar or tab,
+ *  trip (modal dialogs only; the page stays mounted); `closing` is a held
+ *  close under way — the page asked to be told first (`onDialogClosing`) and
+ *  is flushing state while its dialog / tab is already hidden; `closed` is
+ *  the unmount, whichever way it happened (the ✕ on the title bar or tab,
  *  `uiClose`, `uiDialogClose`, a host replacing the app set, a layout swap
  *  dropping a panel); `renamed` follows `uiDialogRename`. */
 export interface DialogChangedEvent extends DialogInfo {
-  state: 'opened' | 'hidden' | 'shown' | 'renamed' | 'closed';
+  state: 'opened' | 'hidden' | 'shown' | 'renamed' | 'closing' | 'closed';
 }
 
 /** One configured external app, from {@link TredespaceClient.externalAppsList}. */
@@ -1068,6 +1075,13 @@ export interface DialogSubscribeOptions extends SubscribeOptions {
   self?: boolean;
 }
 
+/** Options for `onDialogClosing`. */
+export interface DialogClosingOptions extends SubscribeOptions {
+  /** How long the viewer waits for your handlers before unmounting the page
+   *  anyway, in ms — default 3000, max 10000. */
+  timeoutMs?: number;
+}
+
 interface Pending {
   settle: (r: Result<unknown>) => void;
   timer: ReturnType<typeof setTimeout>;
@@ -1092,6 +1106,8 @@ export class TredespaceClient {
   private nextId = 1;
   private readyPayload: AppReady | null = null;
   private readyWaiters: ((r: AppReady) => void)[] = [];
+  private readonly closingHandlers = new Set<(e: DialogChangedEvent) => unknown>();
+  private closingOff: (() => void) | null = null;
   private readonly onMessage = (e: MessageEvent) => this.handle(e);
 
   constructor(target: Window | HTMLIFrameElement, opts: TredespaceClientOptions) {
@@ -1838,6 +1854,30 @@ export class TredespaceClient {
     return this.send('ui.dialog.rename', id ? { id, title } : { title });
   }
 
+  /** Ask the viewer to tell THIS page before its dialog / panel is unmounted
+   *  (`dialog.changed` with `state: 'closing'`) and to wait for
+   *  `uiDialogReleaseClose` — or `timeoutMs` (default 3000, max 10000) —
+   *  before dropping the iframe. The dialog / tab disappears at once either
+   *  way; only the unmount waits. `onDialogClosing` wraps this — prefer it.
+   *  `hold: false` lifts the request. The hold dies with the page. */
+  uiDialogHoldClose(
+    hold: boolean,
+    timeoutMs?: number,
+    id?: string,
+  ): Promise<Result<{ id: string; hold: boolean; timeoutMs?: number }>> {
+    return this.send('ui.dialog.holdClose', {
+      hold,
+      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      ...(id ? { id } : {}),
+    });
+  }
+
+  /** Done flushing: let a held close (see `uiDialogHoldClose`) finish now.
+   *  `released` is false when no close was waiting. */
+  uiDialogReleaseClose(id?: string): Promise<Result<{ id: string; released: boolean }>> {
+    return this.send('ui.dialog.releaseClose', id ? { id } : {});
+  }
+
   // ── external apps (session-only host configuration) ───────────────────────
   /** Declaratively set the SESSION-ONLY host-managed external apps: replaces
    *  any prior host-set entries with `apps` (user-configured Settings entries
@@ -2206,6 +2246,48 @@ export class TredespaceClient {
       },
       opts,
     );
+  }
+
+  /** Run code before the dialog / panel hosting THIS page is unmounted — the
+   *  ✕, `uiClose`, `uiDialogClose`, whichever route. Subscribing asks the
+   *  viewer to hold the close: the dialog / tab disappears at once, but the
+   *  page stays mounted (hidden) until every handler has run — a returned
+   *  promise (any promise, e.g. straight from `instanceSet`) is awaited — or
+   *  `timeoutMs` passes (default 3000, max 10000);
+   *  then it is unmounted. Save state, tell your backend, close what you
+   *  opened. Not for layout swaps: those unmount immediately, so keep
+   *  persisting as you go (EVENTS.md, "Dialog identity and state"). Only from
+   *  a page INSIDE a viewer dialog or panel. The returned function
+   *  unsubscribes and, with the last handler gone, lifts the hold. */
+  onDialogClosing(handler: (e: DialogChangedEvent) => unknown, opts?: DialogClosingOptions): () => void {
+    if (opts?.signal?.aborted) {
+      return () => undefined;
+    }
+    this.closingHandlers.add(handler);
+    void this.uiDialogHoldClose(true, opts?.timeoutMs);
+    if (!this.closingOff) {
+      this.closingOff = this.onDialogChanged((e) => void this.runClosing(e), { self: true });
+    }
+    const off = () => {
+      if (!this.closingHandlers.delete(handler) || this.closingHandlers.size) {
+        return;
+      }
+      this.closingOff?.();
+      this.closingOff = null;
+      void this.uiDialogHoldClose(false);
+    };
+    opts?.signal?.addEventListener('abort', off, { once: true });
+    return off;
+  }
+
+  /** Every closing handler, then the release — a failing handler holds
+   *  neither the others nor the release back. */
+  private async runClosing(e: DialogChangedEvent): Promise<void> {
+    if (e.state !== 'closing') {
+      return;
+    }
+    await Promise.allSettled([...this.closingHandlers].map((h) => Promise.resolve().then(() => h(e))));
+    await this.uiDialogReleaseClose();
   }
 
   // ── plumbing ──────────────────────────────────────────────────────────────

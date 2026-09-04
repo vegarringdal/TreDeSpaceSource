@@ -135,6 +135,9 @@ export class DockManager {
 
   private defs = new Map<string, PanelDefinition>();
   private hosts = new Map<string, Host>();
+  /** Panels hidden while a deferred close (`beforeClose`) waits: out of the
+   *  strips and of saved layouts, content still mounted in place. */
+  private closing = new Set<string>();
   private runtimeMin = new Map<string, Partial<Size>>();
   private titleOverrides = new Map<string, string>();
   /** Where each panel lived when last closed — reopened there if it still exists. */
@@ -313,7 +316,39 @@ export class DockManager {
     this.openPanelBeside(panelId, siblingId, 'bottom');
   }
 
+  /** Close a panel. When its definition's `beforeClose` returns a promise the
+   *  panel is hidden at once (tab and content) but stays mounted until the
+   *  promise settles, then is detached — see `PanelDefinition.beforeClose`.
+   *  `silent` (`registerPanel` replacing an open def) skips the hook and
+   *  `onClose`, and ends any wait in progress right away. */
   closePanel(panelId: string, opts: { silent?: boolean } = {}) {
+    if (!this.isOpen(panelId)) {
+      return;
+    }
+    if (opts.silent) {
+      this.closing.delete(panelId);
+      this.finishClose(panelId, true);
+      return;
+    }
+    if (this.closing.has(panelId)) {
+      return;
+    }
+    const wait = this.defs.get(panelId)?.beforeClose?.(panelId);
+    if (!wait) {
+      this.finishClose(panelId, false);
+      return;
+    }
+    this.closing.add(panelId);
+    this.commit();
+    const finish = () => {
+      if (this.closing.delete(panelId)) {
+        this.finishClose(panelId, false);
+      }
+    };
+    wait.then(finish, finish);
+  }
+
+  private finishClose(panelId: string, silent: boolean) {
     if (!this.isOpen(panelId)) {
       return;
     }
@@ -331,9 +366,14 @@ export class DockManager {
     }
     this.runtimeMin.delete(panelId);
     this.commit();
-    if (!opts.silent) {
+    if (!silent) {
       this.defs.get(panelId)?.onClose?.(panelId);
     }
+  }
+
+  /** The node's panels minus those hidden while a deferred close waits. */
+  private shownPanels(node: { panels: string[] }): string[] {
+    return this.closing.size ? node.panels.filter((id) => !this.closing.has(id)) : node.panels;
   }
 
   /** Every registered panel definition (drives a Panels toggle bar). */
@@ -591,10 +631,15 @@ export class DockManager {
   // -------------------------------------------------------------------- state
 
   saveLayout(): DockState {
-    return {
-      root: L.cloneLayout(this.root),
-      windows: this.windows.map((w) => ({ ...w, node: L.cloneLayout(w.node) })),
-    };
+    // a panel hidden for a deferred close is already gone as far as a saved
+    // layout is concerned
+    let root = L.cloneLayout(this.root);
+    let windows = this.windows.map((w) => ({ ...w, node: L.cloneLayout(w.node) }));
+    for (const id of this.closing) {
+      root = L.removePanel(root, id);
+      windows = windows.map((w) => ({ ...w, node: L.removePanel(w.node, id) })).filter((w) => !L.isEmpty(w.node));
+    }
+    return { root, windows };
   }
 
   loadLayout(state: DockState | LayoutNode) {
@@ -616,6 +661,9 @@ export class DockManager {
     for (const w of next.windows) {
       w.node = L.normalizeLayout(w.node);
     }
+    // the new layout decides: a panel it keeps shows again, one it drops is
+    // unmounted now — a wait in progress is over either way
+    this.closing.clear();
     const keep = new Set([...L.allPanels(next.root), ...next.windows.flatMap((w) => L.allPanels(w.node))]);
     for (const [id, host] of this.hosts) {
       if (!keep.has(id)) {
@@ -1007,7 +1055,7 @@ export class DockManager {
           </button>
           <div class="dock-rail-tabs">
             ${repeat(
-              node.panels,
+              this.shownPanels(node),
               (id) => id,
               (id) => html`
                 <button
@@ -1023,7 +1071,8 @@ export class DockManager {
       `;
     }
 
-    const active = node.activePanel && node.panels.includes(node.activePanel) ? node.activePanel : node.panels[0];
+    const shown = this.shownPanels(node);
+    const active = node.activePanel && shown.includes(node.activePanel) ? node.activePanel : shown[0];
 
     // Collapsed inside a column: just the strip, nothing under it.
     const bodies = node.collapsed
@@ -1056,7 +1105,7 @@ export class DockManager {
                 style=${styleMap({ minHeight: `${this.headerHeight}px`, '--dock-header-h': `${this.headerHeight}px` })}
               >
                 ${repeat(
-                  node.panels,
+                  shown,
                   (id) => id,
                   (id, i) => this.tabTpl(id, i, id === active, locked),
                 )}
@@ -1166,7 +1215,9 @@ export class DockManager {
 
   private windowTpl(win: FloatingWindow, depth: number): TemplateResult {
     const min = this.minOf(win.node);
-    const titles = L.allPanels(win.node).map((p) => this.title(p));
+    const titles = L.allPanels(win.node)
+      .filter((p) => !this.closing.has(p))
+      .map((p) => this.title(p));
     const handles: Array<[string, WindowDrag['edges']]> = [
       ['n', { n: true, s: false, e: false, w: false }],
       ['s', { n: false, s: true, e: false, w: false }],

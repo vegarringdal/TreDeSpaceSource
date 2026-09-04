@@ -1250,16 +1250,17 @@ an entry opened by `externalApps.set` reports the same value as `dialogId`.
 identity and state") — the `ui.dialog.*` commands accept it as `id` too, so a
 page can address itself by the value it already has. `name` is the title as
 shown (title bar or tab): the app entry's name until `ui.dialog.rename`
-changes it. `hidden` is always false for a panel. For changes after this
+changes it. `hidden` is always false for a panel; `closing` is true while a
+held close waits for the page (`ui.dialog.holdClose`). For changes after this
 snapshot, listen for the `dialog.changed` event.
 
 ```js
 payload:  { }
 response: { dialogs: [
   { id: 'm3k9x-a1b2:0', kind: 'dialog', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
-    name: 'Projects', url: 'https://…/picker', hidden: false },
+    name: 'Projects', url: 'https://…/picker', hidden: false, closing: false },
   { id: 'ext:q2w8e-r5t6:1', kind: 'panel', tdsDialogId: '3b1d…-…', appId: 'q2w8e-r5t6',
-    name: 'Report 42 — details', url: 'https://…/reports', hidden: false } ] }
+    name: 'Report 42 — details', url: 'https://…/reports', hidden: false, closing: false } ] }
 ```
 
 ### ui.dialog.hide / ui.dialog.show
@@ -1300,6 +1301,33 @@ renames whatever hosts the sender). Fires `dialog.changed` with
 ```js
 payload:  { id: '7f0c…-…', title: 'Report 42 — details' }     // tdsDialogId works as id
 response: { id: 'm3k9x-a1b2:0', title: 'Report 42 — details' }
+```
+
+### ui.dialog.holdClose
+A page asks to be told before its dialog / panel is unmounted. From then on a
+close of it — the ✕, `ui.close`, `ui.dialog.close` — hides the dialog or tab
+at once but keeps the iframe mounted, posts `dialog.changed` with
+`state: 'closing'`, and waits for `ui.dialog.releaseClose` from the page (or
+`timeoutMs`, default 3000, max 10000 ms) before dropping it. The page gets a
+moment to save, tell its backend or close dialogs it opened; the user sees an
+instant close either way. Layout swaps still unmount at once — a layout change
+cannot wait — so a page must persist as it goes regardless. `id` is optional
+from inside the page (the usual self-addressing); `hold: false` lifts the
+request. The hold dies with the page: a reopened panel starts without one.
+SDK: `onDialogClosing(handler)` does all of this.
+
+```js
+payload:  { hold: true, timeoutMs: 2000 }
+response: { id: 'ext:q2w8e-r5t6:1', hold: true, timeoutMs: 2000 }
+```
+
+### ui.dialog.releaseClose
+The page is done: let the held close finish now (see `ui.dialog.holdClose`).
+`released` is false when no close was waiting.
+
+```js
+payload:  { }
+response: { id: 'ext:q2w8e-r5t6:1', released: true }
 ```
 
 ### ui.showPanel / ui.hidePanel
@@ -1453,15 +1481,18 @@ host keeps its own list of open dialogs current without polling: `ui.dialogs`
 for the snapshot, then this. The page inside receives it too (events reach
 every embedded frame) and recognises itself by the `tdsDialogId` on its URL —
 to pause work while hidden, say. Not its own `closed`, though: the page is
-unmounted in the same task, before the message could be delivered, so a page
-must persist its state as it changes (see "Dialog identity and state"), never
-on close. SDK: `onDialogChanged(handler)`, or
+unmounted in the same task, before the message could be delivered. A page
+that needs a last word asks for it with `ui.dialog.holdClose` (SDK
+`onDialogClosing`): a close then posts `state: 'closing'` first and waits for
+the page's `ui.dialog.releaseClose` (or a timeout) before unmounting it, while
+the dialog or tab is already hidden. Persist as you go regardless — layout
+swaps cannot wait. SDK: `onDialogChanged(handler)`, or
 `onDialogChanged(handler, { self: true })` from inside a dialog to hear about
 that dialog only.
 
 ```js
 { tredespace: 1, id: null, type: 'dialog.changed', ok: true,
-  payload: { state: 'closed',        // 'opened' | 'hidden' | 'shown' | 'renamed' | 'closed'
+  payload: { state: 'closed',        // 'opened' | 'hidden' | 'shown' | 'renamed' | 'closing' | 'closed'
              kind: 'dialog',         // or 'panel' — an external-app dock panel
              id: 'm3k9x-a1b2:0', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
              name: 'Report 42 — details', url: 'https://…/reports', hidden: false } }
@@ -1518,6 +1549,12 @@ per instance. Key your state by it and you know whether you are a reopen:
   frame, gone with the viewer window.
 - **Hide instead of close** — `ui.dialog.hide` / `.show` keep the iframe
   mounted; nothing to save at all.
+- **A last word before unmount** — `ui.dialog.holdClose` (SDK
+  `onDialogClosing(handler)`): a close then hides you at once but waits for
+  your `ui.dialog.releaseClose` (or a timeout) before dropping the iframe, so
+  a final save, or a `ui.dialog.close` of dialogs you opened, can run. Layout
+  swaps do not wait, so this complements persisting as you go; it does not
+  replace it.
 
 The host reads the same value from `ui.dialogs` and from the
 `externalApps.set` response of a dialog it opened, and every `dialog.changed`

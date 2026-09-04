@@ -5,6 +5,7 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 import { externalAppIframePolicy, type IframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
+import { beginHeldClose, clearCloseHold } from '../../../state/externalCloseHold';
 import { dialogIdFor, freshDialogId } from '../../../state/externalDialogIds';
 
 export interface OpenModal {
@@ -25,6 +26,10 @@ export interface OpenModal {
    *  so showing it again resumes the same page (unlike closing, which drops
    *  the context). Driven by the host through `ui.dialog.hide` / `.show`. */
   hidden?: boolean;
+  /** Hidden for a deferred close: the page asked to be told first
+   *  (`ui.dialog.holdClose`) and is flushing state; unmounted once it releases
+   *  the hold or the timeout passes. */
+  closing?: boolean;
 }
 
 export const externalModalsState = createStore<{ open: OpenModal[] }>({ open: [] });
@@ -59,7 +64,7 @@ export function openExternalModal(app: ExternalApp): string {
   let key = '';
   externalModalsState.set((s) => {
     // single-instance apps: re-opening brings the existing dialog to the top
-    const existing = !app.multiple ? s.open.find((m) => m.appId === app.id) : undefined;
+    const existing = !app.multiple ? s.open.find((m) => m.appId === app.id && !m.closing) : undefined;
     if (existing) {
       key = existing.key;
       const shown = { ...existing, hidden: false };
@@ -91,7 +96,7 @@ export function openExternalModal(app: ExternalApp): string {
  *  Returns false when no dialog has that id. */
 export function setExternalModalHidden(key: string, hidden: boolean): boolean {
   const target = externalModalsState.get().open.find((m) => m.key === key);
-  if (!target) {
+  if (!target || target.closing) {
     return false;
   }
   const next = { ...target, hidden };
@@ -103,9 +108,27 @@ export function setExternalModalHidden(key: string, hidden: boolean): boolean {
   return true;
 }
 
-/** Close one external modal dialog by its instance key. */
+/** Close one external modal dialog by its instance key. A page that asked to
+ *  be told first (`ui.dialog.holdClose`) gets `dialog.changed: closing` and a
+ *  moment to flush state: the dialog is hidden at once and unmounted when the
+ *  page releases the hold or the timeout passes. */
 export function closeExternalModal(key: string) {
+  const target = externalModalsState.get().open.find((m) => m.key === key);
+  if (!target || target.closing) {
+    return;
+  }
+  const wait = beginHeldClose(key);
+  if (!wait) {
+    removeExternalModal(key);
+    return;
+  }
+  externalModalsState.set((s) => ({ open: s.open.map((m) => (m.key === key ? { ...m, closing: true } : m)) }));
+  void wait.then(() => removeExternalModal(key));
+}
+
+function removeExternalModal(key: string) {
   externalModalsState.set((s) => ({ open: s.open.filter((m) => m.key !== key) }));
+  clearCloseHold(key);
 }
 
 /** Retitle one open dialog — its title bar and the `name` that `ui.dialogs`
@@ -126,5 +149,9 @@ export function renameExternalModal(key: string, name: string): boolean {
  *  already has. */
 export function findExternalModal(id: string): OpenModal | undefined {
   const open = externalModalsState.get().open;
-  return open.find((m) => m.key === id) ?? open.find((m) => m.tdsDialogId === id);
+  return (
+    open.find((m) => m.key === id) ??
+    open.find((m) => m.tdsDialogId === id && !m.closing) ??
+    open.find((m) => m.tdsDialogId === id)
+  );
 }

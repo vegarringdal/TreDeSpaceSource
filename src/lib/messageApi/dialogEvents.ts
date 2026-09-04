@@ -6,9 +6,10 @@
 // transport — so it is unit-tested as is.
 
 /** What happened to one dialog. `hidden` / `shown` are the `ui.dialog.hide` /
- *  `.show` round trip (the page stays mounted; modal dialogs only); `closed`
- *  means unmounted. */
-export type DialogChangeState = 'opened' | 'hidden' | 'shown' | 'renamed' | 'closed';
+ *  `.show` round trip (the page stays mounted; modal dialogs only); `closing`
+ *  is a held close under way (`ui.dialog.holdClose` — hidden, page still
+ *  mounted and flushing); `closed` means unmounted. */
+export type DialogChangeState = 'opened' | 'hidden' | 'shown' | 'renamed' | 'closing' | 'closed';
 
 /** A modal dialog over the viewer, or an external-app dock panel. */
 export type DialogKind = 'dialog' | 'panel';
@@ -23,6 +24,7 @@ export interface DialogSnapshot {
   name: string;
   url: string;
   hidden?: boolean;
+  closing?: boolean;
 }
 
 /** One `dialog.changed` event: the dialog as `ui.dialogs` lists it, plus what
@@ -71,6 +73,9 @@ export function diffDialogChanges(prev: readonly DialogSnapshot[], next: readonl
     }
     if (before.name !== after.name) {
       out.push(change('renamed', after));
+    }
+    if (before.closing !== true && after.closing === true) {
+      out.push(change('closing', after));
     }
   }
   const prevKeys = new Set(prev.map((m) => m.key));

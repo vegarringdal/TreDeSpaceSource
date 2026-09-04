@@ -10,6 +10,7 @@ import {
 } from '../../components/panels/ribbon-external/externalModals.state';
 import { settingsActions } from '../../components/panels/settings/settings.actions';
 import { settingsState } from '../../components/panels/settings/settings.state';
+import { releaseHeldClose, setCloseHold } from '../../state/externalCloseHold';
 import { externalPanelsActions, findExternalPanel } from '../../state/externalPanels/externalPanels.actions';
 import { externalPanelsState } from '../../state/externalPanels/externalPanels.state';
 import { type DialogSnapshot, diffDialogChanges } from './dialogEvents';
@@ -100,8 +101,14 @@ function dialogSnapshot(): DialogSnapshot[] {
       name: m.name,
       url: m.url,
       hidden: m.hidden === true,
+      closing: m.closing === true,
     })),
-    ...externalPanelsState.get().open.map((p) => ({ kind: 'panel' as const, ...p, hidden: false })),
+    ...externalPanelsState.get().open.map((p) => ({
+      kind: 'panel' as const,
+      ...p,
+      hidden: false,
+      closing: p.closing === true,
+    })),
   ];
 }
 
@@ -175,6 +182,24 @@ export const uiHandlers: Record<string, ApiHandler> = {
       externalPanelsActions.rename(id, title);
     }
     return { id, title };
+  },
+
+  // a page asks to be told before it is unmounted: a close of its dialog /
+  // panel then hides it at once, posts dialog.changed 'closing' and waits for
+  // ui.dialog.releaseClose (or the timeout) before dropping the iframe
+  'ui.dialog.holdClose': ({ p, source }) => {
+    const { id } = requireDialogTarget(p, source);
+    if (p.timeoutMs !== undefined && (typeof p.timeoutMs !== 'number' || !Number.isFinite(p.timeoutMs))) {
+      throw new ApiError('bad-payload', 'timeoutMs must be a number of milliseconds');
+    }
+    const hold = p.hold !== false;
+    const timeoutMs = setCloseHold(id, hold, typeof p.timeoutMs === 'number' ? p.timeoutMs : undefined);
+    return { id, hold, ...(timeoutMs === null ? {} : { timeoutMs }) };
+  },
+
+  'ui.dialog.releaseClose': ({ p, source }) => {
+    const { id } = requireDialogTarget(p, source);
+    return { id, released: releaseHeldClose(id) };
   },
 
   // header = the bold title line; title = the body/message line

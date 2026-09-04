@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { TredespaceClient } from '../api/tredespace-client';
+import { IS_DIALOG } from './hostEnv';
 import type { LogCls } from './useDemoLog';
 
 /** Event subscription (Events section): ON by default (subscribe is called on
@@ -21,6 +22,11 @@ export function useDemoEvents(
     (cl: TredespaceClient) => {
       unsubRef.current?.();
       const offs = [
+        // hosted inside the viewer: a last word before this page is unmounted —
+        // the host sees it as instance.changed (this page itself is gone by then)
+        ...(IS_DIALOG
+          ? [cl.onDialogClosing(() => cl.instanceSet({ demoClosedAt: new Date().toISOString() }, { merge: true }))]
+          : []),
         cl.onTreeSelect((e) => line('out', `⚡ tree.select ${JSON.stringify(e, null, 2)}`)),
         cl.onInstanceChanged((e) => line('out', `⚡ instance.changed ${JSON.stringify(e.data)}`)),
         cl.onThemeChanged((e) => line('out', `⚡ theme.changed ${e.theme}`)),

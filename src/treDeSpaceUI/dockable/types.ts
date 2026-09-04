@@ -135,6 +135,14 @@ export interface PanelDefinition {
    *  content, so a runtime panel can clean itself up on a real close without
    *  disappearing every time the layout changes. */
   onClose?: (panelId: string) => void;
+  /** Called before a REAL close (the same routes as `onClose`). Return a
+   *  promise to DEFER it: the panel disappears at once — tab gone, content
+   *  `display:none` but still mounted, in place — and is detached and disposed
+   *  when the promise settles, so content can flush state (an iframe page
+   *  saving) before it is unmounted. Return nothing to close at once. Not
+   *  consulted on layout swaps, which unmount immediately, nor when
+   *  `registerPanel` replaces an open panel. */
+  beforeClose?: (panelId: string) => Promise<void> | undefined;
   render: PanelRenderer;
 }
 

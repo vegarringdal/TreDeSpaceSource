@@ -999,6 +999,7 @@ type PanelDefinition = {
   home?: string;                // soft default node to reopen into (does NOT pin)
   tabMinWidth?: number;         // align a strip of tabs
   onClose?: (panelId) => void;  // the panel was CLOSED (tab ×, closePanel) — see below
+  beforeClose?: (panelId) => Promise<void> | undefined; // defer a real close — see below
   render: PanelRenderer;        // (host, ctx) => disposer | undefined  — plain DOM
 };
 
@@ -1103,6 +1104,15 @@ manager.openPanel(id);
 A layout swap (`loadLayout`, solo, kiosk) unmounts panel content too, but that
 is not a close and must not delete anything; that is why the render disposer is
 the wrong hook for this.
+
+`beforeClose` runs on the same routes, BEFORE the close. Return a promise to
+defer it: the panel vanishes at once (tab gone, content `display:none` but
+still mounted, in place — an iframe inside keeps its page) and is detached and
+disposed when the promise settles. Use it to give content a moment to flush
+state; the viewer's external-app panels let the hosted page ask for exactly
+this. Layout swaps still unmount immediately, and `registerPanel` replacing an
+open panel skips the hook. While the wait lasts, `saveLayout` already omits the
+panel.
 
 Persistence example:
 

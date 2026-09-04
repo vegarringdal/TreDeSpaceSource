@@ -7,6 +7,11 @@ export const externalPanelsActions = {
     externalPanelsState.set((s) => (s.open.some((p) => p.key === entry.key) ? {} : { open: [...s.open, entry] }));
   },
 
+  /** A deferred close began: the tab is gone, the page flushing state. */
+  closing(key: string) {
+    externalPanelsState.set((s) => ({ open: s.open.map((p) => (p.key === key ? { ...p, closing: true } : p)) }));
+  },
+
   /** The panel body unmounted — its page is gone, whatever closed it. */
   close(key: string) {
     externalPanelsState.set((s) => ({ open: s.open.filter((p) => p.key !== key) }));
@@ -29,5 +34,9 @@ export const externalPanelsActions = {
  *  findExternalModal). */
 export function findExternalPanel(id: string): OpenPanel | undefined {
   const open = externalPanelsState.get().open;
-  return open.find((p) => p.key === id) ?? open.find((p) => p.tdsDialogId === id);
+  return (
+    open.find((p) => p.key === id) ??
+    open.find((p) => p.tdsDialogId === id && !p.closing) ??
+    open.find((p) => p.tdsDialogId === id)
+  );
 }

@@ -2,6 +2,7 @@ import { definePanel, usePanelTitle } from '@treDeSpaceUI/dockable';
 import { useEffect } from 'react';
 import { externalAppIframePolicy, type IframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppsState, externalAppUrl } from '../../../state/externalApps.state';
+import { beginHeldClose, clearCloseHold } from '../../../state/externalCloseHold';
 import { dialogIdFor } from '../../../state/externalDialogIds';
 import { externalPanelsActions } from '../../../state/externalPanels/externalPanels.actions';
 import { externalPanelsState, type OpenPanel } from '../../../state/externalPanels/externalPanels.state';
@@ -23,7 +24,10 @@ function ExternalPanelBody({ entry, policy }: { entry: OpenPanel; policy: Iframe
 
   useEffect(() => {
     externalPanelsActions.open(entry);
-    return () => externalPanelsActions.close(entry.key);
+    return () => {
+      externalPanelsActions.close(entry.key);
+      clearCloseHold(entry.key);
+    };
   }, [entry]);
 
   return (
@@ -55,6 +59,16 @@ export function makeExternalPanel(id: string, app: ExternalApp) {
     id,
     title: app.name,
     home: 'right',
+    // a page that asked to be told first (ui.dialog.holdClose) gets
+    // `dialog.changed: closing` and a moment to flush state before its iframe
+    // is unmounted; the tab disappears at once either way
+    beforeClose: () => {
+      const wait = beginHeldClose(id);
+      if (wait) {
+        externalPanelsActions.closing(id);
+      }
+      return wait ?? undefined;
+    },
     component: () => <ExternalPanelBody entry={entry} policy={policy} />,
   });
 }

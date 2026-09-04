@@ -4,6 +4,20 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.89):
+  postMessage API: a hosted page can ask for a last word before it is
+  unmounted. `ui.dialog.holdClose` (SDK `onDialogClosing(handler)`) makes a
+  close of its external dialog or panel — the ✕, `ui.close`,
+  `ui.dialog.close` — hide it at once but keep the iframe mounted until the
+  page's `ui.dialog.releaseClose` (or a timeout, default 3 s, max 10 s): time
+  to save, or to close dialogs it opened. `dialog.changed` announces it with
+  `state: 'closing'` and `ui.dialogs` shows `closing` meanwhile; the user
+  sees an instant close either way. Layout swaps still unmount immediately,
+  so pages keep persisting as they go. The dockable library gained
+  `beforeClose` on `PanelDefinition` for this: a returned promise defers the
+  detach while the tab is already gone (README updated). The hosted API demo
+  (`?dialog=1`) registers a closing handler that stamps the instance data, so
+  the host sees `instance.changed` when the demo dialog is closed.
 - **2026.09.04** (>0.0.87):
   postMessage API: external dialogs AND panels report their lifecycle. A new
   `dialog.changed` event fires whenever an external modal dialog or

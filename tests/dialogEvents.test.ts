@@ -42,6 +42,12 @@ describe('diffDialogChanges', () => {
     expect(renamed[0]).toMatchObject({ state: 'renamed', id: 'app:1', name: 'Detail report' });
   });
 
+  it('reports a held close as closing, then closed', () => {
+    const a = dialog('app:0');
+    expect(diffDialogChanges([a], [{ ...a, closing: true }]).map((c) => c.state)).toEqual(['closing']);
+    expect(diffDialogChanges([{ ...a, closing: true }], []).map((c) => c.state)).toEqual(['closed']);
+  });
+
   it('orders closed, then state changes, then opened within one step', () => {
     const a = dialog('app:0');
     const b = dialog('app:1');
