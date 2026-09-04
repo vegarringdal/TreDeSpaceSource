@@ -1,15 +1,16 @@
-import { Button, TextInput } from '@treDeSpaceUI/widgets';
+import { Button } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { DemoSection } from '../components/DemoSection';
 import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
 import { useDemo } from '../DemoContext';
+import { DialogControls } from './DialogControls';
 
 /** Session-only host-managed external apps: set installs THIS demo page as a
  *  modal app in the viewer's External ribbon (openOnStart opens it right
  *  away); nothing persists — a viewer reload drops it until set again. */
 export function ExternalAppsSection() {
-  const { run, c, line } = useDemo();
+  const { run, c } = useDemo();
   const [dialogId, setDialogId] = useState('');
 
   // this demo in dialog mode — the classic "app hosted inside the viewer"
@@ -43,7 +44,7 @@ export function ExternalAppsSection() {
   ];
 
   // the modal opened by openOnStart reports its dialogId — remember it so the
-  // hide / show / close buttons below have something to address
+  // dialog controls below have something to address
   const handleSet = () => {
     void run('externalApps.set', { apps: sampleApps }, async () => {
       const res = await c().externalAppsSet(sampleApps);
@@ -54,18 +55,6 @@ export function ExternalAppsSection() {
 
       return res;
     });
-  };
-
-  const handleDialog = (action: 'hide' | 'show' | 'close') => {
-    const id = dialogId.trim();
-    if (!id) {
-      line('err', 'no dialog id yet — run externalApps.set (or ui.dialogs) first');
-      return;
-    }
-
-    const call = () =>
-      action === 'hide' ? c().uiDialogHide(id) : action === 'show' ? c().uiDialogShow(id) : c().uiDialogClose(id);
-    void run(`ui.dialog.${action}`, { id }, call);
   };
 
   return (
@@ -93,19 +82,7 @@ export function ExternalAppsSection() {
         <code>homeAt</code> picks which end of it). Settings → External reports host-set apps without exposing them for
         editing; hostManaged tells the two kinds apart in list.
       </Hint>
-      <Hint>
-        Dialog control by id — hide keeps the iframe MOUNTED, so the page inside keeps its state and show brings it back
-        untouched (close drops it). Park a dialog while a model loads, then show or close it.
-      </Hint>
-      <Row>
-        <TextInput value={dialogId} onChange={setDialogId} placeholder="dialog id" className="min-w-0 flex-1" />
-        <Button onClick={() => void run('ui.dialogs', {}, () => c().uiDialogs())}>ui.dialogs</Button>
-      </Row>
-      <Row>
-        <Button onClick={() => handleDialog('hide')}>ui.dialog.hide</Button>
-        <Button onClick={() => handleDialog('show')}>ui.dialog.show</Button>
-        <Button onClick={() => handleDialog('close')}>ui.dialog.close</Button>
-      </Row>
+      <DialogControls dialogId={dialogId} onDialogIdChange={setDialogId} />
     </DemoSection>
   );
 }

@@ -1245,7 +1245,10 @@ List the open EXTERNAL modal dialogs (external-app entries with "Modal
 dialog"). Each `id` is what the `ui.dialog.*` commands address; a modal opened
 by `externalApps.set` reports the same value as `dialogId`. `tdsDialogId` is
 the identity the page itself sees on its URL (see "Dialog identity and
-state").
+state") — the `ui.dialog.*` commands accept it as `id` too, so a page can
+address itself by the value it already has. `name` is the title as shown: the
+app entry's name until `ui.dialog.rename` changes it. For changes after this
+snapshot, listen for the `dialog.changed` event.
 
 ```js
 payload:  { }
@@ -1260,8 +1263,9 @@ Hide a dialog WITHOUT closing it, or bring it back. The iframe stays MOUNTED
 half-filled form or a live session survives hide → show, unlike
 `ui.dialog.close`, which unmounts it and loses the context. Park a dialog
 while a model loads, then either show it again or close it; showing also
-raises it above the other dialogs. `id` is optional for a request coming FROM
-an embedded app — it then addresses the dialog hosting the sender.
+raises it above the other dialogs. `id` is the dialog id or the page's own
+`tdsDialogId`, and optional for a request coming FROM an embedded app — it
+then addresses the dialog hosting the sender.
 
 ```js
 payload:  { id: 'm3k9x-a1b2:0' }
@@ -1275,6 +1279,19 @@ Close one external modal dialog by id (its page is unmounted, context lost).
 ```js
 payload:  { id: 'm3k9x-a1b2:0' }
 response: { id: 'm3k9x-a1b2:0', closed: true }
+```
+
+### ui.dialog.rename
+Retitle one external modal dialog: its title bar and the `name` that
+`ui.dialogs` reports change; the app entry's own name (the ribbon button) is
+untouched. A dialog that lists reports can name itself after the report the
+user opened. `id` is the dialog id or the page's own `tdsDialogId`, and
+optional from inside an embedded app (it then renames the dialog hosting the
+sender). Fires `dialog.changed` with `state: 'renamed'`.
+
+```js
+payload:  { id: '7f0c…-…', title: 'Report 42 — details' }     // tdsDialogId works as id
+response: { id: 'm3k9x-a1b2:0', title: 'Report 42 — details' }
 ```
 
 ### ui.showPanel / ui.hidePanel
@@ -1417,6 +1434,26 @@ via `viewpoints.set` to restore. SDK: `onViewpointsBookmark(handler)`.
              config: { version: 1, viewpoints: [ … ] } } }
 ```
 
+### dialog.changed
+An external modal dialog opened, was hidden or shown (`ui.dialog.hide` /
+`.show` — the page stays mounted), was renamed (`ui.dialog.rename`) or closed
+— by the title-bar ✕, `ui.close`, `ui.dialog.close` or a host replacing the
+app set — one event for every route. The payload is the dialog as
+`ui.dialogs` lists it plus `state`, so a host keeps its own list of open
+dialogs current without polling: `ui.dialogs` for the snapshot, then this.
+The dialog's own page receives it too (events reach every embedded frame) and
+recognises itself by the `tdsDialogId` on its URL — to pause work while
+hidden, say. SDK: `onDialogChanged(handler)`, or
+`onDialogChanged(handler, { self: true })` from inside a dialog to hear about
+that dialog only.
+
+```js
+{ tredespace: 1, id: null, type: 'dialog.changed', ok: true,
+  payload: { state: 'closed',        // 'opened' | 'hidden' | 'shown' | 'renamed' | 'closed'
+             id: 'm3k9x-a1b2:0', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
+             name: 'Report 42 — details', url: 'https://…/reports', hidden: false } }
+```
+
 ## External app hosting (Settings → External)
 
 Each configured app has: section/size/tooltip for its ribbon button, **Show in
@@ -1470,7 +1507,10 @@ per instance. Key your state by it and you know whether you are a reopen:
   mounted; nothing to save at all.
 
 The host reads the same value from `ui.dialogs` and from the
-`externalApps.set` response of a dialog it opened.
+`externalApps.set` response of a dialog it opened, and every `dialog.changed`
+event carries both identities — so a host that tracks open report dialogs
+drops its entry the moment the user closes one, and a dialog page can
+`ui.dialog.rename` itself by the id on its own URL.
 
 ### Iframe policy (Sandbox / Permissions)
 

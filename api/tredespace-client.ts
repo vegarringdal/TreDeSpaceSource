@@ -133,6 +133,9 @@
 //                                  (onViewpointsBookmark; config attached)
 //   'theme.changed'              — viewer theme switched, from any route
 //                                  (onThemeChanged) — restyle your frames
+//   'dialog.changed'             — an external dialog opened / was hidden /
+//                                  shown / renamed / closed (onDialogChanged)
+//                                  — keeps your list of open dialogs current
 //   'assets.importUrl:progress'  — per-file import progress (assetsImportUrl
 //                                  surfaces it via its onProgress option)
 //   'assets.load:progress'       — per-model load progress (assetsLoad /
@@ -682,14 +685,27 @@ export interface DialogInfo {
   id: string;
   /** the `?tdsDialogId=` the page itself sees on its URL: stable per app for
    *  a single-instance dialog (close → reopen gets the same one), fresh per
-   *  open for a `multiple` one — what the page keys its saved state by */
+   *  open for a `multiple` one — what the page keys its saved state by. The
+   *  ui.dialog* methods accept it in place of `id`, so a page can address
+   *  itself by the value it already has. */
   tdsDialogId: string;
   /** the external-app entry it was opened from */
   appId: string;
+  /** the title shown — the app entry's name until `uiDialogRename` changes it */
   name: string;
   url: string;
   /** hidden but still mounted (its page keeps running and keeps its state) */
   hidden: boolean;
+}
+
+/** One `dialog.changed` event, from {@link TredespaceClient.onDialogChanged}:
+ *  the dialog as {@link DialogInfo} lists it plus what just happened to it.
+ *  `hidden` / `shown` are the `uiDialogHide` / `uiDialogShow` round trip (the
+ *  page stays mounted); `closed` is the unmount, whichever way it happened
+ *  (the title-bar ✕, `uiClose`, `uiDialogClose`, a host replacing the app
+ *  set); `renamed` follows `uiDialogRename`. */
+export interface DialogChangedEvent extends DialogInfo {
+  state: 'opened' | 'hidden' | 'shown' | 'renamed' | 'closed';
 }
 
 /** One configured external app, from {@link TredespaceClient.externalAppsList}. */
@@ -1036,6 +1052,14 @@ export interface SubscribeOptions {
   /** Aborting the signal unsubscribes — the `addEventListener` idiom, so one
    *  AbortController can end many subscriptions (and the client) at once. */
   signal?: AbortSignal;
+}
+
+/** Options for `onDialogChanged`. */
+export interface DialogSubscribeOptions extends SubscribeOptions {
+  /** Deliver only events about the dialog hosting THIS page — the one whose
+   *  `tdsDialogId` is on the page's own URL. For a page running inside a
+   *  viewer dialog; elsewhere (no `?tdsDialogId=`) nothing is delivered. */
+  self?: boolean;
 }
 
 interface Pending {
@@ -1766,8 +1790,10 @@ export class TredespaceClient {
 
   // ── external dialogs (open external-app modals) ───────────────────────────
   /** Every open external modal dialog, with its `hidden` state. The ids are
-   *  what `uiDialogHide` / `uiDialogShow` / `uiDialogClose` address, and are
-   *  also returned as `dialogId` by `externalAppsSet` for a modal it opened. */
+   *  what `uiDialogHide` / `uiDialogShow` / `uiDialogClose` / `uiDialogRename`
+   *  address (each also takes the dialog's `tdsDialogId`), and are also
+   *  returned as `dialogId` by `externalAppsSet` for a modal it opened. For
+   *  changes after this snapshot, subscribe with `onDialogChanged`. */
   uiDialogs(): Promise<Result<{ dialogs: DialogInfo[] }>> {
     return this.send('ui.dialogs', {});
   }
@@ -1792,6 +1818,16 @@ export class TredespaceClient {
    *  same as `uiClose`). */
   uiDialogClose(id?: string): Promise<Result<{ id: string; closed: boolean }>> {
     return this.send('ui.dialog.close', id ? { id } : {});
+  }
+
+  /** Retitle a dialog — its title bar and the `name` that `uiDialogs` reports;
+   *  the app entry's own name (the ribbon button) is untouched. A report list
+   *  that just opened one report can name its dialog after it. `id` is the
+   *  dialog id or the page's own `tdsDialogId`; omit it from inside the
+   *  dialog to rename the dialog hosting the caller. Fires `dialog.changed`
+   *  with `state: 'renamed'`. */
+  uiDialogRename(title: string, id?: string): Promise<Result<{ id: string; title: string }>> {
+    return this.send('ui.dialog.rename', id ? { id, title } : { title });
   }
 
   // ── external apps (session-only host configuration) ───────────────────────
@@ -2136,6 +2172,29 @@ export class TredespaceClient {
   /** Typed convenience for instance-data changes (any dialog called instance.set). */
   onInstanceChanged(handler: (e: { data: Record<string, unknown> }) => void, opts?: SubscribeOptions): () => void {
     return this.on('instance.changed', (p) => handler(p as { data: Record<string, unknown> }), opts);
+  }
+
+  /** Typed convenience for external-dialog lifecycle changes — opened, hidden,
+   *  shown, renamed, closed — whichever route caused them (the ✕, `uiClose`,
+   *  the `uiDialog*` methods, `externalAppsSet`). Fires for EVERY dialog in
+   *  the viewer: a host tracking them all calls `uiDialogs` for the current
+   *  set and keeps it current with this. A page running INSIDE a dialog passes
+   *  `{ self: true }` to hear about its own dialog only — matched against the
+   *  `?tdsDialogId=` on the page's URL (nothing is delivered when the URL has
+   *  none, i.e. the page is not hosted in a viewer dialog). */
+  onDialogChanged(handler: (e: DialogChangedEvent) => void, opts?: DialogSubscribeOptions): () => void {
+    const me = opts?.self ? new URLSearchParams(location.search).get('tdsDialogId') : null;
+    return this.on(
+      'dialog.changed',
+      (p) => {
+        const e = p as DialogChangedEvent;
+        if (opts?.self && e.tdsDialogId !== me) {
+          return;
+        }
+        handler(e);
+      },
+      opts,
+    );
   }
 
   // ── plumbing ──────────────────────────────────────────────────────────────

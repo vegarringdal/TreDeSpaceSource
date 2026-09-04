@@ -17,7 +17,7 @@ import { assetHandlers } from './handlersAssets';
 import { externalAppsHandlers } from './handlersExternalApps';
 import { sceneHandlers } from './handlersScene';
 import { sqlHandlers } from './handlersSql';
-import { uiHandlers } from './handlersUi';
+import { installDialogEvents, uiHandlers } from './handlersUi';
 import { viewerHandlers } from './handlersViewer';
 import { ApiError, type ApiHandler, isRecord, PROTOCOL } from './protocol';
 import { allowApiOrigins, announceReady, emitApiEvent, isApiReady, markApiReady, originAllowed } from './transport';
@@ -42,6 +42,7 @@ export function initMessageApi() {
     return;
   }
   installed = true;
+  installDialogEvents();
   applyUrlParamOrigins();
   window.addEventListener('message', (e) => void onMessage(e));
 }

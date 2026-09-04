@@ -4,10 +4,13 @@ import { dialogs } from '../../components/dialogs/dialogs.actions';
 import {
   closeExternalModal,
   externalModalsState,
+  findExternalModal,
+  renameExternalModal,
   setExternalModalHidden,
 } from '../../components/panels/ribbon-external/externalModals.state';
 import { settingsActions } from '../../components/panels/settings/settings.actions';
 import { settingsState } from '../../components/panels/settings/settings.state';
+import { diffDialogChanges } from './dialogEvents';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
 import { getDialogCloser, getInstanceData, getKiosk, getPanelControl, setInstanceData } from './registry';
 import { emitApiEvent } from './transport';
@@ -44,17 +47,19 @@ function dialogIdOfSource(source?: Window | null): string | null {
   return null;
 }
 
-/** Resolve the dialog a command targets: an explicit `id`, else the sending
- *  window's own dialog. */
+/** Resolve the dialog a command targets: an explicit `id` — the dialog id OR
+ *  the `tdsDialogId` its page sees on its URL — else the sending window's own
+ *  dialog. Returns the dialog id. */
 function requireDialogId(p: Record<string, unknown>, source?: Window | null): string {
   const id = typeof p.id === 'string' && p.id ? p.id : dialogIdOfSource(source);
   if (!id) {
     throw new ApiError('bad-payload', 'id is required (no external dialog hosts the sending window)');
   }
-  if (!externalModalsState.get().open.some((m) => m.key === id)) {
+  const hit = findExternalModal(id);
+  if (!hit) {
     throw new ApiError('not-found', `no open dialog with id "${id}"`);
   }
-  return id;
+  return hit.key;
 }
 
 const hideOrShowDialog: ApiHandler = ({ type, p, source }) => {
@@ -120,6 +125,18 @@ export const uiHandlers: Record<string, ApiHandler> = {
     return { id, closed: true };
   },
 
+  // retitle a dialog — a report list that just opened one report, say. The
+  // title bar and `ui.dialogs`' `name` follow; the app entry is untouched
+  'ui.dialog.rename': ({ p, source }) => {
+    const id = requireDialogId(p, source);
+    const title = typeof p.title === 'string' ? p.title.trim() : '';
+    if (!title) {
+      throw new ApiError('bad-payload', 'title is required');
+    }
+    renameExternalModal(id, title);
+    return { id, title };
+  },
+
   // header = the bold title line; title = the body/message line
   'ui.loading.show': ({ p }) => {
     const header = typeof p.header === 'string' ? p.header : 'Please wait';
@@ -171,3 +188,17 @@ export const uiHandlers: Record<string, ApiHandler> = {
 
   'instance.get': () => ({ data: getInstanceData() }),
 };
+
+/** `dialog.changed` for hosts and embedded apps: fired from the STORE, so
+ *  every route — the ribbon button, the title-bar ✕, `ui.close`,
+ *  `ui.dialog.*`, `externalApps.set` — reports the same way. */
+export function installDialogEvents() {
+  let prev = externalModalsState.get().open;
+  externalModalsState.subscribe(() => {
+    const next = externalModalsState.get().open;
+    for (const change of diffDialogChanges(prev, next)) {
+      emitApiEvent('dialog.changed', change);
+    }
+    prev = next;
+  });
+}

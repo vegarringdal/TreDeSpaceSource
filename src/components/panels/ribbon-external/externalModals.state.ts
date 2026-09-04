@@ -107,3 +107,24 @@ export function setExternalModalHidden(key: string, hidden: boolean): boolean {
 export function closeExternalModal(key: string) {
   externalModalsState.set((s) => ({ open: s.open.filter((m) => m.key !== key) }));
 }
+
+/** Retitle one open dialog — its title bar and the `name` that `ui.dialogs`
+ *  reports; the app entry's own name (the ribbon button) is untouched.
+ *  Returns false when no dialog has that key. */
+export function renameExternalModal(key: string, name: string): boolean {
+  if (!externalModalsState.get().open.some((m) => m.key === key)) {
+    return false;
+  }
+  externalModalsState.set((s) => ({ open: s.open.map((m) => (m.key === key ? { ...m, name } : m)) }));
+  return true;
+}
+
+/** The open dialog addressed by EITHER identity — its dialog id (`key`) or
+ *  the `tdsDialogId` its page sees on its URL. Both are unique among the open
+ *  dialogs (a single-instance app has at most one open, a multi-instance one
+ *  gets a fresh id per open), so a page can address itself by the value it
+ *  already has. */
+export function findExternalModal(id: string): OpenModal | undefined {
+  const open = externalModalsState.get().open;
+  return open.find((m) => m.key === id) ?? open.find((m) => m.tdsDialogId === id);
+}
