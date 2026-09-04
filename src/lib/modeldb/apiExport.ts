@@ -1,15 +1,25 @@
 // Export domain: decode GPU-read-back geometry into an export node tree and
 // serialize it as GLB or IFC (optionally streamed straight into OPFS).
 import * as Comlink from 'comlink';
+import { parseModel } from '../model/format';
 import { buildGlb, type ExportNode, type ExportPrimitive, writeGlb } from '../model/glbWrite';
 import { type IfcSink, writeIfc, writeIfcHierarchy } from '../model/ifcWrite';
+import { packModel } from '../model/pack';
 import { opfsOpenByteStream, opfsOpenTextStream } from '../opfs/opfsSyncWrite';
-import { HAS_COLOR_OVERRIDE, HAS_OPACITY_OVERRIDE, IS_HIDDEN, models, NO_PARENT, OPACITY_SHIFT } from './dbState';
+import {
+  type DbModel,
+  HAS_COLOR_OVERRIDE,
+  HAS_OPACITY_OVERRIDE,
+  IS_HIDDEN,
+  models,
+  NO_PARENT,
+  OPACITY_SHIFT,
+} from './dbState';
 import { entryName } from './hierarchyIndex';
 import { transforms } from './transformPool';
 
 /** GPU-read-back packed geometry for one model (renderer.readModelGeometry). */
-export interface ExportGeom {
+export interface GpuGeom {
   model: number;
   meshletCount: number;
   positionsQ: ArrayBuffer;
@@ -19,12 +29,67 @@ export interface ExportGeom {
   cgColors: ArrayBuffer;
 }
 
+/** The model's FULL cook read from OPFS — for a zone the VRAM budget holds
+ *  coarse, mixed or unloaded, whose GPU slot (if any) carries the budget's
+ *  cuts. Parsed and packed here in the worker, so an export never depends on
+ *  what happens to be resident. */
+export interface FileGeom {
+  model: number;
+  tdp: ArrayBuffer;
+}
+
+export type ExportGeom = GpuGeom | FileGeom;
+
+/** The views the decoder walks — the same pack.ts layouts whichever source
+ *  the geometry came from. */
+interface DecodedGeom {
+  meshletCount: number;
+  posQ: Uint16Array;
+  idx16: Uint16Array;
+  cullU: Uint32Array;
+  infoU: Uint32Array;
+  infoF: Float32Array;
+  cgColors: Float32Array;
+}
+
+async function resolveGeom(g: ExportGeom, m: DbModel): Promise<DecodedGeom> {
+  if (!('tdp' in g)) {
+    return {
+      meshletCount: g.meshletCount,
+      posQ: new Uint16Array(g.positionsQ),
+      idx16: new Uint16Array(g.indices16),
+      cullU: new Uint32Array(g.cull),
+      infoU: new Uint32Array(g.meshletInfo),
+      infoF: new Float32Array(g.meshletInfo),
+      cgColors: new Float32Array(g.cgColors),
+    };
+  }
+  const parsed = await parseModel(m.name, g.tdp);
+  if (parsed.itemCount !== m.itemCount) {
+    throw new Error(`the full cook of "${m.name}" has ${parsed.itemCount} items, the loaded model ${m.itemCount}`);
+  }
+  const p = packModel(parsed);
+  return {
+    meshletCount: p.meshletCount,
+    posQ: p.positionsQ,
+    idx16: p.indices16,
+    cullU: new Uint32Array(p.cull),
+    infoU: new Uint32Array(p.meshletInfo),
+    infoF: new Float32Array(p.meshletInfo),
+    cgColors: p.cgColors,
+  };
+}
+
 export const exportApi = {
-  /** Decode GPU-read-back packed geometry (pack.ts layouts) into an export
-   *  node tree — visibility, color/opacity overrides and committed transforms
-   *  applied. Shared by the GLB and IFC exporters. merged = one primitive per
-   *  final color; hierarchy = the full entry tree with per-item meshes. */
-  decodeExportTree(mode: 'merged' | 'hierarchy', geoms: ExportGeom[]): { roots: ExportNode[]; tris: number } {
+  /** Decode packed geometry (pack.ts layouts; read back from the GPU, or the
+   *  full cook from disk) into an export node tree — visibility, color/opacity
+   *  overrides and committed transforms applied. Shared by the GLB and IFC
+   *  exporters. merged = one primitive per final color; hierarchy = the full
+   *  entry tree with per-item meshes. */
+  async decodeExportTree(
+    mode: 'merged' | 'hierarchy',
+    geoms: ExportGeom[],
+  ): Promise<{ roots: ExportNode[]; tris: number }> {
     const modelRoots: ExportNode[] = [];
     let totalTris = 0;
     // meshlet-local vertex remap scratch, generation-tagged (no per-meshlet clears)
@@ -32,17 +97,13 @@ export const exportApi = {
     const remapGen = new Uint32Array(65536);
     let gen = 0;
 
-    for (const g of geoms) {
-      const m = models[g.model];
+    for (const src of geoms) {
+      const m = models[src.model];
       if (!m || m.removed) {
         continue;
       }
-      const posQ = new Uint16Array(g.positionsQ);
-      const idx16 = new Uint16Array(g.indices16);
-      const cullU = new Uint32Array(g.cull);
-      const infoU = new Uint32Array(g.meshletInfo);
-      const infoF = new Float32Array(g.meshletInfo);
-      const cgColors = new Float32Array(g.cgColors);
+      const g = await resolveGeom(src, m);
+      const { posQ, idx16, cullU, infoU, infoF, cgColors } = g;
 
       /** Final display RGBA of an item, or null when it must not export. */
       const itemColor = (item: number, cg: number): [number, number, number, number] | null => {
@@ -366,7 +427,7 @@ export const exportApi = {
     geoms: ExportGeom[],
     opts: { zUp?: boolean; bareRoot?: boolean; recenter?: boolean; opfsOut?: string } = {},
   ): Promise<{ glb: ArrayBuffer | null; tris: number; size: number }> {
-    const { roots, tris } = exportApi.decodeExportTree(mode, geoms);
+    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms);
     if (tris === 0) {
       throw new Error('nothing visible to export');
     }
@@ -402,7 +463,7 @@ export const exportApi = {
     geoms: ExportGeom[],
     opts: { opfsOut?: string } = {},
   ): Promise<{ ifc: ArrayBuffer | null; tris: number; size: number }> {
-    const { roots, tris } = exportApi.decodeExportTree(mode, geoms);
+    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms);
     if (tris === 0) {
       throw new Error('nothing visible to export');
     }

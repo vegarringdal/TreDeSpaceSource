@@ -82,18 +82,28 @@ export function treeViewArgsStatements(fullnames: string[]): Statement[] {
   return out;
 }
 
+/** DROP/CREATE TEMP TABLE FILTER_ARGS(k, v) + one insert per filter value —
+ *  TEMP so a read-only db is fine. Shared by report runs and the SQL Editor's
+ *  raw Run, so a query reads its filters the same way either way. */
+export function filterArgsStatements(filters: ReportFilter[]): Statement[] {
+  const out: Statement[] = [
+    { sql: 'DROP TABLE IF EXISTS FILTER_ARGS', useStatementInLog: false },
+    { sql: 'CREATE TEMP TABLE FILTER_ARGS(k TEXT, v TEXT)', useStatementInLog: false },
+  ];
+  const rows = filters.flatMap(filterRows);
+  if (rows.length) {
+    out.push({ sql: 'INSERT INTO FILTER_ARGS(k, v) VALUES (?, ?)', binding: rows, useStatementInLog: false });
+  }
+  return out;
+}
+
 /** The full Statement[] for a run: scratch-table setup, the report's own setup
  *  statements verbatim, then the wrapped final query (the only collected one). */
 export function buildReportStatements(o: BuildOpts): Statement[] {
   const out: Statement[] = [];
 
-  // FILTER_ARGS (always) — TEMP so a read-only db is fine
-  out.push({ sql: 'DROP TABLE IF EXISTS FILTER_ARGS', useStatementInLog: false });
-  out.push({ sql: 'CREATE TEMP TABLE FILTER_ARGS(k TEXT, v TEXT)', useStatementInLog: false });
-  const rows = o.filters.flatMap(filterRows);
-  if (rows.length) {
-    out.push({ sql: 'INSERT INTO FILTER_ARGS(k, v) VALUES (?, ?)', binding: rows, useStatementInLog: false });
-  }
+  // FILTER_ARGS (always)
+  out.push(...filterArgsStatements(o.filters));
 
   // TREE_VIEW_ARGS — DETAIL always (its clicked hierarchy, possibly empty);
   // any other type when a hierarchy was supplied (the last selection)

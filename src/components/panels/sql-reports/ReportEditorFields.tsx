@@ -1,8 +1,8 @@
-import { InfoButton, Select, SqlCodeEditor, TextArea, TextInput } from '@treDeSpaceUI/widgets';
+import { InfoButton, Select, SqlCodeEditor } from '@treDeSpaceUI/widgets';
 import type { SqlDbEntry } from '../../../state/sqlAssets/sqlAssets.state';
 import type { ReportDef, ReportType } from '../../../state/sqlReports/sqlReports.state';
-
-const TYPES: ReportType[] = ['TABLE', 'COLORING', 'DETAIL'];
+import { ReportMetaFields } from './ReportMetaFields';
+import { ReportTypeToggles } from './ReportTypeToggles';
 
 type ReportEditorFieldsProps = Readonly<{
   draft: ReportDef;
@@ -16,22 +16,7 @@ type ReportEditorFieldsProps = Readonly<{
 export function ReportEditorFields({ draft, dbs, patch, toggleType }: ReportEditorFieldsProps) {
   return (
     <>
-      <TextInput
-        label="Name"
-        labelPosition="left"
-        labelWidth={70}
-        value={draft.name}
-        onChange={(v) => patch({ name: v })}
-      />
-      <TextArea
-        label="Description"
-        labelPosition="left"
-        labelWidth={70}
-        minHeight={48}
-        placeholder="Shown above the report's filters — **bold** and newlines supported"
-        value={draft.description}
-        onChange={(v) => patch({ description: v })}
-      />
+      <ReportMetaFields draft={draft} patch={patch} />
 
       <label className="flex items-center gap-2 text-slate-400 text-xs">
         <span className="w-[70px] shrink-0">Main db</span>
@@ -52,15 +37,7 @@ export function ReportEditorFields({ draft, dbs, patch, toggleType }: ReportEdit
         </div>
       </label>
 
-      <div className="flex flex-wrap items-center gap-3 text-slate-300 text-xs">
-        <span className="w-[70px] shrink-0 text-slate-400">Types</span>
-        {TYPES.map((t) => (
-          <label key={t} className="flex cursor-pointer items-center gap-1.5" data-tooltip={`Enable the ${t} output`}>
-            <input type="checkbox" checked={draft.types.includes(t)} onChange={() => toggleType(t)} />
-            {t}
-          </label>
-        ))}
-      </div>
+      <ReportTypeToggles draft={draft} toggleType={toggleType} />
 
       <span className="flex items-center gap-1.5 text-slate-400 text-xs">
         SQL — drag the bottom-right corner to resize

@@ -4,6 +4,7 @@
 import { quatAxes } from '../math/quat';
 import { type ColorUndoRecord, captureColorRuns, pushColorUndo } from './colorUndo';
 import { type DbModel, IS_HIDDEN, models, NO_ITEM_EDGES, type StateUpdate } from './dbState';
+import { DenseBoxAccumulator } from './denseBox';
 import { packStates } from './hierarchyIndex';
 import { itemWorldBounds, transforms } from './transformPool';
 
@@ -23,18 +24,13 @@ export const visibilityApi = {
       if (!m || m.removed) {
         return { model: idx, bounds: null, dense: null, visibleFrac: 0, nearestDist: Infinity };
       }
-      const min = [Infinity, Infinity, Infinity];
-      const max = [-Infinity, -Infinity, -Infinity];
       let total = 0;
       let visible = 0;
       let nearestSq = Infinity;
-      // running mean/variance of item centres — the DENSE box (mean ± 2σ) is
-      // what residency decisions use, so one outlier item cannot inflate a
-      // zone until it swallows the camera / frustum / clip volume
-      let n = 0;
-      const mean = [0, 0, 0];
-      const m2 = [0, 0, 0];
-      let halfSum = 0;
+      // the DENSE box (sigma-clipped mean ± 2σ of item centres) is what
+      // residency decisions use, so one outlier item cannot inflate a zone
+      // until it swallows the camera / frustum / clip volume
+      const box = new DenseBoxAccumulator();
       for (let i = 0; i < m.itemCount; i++) {
         if (!itemWorldBounds(m.itemBounds, m.tidx, i, wb)) {
           continue; // item without geometry
@@ -46,37 +42,18 @@ export const visibilityApi = {
         visible++;
         let dsq = 0;
         for (let k = 0; k < 3; k++) {
-          min[k] = Math.min(min[k], wb[k]);
-          max[k] = Math.max(max[k], wb[k + 3]);
           const c = Math.min(Math.max(eye[k], wb[k]), wb[k + 3]);
           dsq += (eye[k] - c) ** 2;
         }
         if (dsq < nearestSq) {
           nearestSq = dsq;
         }
-        n++;
-        for (let k = 0; k < 3; k++) {
-          const c = (wb[k] + wb[k + 3]) / 2;
-          const d = c - mean[k];
-          mean[k] += d / n;
-          m2[k] += d * (c - mean[k]);
-          halfSum += (wb[k + 3] - wb[k]) / 6; // average half-extent per axis
-        }
-      }
-      let dense: number[] | null = null;
-      if (visible > 0) {
-        const pad = halfSum / Math.max(1, n);
-        dense = [0, 0, 0, 0, 0, 0];
-        for (let k = 0; k < 3; k++) {
-          const sd = n > 1 ? Math.sqrt(m2[k] / (n - 1)) : 0;
-          dense[k] = Math.max(min[k], mean[k] - 2 * sd - pad);
-          dense[k + 3] = Math.min(max[k], mean[k] + 2 * sd + pad);
-        }
+        box.add(wb);
       }
       return {
         model: idx,
-        bounds: visible > 0 ? [...min, ...max] : null,
-        dense,
+        bounds: box.union(),
+        dense: box.dense(),
         visibleFrac: total > 0 ? visible / total : 0,
         // distance to the NEAREST visible item, not to the union box: one
         // outlier item must not make a distant zone look adjacent

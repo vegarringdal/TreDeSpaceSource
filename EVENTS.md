@@ -495,6 +495,10 @@ response: { created: true, store: { name: 'project-x', description: 'Client X',
 Load into / unload from the viewer by asset id. `store` (optional, must be a
 known name) restricts loading to ids that belong to that store.
 
+Unloading forgets a model's per-item state — colors, opacity, hidden items,
+item-edge flags, transforms — so loading it again starts clean. Keep a look on
+purpose with a state snapshot (Export panel).
+
 The camera follows one of three rules: `fit: true` (default) frames what was
 loaded, `fit: false` leaves the camera untouched, and a `camera` object (same
 fields as `camera.set`) places it explicitly — replacing the fit, so the view
@@ -540,7 +544,8 @@ is loaded, anything already right is untouched. Idempotent, so a sync can call
 it every cycle with its desired set (typically the ids picked from
 `assets.list`). An empty `ids` unloads everything. `store` (optional, must be
 known) scopes BOTH directions — assets in other stores are never touched.
-Unloads run before loads so VRAM frees first. `fit` is opt-in here (default
+Unloads run before loads so VRAM frees first, and an unloaded model's
+per-item state is forgotten (see `assets.unload`). `fit` is opt-in here (default
 false — a background sync should not move the camera); when true it frames the
 union of the whole desired set, not just what this call loaded. A `camera`
 object (same fields as `camera.set`) places the view explicitly instead and
@@ -900,11 +905,36 @@ building OPFS paths; `mainDb` takes a path directly (`''` selects "None —
 attach only"), and omitting all three leaves the current pick alone.
 `show: false` fills the panel without opening it.
 
+`title`, `description`, `types` (`TABLE` / `COLORING` / `DETAIL`) and
+`filters` fill the editor's report fields — the same shape `sql.editor.get`
+returns, so a draft a host stored comes back whole. They apply whenever
+present, with or without `replace`; a filter needs a `key` (`kind` defaults to
+`INPUT`), and an unknown type or kind is `bad-payload`.
+
 ```js
-payload:  { sql: 'select * from defects where severity > 2',
+payload:  { sql: "select * from defects where severity > (select v from FILTER_ARGS where k='minSeverity')",
             store: 'project-x', fileName: 'meta.db',
-            name: 'daily defects', replace: false }
-response: { replaced: false, mainDb: 'sql_assets/project-x/meta.db', chars: 412 }
+            title: 'Daily defects', types: ['TABLE'],
+            filters: [{ key: 'minSeverity', label: 'Min severity', value: '2' }] }
+response: { replaced: true, mainDb: 'sql_assets/project-x/meta.db', chars: 91 }
+```
+
+### sql.editor.get
+Read the **SQL Editor**'s draft — the report fields the user filled in: `title`
+(the report name), `description`, `mainDb`, `types`, `sql` and `filters` (the
+saved-report shape: `kind`, `key`, `label`, then `value` for an INPUT or
+`dropdownSql` / `searchValue` / `selected` for a DROPDOWN) — plus `databases`,
+the files a run would lock. It is exactly what `sql.editor` takes back, so a
+host can store the draft (the editor has no Save of its own) and later restore
+it unchanged.
+
+```js
+payload:  {}
+response: { title: 'Daily defects', description: '', mainDb: 'sql_assets/project-x/meta.db',
+            types: ['TABLE'],
+            sql: "select * from defects where severity > (select v from FILTER_ARGS where k='minSeverity')",
+            filters: [{ kind: 'INPUT', key: 'minSeverity', label: 'Min severity', value: '2' }],
+            databases: ['sql_assets/project-x/meta.db'] }
 ```
 
 ### sql.detail

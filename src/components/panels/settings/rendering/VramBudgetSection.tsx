@@ -5,6 +5,7 @@ import { getRenderer, viewerActions } from '../../../../state/viewer/viewer.acti
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { VramSuggestedRow } from './VramSuggestedRow';
 
 const swapSpeeds = [
   { value: 'relaxed', label: 'Relaxed', hint: 'one swap at a time', shortcut: 'render.vramSwap.relaxed' },
@@ -14,7 +15,7 @@ const swapSpeeds = [
 
 const COPIED_RESET_MS = 1200;
 
-/** Rendering → VRAM budget: max GPU memory footprint (0 = off). */
+/** Rendering → VRAM budget: an Enabled switch and the max GPU memory footprint. */
 export function VramBudgetSection() {
   const v = useViewer();
   const act = viewerActions;
@@ -32,22 +33,35 @@ export function VramBudgetSection() {
       title="VRAM budget"
       info={
         <>
-          0 = off (default): everything loads at full detail, nothing ever swaps. With a budget set, models far from the
-          camera drop to a coarse variant (or unload, for assets imported before coarse variants existed) while the
-          camera stands still, and come back to full detail when you move close and stop.
+          Off by default: everything loads at full detail, nothing ever swaps. Enabled, models far from the camera drop
+          to a coarse variant (or unload, for assets imported before coarse variants existed) while the camera stands
+          still, and come back to full detail when you move close and stop. Max VRAM is the ceiling (default 2048 MB)
+          and only applies while enabled.
           <br />
           <br />
           <strong>Set it too low and geometry you are looking at will be missing</strong> — the budget is a hard
           ceiling, so when even the visible zones do not fit, parts of them stay coarse or never load at all. Use it
           only when you need it: a weak or low-memory GPU, or a model too large to fit. On a strong PC, or for any model
           that fits comfortably, leave it off — it can only cost detail, never add it.
+          <br />
+          <br />
+          Render targets count against the ceiling too (Stats shows the models / targets split), so raising MSAA or AO
+          at a tight budget costs geometry. Swaps land in batches while the camera rests and the picture re-converges
+          once per batch; a hi-res screenshot pauses swapping for its duration.
         </>
       }
     >
+      <Check
+        label="Enabled"
+        tooltip="Keep tracked GPU memory under Max VRAM by holding far zones coarse while the camera rests. Off: everything loads at full detail"
+        shortcut="render.vramEnabled"
+        checked={v.vramBudgetOn}
+        onChange={(x) => act.update({ vramBudgetOn: x })}
+      />
       <Row label="Max VRAM">
         <NumberInput
           value={v.maxVramMb}
-          min={0}
+          min={256}
           max={65536}
           step={256}
           unit="MB"
@@ -56,6 +70,7 @@ export function VramBudgetSection() {
           onChange={(x) => act.update({ maxVramMb: x })}
         />
       </Row>
+      <VramSuggestedRow current={v.maxVramMb} enabled={v.vramBudgetOn} />
       <RadioGroup
         options={swapSpeeds}
         value={v.vramSwapSpeed}
@@ -91,6 +106,13 @@ export function VramBudgetSection() {
         shortcut="render.vramDropHidden"
         checked={v.vramDropHidden}
         onChange={(x) => act.update({ vramDropHidden: x })}
+      />
+      <Check
+        label="Pause AO / TAA while optimizing"
+        tooltip="While a burst of swaps lands, render single-sample frames (no TAA history, no AO) and converge once at the end — instead of re-converging a picture every commit throws away. Edges look aliased for those seconds."
+        shortcut="render.vramHoldAccum"
+        checked={v.vramHoldAccum}
+        onChange={(x) => act.update({ vramHoldAccum: x })}
       />
       <Check
         label="Show activity indicator"

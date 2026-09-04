@@ -15,7 +15,7 @@ export function SqlEditorRunRow() {
         className="flex-1"
         disabled={running}
         shortcut="sql.run"
-        tooltip="Run the script (Ctrl+Enter in the editor) — results go to the Console panel"
+        tooltip="Run the script (Ctrl+Enter in the editor) — results go to the Console panel. FILTER_ARGS is seeded from the filters below"
         onClick={() => void act.run()}
       >
         Run

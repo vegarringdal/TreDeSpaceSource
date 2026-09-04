@@ -802,6 +802,39 @@ export interface SqlRunInput {
   filters?: SqlFilterInput[];
 }
 
+/** The outputs a report offers: a table, a coloring of the model, a
+ *  click-following detail form. */
+export type SqlReportType = 'TABLE' | 'COLORING' | 'DETAIL';
+
+/** One filter of the SQL Editor draft — the saved-report shape, richer than
+ *  {@link SqlFilterInput}: INPUT holds its `value`; DROPDOWN holds the
+ *  `dropdownSql` listing its options (`?` binds the search term, `searchValue`
+ *  is the default bind, usually '%') and the `selected` ids. */
+export interface SqlEditorFilter {
+  kind: 'INPUT' | 'DROPDOWN';
+  /** FILTER_ARGS.k — the SQL reads `select v from FILTER_ARGS where k='…'`. */
+  key: string;
+  label: string;
+  value?: string;
+  searchValue?: string;
+  dropdownSql?: string;
+  selected?: string[];
+}
+
+/** The SQL Editor's draft as {@link TredespaceClient.sqlEditorGet} returns it
+ *  and {@link TredespaceClient.sqlEditor} takes it back. `title` is the
+ *  report name. */
+export interface SqlEditorDraft {
+  title: string;
+  description: string;
+  mainDb: string;
+  types: SqlReportType[];
+  sql: string;
+  filters: SqlEditorFilter[];
+  /** Every database a run locks: the main db + ATTACH'd paths. */
+  databases: string[];
+}
+
 /** A host's own Set Color configuration — the same `rules` shape
  *  {@link TredespaceClient.colorRulesSet} takes, plus the run mode. Pass one
  *  with `custom-set` to paint a config you store yourself (the viewer's Set
@@ -1487,7 +1520,10 @@ export class TredespaceClient {
   ): Promise<Result<{ loaded: number }>> {
     return this.loadCall('assets.load', { ids, fit: opts?.fit ?? true }, opts);
   }
-  /** Remove assets from the viewport (they stay in the asset manager). */
+  /** Remove assets from the viewport (they stay in the asset manager). An
+   *  unload forgets the models' per-item state — colors, opacity, hidden
+   *  items, transforms — so loading them again starts clean; keep a look on
+   *  purpose with a state snapshot. */
   assetsUnload(ids: string[]): Promise<Result<{ unloaded: number }>> {
     return this.send('assets.unload', { ids });
   }
@@ -1500,7 +1536,9 @@ export class TredespaceClient {
    *  assets in other stores are never touched. `fit` is OPT-IN here (a
    *  background sync should not move the camera) and frames the union of the
    *  whole desired set, not just what this call loaded. `missing` returns
-   *  requested ids that are not in the asset manager — import those first. */
+   *  requested ids that are not in the asset manager — import those first.
+   *  Unloading forgets a model's per-item state (colors, opacity, hidden
+   *  items, transforms), so a later load starts clean. */
   assetsSetLoaded(
     ids: string[],
     opts?: {
@@ -1866,6 +1904,11 @@ export class TredespaceClient {
    * host building OPFS paths (`mainDb` takes a path directly, `''` = the
    * panel's "None — attach only"); omit them and the current pick stands.
    * `show: false` fills the panel without opening it.
+   *
+   * `title`, `description`, `types` and `filters` fill the editor's report
+   * fields — the shape {@link TredespaceClient.sqlEditorGet} returns, so a
+   * draft the host stored comes back whole. They apply whenever present, with
+   * or without `replace`; a filter needs a `key` (`kind` defaults to INPUT).
    */
   sqlEditor(input: {
     sql: string;
@@ -1875,8 +1918,23 @@ export class TredespaceClient {
     fileName?: string;
     mainDb?: string;
     show?: boolean;
+    title?: string;
+    description?: string;
+    types?: SqlReportType[];
+    filters?: SqlEditorFilter[];
   }): Promise<Result<{ replaced: boolean; mainDb: string; chars: number }>> {
     return this.send('sql.editor', { ...input });
+  }
+
+  /**
+   * Read the **SQL Editor**'s draft: the report fields the user filled in —
+   * `title` (the report name), `description`, `mainDb`, `types`, `sql` and
+   * the `filters` — plus `databases`, the files a run would lock. The editor
+   * has no Save of its own: store this, and hand it back to
+   * {@link TredespaceClient.sqlEditor} later to restore it unchanged.
+   */
+  sqlEditorGet(): Promise<Result<SqlEditorDraft>> {
+    return this.send('sql.editor.get', {});
   }
 
   /** Bind a query to a SQL Detail panel: every hierarchy click runs it against

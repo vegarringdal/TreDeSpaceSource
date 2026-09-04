@@ -5,6 +5,7 @@
 // the priority function measures the camera against.
 import { residency } from '../../state/viewer/residency';
 import { viewerState } from '../../state/viewer/viewer.state';
+import { vramBudgetMb } from '../../state/viewer/vramBudget';
 import { projectToScreen } from '../math/project';
 import type { Renderer } from '../render/renderer';
 
@@ -52,7 +53,7 @@ export class ResidencyBoxOverlay {
   /** Per-frame: draw every tracked zone's box (no-op unless enabled). */
   update(): void {
     const s = viewerState.get();
-    const show = s.vramDebugBoxes && s.maxVramMb > 0;
+    const show = s.vramDebugBoxes && vramBudgetMb(s) > 0;
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     if (this.canvas.width !== w || this.canvas.height !== h) {

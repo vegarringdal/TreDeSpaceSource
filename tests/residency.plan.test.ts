@@ -8,10 +8,11 @@ import {
   MIN_DWELL_MS,
   MIXED_MAX_SHARE,
   type Pacing,
+  type PlanAction,
   type PlanInput,
   planResidency,
+  planTargets,
   PROACTIVE_GRACE_MS,
-  STARVE_CAP,
   type Variant,
   type ZoneView,
 } from '../src/state/viewer/residency.plan';
@@ -39,6 +40,7 @@ function zone(slot: number, over: Partial<ZoneView> = {}): ZoneView {
     coarseStale: false,
     nearestDist: 10,
     visibleFrac: 1,
+    denseRadius: 10, // every fixture zone is the same size, so rank follows distance
     fullyInFrustum: false,
     clipCulled: false,
     lastSeenT: NOW, // seen right now
@@ -50,14 +52,13 @@ function zone(slot: number, over: Partial<ZoneView> = {}): ZoneView {
     packedDir: null,
     packedTarget: 0,
     packLimited: false,
-    starveCount: 0,
     inFlight: false,
     ...over,
   };
 }
 
-function plan(zones: ZoneView[], over: Partial<PlanInput> = {}) {
-  return planResidency({
+function baseInput(zones: ZoneView[]): PlanInput {
+  return {
     zones,
     now: NOW,
     budgetMb: 512,
@@ -66,8 +67,11 @@ function plan(zones: ZoneView[], over: Partial<PlanInput> = {}) {
     fwd: [1, 0, 0],
     cuts: CUTS,
     pacing: FAST,
-    ...over,
-  });
+  };
+}
+
+function plan(zones: ZoneView[], over: Partial<PlanInput> = {}) {
+  return planResidency({ ...baseInput(zones), ...over });
 }
 
 // -----------------------------------------------------------------------------
@@ -314,8 +318,10 @@ describe('rebalance', () => {
   const tight = { budgetMb: 100, used: 89 * MB };
 
   it('evicts a far zone so a near one can load', () => {
+    // the far zone holds 30 of the 100 MB; freeing it is what lets the near
+    // zone get a mixed pack, so the demote is the first step of the plan
     const near = zone(1, { variant: 'coarse', nearestDist: 2, bytesFull: 60 * MB, bytesNow: 0 });
-    const far = zone(2, { variant: 'full', nearestDist: 90, lastPromoteT: NOW - 60_000 });
+    const far = zone(2, { variant: 'full', nearestDist: 90, bytesNow: 30 * MB, lastPromoteT: NOW - 60_000 });
     expect(plan([near, far], tight)).toMatchObject({ kind: 'demote', slot: 2, reason: 'rebalance' });
   });
 
@@ -333,10 +339,16 @@ describe('rebalance', () => {
     expect(plan([satisfied, other], tight)).toMatchObject({ kind: 'none' });
   });
 
-  it('parks a zone that still does not fit after the rebalance cap', () => {
-    const huge = zone(1, { variant: 'coarse', nearestDist: 2, bytesFull: 5000 * MB, bytesNow: 0, starveCount: STARVE_CAP });
-    const far = zone(2, { variant: 'full', nearestDist: 90 });
-    expect(plan([huge, far], tight)).toMatchObject({ kind: 'park', slot: 1 });
+  it('serves the rest of the scene around a zone that can never fit', () => {
+    // v1 parked such a zone after STARVE_CAP futile evictions; the target set
+    // simply gives it what fits (a mixed pack or its coarse floor) and never
+    // evicts anyone for a promote that cannot happen
+    const huge = zone(1, { variant: 'coarse', nearestDist: 2, bytesFull: 5000 * MB, bytesNow: 1 * MB });
+    const far = zone(2, { variant: 'full', nearestDist: 90, bytesNow: 2 * MB, lastPromoteT: NOW - 60_000 });
+    const p = planTargets({ ...baseInput([huge, far]), ...tight });
+    expect(p.steps.some((s) => s.kind === 'demote' && s.slot === 2)).toBe(false);
+    const hugeTarget = p.targets.find((t) => t.slot === 1);
+    expect(hugeTarget?.level === 'mixed' || hugeTarget?.level === 'coarse').toBe(true);
   });
 
   it('evicts the victim that frees the MOST bytes, not the lowest-priority one', () => {
@@ -350,11 +362,17 @@ describe('rebalance', () => {
   });
 
   it('will not take a fat victim that is too close in priority', () => {
-    // byte yield must never override the anti-churn margin
+    // byte yield must never override the anti-churn margin — and v2 also
+    // refuses the pointless eviction of the tiny far zone v1 made (0.5 MB
+    // could never fund the 60 MB zone), so nothing moves at all
     const near = zone(1, { variant: 'coarse', nearestDist: 10, bytesFull: 60 * MB, bytesNow: 0 });
     const fatButClose = zone(2, { variant: 'full', nearestDist: 10.1, bytesNow: 40 * MB, lastPromoteT: NOW - 60_000 });
     const tinyFar = zone(3, { variant: 'full', nearestDist: 200, bytesNow: 0.5 * MB, lastPromoteT: NOW - 60_000 });
-    expect(plan([near, fatButClose, tinyFar], tight)).toMatchObject({ kind: 'demote', slot: 3 });
+    const p = planTargets({ ...baseInput([near, fatButClose, tinyFar]), ...tight });
+    expect(p.targets.find((t) => t.slot === 2)?.level).toBe('full');
+    // the only step is the tiny zone's own exit-distance demote (200 m is
+    // beyond the 125 m cut line), never a rebalance for the near zone
+    expect(p.steps).toMatchObject([{ kind: 'demote', slot: 3, reason: 'phase1-beyond-cut-dist' }]);
   });
 
   it('never evicts a zone still inside its post-promote dwell', () => {
@@ -363,15 +381,21 @@ describe('rebalance', () => {
     expect(plan([near, justPromoted], tight).kind).not.toBe('demote');
   });
 
-  it('serves only the top-priority needy zone (no headroom stealing)', () => {
-    // the small far zone WOULD fit, but taking the headroom would starve the
-    // near zone forever — the loop seen at 256 MB in the real session
-    const nearBig = zone(1, { variant: 'coarse', nearestDist: 2, bytesFull: 60 * MB, bytesNow: 0 });
+  it('serves the top-priority needy zone before any lower one (no headroom stealing)', () => {
+    // v1 loop seen at 256 MB: a small far zone kept eating the headroom a
+    // rebalance had just freed for the near zone. The target set fills in
+    // rank order, so the near zone's promote precedes the far one's — and
+    // the far one only gets what is left after it.
+    const nearBig = zone(1, { variant: 'coarse', nearestDist: 2, bytesFull: 60 * MB, bytesNow: 1 * MB });
     const farSmall = zone(2, { variant: 'coarse', nearestDist: 40, bytesFull: 1 * MB, bytesNow: 0 });
-    const victim = zone(3, { variant: 'full', nearestDist: 95 });
-    const a = plan([nearBig, farSmall, victim], tight);
-    expect(a.kind).not.toBe('promote-full');
-    expect(a).toMatchObject({ kind: 'demote', slot: 3, reason: 'rebalance' });
+    const victim = zone(3, { variant: 'full', nearestDist: 95, bytesNow: 30 * MB, lastPromoteT: NOW - 60_000 });
+    const p = planTargets({ ...baseInput([nearBig, farSmall, victim]), budgetMb: 100, used: 89 * MB });
+    const slotOf = (s: PlanAction) => ('slot' in s ? s.slot : -1);
+    const nearIdx = p.steps.findIndex((s) => s.kind.startsWith('promote') && slotOf(s) === 1);
+    const farIdx = p.steps.findIndex((s) => s.kind.startsWith('promote') && slotOf(s) === 2);
+    expect(nearIdx).toBeGreaterThanOrEqual(0);
+    expect(farIdx === -1 || farIdx > nearIdx).toBe(true);
+    expect(p.steps[0]).toMatchObject({ kind: 'demote', slot: 3, reason: 'rebalance' });
   });
 });
 
@@ -424,15 +448,24 @@ describe('mixed re-pack triggers', () => {
 // -----------------------------------------------------------------------------
 
 describe('hidden items', () => {
+  // a stale pack only needs a refresh while the zone STAYS coarse — with room
+  // to promote, the promote replaces the pack anyway (one swap, not two)
+  const stayingCoarse = { budgetMb: 100, used: 95 * MB };
+
   it('refreshes a stale coarse pack in place (never demotes/unloads it)', () => {
     const z = zone(1, { variant: 'coarse', coarseStale: true });
-    expect(plan([z])).toMatchObject({ kind: 'refresh-coarse', slot: 1 });
+    expect(plan([z], stayingCoarse)).toMatchObject({ kind: 'refresh-coarse', slot: 1 });
   });
 
   it('skips the refresh when the drop-hidden rule is off', () => {
     const z = zone(1, { variant: 'coarse', coarseStale: true });
-    const a = plan([z], { cuts: { ...CUTS, dropHidden: false } });
+    const a = plan([z], { ...stayingCoarse, cuts: { ...CUTS, dropHidden: false } });
     expect(a.kind).not.toBe('refresh-coarse');
+  });
+
+  it('promotes a stale coarse zone straight to full when there is room (no refresh first)', () => {
+    const z = zone(1, { variant: 'coarse', coarseStale: true });
+    expect(plan([z])).toMatchObject({ kind: 'promote-full', slot: 1 });
   });
 
   it('gives a fully hidden zone no priority, so it is never promoted', () => {
@@ -446,15 +479,21 @@ describe('hidden items', () => {
 
 describe('floor repair & pressure inversion', () => {
   it('repairs a seen unloaded zone to coarse before sharpening anyone', () => {
-    // existence beats sharpness: the near coarse zone wants full and the
-    // budget is roomy, but the hole gets its coarse first
-    const wantsFull = zone(1, { variant: 'coarse', nearestDist: 2 });
+    // existence beats sharpness: the near coarse zone wants detail and the
+    // hole wants to exist; on a tight budget the hole's coarse is funded
+    // first, and in the step order repairs precede every promote
+    const wantsFull = zone(1, { variant: 'coarse', nearestDist: 2, bytesFull: 60 * MB, bytesNow: 1 * MB });
     const hole = zone(2, { variant: 'unloaded', bytesNow: 0, nearestDist: 30 });
-    expect(plan([wantsFull, hole], { budgetMb: 512, used: 50 * MB })).toMatchObject({
+    expect(plan([wantsFull, hole], { budgetMb: 100, used: 89 * MB })).toMatchObject({
       kind: 'promote-coarse',
       slot: 2,
       reason: 'repair-coarse',
     });
+    const roomy = planTargets({ ...baseInput([wantsFull, hole]), budgetMb: 512, used: 50 * MB });
+    const kinds = roomy.steps.map((s) => s.kind);
+    expect(kinds.indexOf('promote-coarse') === -1 || kinds.indexOf('promote-coarse') < kinds.indexOf('promote-full')).toBe(
+      true,
+    );
   });
 
   it('does not repair a zone without a working coarse variant', () => {
@@ -467,42 +506,52 @@ describe('floor repair & pressure inversion', () => {
   it('funds a repair by stripping a far coarse zone (the 2m-hole deadlock)', () => {
     // the observed deadlock: budget saturated by the coarse floor, zone 2 m
     // from the camera unloaded, a far zone holding bytes — ratio ~1100x
-    const hole = zone(1, { variant: 'unloaded', bytesNow: 0, nearestDist: 2 });
-    const farCoarse = zone(2, { variant: 'coarse', nearestDist: 100, bytesNow: 8 * MB });
-    const a = plan([hole, farCoarse], { budgetMb: 100, used: 90 * MB });
-    expect(a).toMatchObject({ kind: 'demote', slot: 2, reason: 'rebalance' });
+    const hole = zone(1, { variant: 'unloaded', bytesNow: 0, bytesCoarse: 6 * MB, bytesFull: 60 * MB, nearestDist: 2 });
+    const farCoarse = zone(2, { variant: 'coarse', nearestDist: 100, bytesNow: 14 * MB });
+    const a = plan([hole, farCoarse], { budgetMb: 100, used: 96 * MB });
+    expect(a).toMatchObject({ kind: 'demote', slot: 2, to: 'unloaded', reason: 'rebalance' });
     if (a.kind === 'demote') {
       expect(a.detail).toContain('repair');
     }
   });
 
   it('never strips a coarse zone of comparable priority', () => {
-    // ratio guard: 10 m vs 12 m is ~1.4x — same ring, no trade. The hole
-    // stays where it is instead of hopping between near-equal zones.
+    // ratio guard: 10 m vs 12 m is ~1.2x coverage — same ring, no trade. The
+    // hole stays where it is instead of hopping between near-equal zones;
+    // the holder may still re-arrange its OWN bytes.
     const hole = zone(1, { variant: 'unloaded', bytesNow: 0, nearestDist: 10 });
     const nearCoarse = zone(2, { variant: 'coarse', nearestDist: 12, bytesNow: 8 * MB });
-    expect(plan([hole, nearCoarse], { budgetMb: 100, used: 90 * MB }).kind).toBe('none');
+    const p = planTargets({ ...baseInput([hole, nearCoarse]), budgetMb: 100, used: 90 * MB });
+    expect(p.targets.find((t) => t.slot === 1)?.level).toBe('unloaded');
+    expect(p.steps.some((s) => s.kind === 'demote')).toBe(false);
   });
 
   it('migrates a hole outward: repairing near strips the next ring, not nothing', () => {
     // the observed 256 MB mid-band freeze: a 16 m hole vs a 30 m holder is a
-    // ~3.3x ratio — the guard must allow this trade or the hole never heals
-    const hole = zone(1, { variant: 'unloaded', bytesNow: 0, nearestDist: 16 });
+    // ~2.4x coverage ratio — the guard must allow this trade or the hole
+    // never heals. With room under the ceiling the hole simply repairs
+    // (v1 stripped anyway); without it the next ring is stripped for it.
+    const hole = zone(1, { variant: 'unloaded', bytesNow: 0, bytesCoarse: 4 * MB, bytesFull: 60 * MB, nearestDist: 16 });
     const farther = zone(2, { variant: 'coarse', nearestDist: 30, bytesNow: 5 * MB });
-    const a = plan([hole, farther], { budgetMb: 100, used: 90 * MB });
-    expect(a).toMatchObject({ kind: 'demote', slot: 2, reason: 'rebalance' });
+    const roomy = planTargets({ ...baseInput([hole, farther]), budgetMb: 100, used: 90 * MB });
+    expect(roomy.steps.some((s) => s.kind === 'promote-coarse' && s.slot === 1)).toBe(true);
+    expect(roomy.steps.some((s) => s.kind === 'demote')).toBe(false);
+    const saturated = planTargets({ ...baseInput([hole, { ...farther, bytesNow: 14 * MB }]), budgetMb: 100, used: 97 * MB });
+    expect(saturated.steps[0]).toMatchObject({ kind: 'demote', slot: 2, reason: 'rebalance' });
+    expect(saturated.steps[1]).toMatchObject({ kind: 'promote-coarse', slot: 1 });
   });
 
   it('prefers demoting a resident over holing out a coarse zone', () => {
-    // both victims are far below the needy zone; the FULL one is taken even
-    // though the coarse one frees more bytes — depth before holes
+    // both victims are far below the needy zone; the FULL one's detail is
+    // taken first — depth before holes — and since that alone funds the
+    // needy zone's mixed pack, the coarse zone keeps its floor
     const needy = zone(1, { variant: 'coarse', nearestDist: 2, bytesFull: 60 * MB, bytesNow: 0 });
-    const farFull = zone(2, { variant: 'full', nearestDist: 90, bytesNow: 2 * MB, lastPromoteT: NOW - 60_000 });
-    const farCoarse = zone(3, { variant: 'coarse', nearestDist: 95, bytesNow: 8 * MB });
-    expect(plan([needy, farFull, farCoarse], { budgetMb: 100, used: 89 * MB })).toMatchObject({
-      kind: 'demote',
-      slot: 2,
-    });
+    const farFull = zone(2, { variant: 'full', nearestDist: 90, bytesFull: 20 * MB, bytesNow: 20 * MB, lastPromoteT: NOW - 60_000 });
+    const farCoarse = zone(3, { variant: 'coarse', nearestDist: 95, bytesFull: 60 * MB, bytesNow: 8 * MB });
+    const p = planTargets({ ...baseInput([needy, farFull, farCoarse]), budgetMb: 100, used: 89 * MB });
+    expect(p.steps[0]).toMatchObject({ kind: 'demote', slot: 2, to: 'coarse', reason: 'rebalance' });
+    expect(p.targets.find((t) => t.slot === 3)?.level).toBe('coarse');
+    expect(p.targets.find((t) => t.slot === 1)?.level).toBe('mixed');
   });
 
   it('makes a tiny mixed pack for a small zone at a starvation budget', () => {
@@ -577,14 +626,11 @@ describe('convergence', () => {
         z.packLimited = z.bytesFull > a.targetBytes;
         z.lastPromoteT = NOW;
       } else if (a.kind === 'demote') {
-        z.variant = z.variant === 'coarse' ? 'unloaded' : 'coarse';
-        setBytes(z.variant === 'unloaded' ? 0 : 1 * MB);
+        z.variant = a.to;
+        setBytes(z.variant === 'unloaded' ? 0 : z.bytesCoarse);
         z.lastDemoteT = NOW;
-        z.starveCount = 0;
       } else if (a.kind === 'refresh-coarse') {
         z.coarseStale = false;
-      } else if (a.kind === 'park') {
-        z.cooldownUntil = a.untilT;
       }
     }
     return { settled: false, steps, state };
@@ -640,5 +686,115 @@ describe('convergence', () => {
     const r = converge([onRing], { budgetMb: 512, used: 10 * MB });
     expect(r.settled).toBe(true);
     expect(r.steps).toEqual([]);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// target set (v2): one plan per rest, executed as a batch
+// -----------------------------------------------------------------------------
+
+describe('target set', () => {
+  /** Readable step for assertion diffs. */
+  const describeStep = (s: PlanAction) =>
+    `${s.kind}:${'slot' in s ? s.slot : '-'}:${'reason' in s ? s.reason : ''}${'targetBytes' in s ? `:${(s.targetBytes / MB).toFixed(1)}` : ''}`;
+
+  /** Apply a whole plan to a toy scene the way residency.ts commits it. */
+  function applyPlan(zones: ZoneView[], steps: PlanAction[], used: number): { state: ZoneView[]; used: number } {
+    const state = zones.map((z) => ({ ...z }));
+    for (const a of steps) {
+      const z = state.find((s) => s.slot === ('slot' in a ? a.slot : -1));
+      if (!z) {
+        continue;
+      }
+      const setBytes = (b: number) => {
+        used += b - z.bytesNow;
+        z.bytesNow = b;
+      };
+      if (a.kind === 'promote-full' || a.kind === 'restore-full') {
+        z.variant = 'full';
+        setBytes(z.bytesFull);
+        z.lastPromoteT = NOW;
+      } else if (a.kind === 'promote-coarse') {
+        z.variant = 'coarse';
+        setBytes(z.bytesCoarse);
+        z.lastPromoteT = NOW;
+      } else if (a.kind === 'promote-mixed') {
+        z.variant = 'mixed';
+        setBytes(Math.min(z.bytesFull, a.targetBytes + z.bytesCoarse));
+        z.packedEye = [0, 0, 0];
+        z.packedDir = [1, 0, 0];
+        z.packedTarget = a.targetBytes;
+        z.packLimited = z.bytesFull > a.targetBytes;
+        z.lastPromoteT = NOW;
+      } else if (a.kind === 'demote') {
+        z.variant = a.to;
+        setBytes(a.to === 'unloaded' ? 0 : z.bytesCoarse);
+        z.lastDemoteT = NOW;
+      } else if (a.kind === 'refresh-coarse') {
+        z.coarseStale = false;
+      }
+    }
+    return { state, used };
+  }
+
+  const scene = () =>
+    [1, 2, 3, 4, 5, 6].map((i) =>
+      zone(i, { variant: i % 2 ? 'unloaded' : 'full', bytesNow: i % 2 ? 0 : 40 * MB, bytesFull: 40 * MB, nearestDist: i * 10 }),
+    );
+
+  it('touches each zone at most once per plan', () => {
+    const p = planTargets({ ...baseInput(scene()), budgetMb: 128, used: 120 * MB });
+    const slots = p.steps.map((s) => ('slot' in s ? s.slot : -1));
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('orders frees before allocations', () => {
+    const p = planTargets({ ...baseInput(scene()), budgetMb: 128, used: 120 * MB });
+    const kinds = p.steps.map((s) => s.kind);
+    const lastDemote = kinds.lastIndexOf('demote');
+    const firstPromote = kinds.findIndex((k) => k.startsWith('promote'));
+    expect(lastDemote).toBeGreaterThanOrEqual(0);
+    expect(firstPromote).toBeGreaterThan(lastDemote);
+  });
+
+  it('is idempotent: applying the plan and re-planning yields no steps', () => {
+    const input = { ...baseInput(scene()), budgetMb: 128, used: 120 * MB };
+    const p = planTargets(input);
+    expect(p.steps.length).toBeGreaterThan(0);
+    const after = applyPlan(scene(), p.steps, 120 * MB);
+    // dwell pins the moved zones; give them the time to be free again
+    const relaxed = after.state.map((z) => ({ ...z, lastPromoteT: NOW - 60_000, lastDemoteT: NOW - 60_000 }));
+    const p2 = planTargets({ ...input, zones: relaxed, used: after.used });
+    expect(p2.steps.map(describeStep)).toEqual([]);
+    expect(p2.settled).toBe(true);
+  });
+
+  it('subtracts render-target overhead from the model budget', () => {
+    const z = zone(1, { variant: 'unloaded', bytesNow: 0, bytesFull: 100 * MB });
+    // 512 MB budget but 450 MB of it is textures → 62 MB for models
+    const p = planTargets({ ...baseInput([z]), budgetMb: 512, used: 450 * MB });
+    expect(Math.round(p.modelBudget / MB)).toBe(62);
+    expect(p.targets[0].level).not.toBe('full');
+  });
+
+  it('never ping-pongs two zones on a 25 % priority edge', () => {
+    // the v9 measurement: at margin 1.25 the evicted zone became the next
+    // needy one. Two near-equal zones, room for one full pack: after the plan
+    // lands, the second plan must be empty.
+    const a = zone(1, { variant: 'full', nearestDist: 10, bytesNow: 40 * MB, bytesFull: 40 * MB, lastPromoteT: NOW - 60_000 });
+    const b = zone(2, { variant: 'coarse', nearestDist: 9, bytesNow: 1 * MB, bytesFull: 40 * MB });
+    const input = { ...baseInput([a, b]), budgetMb: 60, used: 41 * MB, pacing: { ...FAST, margin: 1.25 } };
+    const p = planTargets(input);
+    const after = applyPlan([a, b], p.steps, 41 * MB);
+    const relaxed = after.state.map((z) => ({ ...z, lastPromoteT: NOW - 60_000, lastDemoteT: NOW - 60_000 }));
+    const p2 = planTargets({ ...input, zones: relaxed, used: after.used });
+    expect(p2.steps).toEqual([]);
+  });
+
+  it('keeps a held floor when nobody new needs the room (over budget by floors alone)', () => {
+    const coarseVisible = zone(1, { variant: 'coarse' });
+    const p = planTargets({ ...baseInput([coarseVisible]), budgetMb: 100, used: 200 * MB });
+    expect(p.targets[0].level).toBe('coarse');
+    expect(p.steps).toEqual([]);
   });
 });

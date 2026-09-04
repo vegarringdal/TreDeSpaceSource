@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { DEFAULT_VRAM_BUDGET_MB, migrateVramBudget } from './vramBudget';
 
 /**
  * Everything the WebGPU viewer renders with — mirrors Renderer.options plus
@@ -106,9 +107,12 @@ export interface ViewerState {
   aaSamples: number;
   /** Render-loop FPS cap (frames per second). */
   fpsLimit: number;
-  /** VRAM budget in MB (0 = off). Over budget, the residency manager demotes
-   *  far models to their coarse variant (or unloads legacy assets) while the
-   *  camera is idle; under budget it promotes them back. */
+  /** The VRAM budget's switch (off by default: everything loads at full
+   *  detail, nothing swaps). Readers take the budget through `vramBudgetMb`. */
+  vramBudgetOn: boolean;
+  /** The budget's ceiling in MB while `vramBudgetOn`. Over it, the residency
+   *  manager demotes far models to their coarse variant (or unloads legacy
+   *  assets) while the camera is idle; under it, it promotes them back. */
   maxVramMb: number;
   /** How aggressively the VRAM budget swaps: pacing preset for idle delay,
    *  swap rate, and re-swap cooldowns. */
@@ -127,6 +131,10 @@ export interface ViewerState {
   /** Small top-right viewport chip showing what the VRAM budget is doing
    *  (optimizing / settled / waiting) while a budget is active. */
   vramActivityHud: boolean;
+  /** While a swap burst is landing, render single-sample frames (no TAA
+   *  history, no AO) and converge once at the end — instead of converging a
+   *  picture every commit throws away. Aliased edges for the burst's seconds. */
+  vramHoldAccum: boolean;
   /** First-load view frames the v8 percentile dense bounds (not the full AABB). */
   fitDense: boolean;
   /** On-screen move joystick in the viewport corner (tablet use). */
@@ -216,13 +224,17 @@ export const initialViewerState: ViewerState = {
   hasTransparency: false,
   aaSamples: 32,
   fpsLimit: 30,
-  maxVramMb: 0,
-  vramSwapSpeed: 'normal',
+  vramBudgetOn: false,
+  maxVramMb: DEFAULT_VRAM_BUDGET_MB,
+  vramSwapSpeed: 'fast', // shortest idle wait — the budget is only on when it is needed
   vramDebugBoxes: false,
   vramCutSizeM: 0.5,
   vramCutDistM: 200,
   vramDropHidden: true,
   vramActivityHud: true,
+  // on: a budget is only ever set on GPUs where a 32-sample re-convergence
+  // per commit is the expensive part of "optimizing"
+  vramHoldAccum: true,
   fitDense: true,
   touchPads: false,
   joystickX: 10, // left side, vertically centred by default
@@ -253,7 +265,7 @@ function loadViewer(): ViewerState {
       // sketch=true on an empty scene is just a confusing white screen)
       return {
         ...initialViewerState,
-        ...(JSON.parse(raw) as Partial<ViewerState>),
+        ...(migrateVramBudget(JSON.parse(raw)) as Partial<ViewerState>),
         orthographic: false,
         sketch: false,
       };

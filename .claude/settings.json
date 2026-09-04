@@ -75,7 +75,8 @@
       "Bash(jq *)",
       "Bash(tsc *)",
       "Bash(biome *)",
-      "Bash(vite *)"
+      "Bash(vite *)",
+      "Bash(grep -n \"defaultKeys: \\\\`\\\\|code:\" src/hotkeys/bindings.ts)"
     ],
     "deny": [
       "Bash(git push*)",
@@ -101,7 +102,18 @@
   "sandbox": {
     "enabled": true,
     "filesystem": {
-      "denyRead": ["/"],
+      "allowWrite": [
+        ".",
+        "~/.cargo/registry",
+        "~/.cargo/git",
+        "/tmp"
+      ],
+      "denyWrite": [
+        "/"
+      ],
+      "denyRead": [
+        "/"
+      ],
       "allowRead": [
         ".",
         "~/.cargo",
@@ -125,9 +137,7 @@
         "/dev",
         "/tmp",
         "/run"
-      ],
-      "denyWrite": ["/"],
-      "allowWrite": [".", "~/.cargo/registry", "~/.cargo/git", "/tmp"]
+      ]
     }
   }
 }

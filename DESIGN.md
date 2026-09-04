@@ -238,6 +238,8 @@ project's cooked models *and* its databases (shared `stores.json`).
   exact scan of the ATTACH string literals (`sqlAttach.ts`, comment-stripped
   first) decides which files get Web-Locked before a run — `shared` = several
   read-only readers, `exclusive` = writes. Results go to the Console panel.
+  The editor is a report draft (name, types, filters) — see "SQL Editor
+  draft & SQL Table export" below.
 
 ### Packed SQL results (coloring / selection)
 
@@ -262,6 +264,38 @@ retains the result for repeated apply. Table / API results stay row arrays,
 capped INSIDE the worker (`Statement.maxRows`, true total in `rowCounts`).
 Follow-up if decode time ever matters: key the global name index by a 64-bit
 hash (the snapshot `hashIndex` already uses fnv1a64) and ship 12 B/row.
+
+### SQL Editor draft & SQL Table export (2026-09-04)
+
+The SQL Editor holds a **report draft** (`draft: ReportDef` in
+`sqlEditor.state.ts`): name, description, output types and filters, exactly
+the SQL Reports editor's fields (shared `ReportMetaFields` /
+`ReportTypeToggles` / `ReportFiltersEditor`). The six action buttons run the
+draft WITH its filters, and Run seeds FILTER_ARGS too (`filterArgsStatements`).
+Decisions:
+
+- **No Save / Cancel / Delete in the editor.** Persistence is the host's:
+  `sql.editor.get` returns the draft and `sql.editor` takes the same fields
+  back (`title` = the report name — `name` already titles an appended block).
+  **Save Local** adds the draft to SQL Reports as a NEW report in the Main
+  db's store (the db decides the store; disabled without one); **Set editor**
+  in the reports editor is the reverse, after a confirm. Clear keeps the
+  Main db.
+- **Types gate the buttons** (COLORING off dims the four color buttons, TABLE
+  As Table, DETAIL As Detail — hotkeys included), listed COLORING, TABLE,
+  DETAIL to match the button rows.
+- **SQL Table export is dependency-free**: `src/lib/xlsx.ts` writes one sheet
+  (inline strings, typed numbers/booleans, frozen header) into the STORED
+  zip of `src/lib/zip.ts`; no npm dep, so no notices churn. A deflated
+  container (`CompressionStream('deflate-raw')`) is the follow-up if 250k-row
+  files prove too large. Clipboard copy is TSV with a header row.
+- **"All" means as shown** — column filters and sort applied; "selected"
+  keeps the shown order. The corner cell toggles every row shown, so a
+  filtered view selects only its rows. Hotkeys Alt&652–661 belong to this
+  work (table 652–657, editor 658–660, reports 661).
+- Validation of the `sql.editor` payload lives in a pure module
+  (`sqlEditorPayload.ts`) returning `{ error }` — vitest has no
+  `@treDeSpaceUI` alias, so a test cannot import `protocol.ts`.
 
 ## postMessage host API
 
@@ -418,17 +452,21 @@ download/storage format if network size ever matters (bake it out at cook
 time), noting the baked-out result inherits the per-primitive item
 granularity and its worse meshlet fill.
 
-## VRAM budget & residency — LIVE (v1, 2026-08)
+## VRAM budget & residency — LIVE (v2, 2026-09)
 
-The distance-based load/unload lever — built
-2026-08-04 (web180), director-verified in-app 2026-08-07. Both geometry-side
-tricks had failed on this data (meshlet LOD+streaming made VRAM worse;
-instancing broke even — see the experiment sections above), so paging whole
-zones in and out at the asset level is the lever that shipped.
+The distance-based load/unload lever — v1 built 2026-08-04 (web180),
+director-verified in-app 2026-08-07; v2 (target-set planner, batched and
+quiet commits, burst hold) landed 2026-09-03 — its plan file is folded into
+this section. Both
+geometry-side tricks had failed on this data (meshlet LOD+streaming made VRAM
+worse; instancing broke even — see the experiment sections above), so paging
+whole zones in and out at the asset level is the lever that shipped.
 
-**What it is.** Settings → Rendering → VRAM budget: `maxVramMb` (0 = off,
-default — everything loads full detail exactly like before). With a budget
-set, a residency manager keeps tracked VRAM under it by holding far zones as
+**What it is.** Settings → Rendering → VRAM budget: an **Enabled** switch
+(`vramBudgetOn`, off by default — everything loads full detail exactly like
+before) and a ceiling `maxVramMb` (default 2048 MB; readers take the pair
+through `vramBudgetMb`, 0 while off). With the budget enabled, a residency
+manager keeps tracked VRAM under it by holding far zones as
 a **coarse variant** and promoting near zones to full detail, swapping
 **only while the camera is idle**. Loads are coarse-first under a budget, so
 the ceiling is never overshot at load time.
@@ -458,14 +496,46 @@ headroom.
   `.coarse.tdp` is a locally derived cache), and coarse settings can change
   without a format bump. Structure parity is enforced by
   `coarsen_tdp_matches_glb_coarse_structure` in cooker-core's golden test.
-- **Residency manager** (`src/state/viewer/residency.ts`): main-thread
-  bookkeeping + side effects; one swap in flight; per-zone visible-bounds /
-  nearest-visible-item tracking so hidden items don't inflate priorities.
-- **Pure planner** (`src/state/viewer/residency.plan.ts`): the whole
-  full/mixed/coarse/unloaded state machine as a pure function (snapshot in,
-  single action out) — unit-tested in `tests/residency.plan.test.ts`.
-  Priority ≈ projected screen coverage with hysteresis, promotion gated on a
-  continuous on-screen streak, clip-culled zones demote immediately.
+- **Residency manager** (`src/state/viewer/residency.ts`, records and
+  pacing in `residency.record.ts`, the swap path in `residency.commit.ts`):
+  main-thread bookkeeping + side effects. Every swap is an async PREPARE
+  (OPFS read, worker repack, item-state fetch) and a synchronous COMMIT;
+  prepared swaps commit in one batch per tick (frees before allocations), so
+  N swaps cost one re-render, and the slot is rebuilt with its states in
+  hand — no frame ever renders a zero-initialised state buffer. A demote of
+  a zone whose draw count is 0 (counts maintained, read after the camera
+  stopped and after the last loud commit, pack not deficient) commits
+  QUIETLY: no re-render, no accumulation reset. With "Pause AO / TAA while
+  optimizing" (default on) the renderer's `holdAccumulation` is set for the
+  burst — single-sample frames, no AO — and one convergence follows it. The
+  per-zone visible-bounds / nearest-visible-item worker round trip is
+  trigger-based (eye moved 2 m or turned, an item state changed outside
+  residency, a zone registered, 10 s safety when idle) — an idle camera
+  during a burst issues none. `maxInFlight` is 2 / 4 / 6 per pacing preset;
+  the worker is single-threaded, so it groups commits rather than speeding
+  parses.
+- **Pure planner** (`src/state/viewer/residency.plan.ts`): `planTargets`
+  computes the TARGET level of every zone once per camera rest and the
+  ordered steps that reach it (refreshes, unloads, coarse demotes, shrinks,
+  repairs, promotes, mixed re-packs) — unit-tested in
+  `tests/residency.plan.test.ts` (74 cases, incl. idempotence, "each zone
+  at most once", and a ping-pong regression built from the v9 measurement).
+  Priority = projected coverage `(R / (R + d))²` — R the half diagonal of the
+  sigma-clipped dense box, d the nearest-visible-item distance — times the
+  off-screen factor after a grace period, so zone size counts and one
+  parked item cannot inflate it. The fill runs floors (coarse) first, then
+  detail, in rank order; the anti-churn `margin` and `COARSE_STRIP_RATIO`
+  are rank BONUSES for residents and holders, and a needy zone reclaims a
+  lower zone's bytes only when that reaches a better level for it —
+  residents' detail before coarse floors ("depth before holes"), never a
+  pointless eviction (v1's `park` cap is gone). Promotion gated on a
+  continuous on-screen streak, clip-culled zones demote immediately, a
+  mixed zone never rises to full (a saturated pack already holds every
+  in-view item sharp). `planResidency` remains as the first-step view. A
+  measured occlusion factor (`drawnPerModel / meshletCount`) was considered
+  and NOT shipped: the seen-decay already covers a fully occluded zone, and
+  a term that moves with the 2 Hz readback is the one input that could
+  reopen the ping-pong.
 - **Mixed packs** (tier 2.5, no format change): `packModelMixed` (pack.ts) /
   `repackModelMixed` (modeldb worker) fill the nearest in-frustum items from
   the FULL parse up to byte headroom, remainder from the COARSE parse — one
@@ -480,14 +550,26 @@ headroom.
   (`ResidencyBoxOverlay.ts` — green full, purple mixed, orange coarse, red
   unloaded, blue swapping), copyable per-zone event log with reasons.
 
-**Accepted costs** (documented in the plan): pop on swap (hidden by the idle
-gate), one frame of over-draw per swapped zone (occlusion vis[] reset), and
-coarse-resident zones degrade GPU-readback features — export, measurement
-snap and picking see coarse geometry. Assets imported before coarse variants
-existed have no coarse file and fall back to full unload when demoted.
+**Accepted costs**: pop on swap (hidden by the idle gate), one re-render and
+accumulation restart per COMMIT BATCH (none for a quiet commit; with the
+burst hold, single-sample frames until the burst ends), and coarse-resident
+zones degrade the GPU-readback features that read the LIVE slot —
+measurement snap and picking see coarse geometry (exports do not; they read
+the full cook from disk). A revived slot's visibility buffer starts at 0, so its
+first frame is discovered by cull pass 2 against the other zones' HZB (its
+own occluders are not in the pyramid yet — over-draw only, never under-draw,
+and ≤ what the old all-1 seed drew in pass 1). Render targets count against
+the ceiling (Stats shows `models + targets/other`); a hi-res screenshot
+pauses swaps so its transient 4K targets never evict geometry. Assets
+imported before coarse variants existed have no coarse file and fall back to
+full unload when demoted.
 
-**Not done in v1 / future**: TS coarse pass for standard GLBs, and an
-export-from-coarse fallback (re-read the full `.tdp` from OPFS).
+**Not done / future**: TS coarse pass for standard GLBs. The
+export-from-coarse fallback shipped 2026-09-03: GLB / IFC / TDP export reads
+the full `.tdp` from OPFS for every zone the budget holds coarse, mixed or
+unloaded (parsed and packed in the modeldb worker, `FileGeom` in
+`apiExport.ts`), unloaded zones included, with the manager paused for the
+export's duration — an export never inherits the budget's cuts.
 Cross-item-meshlet v9 was REJECTED (director ruling 2026-08-04).
 
 **Range-based swaps ("v9-RANGES") — measured and dropped (2026-08-06).** The
@@ -505,6 +587,43 @@ prerequisite for **fly-streaming** (continuous repacking while the camera
 flies, where whole-group decode ≈ 21 ms/zone would become the wall); reviving
 that means per-cell compressed slices in cooker + parser plus one re-import.
 Re-measure the "% busy" line before believing any of this has changed.
+
+**v2 — what the "97 % idle" hid (2026-09-03).** Idle for the worker was not
+idle for the GPU: every v1 swap reset `lastKey`, restarting the 32-sample
+TAA/AO accumulation, so the 32.7 s convergence rendered on the order of
+1000 full-scene frames for a camera that never moved (and every swap flashed
+hidden items for a frame, the states landing one task after the revive).
+v2 attacks both the count and the cost of swaps: the target-set planner
+moves each zone at most once per rest, commits land in batches (one restart
+per batch), off-screen demotes commit quietly (no restart), and the burst
+hold makes the remaining frames single-sample. The SETTLED line now carries
+the evidence — `N commits (Q quiet) · F frames (S scene, R accum resets,
+H held) · gpu Σ` — so the numbers above are to be re-measured with it before
+being quoted again.
+
+**Measurement protocol (v2 numbers still pending).** Kept from the v2 plan
+so a re-measure stays comparable. The baseline must come from a PRE-v2
+build (an older commit), read off the v1 SETTLED line — the v2 counters do
+not exist there. Fixed conditions: same model set, page reload
+(coarse-first load), budget 512 MB, normal pacing, `aaSamples` 32,
+`fpsLimit` 30, GPU timings on; do not touch the camera until SETTLED, then
+Copy event log. Three runs, compare medians; record per run: wall, swaps,
+MB, % busy, frames, scene frames, accumulation resets, gpu Σ s, commits,
+quiet commits, visibility refreshes. Scenario 2: orbit 90° and stop, wait
+for SETTLED — swaps and repeated slots (≤ 1 per zone). Scenario 3: hide half
+of a visible zone, unhide it — refreshes and swaps. Visual pass with the
+residency boxes: a quiet demote shows no change, and the vis = 0 seed gives
+an identical first frame (`drawn p1 / p2` in Stats).
+
+**Shipped differently from the v2 plan** (plan file removed 2026-09-04):
+the occlusion factor was not shipped (above); the burst hold defaults ON
+rather than opt-in; a stale coarse pack that is about to be promoted is
+promoted directly instead of refreshed first (one swap, not two). Guards to
+respect when touching the commit path: a quiet commit needs a fresh draw
+count and never applies to a promote; a flush frees before it
+allocates; `pause()` lets in-flight prepares commit on resume; a failed demote invalidates the plan instead
+of stalling a waiting promote; the coarse-first `bytesFull` is a file-ratio
+guess, so one over-budget correction, bounded by dwell, is expected.
 
 ## Other TODO / future
 - **E57 laser-scan point clouds — PARKED** (`plans/E57_POINTS.md`, design capture

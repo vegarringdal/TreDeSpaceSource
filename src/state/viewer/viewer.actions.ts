@@ -58,7 +58,9 @@ async function navSelect() {
  * variant whose cooker cut the tiny items — residency needs it to judge
  * "seen"), or null when skipped (duplicate) or failed. A tombstoned slot for
  * the same folder+name is revived IN PLACE — same slot, same item-id range —
- * so selections, hide state, and colors survive an unload → load cycle. */
+ * so item ids and residency bookkeeping stay aligned. An explicit unload has
+ * reset the slot's per-item state, so the reload comes back clean; only a
+ * residency swap keeps colors / hide state across the revive. */
 export async function loadModelBytes(
   name: string,
   bytes: ArrayBuffer,
@@ -271,7 +273,9 @@ export const viewerActions = {
   },
 
   /** Hierarchy → Remove: unload specific model files. Worker + renderer keep
-   *  the slots (tombstoned) so remaining model indices stay aligned. */
+   *  the slots (tombstoned) so remaining model indices stay aligned; the
+   *  per-item state (colors, hidden, transforms) is reset, so a later load of
+   *  the same file starts clean. */
   async removeModels(indices: number[], label?: string) {
     if (!renderer || indices.length === 0) {
       return;
@@ -292,6 +296,7 @@ export const viewerActions = {
     residency.unregister(indices);
     renderer.removeModels(indices);
     await db.removeModels(indices);
+    await db.resetItemStates(indices);
     applyStateUpdates(await db.clearSelection());
     selectionState.set({ count: 0, active: null, actives: [], activeGroup: null, activeGroups: [], reveal: null });
     selectionState.set((p) => ({ modelsVersion: p.modelsVersion + 1 }));

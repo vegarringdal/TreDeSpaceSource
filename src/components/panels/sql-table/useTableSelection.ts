@@ -1,15 +1,20 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type TableSelection = Readonly<{
   selected: Set<number>;
+  /** Every row in the current view is selected (false for an empty view). */
+  allSelected: boolean;
   clickRow: (viewPos: number, e: ReactMouseEvent) => void;
+  /** Select every row in the current view — or clear, when all of them already are. */
+  toggleAll: () => void;
 }>;
 
 /** Row-number selection keyed by ORIGINAL row indices — stable across
  *  sort/filter. Plain click = select one, Ctrl = toggle, Shift = range over
- *  the current VIEW order (Ctrl+Shift keeps the existing selection). Clears
- *  when a new result arrives. */
+ *  the current VIEW order (Ctrl+Shift keeps the existing selection). The
+ *  header corner / hotkey toggles every row SHOWN, so a filtered view selects
+ *  only its rows. Clears when a new result arrives. */
 export function useTableSelection(columns: string[], viewIdx: number[]): TableSelection {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const anchor = useRef<number | null>(null); // view position of the last non-shift click
@@ -20,6 +25,8 @@ export function useTableSelection(columns: string[], viewIdx: number[]): TableSe
     setSelected(new Set());
     anchor.current = null;
   }, [columns]);
+
+  const allSelected = useMemo(() => viewIdx.length > 0 && viewIdx.every((ri) => selected.has(ri)), [selected, viewIdx]);
 
   const clickRow = (viewPos: number, e: ReactMouseEvent): void => {
     const ctrl = e.ctrlKey || e.metaKey;
@@ -48,5 +55,10 @@ export function useTableSelection(columns: string[], viewIdx: number[]): TableSe
     anchor.current = viewPos;
   };
 
-  return { selected, clickRow };
+  const toggleAll = (): void => {
+    setSelected(allSelected ? new Set() : new Set(viewIdx));
+    anchor.current = null;
+  };
+
+  return { selected, allSelected, clickRow, toggleAll };
 }

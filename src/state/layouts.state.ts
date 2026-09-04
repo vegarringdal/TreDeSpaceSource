@@ -82,7 +82,7 @@ const defaultSlots = (): LayoutSlot[] => {
   // F11: the SQL workspace (reports | editor | viewport+table+console | detail)
   slots[10] = { name: 'SQL Editor', layout: sqlWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
   // F12: the asset-management workspace
-  // (Model Assets | SQL Assets | viewport+console | Import Manager)
+  // (Model Assets over SQL Assets | viewport+console | Import Manager | Export)
   slots[11] = { name: 'Assets', layout: assetsWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
   return slots;
 };

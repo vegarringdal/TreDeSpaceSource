@@ -29,6 +29,9 @@ export class GpuTimings {
   enabled = false;
   /** smoothed per-pass ms from the last resolved frame, insertion-ordered */
   times: { label: string; ms: number }[] = [];
+  /** Running sum of RAW (unsmoothed) per-frame GPU ms over every resolved
+   *  frame — the residency manager diffs it across a swap burst. */
+  totalMs = 0;
 
   private device: GPUDevice | null = null;
   private querySet: GPUQuerySet | null = null;
@@ -105,6 +108,7 @@ export class GpuTimings {
         .then(() => {
           const q = new BigUint64Array(this.readBuf!.getMappedRange().slice(0));
           this.readBuf!.unmap();
+          let frameMs = 0;
           this.times = TS_PASSES.map((label, i) => {
             const begin = q[i * 2];
             const end = q[i * 2 + 1];
@@ -114,8 +118,10 @@ export class GpuTimings {
             // implausible sample (garbage begin timestamp) → hold the previous
             // smoothed value rather than poisoning it
             const ms = delta < TS_MAX_SANE_MS ? delta : (prev ?? 0);
+            frameMs += ms;
             return { label, ms: (prev ?? ms) * 0.8 + ms * 0.2 };
           });
+          this.totalMs += frameMs;
         })
         .catch(() => undefined)
         .finally(() => {

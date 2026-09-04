@@ -91,4 +91,18 @@ export interface TreeNode {
 
 export type StateUpdate = { model: number; states: Uint32Array };
 
+/** Put every item of a model back to its load-time state: no flags (hidden,
+ *  selected, color / opacity override, item edges off), the color group's
+ *  color, the identity transform, nothing selected. Bumps `stateVersion` so
+ *  the tree's hidden / selected aggregates recompute. */
+export function resetItemStates(m: DbModel): void {
+  m.states.fill(0);
+  for (let i = 0; i < m.itemCount; i++) {
+    m.states[i * 2 + 1] = m.baseColor[i];
+  }
+  m.tidx.fill(0);
+  m.selected = new Uint32Array(0);
+  m.stateVersion = (m.stateVersion ?? 0) + 1;
+}
+
 export const models: DbModel[] = [];

@@ -3,6 +3,7 @@ import { labelsActions } from '../../../state/viewer/labels.actions';
 import { labelsState, type SceneLabel } from '../../../state/viewer/labels.state';
 import { measurementsActions } from '../../../state/viewer/measurements.actions';
 import { measurementsState } from '../../../state/viewer/measurements.state';
+import { residency } from '../../../state/viewer/residency';
 import { getRenderer, viewerActions } from '../../../state/viewer/viewer.actions';
 import { viewerState } from '../../../state/viewer/viewer.state';
 import { viewpointsActions } from '../../../state/viewer/viewpoints.actions';
@@ -137,7 +138,15 @@ export const ribbonHomeActions = {
     if (!r?.canvasEl) {
       return null;
     }
-    const shot = await r.snapshotHiRes();
+    // the 4K capture reallocates every render target for its duration; that
+    // transient must not read as budget pressure and evict geometry
+    residency.pause();
+    let shot: Awaited<ReturnType<typeof r.snapshotHiRes>>;
+    try {
+      shot = await r.snapshotHiRes();
+    } finally {
+      residency.resume();
+    }
     const canvas = document.createElement('canvas');
     canvas.width = shot.w;
     canvas.height = shot.h;

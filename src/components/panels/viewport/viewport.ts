@@ -38,6 +38,7 @@ import { selectionState } from '../../../state/viewer/selection.state';
 import { collectStats, formatOverlay } from '../../../state/viewer/statsRows';
 import { registerRenderer, viewerActions } from '../../../state/viewer/viewer.actions';
 import { viewerState } from '../../../state/viewer/viewer.state';
+import { vramBudgetMb } from '../../../state/viewer/vramBudget';
 import { consoleActions } from '../console/console.actions';
 import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonClippingPlaneActions } from '../ribbon-clipping-plane/ribbonClippingPlane.actions';
@@ -791,7 +792,7 @@ export const viewport: PanelDefinition = {
         const cubeQ = cameraQuat(renderer.camera.forward());
         renderer.setViewCube(gizmo ? gizmo.getRect() : null, cubeHoverId(), cubeQ);
         renderer.frame(canvas);
-        residency.tick(renderer, now); // VRAM budget (no-op when maxVramMb = 0)
+        residency.tick(renderer, now); // VRAM budget (no-op while disabled)
         gizmo?.update(cubeQ);
         clipGizmo?.update();
         measureOverlay?.update();
@@ -817,14 +818,14 @@ export const viewport: PanelDefinition = {
         let vColor = '#adb5bd';
         if (st.vramActivityHud) {
           const act = residency.activity();
-          if (st.maxVramMb === 0) {
+          if (vramBudgetMb(st) === 0) {
             // budget off: only surface the restore-to-full pass while it runs
             if (act.inFlight > 0) {
               vText = '⟳ restoring full detail';
               vColor = '#4dabf7';
             }
           } else {
-            const pct = Math.round(((renderer.vramBuffers + renderer.vramTextures) / 1048576 / st.maxVramMb) * 100);
+            const pct = Math.round(((renderer.vramBuffers + renderer.vramTextures) / 1048576 / vramBudgetMb(st)) * 100);
             if (act.inFlight > 0) {
               vText = `⟳ optimizing — vram ${pct}%`;
               vColor = '#4dabf7';

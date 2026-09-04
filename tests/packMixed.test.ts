@@ -5,7 +5,15 @@
 // right vertices.
 import { describe, expect, it } from 'vitest';
 import type { ColorGroup, ParsedModel } from '../src/lib/model/format';
-import { healItemBounds, INFO_STRIDE_WORDS, ITEM_DROP, packModelMixed } from '../src/lib/model/pack';
+import {
+  estimateItemFullBytes,
+  hasAuthoredNormals,
+  healItemBounds,
+  INFO_STRIDE_WORDS,
+  ITEM_DROP,
+  MESHLET_RECORD_BYTES,
+  packModelMixed,
+} from '../src/lib/model/pack';
 
 // -----------------------------------------------------------------------------
 // synthetic ParsedModel: N items in one color group, `meshletsPerItem` each,
@@ -208,5 +216,42 @@ describe('healItemBounds', () => {
     for (let i = 0; i < items * 6; i++) {
       expect(Number.isFinite(stored[i])).toBe(true);
     }
+  });
+});
+
+// -----------------------------------------------------------------------------
+// per-item byte estimate — what the mixed pack's greedy fill budgets with
+// -----------------------------------------------------------------------------
+
+describe('estimateItemFullBytes', () => {
+  const ITEMS = 3;
+  const PER_ITEM = 2;
+  const VERTS = 3; // makeParsed: 3 vertices + 1 triangle per meshlet
+
+  it('sums positions, indices and the per-meshlet record for each item', () => {
+    const full = makeParsed(ITEMS, PER_ITEM, FULL_TAG);
+    const est = estimateItemFullBytes(full, false);
+    const perItem = PER_ITEM * (VERTS * 8 + 1 * 6 + MESHLET_RECORD_BYTES);
+    expect([...est]).toEqual([perItem, perItem, perItem]);
+  });
+
+  it('adds the 4 B/vertex normal stream only for smooth-shaded models', () => {
+    const full = makeParsed(ITEMS, PER_ITEM, FULL_TAG);
+    const flat = estimateItemFullBytes(full, false);
+    const smooth = estimateItemFullBytes(full, true);
+    expect(smooth[0] - flat[0]).toBe(PER_ITEM * VERTS * 4);
+  });
+
+  it('reports authored normals only when every source color group has them', () => {
+    const full = makeParsed(ITEMS, PER_ITEM, FULL_TAG);
+    const coarse = makeParsed(ITEMS, PER_ITEM, COARSE_TAG);
+    expect(hasAuthoredNormals(full, coarse)).toBe(false);
+    const withNormals = (p: ReturnType<typeof makeParsed>) => ({
+      ...p,
+      colorGroups: p.colorGroups.map((cg) => ({ ...cg, normals: new Uint8Array(1) })),
+    });
+    expect(hasAuthoredNormals(withNormals(full), withNormals(coarse))).toBe(true);
+    expect(hasAuthoredNormals(withNormals(full), coarse)).toBe(false);
+    expect(hasAuthoredNormals(withNormals(full), null)).toBe(true);
   });
 });

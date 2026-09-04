@@ -12,6 +12,7 @@ import { type SqlImportProgress, sqlAssetsActions } from '../../state/sqlAssets/
 import { sqlAssetsState } from '../../state/sqlAssets/sqlAssets.state';
 import { sqlEditorActions } from '../../state/sqlAssets/sqlEditor.actions';
 import { sqlEditorState } from '../../state/sqlAssets/sqlEditor.state';
+import { withDatabases } from '../../state/sqlReports/reportDraft';
 import { type SqlRunOpts, sqlReportsActions } from '../../state/sqlReports/sqlReports.actions';
 import type { ReportDef, ReportFilter } from '../../state/sqlReports/sqlReports.state';
 import { sqliteClient, sqlOptions } from '../sqlite/client';
@@ -20,6 +21,7 @@ import type { Statement } from '../sqlite/types';
 import { parseColorMode } from './colorMode';
 import { fileNameFromUrl } from './handlersAssets';
 import { ApiError, type ApiHandler, isRecord, records, requireStoreOpt, strings } from './protocol';
+import { editorDraftPayload, parseEditorDraft } from './sqlEditorPayload';
 import { emitApiEvent } from './transport';
 
 /** Progress plumbing shared by `sql.import` and `sql.importUrl`: a host that
@@ -451,11 +453,17 @@ export const sqlHandlers: Record<string, ApiHandler> = {
 
   // Put SQL into the SQL Editor panel — for a host that wants the USER to see,
   // tweak and run a query rather than running it headless. `store` +
-  // `fileName` (or a `mainDb` path) also point the editor at a database.
+  // `fileName` (or a `mainDb` path) also point the editor at a database, and
+  // `title` / `description` / `types` / `filters` fill the draft's report
+  // fields (the shape `sql.editor.get` hands out, so a stored draft restores).
   'sql.editor': async ({ p }) => {
     const sql = typeof p.sql === 'string' ? p.sql : '';
     if (!sql.trim()) {
       throw new ApiError('bad-payload', 'sql is required');
+    }
+    const draft = parseEditorDraft(p);
+    if (draft.error) {
+      throw new ApiError('bad-payload', draft.error);
     }
     const mainDb = await editorMainDb(p);
     if (mainDb !== undefined) {
@@ -464,11 +472,19 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     const replace = p.replace !== false;
     const name = typeof p.name === 'string' ? p.name : undefined;
     const text = sqlEditorActions.setEditorSql(sql, { replace, ...(name === undefined ? {} : { name }) });
+    if (draft.patch && Object.keys(draft.patch).length) {
+      sqlEditorActions.patch(draft.patch);
+    }
     if (p.show !== false) {
       openSqlEditorPanel();
     }
-    return { replaced: replace, mainDb: sqlEditorState.get().mainDbPath, chars: text.length };
+    return { replaced: replace, mainDb: sqlEditorState.get().draft.db, chars: text.length };
   },
+
+  // Read the SQL Editor's draft — title, description, main db, types, SQL and
+  // filters, plus the databases a run would lock — in the shape `sql.editor`
+  // takes back, so a host can store it (the editor has no Save) and restore it.
+  'sql.editor.get': () => editorDraftPayload(withDatabases(sqlEditorState.get().draft)),
 
   // Bind a query to a SQL Detail panel: every hierarchy click runs it against
   // the clicked node (write it against TREE_VIEW_ARGS). A `name` gives the

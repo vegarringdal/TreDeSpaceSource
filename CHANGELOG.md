@@ -4,6 +4,140 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.84):
+  SQL Table gets a right-click menu — **Export to Excel** and **Copy to
+  clipboard**, each for all rows or the selected rows, always AS SHOWN
+  (column filters and sort applied; selected rows in that order). The .xlsx
+  comes from a dependency-free writer (`src/lib/xlsx.ts` over the STORED zip
+  in `src/lib/zip.ts`): one sheet named after the report, a frozen header
+  row, numbers and booleans typed, text inline. The clipboard gets
+  tab-separated text with a header row, a cell quoted only when it holds a
+  tab, newline or quote, so a paste lands one value per cell. Both are
+  hotkeys too (Alt&654–657) and reach the grid through a panel slot — as does
+  `sql.table.loadAll` (Alt&653), which the Load all button referenced but
+  never had. The corner cell above the row numbers selects every row shown
+  (a filtered view selects only its rows) and clears when all of them
+  already are (Alt&652; a check / minus / empty square shows the state).
+  Light theme: the selected row numbers were `text-blue-200`, which the light
+  palette does not remap, on the remapped `bg-blue-950` — invisible. They use
+  `blue-100` like every other selected surface now; the unselected numbers,
+  the "N selected" counter, `null` cells and the filter placeholders went one
+  step darker too.
+  The SQL Editor is a report draft: name, description, output types and
+  filters — the same fields and filter rows as the SQL Reports editor, lifted
+  into shared `ReportMetaFields` / `ReportTypeToggles` / `ReportFiltersEditor`
+  components — around the SQL, the Run row and the action buttons. No Save /
+  Cancel / Delete; a **Clear** button (Alt&658) empties it after a confirm and
+  keeps the Main db. The draft lives in the editor state (`draft: ReportDef`
+  replaces `mainDbPath` + `sql`), so the six action buttons run it WITH its
+  filters — FILTER_ARGS was always empty from the editor before — and Run
+  seeds FILTER_ARGS as well (next to TREE_VIEW_ARGS), so a script reads its
+  filters either way. Add filter has a hotkey (Alt&659); the panel scrolls and
+  the SQL box is drag-resizable instead of filling the panel.
+  Host API: `sql.editor.get` reads the draft — `title` (the report name;
+  `name` on `sql.editor` already titles an appended block), `description`,
+  `mainDb`, `types`, `sql`, `filters` in the saved-report shape, and the
+  `databases` a run locks — and `sql.editor` accepts the same `title` /
+  `description` / `types` / `filters` back, validated before anything
+  changes, so a host can store a draft (the editor has no Save) and restore
+  it whole. SDK: `sqlEditorGet()`, `sqlEditor()` widened; EVENTS.md has both.
+  SQL Editor action buttons in two rows: Color White, Color Transparent,
+  Color Hidden, Color Set, then As Table and As Detail beneath — and the
+  draft's Types gate them: COLORING unchecked disables the four color
+  buttons, TABLE disables As Table, DETAIL disables As Detail (their hotkeys
+  are guarded the same way). The Types checkboxes read COLORING, TABLE,
+  DETAIL — the same order as the buttons — in the SQL Reports editor too.
+  Clear moved to a top row of the SQL Editor, next to a new **Save Local**
+  (Alt&660): adds the draft to SQL Reports as a new report in the Main db's
+  store — disabled without a Main db, since that is what decides the store;
+  a blank name is asked for. The SQL Reports panel switches to that store and
+  opens so the report is in view.
+  The other way round: **Set editor** in the SQL Reports editor (Alt&661)
+  puts the report's definition — unsaved edits included — into the SQL
+  Editor, replacing its draft after a confirm, and opens the editor. The
+  editor keeps its own id, so Save Local afterwards adds a new report rather
+  than overwriting the original.
+  The Assets layout (F12) stacks SQL Assets under Model Assets in one column
+  and adds the Export panel to the right of Import Manager: Hierarchy |
+  Model Assets over SQL Assets | viewport + console | Import Manager | Export.
+  Unloading a model forgets its per-item state. Loading a file again used to
+  revive its old slot WITH the colors, opacity, hidden items, item-edge flags
+  and transforms it had — deliberate once, so a look survived an unload, but
+  it made a single-model unload behave unlike Remove all (which starts clean)
+  and gave a host no clean reload short of re-importing. Now `assets.unload`,
+  `assets.setLoaded`, Hierarchy → Remove and the Assets panel's unload reset
+  the slot's item state (`resetItemStates` in the model DB) before it is
+  tombstoned; the slot is still revived in place so item ids stay aligned.
+  VRAM residency swaps are untouched — they never go through the unload
+  action, so a budget demote keeps the look. Keep a look on purpose with a
+  state snapshot.
+  VRAM budget gets an **Enabled** checkbox (Alt&449). Max VRAM used to double
+  as the switch (0 = off), so turning the budget on meant typing a size every
+  time; now the switch is its own setting and the ceiling defaults to
+  2048 MB (floor 256), applying only while enabled. Saved settings migrate:
+  a budget above 0 comes back enabled at that size, a saved 0 comes back off
+  at the default. Use suggested enables the budget as it sets the size.
+  Swap speed defaults to **Fast**; the same one-time migration moves a
+  pre-switch install still on Normal (the old default) to Fast, while a
+  chosen Relaxed stays.
+  `TODO.md` removed — everything in it landed; its decisions now live in
+  DESIGN.md ("SQL Editor draft & SQL Table export") and this log.
+  `plans/VRAM_V2.md` removed — all three phases landed 2026-09-03; the
+  measurement protocol, the "shipped differently" notes and the commit-path
+  guards moved into DESIGN.md "VRAM budget & residency".
+- **2026.09.03** (>0.0.84):
+  VRAM budget v2 — the plan in `plans/VRAM_V2.md`, all three phases. Swaps
+  now PREPARE in the worker and COMMIT in batches: one re-render per batch
+  instead of one per swap, and the item states are fetched before the slot
+  is rebuilt, so the one-frame flash of hidden items on every swap is gone.
+  A demote of a zone the GPU drew nothing of commits QUIETLY — no re-render,
+  no TAA/AO restart. New **Pause AO / TAA while optimizing** (Settings → VRAM
+  budget, default on, Alt&447): while a burst lands the renderer draws
+  single-sample frames and converges once at the end, instead of converging
+  a picture every commit throws away. A revived slot's visibility buffer now
+  starts at 0, so cull pass 2 discovers it against the other zones' depth
+  pyramid instead of pass 1 drawing all of it. The visible-bounds worker
+  round trip is trigger-based (eye moved or turned, hide/unhide, a new zone,
+  a 10 s safety timer) — an idle camera during a burst issues none, so the
+  worker parses swaps uncontended. The planner (`residency.plan.ts`) now
+  computes a TARGET SET once per camera rest — floors first, then detail, in
+  coverage-priority order: `(R / (R + d))²` of the sigma-clipped dense box,
+  so a big far zone finally outranks a small one at the same distance — with
+  the anti-churn margin and the coarse strip ratio as rank bonuses, and
+  reclaims a lower zone's bytes only when that actually reaches a better
+  level (no more pointless evictions, no `park`). It emits the whole diff,
+  frees before allocations, so each zone moves at most once per rest; v1
+  reached the same state one greedy action at a time (176 swaps on the
+  measured scene). Fixes riding along: draw counts are not maintained in the
+  no-cull and frozen-cull paths, so every zone takes the CPU seen test there
+  (a resident zone could never promote before); the mixed-pack byte estimate
+  includes the 4 B/vertex normal stream (smooth-shaded packs overshot their
+  target); a transient coarse-file failure backs off instead of disabling
+  the tier for the session; a hi-res screenshot pauses swaps so its 4K
+  targets never read as budget pressure; the dense box takes a second
+  sigma-clipping pass, so one item parked far away cannot widen it; Stats
+  shows `models + targets/other`. Pacing `maxInFlight` is 2 / 4 / 6 (the
+  worker is single-threaded, so this groups commits). Settings shows a
+  **Suggested** budget for integrated and mobile GPUs — a quarter of system
+  RAM, clamped, never applied automatically (Use = Alt&448); discrete cards
+  get none, WebGPU cannot see their VRAM. The SETTLED line in the event log
+  now also records commits (quiet), frames (scene, accumulation resets,
+  held), GPU ms with timings on, and visibility refreshes — the v1 numbers
+  in DESIGN.md are to be re-measured with it.
+  Exports ignore the VRAM budget: for every zone the budget holds coarse,
+  mixed or unloaded, GLB / IFC / TDP export reads the zone's full `.tdp` from
+  OPFS (parsed and packed in the modeldb worker) instead of the GPU slot —
+  before this an export under a budget carried the budget's cuts and skipped
+  unloaded zones entirely. Residency is paused while an export runs, so a
+  swap cannot land between listing a zone and reading it; the progress text
+  says which models come from disk.
+  `TODO.md` added (planned, not started): the SQL Editor becomes a
+  report-shaped draft (name, description, types, filters, confirmed Clear —
+  no Save/Cancel/Delete), a `sql.editor.get` host command plus `sql.editor`
+  accepting the same fields for a lossless round trip, a right-click menu on
+  the SQL Table (Export to Excel / Copy to clipboard, all or selected rows,
+  via a dependency-free `.xlsx` writer), a select-all corner cell, and the
+  light-theme fix for the selected row numbers.
 - **2026.09.03** (>0.0.83):
   External apps get a per-app iframe policy. Every panel and modal iframe
   kept one hard-coded `sandbox="allow-scripts allow-same-origin allow-forms

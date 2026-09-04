@@ -39,7 +39,7 @@ export function TableBody({ rows, view, layout, selection, first, last }: TableB
               type="button"
               className={cn(
                 'sticky left-0 z-[5] shrink-0 select-none border-slate-800 border-r px-1.5 text-right',
-                isSel ? 'bg-blue-950 text-blue-200' : 'bg-slate-900 text-slate-500 hover:text-slate-200',
+                isSel ? 'bg-blue-950 text-blue-100' : 'bg-slate-900 text-slate-400 hover:text-slate-200',
               )}
               style={{ width: gutterW }}
               title="Click to select — Ctrl toggles, Shift ranges"
@@ -54,7 +54,7 @@ export function TableBody({ rows, view, layout, selection, first, last }: TableB
                 style={{ width: widths[ci] }}
                 title={v == null ? '' : String(v)}
               >
-                <span className="truncate">{v == null ? <span className="text-slate-600">null</span> : String(v)}</span>
+                <span className="truncate">{v == null ? <span className="text-slate-500">null</span> : String(v)}</span>
               </div>
             ))}
           </div>

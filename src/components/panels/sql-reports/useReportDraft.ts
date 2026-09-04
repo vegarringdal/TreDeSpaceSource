@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { parseAttachPaths } from '../../../lib/sqlite/sqlAttach';
+import {
+  addReportFilter,
+  removeReportFilter,
+  setReportFilter,
+  toggleReportType,
+  withDatabases,
+} from '../../../state/sqlReports/reportDraft';
 import type { ReportDef, ReportFilter, ReportType } from '../../../state/sqlReports/sqlReports.state';
 
 export type ReportDraft = Readonly<{
@@ -18,21 +24,13 @@ export type ReportDraft = Readonly<{
 export function useReportDraft(report: ReportDef): ReportDraft {
   const [draft, setDraft] = useState<ReportDef>(report);
   const patch = (p: Partial<ReportDef>): void => setDraft((d) => ({ ...d, ...p }));
-
-  const toggleType = (t: ReportType): void =>
-    patch({ types: draft.types.includes(t) ? draft.types.filter((x) => x !== t) : [...draft.types, t] });
-
-  const setFilter = (i: number, p: Partial<ReportFilter>): void =>
-    patch({ filters: draft.filters.map((f, k) => (k === i ? { ...f, ...p } : f)) });
-  const addFilter = (): void =>
-    patch({ filters: [...draft.filters, { kind: 'INPUT', key: `arg${draft.filters.length + 1}`, label: '' }] });
-  const removeFilter = (i: number): void => patch({ filters: draft.filters.filter((_, k) => k !== i) });
+  const toggleType = (t: ReportType): void => setDraft((d) => toggleReportType(d, t));
+  const setFilter = (i: number, p: Partial<ReportFilter>): void => setDraft((d) => setReportFilter(d, i, p));
+  const addFilter = (): void => setDraft(addReportFilter);
+  const removeFilter = (i: number): void => setDraft((d) => removeReportFilter(d, i));
 
   // run the DRAFT (unsaved edits included) so you can test before saving
-  const eff = (): ReportDef => ({
-    ...draft,
-    databases: [...new Set([draft.db, ...parseAttachPaths(draft.sql)].filter(Boolean))],
-  });
+  const eff = (): ReportDef => withDatabases(draft);
 
   return { draft, patch, toggleType, setFilter, addFilter, removeFilter, eff };
 }

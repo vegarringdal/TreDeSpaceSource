@@ -1,132 +1,76 @@
-// VRAM-budget residency manager (DESIGN.md "VRAM budget & residency", v1).
+// VRAM-budget residency manager (DESIGN.md "VRAM budget & residency", v2).
 //
-// When `maxVramMb` is set and tracked VRAM exceeds it, the lowest-priority
-// loaded models (smallest projected screen size) are DEMOTED to their coarse
-// cooked variant — or fully unloaded when no coarse file exists — and PROMOTED
-// back to full detail when the camera comes near and headroom allows.
-// Invariants: exclusive residency (a model's coarse and full geometry are
-// never on the GPU together), swaps only while the camera is idle, one swap in
-// flight, and swaps never touch the modeldb hierarchy/states — the renderer
-// slot is rebuilt in place with its itemBase preserved, then the item states
-// are re-pushed. Manager state is main-thread only; `maxVramMb === 0` makes
-// every tick a no-op.
-import { transfer } from 'comlink';
+// While the budget is enabled (`vramBudgetOn`, ceiling `maxVramMb`), the
+// manager keeps tracked VRAM under it by holding
+// far zones as their coarse cooked variant (or unloaded, without a coarse
+// file) and near zones at full detail. Once per camera rest the pure planner
+// (residency.plan.ts) computes the target level of EVERY zone and the ordered
+// steps that reach it; this file executes the steps: swaps PREPARE in the
+// worker while the camera stays idle, prepared swaps COMMIT in batches (one
+// re-render for the batch), and a swap that cannot change a pixel commits
+// QUIETLY with no re-render at all.
+//
+// Invariants: exclusive residency (a zone's coarse and full geometry are
+// never on the GPU together), swaps only while the camera is idle, frees
+// before allocations inside a batch, and swaps never touch the modeldb
+// hierarchy/states — the renderer slot is rebuilt in place with its itemBase
+// preserved, then the item states are re-pushed. Manager state is main-thread
+// only; a disabled budget (`vramBudgetMb(s) === 0`) makes every tick a no-op.
 import { boxFullyInFrustum, boxInFrustum } from '../../lib/math/frustum';
-import { modelStoreDir, readFile } from '../../lib/opfs/opfs';
 import { clipCulledSphere } from '../../lib/render/clipCull';
 import type { Renderer } from '../../lib/render/renderer';
 import type { AssetEntry } from '../assets/assets.state';
 import { db } from './db';
+import { prepareCoarse, prepareDemote, prepareFull, prepareMixed, type ReadyCommit } from './residency.commit';
 import {
   type Cuts,
   type Pacing,
   type PlanAction,
-  planResidency,
+  PROMOTE_HEADROOM,
+  planTargets,
   priority,
   SEEN_GAP_MS,
   type Variant,
   type ZoneView,
 } from './residency.plan';
-import { applyStateUpdates } from './viewer.actions';
+import {
+  decisionBox,
+  FAIL_COOLDOWN_MS,
+  isCoarseBroken,
+  PACING,
+  type ResidencyRecord,
+  spanOf,
+} from './residency.record';
+import { selectionState } from './selection.state';
 import { viewerState } from './viewer.state';
+import { vramBudgetMb } from './vramBudget';
 
 // -----------------------------------------------------------------------------
-// types + constants
+// constants
 // -----------------------------------------------------------------------------
 
-interface ResidencyRecord {
-  slot: number;
-  assetId: string;
-  /** folder/name — the readable identity in the debug event log. */
-  label: string;
-  store: string;
-  edges: boolean;
-  variant: Variant;
-  /** GPU bytes at full detail (measured at registration; promote headroom). */
-  bytesFull: number;
-  /** GPU bytes of the coarse pack (file-ratio estimate until first measured);
-   * 0 without a coarse variant. Budgets the repair promote. */
-  bytesCoarse: number;
-  hasCoarse: boolean;
-  /** Coarse file failed to read/parse — demote falls back to unload. */
-  coarseBroken: boolean;
-  /** World AABB [minx,miny,minz,maxx,maxy,maxz] from the asset entry. */
-  bounds: readonly number[];
-  /** AABB of the currently VISIBLE (non-hidden) items — null when everything
-   * is hidden. Refreshed periodically from the worker; priority uses this so
-   * hiding half a zone shrinks the box the camera is measured against. */
-  liveBounds: readonly number[] | null;
-  /** Outlier-resistant box of the visible items (mean ± 2σ of their centres,
-   * clamped to the union). Every frustum/clip decision uses THIS, not the
-   * union: one item parked far away must not inflate a zone until it swallows
-   * the camera, the frustum or the clip volume. */
-  denseBounds: readonly number[] | null;
-  /** Fraction of items (with geometry) currently visible, 0..1. */
-  visibleFrac: number;
-  /** Distance to the NEAREST visible item at the last refresh — priority's
-   * distance term. The union box is useless here: one outlier item makes a
-   * distant zone's box swallow the camera and hijack every decision. */
-  nearestDist: number;
-  /** Last time this zone was on screen: drew meshlets (resident — i.e. passed
-   * frustum + HiZ occlusion) or intersected the frustum (unloaded). */
-  lastSeenT: number;
-  /** Start of the current CONTINUOUS on-screen streak (promotion gate). */
-  seenStreakT: number;
-  /** Camera eye at the last MIXED pack — moving far enough from it re-packs
-   * so the sharp region follows the camera through the zone. */
-  packedEye: readonly [number, number, number] | null;
-  /** Camera forward at the last MIXED pack — packs are view-dependent
-   * (in-frustum items get the budget first), so TURNING far enough re-packs
-   * even when standing on the same spot. */
-  packedDir: readonly [number, number, number] | null;
-  /** Byte budget the last MIXED pack was built with — when the available
-   * headroom outgrows it (rebalancing freed memory while the camera stood
-   * still), the zone re-packs to spend the new room. */
-  packedTarget: number;
-  /** The coarse pack's hidden/cut set is outdated (visibility changed) —
-   * re-pack it on the next opportunity. */
-  coarseStale: boolean;
-  /** Completion times of the last promote/demote — minimum-dwell hysteresis
-   * so an edge-of-view zone cannot cycle promote↔demote on small orbits. */
-  lastPromoteT: number;
-  lastDemoteT: number;
-  /** The last mixed pack ran out of budget before covering every in-view
-   * item — only then can a bigger budget grow it (regrow guard: re-packing a
-   * saturated pack produces an identical result, i.e. pure churn). */
-  packLimited: boolean;
-  /** Consecutive rebalances performed FOR this zone that still did not make
-   * it fit — past a cap it is parked so it stops evicting the scene. */
-  starveCount: number;
-  cooldownUntil: number;
-  /** Items the CURRENT pack has no geometry for that are not hidden/clip-cut
-   * (cooker-cut tiny items in a coarse variant, residency cuts, …). Such a
-   * pack can draw nothing where the user looks, so a zero draw count is NOT
-   * proof the zone is off screen — refreshSeen falls back to a CPU frustum
-   * test for it. */
-  packDropped: number;
-  /** Eye position at the last demote of a resident zone that was drawing
-   * nothing — from that viewpoint the zone is either occluded or absent, and
-   * re-promoting it via the CPU fallback would just cycle. The fallback is
-   * suppressed until the camera moves away or the GPU actually draws it. */
-  deadviewEye: readonly [number, number, number] | null;
-}
+const MB = 1048576;
+const mb = (b: number) => (b / MB).toFixed(1);
 
-/** Settings → VRAM budget → Swap speed presets. */
-const PACING: Record<'relaxed' | 'normal' | 'fast', Pacing> = {
-  relaxed: { evalMs: 600, idleMs: 800, cooldownMs: 6000, maxInFlight: 1, margin: 2 },
-  normal: { evalMs: 250, idleMs: 400, cooldownMs: 3000, maxInFlight: 2, margin: 1.5 },
-  // Speed presets vary how OFTEN the planner acts, never how flimsy a
-  // rebalance's justification may be: `margin` is the anti-churn guard. Fast
-  // ran at 1.25 and converged in 113 s / 268 swaps / 550 MB against Normal's
-  // 33 s / 176 / 261 MB — evicting on a 25% priority edge made the evicted
-  // zone the next needy one, and the pair ping-ponged. Never take it below
-  // Normal's.
-  fast: { evalMs: 0, idleMs: 200, cooldownMs: 1500, maxInFlight: 4, margin: 1.5 },
-};
-
-const FAIL_COOLDOWN_MS = 30000;
-/** How often the per-zone visible-item bounds are re-read from the worker. */
-const VIS_REFRESH_MS = 2000;
+/** A prepared swap waits at most this long for batch-mates before it commits. */
+const READY_MAX_WAIT_MS = 300;
+/** Visible-bounds refresh triggers: the eye moved this far, or the view
+ * turned past this dot, since the last refresh. */
+const VIS_MOVE_M = 2;
+const VIS_TURN_DOT = 0.995;
+/** Never two refreshes closer than this (a flying camera would otherwise
+ * queue one per worker round trip); hide/unhide changes bypass it. */
+const VIS_MIN_INTERVAL_MS = 1000;
+/** Safety refresh while nothing is in flight — transforms and other edits
+ * that do not bump the state version still get picked up eventually. */
+const VIS_SAFETY_MS = 10000;
+/** A demoted-while-drawing-nothing zone must move this far out of the failed
+ * viewpoint before the CPU fallback may mark it seen again. */
+const DEADVIEW_CLEAR_M = 5;
+/** A tick gap longer than this means the loop stopped, not that a frame ran late. */
+const WAKE_GAP_MS = 2000;
+const LOG_CAP = 400;
+const SETTLE_REPORT_CAP = 12;
 
 // -----------------------------------------------------------------------------
 // state
@@ -134,35 +78,53 @@ const VIS_REFRESH_MS = 2000;
 
 const bySlot = new Map<number, ResidencyRecord>();
 let pauseCount = 0;
-/** Slots with a swap currently in flight (bounded by the pacing preset). */
+/** Slots with a swap preparing or prepared-but-uncommitted. */
 const inFlight = new Set<number>();
+/** Prepared swaps waiting for the next batch commit. */
+const ready: ReadyCommit[] = [];
+/** Bytes an in-flight swap will leave its slot with (planner projection). */
+const pendingBytes = new Map<number, number>();
+const startedAt = new Map<number, number>();
+/** The current plan's steps and how far issuing got. */
+let plan: { steps: PlanAction[]; next: number } | null = null;
+/** Something the plan was computed on changed (visibility, clipping, a
+ * failure) — drop it at the next evaluation. */
+let planDirty = false;
+let lastSettingsKey = '';
 let nextEvalAt = 0;
-let visRefreshAt = 0;
-let visRefreshBusy = false;
-/** Clip uniform seen at the last evaluation — a change invalidates every
- * pack's clip-based cut set, so packs are re-taken. */
+/** When the last commit that forced a re-render landed — draw counts read
+ * before it describe the old scene. */
+let lastLoudCommitT = 0;
 let lastClipKey = '';
-/** The last idle evaluation found nothing actionable (activity HUD state).
- * Cleared whenever a swap launches. */
+/** The last idle evaluation found nothing actionable (activity HUD state). */
 let settled = false;
-/** Convergence measurement: when the current burst of work started, how many
- * swaps it took and how many bytes it moved. Logged on settle so runs can be
- * compared across pacing presets (the v9 experiment). */
+
+// visible-bounds refresh triggers
+let visRefreshBusy = false;
+let visForce = true;
+let visLastT = 0;
+let visEye: readonly [number, number, number] | null = null;
+let visFwd: readonly [number, number, number] | null = null;
+let visStateVersion = -1;
+
+// convergence measurement (logged on settle so runs can be compared)
 let burstStartT = 0;
 let burstSwaps = 0;
 let burstBytes = 0;
 let burstParseMs = 0;
+let burstCommits = 0;
+let burstQuiet = 0;
+let burstVisRefreshes = 0;
+let burst0 = { frames: 0, scene: 0, resets: 0, held: 0, gpuMs: 0 };
 /** Settle reports kept separately from the event log so the debug dump can
  * print them at the TOP — the event list is long enough to be truncated when
  * pasted, and these lines are the measurement. */
 const settleReports: string[] = [];
-const SETTLE_REPORT_CAP = 12;
 
 // -----------------------------------------------------------------------------
 // debug event log (Settings → VRAM budget → Copy event log)
 // -----------------------------------------------------------------------------
 
-const LOG_CAP = 400;
 const eventLog: string[] = [];
 let logT0 = 0;
 
@@ -177,12 +139,17 @@ function logEvent(line: string): void {
   }
 }
 
+function dropPlan(why: string): void {
+  if (plan) {
+    logEvent(`PLAN-DROP after ${plan.next}/${plan.steps.length} steps · ${why}`);
+  }
+  plan = null;
+}
+
 // -----------------------------------------------------------------------------
 // wake-up guard
 // -----------------------------------------------------------------------------
 
-/** A tick gap longer than this means the loop stopped, not that a frame ran late. */
-const WAKE_GAP_MS = 2000;
 let lastTickT = 0;
 
 /**
@@ -210,26 +177,18 @@ function handleWake(now: number): void {
   if (gap <= WAKE_GAP_MS || bySlot.size === 0) {
     return;
   }
-
   for (const rec of bySlot.values()) {
     rec.lastSeenT = now;
     rec.seenStreakT = now;
   }
   burstStartT = 0;
+  dropPlan('wake');
   logEvent(`WAKE · ${(gap / 1000).toFixed(1)}s tick gap — re-baselined seen clocks, burst discarded`);
 }
 
 // -----------------------------------------------------------------------------
-// helpers
+// what the GPU / worker tell us about each zone
 // -----------------------------------------------------------------------------
-
-/** The box residency decisions are made against: the outlier-resistant dense
- * box when the worker has produced one, else the union. */
-const decisionBox = (rec: ResidencyRecord): readonly number[] => rec.denseBounds ?? rec.liveBounds ?? rec.bounds;
-
-/** Diagonal of a box — the debug dump prints dense/union so an outlier-
- * inflated zone is obvious at a glance. */
-const spanOf = (b: readonly number[]): number => Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]);
 
 /** Is this box provably outside every active clipping volume? Mirrors the
  * cull shader (clipCull.ts), conservatively: partial overlap counts as
@@ -240,48 +199,35 @@ function isClipCulled(r: Renderer, b: readonly number[]): boolean {
     return false;
   }
   const center: [number, number, number] = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2];
-  const radius = Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]) / 2;
-  return clipCulledSphere(r.clipData, r.clipDataU32, center, radius);
+  return clipCulledSphere(r.clipData, r.clipDataU32, center, spanOf(b) / 2);
 }
 
-/** A demoted-while-drawing-nothing zone must move this far out of the failed
- * viewpoint before the CPU fallback may mark it seen again. */
-const DEADVIEW_CLEAR_M = 5;
-
 /** Update every record's lastSeenT: resident zones from the GPU's culled draw
- * counts (frustum + HiZ occlusion + clip, ~2 Hz readback); zones whose draw
- * counts cannot be trusted fall back to a CPU frustum + clip test. That is
- * unloaded slots (nothing to draw, by definition) and DEFICIENT packs — a
- * coarse/mixed pack that dropped visible items (cooker-cut tiny items,
- * residency cuts) can draw nothing where the user looks, so a zero draw count
- * proves nothing. Without the fallback such a zone reads permanently
- * offscreen and never promotes, at any budget (observed: a gutted zone in
- * plain view at 2 GB). The deadview guard keeps the fallback from cycling an
- * occluded zone: once it was resident here and drew nothing, it stays unseen
- * until the camera moves. */
+ * counts (frustum + HiZ occlusion + clip, read after every scene change and
+ * at ~2 Hz); zones whose draw counts cannot be trusted fall back to a CPU
+ * frustum + clip test. That is unloaded slots (nothing to draw, by
+ * definition), DEFICIENT packs — a coarse/mixed pack that dropped visible
+ * items (cooker-cut tiny items, residency cuts) can draw nothing where the
+ * user looks, so a zero draw count proves nothing — and EVERY zone when the
+ * renderer keeps no counts at all (no-cull path, frozen cull): a resident
+ * zone there read drawn = 0 forever and could never promote. The deadview
+ * guard keeps the fallback from cycling an occluded zone: once it was
+ * resident here and drew nothing, it stays unseen until the camera moves. */
 function refreshSeen(r: Renderer, now: number): void {
   const vp = r.viewProjMatrix;
   const eye = r.camera.eye();
+  const countsUsable = r.drawCountsUsable;
   for (const rec of bySlot.values()) {
     let seen = false;
-    const drawn = r.drawnPerModel[rec.slot] > 0;
+    const drawn = countsUsable && r.drawnPerModel[rec.slot] > 0;
     const deficient = rec.variant !== 'full' && rec.packDropped > 0 && !drawn;
-    if (r.modelMeshletCount(rec.slot) === 0 || deficient) {
+    if (!countsUsable || r.modelMeshletCount(rec.slot) === 0 || deficient) {
       const de = rec.deadviewEye;
       const moved = !de || Math.hypot(eye[0] - de[0], eye[1] - de[1], eye[2] - de[2]) > DEADVIEW_CLEAR_M;
       if (moved) {
         rec.deadviewEye = null;
         const b = decisionBox(rec);
-        if (b && boxInFrustum(vp, b)) {
-          seen = true;
-          if (r.clipData && r.clipDataU32) {
-            const center: [number, number, number] = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2];
-            const radius = Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]) / 2;
-            if (clipCulledSphere(r.clipData, r.clipDataU32, center, radius)) {
-              seen = false; // provably clipped away — not seen
-            }
-          }
-        }
+        seen = !!b && boxInFrustum(vp, b) && !isClipCulled(r, b);
       }
     } else {
       seen = drawn;
@@ -298,14 +244,39 @@ function refreshSeen(r: Renderer, now: number): void {
   }
 }
 
-/** Throttled worker round-trip pulling each zone's visible-item AABB +
- * visible fraction into the records (single flight, off the swap path). */
-function refreshVisibility(now: number, eye: readonly [number, number, number]): void {
-  if (now < visRefreshAt || visRefreshBusy || bySlot.size === 0) {
+/** Worker round trip pulling each zone's visible-item AABB, dense box,
+ * visible fraction and nearest distance into the records. Trigger-based: the
+ * eye moved or turned, an item state changed outside residency (hide /
+ * unhide / colour pushes bump the selection store's state version; the
+ * manager's own state re-pushes do not), a zone registered, or a slow safety
+ * timer while nothing is in flight — an idle camera during a swap burst
+ * issues no round trips at all, so the worker parses swaps uncontended. */
+function refreshVisibility(r: Renderer, now: number): void {
+  if (visRefreshBusy || bySlot.size === 0) {
     return;
   }
-  visRefreshAt = now + VIS_REFRESH_MS;
+  const eye = r.camera.eye();
+  const fwd = r.camera.forward();
+  const sv = selectionState.get().stateVersion;
+  const stateChanged = sv !== visStateVersion;
+  const moved =
+    !visEye ||
+    !visFwd ||
+    Math.hypot(eye[0] - visEye[0], eye[1] - visEye[1], eye[2] - visEye[2]) > VIS_MOVE_M ||
+    fwd[0] * visFwd[0] + fwd[1] * visFwd[1] + fwd[2] * visFwd[2] < VIS_TURN_DOT;
+  const busy = inFlight.size > 0 || ready.length > 0;
+  const throttled = now - visLastT < VIS_MIN_INTERVAL_MS;
+  const due = visForce || stateChanged || (moved && !throttled) || (!busy && now - visLastT > VIS_SAFETY_MS);
+  if (!due) {
+    return;
+  }
+  visForce = false;
+  visLastT = now;
+  visEye = [eye[0], eye[1], eye[2]];
+  visFwd = [fwd[0], fwd[1], fwd[2]];
+  visStateVersion = sv;
   visRefreshBusy = true;
+  burstVisRefreshes++;
   db.visibleBounds([...bySlot.keys()], [eye[0], eye[1], eye[2]])
     .then((rows) => {
       for (const row of rows) {
@@ -325,16 +296,17 @@ function refreshVisibility(now: number, eye: readonly [number, number, number]):
             Math.abs(b0[1] + b0[4] - (b1[1] + b1[4])) +
             Math.abs(b0[2] + b0[5] - (b1[2] + b1[5])) >
             2; // box center moved > ~1 m
-        if (Math.abs(row.visibleFrac - rec.visibleFrac) > 0.005 || shifted) {
+        const fracChanged = Math.abs(row.visibleFrac - rec.visibleFrac) > 0.005;
+        if (fracChanged || shifted) {
           logEvent(
-            `VIS-CHANGE ${rec.label} · ${shifted ? 'box moved' : ''}` +
-              `${shifted && Math.abs(row.visibleFrac - rec.visibleFrac) > 0.005 ? ' + ' : ''}` +
-              `${Math.abs(row.visibleFrac - rec.visibleFrac) > 0.005 ? `visible ${(rec.visibleFrac * 100).toFixed(0)}%→${(row.visibleFrac * 100).toFixed(0)}%` : ''}`,
+            `VIS-CHANGE ${rec.label} · ${shifted ? 'box moved' : ''}${shifted && fracChanged ? ' + ' : ''}` +
+              `${fracChanged ? `visible ${(rec.visibleFrac * 100).toFixed(0)}%→${(row.visibleFrac * 100).toFixed(0)}%` : ''}`,
           );
           rec.packedEye = null;
           if (rec.variant === 'coarse') {
             rec.coarseStale = true;
           }
+          planDirty = true;
         }
         rec.liveBounds = row.bounds;
         rec.denseBounds = row.dense;
@@ -356,226 +328,174 @@ function isIdle(r: Renderer, now: number, idleMs: number): boolean {
   return now - cam.lastInputT > idleMs && now - r.lastMoveT > idleMs;
 }
 
-/** Load variant bytes, repack in the worker (all fallible work up front), then
- * atomically rebuild the renderer slot and re-push item states. The dead slot
- * is only observable within one task, so no frame renders a hole. */
-async function swapVariant(r: Renderer, rec: ResidencyRecord, file: string, to: Variant): Promise<void> {
-  const bytes = await readFile(await modelStoreDir(rec.store), file);
-  const packed = await db.repackModel(rec.slot, transfer(bytes, [bytes]));
-  if (!bySlot.has(rec.slot)) {
-    return; // unloaded/cleared while we were parsing — drop the swap
-  }
-  r.removeModels([rec.slot]);
-  r.reviveModel(rec.slot, packed, { edges: rec.edges });
-  applyStateUpdates(await db.statesFor([rec.slot]));
-  rec.variant = to;
-  rec.packedEye = null;
-  rec.packedDir = null;
-  rec.packedTarget = 0;
-  rec.packDropped = packed.packDropped;
-}
+// -----------------------------------------------------------------------------
+// the commit queue
+// -----------------------------------------------------------------------------
 
-/** Mixed promote (tier 2.5): the items nearest the camera come from the full
- * file — greedily up to `targetBytes` — and the remainder from the coarse
- * file, packed into one slot. The sharp region is re-centered by re-packing
- * when the camera moves far enough from `packedEye`. */
-async function promoteMixed(
-  r: Renderer,
-  rec: ResidencyRecord,
-  eye: readonly [number, number, number],
-  fwd: readonly [number, number, number],
-  targetBytes: number,
-  cuts: Cuts,
-): Promise<void> {
-  rec.lastPromoteT = performance.now();
-  const dir = await modelStoreDir(rec.store);
-  const fullBytes = await readFile(dir, `${rec.assetId}.tdp`);
-  const coarseBytes = await readFile(dir, `${rec.assetId}.coarse.tdp`);
-  const packed = await db.repackModelMixed(
-    rec.slot,
-    transfer(fullBytes, [fullBytes]),
-    transfer(coarseBytes, [coarseBytes]),
-    eye,
-    targetBytes,
-    cuts,
-    r.viewProjMatrix,
-    r.clipData,
-  );
-  if (!bySlot.has(rec.slot)) {
-    return; // unloaded/cleared while we were parsing — drop the swap
+function startBurst(r: Renderer, now: number): void {
+  if (burstStartT !== 0) {
+    return;
   }
-  r.removeModels([rec.slot]);
-  r.reviveModel(rec.slot, packed, { edges: rec.edges });
-  applyStateUpdates(await db.statesFor([rec.slot]));
-  rec.variant = 'mixed';
-  rec.packedEye = [eye[0], eye[1], eye[2]];
-  rec.packedDir = [fwd[0], fwd[1], fwd[2]];
-  rec.packedTarget = targetBytes;
-  rec.packLimited = packed.fullBudgetLimited;
-  rec.packDropped = packed.packDropped;
-}
-
-/** Build (or rebuild) this zone's COARSE pack with the current cut set. Also
- * the refresh path for a stale coarse pack after hide/unhide — that must NOT
- * go through demote(), whose stage-two rule would unload the zone instead
- * (the promote→coarse→unload→promote churn the director reported). */
-async function packCoarse(
-  r: Renderer,
-  rec: ResidencyRecord,
-  eye: readonly [number, number, number],
-  cuts: Cuts,
-): Promise<void> {
-  const bytes = await readFile(await modelStoreDir(rec.store), `${rec.assetId}.coarse.tdp`);
-  const packed = await db.repackModelCoarse(rec.slot, transfer(bytes, [bytes]), eye, cuts, r.clipData);
-  if (!bySlot.has(rec.slot)) {
-    return; // unloaded/cleared while we were parsing — drop the swap
-  }
-  r.removeModels([rec.slot]);
-  r.reviveModel(rec.slot, packed, { edges: rec.edges });
-  applyStateUpdates(await db.statesFor([rec.slot]));
-  rec.variant = 'coarse';
-  rec.packedEye = null;
-  rec.packedDir = null;
-  rec.packedTarget = 0;
-  rec.coarseStale = false;
-  rec.packDropped = packed.packDropped;
-  // measured is better than the file-ratio estimate; cut-dependent, so only
-  // ever grow the estimate (a heavily cut pack must not shrink the budget
-  // the next repair plans with)
-  rec.bytesCoarse = Math.max(rec.bytesCoarse, r.modelBytes(rec.slot));
-}
-
-/** Refresh a stale coarse pack in place (hide/unhide changed its dropped-item
- * set). Never changes the residency level, so it is not a demote. */
-async function refreshCoarse(
-  r: Renderer,
-  rec: ResidencyRecord,
-  eye: readonly [number, number, number],
-  cuts: Cuts,
-): Promise<void> {
-  try {
-    await packCoarse(r, rec, eye, cuts);
-  } catch (e) {
-    rec.coarseStale = false; // don't retry in a loop; the old pack still draws
-    console.warn(`residency: coarse refresh failed for ${rec.assetId}:`, e);
-  }
-}
-
-async function demote(
-  r: Renderer,
-  rec: ResidencyRecord,
-  eye: readonly [number, number, number],
-  cuts: Cuts,
-): Promise<void> {
-  rec.lastDemoteT = performance.now();
-  // demoted while drawing nothing → from THIS viewpoint the zone is occluded
-  // or absent; the CPU seen-fallback must not re-promote it until we move
-  if (r.drawnPerModel[rec.slot] === 0) {
-    rec.deadviewEye = [eye[0], eye[1], eye[2]];
-  }
-  const unload = () => {
-    r.removeModels([rec.slot]);
-    rec.variant = 'unloaded';
-    rec.coarseStale = false;
-    rec.packedEye = null;
-    rec.packedDir = null;
-    rec.packedTarget = 0;
-    rec.packDropped = 0; // unloaded zones use the 0-meshlet CPU path anyway
+  burstStartT = now;
+  burstSwaps = 0;
+  burstBytes = 0;
+  burstParseMs = 0;
+  burstCommits = 0;
+  burstQuiet = 0;
+  burstVisRefreshes = 0;
+  burst0 = {
+    frames: r.frameCounter,
+    scene: r.sceneFrames,
+    resets: r.accumResets,
+    held: r.heldFrames,
+    gpuMs: r.gpuMsTotal,
   };
-  // a fully hidden zone renders nothing from either variant — unload outright
-  // (frees ALL its VRAM); unhiding raises its priority and promotes it back
-  if (rec.visibleFrac === 0) {
-    unload();
-    return;
-  }
-  // second demote stage: an already-coarse zone can only give up more by
-  // unloading — callers only pick coarse victims while they are offscreen
-  if (rec.variant === 'coarse') {
-    unload();
-    return;
-  }
-  if (rec.hasCoarse && !rec.coarseBroken) {
-    try {
-      await packCoarse(r, rec, eye, cuts);
-      return;
-    } catch (e) {
-      rec.coarseBroken = true;
-      console.warn(`residency: coarse swap failed for ${rec.assetId}, falling back to unload:`, e);
-    }
-  }
-  // no/broken coarse: free the GPU slot, keep the DbModel (tree/states live)
-  unload();
 }
 
-async function promote(r: Renderer, rec: ResidencyRecord): Promise<void> {
-  rec.lastPromoteT = performance.now();
-  await swapVariant(r, rec, `${rec.assetId}.tdp`, 'full');
-  rec.bytesFull = r.modelBytes(rec.slot);
+/** Can this slot be swapped without anyone noticing? Only when the draw
+ * counts are maintained, describe the CURRENT scene (read after the camera
+ * stopped and after the last loud commit), and say the slot drew nothing —
+ * and the pack is not deficient, whose zero count proves nothing. */
+function quietOk(r: Renderer, rec: ResidencyRecord): boolean {
+  const deficient = rec.variant !== 'full' && rec.packDropped > 0;
+  return (
+    r.drawCountsUsable &&
+    r.drawnPerModel[rec.slot] === 0 &&
+    !deficient &&
+    r.drawnResolvedT > Math.max(lastLoudCommitT, r.lastMoveT)
+  );
 }
 
+function burstActive(): boolean {
+  return inFlight.size > 0 || ready.length > 0 || (plan !== null && plan.next < plan.steps.length);
+}
+
+/** Launch a prepare; the commit lands through flushReady. */
 function runSwap(
   r: Renderer,
   rec: ResidencyRecord,
-  action: (r: Renderer, rec: ResidencyRecord) => Promise<void>,
-  cooldownMs: number,
+  prepare: Promise<ReadyCommit> | ReadyCommit,
+  expectedBytes: number,
   reason: string,
   detail = '',
+  onFail?: () => void,
 ): void {
+  const now = performance.now();
   settled = false;
-  const from = rec.variant;
-  const t0 = performance.now();
-  if (burstStartT === 0) {
-    burstStartT = t0; // first swap of a burst — start the convergence clock
-    burstSwaps = 0;
-    burstBytes = 0;
-    burstParseMs = 0;
-  }
+  startBurst(r, now);
   burstSwaps++;
-  const mb = (b: number) => (b / 1048576).toFixed(1);
-  logEvent(`START ${rec.label} [slot ${rec.slot}] ${from} · ${reason}${detail ? ` (${detail})` : ''}`);
+  logEvent(`START ${rec.label} [slot ${rec.slot}] ${rec.variant} · ${reason}${detail ? ` (${detail})` : ''}`);
   inFlight.add(rec.slot);
-  action(r, rec)
-    .then(() => {
-      rec.cooldownUntil = performance.now() + cooldownMs;
-      const dt = performance.now() - t0;
-      burstBytes += r.modelBytes(rec.slot);
-      burstParseMs += dt;
-      logEvent(
-        `  END ${rec.label} ${from}→${rec.variant} · ${mb(r.modelBytes(rec.slot))} MB · ` +
-          `${(dt / 1000).toFixed(2)}s`,
-      );
+  pendingBytes.set(rec.slot, expectedBytes);
+  startedAt.set(rec.slot, now);
+  Promise.resolve(prepare)
+    .then((c) => {
+      burstParseMs += c.readyT - now;
+      ready.push(c);
     })
-    .catch((e) => {
+    .catch((e: unknown) => {
+      inFlight.delete(rec.slot);
+      pendingBytes.delete(rec.slot);
+      startedAt.delete(rec.slot);
+      onFail?.();
       // a revive failure after the slot was freed leaves it dead — record that
-      // honestly so the manager retries it as a promote later
+      // honestly so the next plan retries it as a promote
       if (r.modelBytes(rec.slot) === 0) {
         rec.variant = 'unloaded';
       }
       rec.cooldownUntil = performance.now() + FAIL_COOLDOWN_MS;
-      logEvent(`  FAIL ${rec.label} ${from} · ${e}`);
+      logEvent(`  FAIL ${rec.label} ${rec.variant} · ${e}`);
       console.warn(`residency: swap failed for ${rec.assetId}:`, e);
-    })
-    .finally(() => {
-      inFlight.delete(rec.slot);
-      nextEvalAt = 0; // keep swapping back-to-back while the camera stays idle
+      planDirty = true;
+      nextEvalAt = 0;
     });
 }
 
+/** Commit every prepared swap in one go — frees first — once nothing else is
+ * parsing, the batch is full, or the oldest has waited long enough. One
+ * flush is one re-render (none when every commit was quiet), and the slot
+ * never renders with a zero-initialised state buffer. */
+function flushReady(r: Renderer, now: number, pacing: Pacing): void {
+  if (ready.length === 0) {
+    return;
+  }
+  const parsing = inFlight.size - ready.length;
+  const due = parsing <= 0 || ready.length >= pacing.maxInFlight || now - ready[0].readyT > READY_MAX_WAIT_MS;
+  if (!due) {
+    return;
+  }
+  const batch = ready.splice(0).sort((a, b) => a.order - b.order);
+  let loud = false;
+  let quiet = 0;
+  let delta = 0;
+  for (const c of batch) {
+    inFlight.delete(c.slot);
+    pendingBytes.delete(c.slot);
+    const t0 = startedAt.get(c.slot) ?? c.readyT;
+    startedAt.delete(c.slot);
+    const rec = bySlot.get(c.slot);
+    if (!rec) {
+      logEvent(`  DROP ${c.label} · no longer tracked`);
+      continue;
+    }
+    const before = r.modelBytes(c.slot);
+    try {
+      c.apply(r);
+    } catch (e) {
+      if (r.modelBytes(c.slot) === 0) {
+        rec.variant = 'unloaded';
+      }
+      rec.cooldownUntil = now + FAIL_COOLDOWN_MS;
+      logEvent(`  FAIL ${c.label} ${c.from} · ${e}`);
+      console.warn(`residency: commit failed for ${rec.assetId}:`, e);
+      planDirty = true;
+      continue;
+    }
+    const after = r.modelBytes(c.slot);
+    rec.cooldownUntil = now + c.cooldownMs;
+    burstBytes += after;
+    delta += after - before;
+    if (c.quiet) {
+      quiet++;
+    } else {
+      loud = true;
+    }
+    logEvent(
+      `  END ${c.label} ${c.from}→${rec.variant} · ${mb(after)} MB · ${((c.readyT - t0) / 1000).toFixed(2)}s` +
+        `${c.quiet ? ' · quiet' : ''}`,
+    );
+  }
+  if (loud) {
+    lastLoudCommitT = now;
+  }
+  burstCommits++;
+  burstQuiet += quiet;
+  logEvent(`COMMIT ${batch.length} swap(s) · ${quiet} quiet · ${delta >= 0 ? '+' : ''}${mb(delta)} MB`);
+  nextEvalAt = 0; // keep issuing while the camera stays idle
+}
+
+// -----------------------------------------------------------------------------
+// planning
+// -----------------------------------------------------------------------------
+
 /** One record → the plain view the pure planner (and the debug dump) sees. */
-function zoneOf(rec: ResidencyRecord, r: Renderer | null): ZoneView {
+function zoneOf(rec: ResidencyRecord, r: Renderer | null, now: number): ZoneView {
+  const flying = inFlight.has(rec.slot);
+  const box = decisionBox(rec);
   return {
     slot: rec.slot,
     variant: rec.variant,
     bytesFull: rec.bytesFull,
     bytesCoarse: rec.bytesCoarse,
-    bytesNow: r?.modelBytes(rec.slot) ?? 0,
+    bytesNow: flying ? (pendingBytes.get(rec.slot) ?? r?.modelBytes(rec.slot) ?? 0) : (r?.modelBytes(rec.slot) ?? 0),
     hasCoarse: rec.hasCoarse,
-    coarseBroken: rec.coarseBroken,
+    coarseBroken: isCoarseBroken(rec, now),
     coarseStale: rec.coarseStale,
     nearestDist: rec.nearestDist,
     visibleFrac: rec.visibleFrac,
-    fullyInFrustum: r ? boxFullyInFrustum(r.viewProjMatrix, decisionBox(rec)) : false,
-    clipCulled: r ? isClipCulled(r, decisionBox(rec)) : false,
+    denseRadius: spanOf(box) / 2,
+    fullyInFrustum: r ? boxFullyInFrustum(r.viewProjMatrix, box) : false,
+    clipCulled: r ? isClipCulled(r, box) : false,
     lastSeenT: rec.lastSeenT,
     seenStreakT: rec.seenStreakT,
     lastPromoteT: rec.lastPromoteT,
@@ -585,109 +505,195 @@ function zoneOf(rec: ResidencyRecord, r: Renderer | null): ZoneView {
     packedDir: rec.packedDir,
     packedTarget: rec.packedTarget,
     packLimited: rec.packLimited,
-    starveCount: rec.starveCount,
-    inFlight: inFlight.has(rec.slot),
+    inFlight: flying,
   };
 }
 
-const snapshotZones = (r: Renderer): ZoneView[] => [...bySlot.values()].map((rec) => zoneOf(rec, r));
+const snapshotZones = (r: Renderer, now: number): ZoneView[] => [...bySlot.values()].map((rec) => zoneOf(rec, r, now));
 
-/** Execute the planner's decision (the only place that mutates residency). */
-function applyAction(
+/** Bytes a step will leave its slot with — what the budget projection and
+ * the planner's in-flight view use. */
+function expectedBytesOf(step: PlanAction, rec: ResidencyRecord, r: Renderer): number {
+  switch (step.kind) {
+    case 'restore-full':
+    case 'promote-full':
+      return rec.bytesFull;
+    case 'promote-coarse':
+      return rec.bytesCoarse;
+    case 'refresh-coarse':
+      return Math.max(rec.bytesCoarse, r.modelBytes(rec.slot));
+    case 'promote-mixed':
+      return Math.min(rec.bytesFull, step.targetBytes + rec.bytesCoarse);
+    case 'demote':
+      return step.to === 'coarse' ? rec.bytesCoarse : 0;
+    default:
+      return r.modelBytes(rec.slot);
+  }
+}
+
+/** Σ over in-flight swaps of the bytes they are about to add or free. */
+function pendingDelta(r: Renderer): number {
+  let sum = 0;
+  for (const [slot, expected] of pendingBytes) {
+    sum += expected - r.modelBytes(slot);
+  }
+  return sum;
+}
+
+function launch(
   r: Renderer,
-  action: PlanAction,
+  step: PlanAction,
+  rec: ResidencyRecord,
   eye: readonly [number, number, number],
   fwd: readonly [number, number, number],
   cuts: Cuts,
   pacing: Pacing,
 ): void {
-  if (action.kind === 'none') {
-    // Convergence report — the v9 experiment's measurement. Wall time is what
-    // you feel; the swap-time sum against it shows whether the run was limited
-    // by the worker (sum ≈ wall × concurrency) or by policy throttles
-    // (sum ≪ wall, i.e. mostly waiting).
-    if (action.settled && burstStartT !== 0 && inFlight.size === 0) {
-      const wall = performance.now() - burstStartT;
-      const speed = viewerState.get().vramSwapSpeed;
-      const line =
-        `SETTLED [${speed}] after ${(wall / 1000).toFixed(2)}s · ${burstSwaps} swaps · ` +
-        `${(burstBytes / 1048576).toFixed(0)} MB · swap-time sum ${(burstParseMs / 1000).toFixed(2)}s ` +
-        `(${((burstParseMs / Math.max(wall, 1)) * 100).toFixed(0)}% busy)`;
-      logEvent(line);
-      settleReports.push(line);
-      if (settleReports.length > SETTLE_REPORT_CAP) {
-        settleReports.shift();
-      }
-      burstStartT = 0;
-    }
-    settled = action.settled;
-    return;
-  }
-  const rec = bySlot.get(action.slot);
-  if (!rec) {
-    return;
-  }
-  switch (action.kind) {
+  const cd = pacing.cooldownMs;
+  const expected = expectedBytesOf(step, rec, r);
+  switch (step.kind) {
     case 'restore-full':
-      runSwap(r, rec, promote, 0, action.reason);
-      return;
-    case 'refresh-coarse':
-      runSwap(r, rec, (rr, rc) => refreshCoarse(rr, rc, eye, cuts), pacing.cooldownMs, action.reason);
-      return;
-    case 'demote':
-      if (action.reason === 'rebalance') {
-        // the starving zone paid for this eviction — count it against its cap
-        for (const z of bySlot.values()) {
-          if (action.detail.startsWith(`for slot ${z.slot} `)) {
-            z.starveCount++;
-          }
-        }
-      }
-      runSwap(r, rec, (rr, rc) => demote(rr, rc, eye, cuts), pacing.cooldownMs, action.reason, action.detail);
-      return;
-    case 'promote-coarse':
-      // the repair rung: unloaded → coarse (existence beats sharpness)
-      rec.starveCount = 0;
-      runSwap(
-        r,
-        rec,
-        async (rr, rc) => {
-          rc.lastPromoteT = performance.now();
-          try {
-            await packCoarse(rr, rc, eye, cuts);
-          } catch (e) {
-            rc.coarseBroken = true; // don't retry a broken coarse file forever
-            throw e;
-          }
-        },
-        pacing.cooldownMs,
-        action.reason,
-        action.detail,
-      );
+      runSwap(r, rec, prepareFull(rec, 0), expected, step.reason);
       return;
     case 'promote-full':
-      rec.starveCount = 0;
-      runSwap(r, rec, promote, pacing.cooldownMs, action.reason, action.detail);
+      runSwap(r, rec, prepareFull(rec, cd), expected, step.reason, step.detail);
       return;
-    case 'promote-mixed': {
-      rec.starveCount = 0;
-      const target = action.targetBytes;
+    case 'promote-coarse':
+      runSwap(r, rec, prepareCoarse(r, rec, eye, cuts, 'repair', false, cd), expected, step.reason, step.detail);
+      return;
+    case 'refresh-coarse':
+      // a failed refresh must not retry in a loop; the old pack still draws
       runSwap(
         r,
         rec,
-        (rr, rc) => promoteMixed(rr, rc, eye, fwd, target, cuts),
-        pacing.cooldownMs,
-        action.reason,
-        action.detail,
+        prepareCoarse(r, rec, eye, cuts, 'refresh', quietOk(r, rec), cd),
+        expected,
+        step.reason,
+        '',
+        () => {
+          rec.coarseStale = false;
+        },
       );
       return;
+    case 'promote-mixed':
+      runSwap(r, rec, prepareMixed(r, rec, eye, fwd, step.targetBytes, cuts, cd), expected, step.reason, step.detail);
+      return;
+    case 'demote': {
+      const quiet = quietOk(r, rec);
+      // demoted while drawing nothing → from THIS viewpoint the zone is occluded
+      // or absent; the CPU seen-fallback must not re-promote it until we move
+      if (r.drawCountsUsable && r.drawnPerModel[rec.slot] === 0) {
+        rec.deadviewEye = [eye[0], eye[1], eye[2]];
+      }
+      runSwap(r, rec, prepareDemote(r, rec, eye, cuts, step.to, quiet, cd), expected, step.reason, step.detail);
+      return;
     }
-    case 'park':
-      rec.starveCount = 0;
-      rec.cooldownUntil = action.untilT;
-      logEvent(`PARK ${rec.label} · ${action.reason}`);
+    default:
       return;
   }
+}
+
+/** Issue the plan's next steps while the in-flight cap allows. An allocation
+ * waits until the frees before it have committed and its projected total
+ * lands under the promote headroom; if nothing is in flight and it still
+ * does not fit, the plan was built on estimates that missed — drop it and
+ * re-plan on real numbers. */
+function issueSteps(
+  r: Renderer,
+  budgetMb: number,
+  eye: readonly [number, number, number],
+  fwd: readonly [number, number, number],
+  cuts: Cuts,
+  pacing: Pacing,
+): void {
+  while (plan && plan.next < plan.steps.length && inFlight.size < pacing.maxInFlight) {
+    const step = plan.steps[plan.next];
+    const rec = step.kind === 'none' ? undefined : bySlot.get(step.slot);
+    if (!rec) {
+      plan.next++;
+      continue;
+    }
+    if (step.kind !== 'demote' && budgetMb > 0) {
+      const grow = expectedBytesOf(step, rec, r) - r.modelBytes(rec.slot);
+      const projected = r.vramBuffers + r.vramTextures + pendingDelta(r) + Math.max(0, grow);
+      if (grow > 0 && projected > budgetMb * MB * PROMOTE_HEADROOM) {
+        if (inFlight.size > 0) {
+          break; // frees still landing
+        }
+        dropPlan(`slot ${rec.slot} does not fit (${mb(projected)} MB projected)`);
+        break;
+      }
+    }
+    plan.next++;
+    launch(r, step, rec, eye, fwd, cuts, pacing);
+  }
+  if (plan && plan.next >= plan.steps.length && inFlight.size === 0 && ready.length === 0) {
+    plan = null; // completed — the next evaluation re-plans (expected: empty → settled)
+    nextEvalAt = 0;
+  }
+}
+
+function reportSettled(r: Renderer, now: number): void {
+  const wall = now - burstStartT;
+  const s = viewerState.get();
+  const frames = r.frameCounter - burst0.frames;
+  const scene = r.sceneFrames - burst0.scene;
+  const resets = r.accumResets - burst0.resets;
+  const held = r.heldFrames - burst0.held;
+  const gpu = s.gpuTimings ? `${((r.gpuMsTotal - burst0.gpuMs) / 1000).toFixed(2)}s` : 'off';
+  const line =
+    `SETTLED [${s.vramSwapSpeed}] after ${(wall / 1000).toFixed(2)}s · ${burstSwaps} swaps · ` +
+    `${(burstBytes / MB).toFixed(0)} MB · swap-time sum ${(burstParseMs / 1000).toFixed(2)}s ` +
+    `(${((burstParseMs / Math.max(wall, 1)) * 100).toFixed(0)}% busy) · ` +
+    `${burstCommits} commits (${burstQuiet} quiet) · ${frames} frames (${scene} scene, ${resets} accum resets, ` +
+    `${held} held) · gpu Σ ${gpu} · ${burstVisRefreshes} vis refreshes`;
+  logEvent(line);
+  settleReports.push(line);
+  if (settleReports.length > SETTLE_REPORT_CAP) {
+    settleReports.shift();
+  }
+  burstStartT = 0;
+}
+
+/** One idle evaluation: plan if there is no plan, then issue steps. */
+function evaluate(r: Renderer, now: number, pacing: Pacing): void {
+  const s = viewerState.get();
+  const eye = r.camera.eye();
+  const fwd = r.camera.forward();
+  const cuts: Cuts = { sizeM: s.vramCutSizeM, distM: s.vramCutDistM, dropHidden: s.vramDropHidden };
+  if (!plan) {
+    if (inFlight.size > 0 || ready.length > 0) {
+      return; // let the previous plan's swaps land first
+    }
+    const res = planTargets({
+      zones: snapshotZones(r, now),
+      now,
+      budgetMb: vramBudgetMb(s),
+      used: r.vramBuffers + r.vramTextures,
+      eye,
+      fwd,
+      cuts,
+      pacing,
+    });
+    if (res.steps.length === 0) {
+      settled = res.settled;
+      if (res.settled && burstStartT !== 0) {
+        reportSettled(r, now);
+      }
+      return;
+    }
+    plan = { steps: res.steps, next: 0 };
+    settled = false;
+    startBurst(r, now);
+    const demotes = res.steps.filter((x) => x.kind === 'demote').length;
+    const refreshes = res.steps.filter((x) => x.kind === 'refresh-coarse').length;
+    const targetSum = res.targets.reduce((n, t) => n + t.targetBytes, 0);
+    logEvent(
+      `PLAN ${res.steps.length} steps (${demotes} demotes, ${res.steps.length - demotes - refreshes} promotes, ` +
+        `${refreshes} refreshes) · targets Σ ${mb(targetSum)} MB / model budget ${mb(res.modelBudget)} MB`,
+    );
+  }
+  issueSteps(r, vramBudgetMb(s), eye, fwd, cuts, pacing);
 }
 
 // -----------------------------------------------------------------------------
@@ -714,6 +720,7 @@ export const residency = {
     }
     const measured = renderer.modelBytes(slot);
     const fileRatio = entry.coarse && entry.coarse.size > 0 ? entry.size / entry.coarse.size : 1;
+    const now = performance.now();
     logEvent(`REGISTER ${entry.folder ? `${entry.folder}/` : ''}${entry.name} [slot ${slot}] as ${variant}`);
     bySlot.set(slot, {
       slot,
@@ -730,29 +737,30 @@ export const residency = {
             ? measured
             : Math.max(1, Math.round(measured / fileRatio)),
       hasCoarse: entry.coarse !== undefined,
-      coarseBroken: false,
+      coarseFails: 0,
+      coarseRetryAt: 0,
       bounds,
       liveBounds: bounds,
       denseBounds: bounds,
       visibleFrac: 1,
       nearestDist: Infinity, // real value arrives with the first refresh
-      lastSeenT: performance.now(),
-      seenStreakT: performance.now(),
+      lastSeenT: now,
+      seenStreakT: now,
       packedEye: null,
       packedDir: null,
       packedTarget: 0,
       coarseStale: false,
       // a freshly loaded zone starts its dwell now — it must not be demoted
       // before it has been resident for a while
-      lastPromoteT: performance.now(),
+      lastPromoteT: now,
       lastDemoteT: 0,
       packLimited: true,
-      starveCount: 0,
       cooldownUntil: 0,
       packDropped,
       deadviewEye: null,
     });
-    visRefreshAt = 0; // pick up this zone's real visibility on the next tick
+    visForce = true; // pick up this zone's real visibility on the next tick
+    planDirty = true;
   },
 
   /** Manual unload of these slots — stop managing them. */
@@ -760,14 +768,19 @@ export const residency = {
     for (const i of indices) {
       bySlot.delete(i);
     }
+    planDirty = true;
   },
 
-  /** Scene cleared — forget everything. */
+  /** Scene cleared — forget everything. In-flight prepares resolve into a
+   * flush that finds no record and drops them. */
   reset(): void {
     bySlot.clear();
+    ready.length = 0;
+    pendingBytes.clear();
+    plan = null;
   },
 
-  /** Suspend swaps (bulk loads, imports) — calls nest. */
+  /** Suspend swaps (bulk loads, imports, hi-res captures) — calls nest. */
   pause(): void {
     pauseCount++;
   },
@@ -781,11 +794,12 @@ export const residency = {
     const s = viewerState.get();
     const pacing = PACING[s.vramSwapSpeed] ?? PACING.normal;
     if (pauseCount > 0) {
+      r.holdAccumulation = false;
       return;
     }
     handleWake(now);
-    if (s.maxVramMb > 0) {
-      refreshVisibility(now, r.camera.eye()); // cheap + throttled; runs even while swaps queue
+    if (vramBudgetMb(s) > 0) {
+      refreshVisibility(r, now);
       refreshSeen(r, now);
       // a changed clipping volume invalidates every pack's clip-based cut set
       const clipKey = r.clipData ? r.clipData.join(',') : '';
@@ -797,37 +811,59 @@ export const residency = {
             rec.coarseStale = true; // coarse packs refresh their cut set
           }
         }
+        planDirty = true;
         logEvent('CLIP-CHANGE · invalidated every pack');
       }
     }
-    if (inFlight.size >= pacing.maxInFlight || now < nextEvalAt) {
+    flushReady(r, now, pacing);
+    r.holdAccumulation = s.vramHoldAccum && vramBudgetMb(s) > 0 && burstActive();
+    if (now < nextEvalAt) {
       return;
     }
     nextEvalAt = now + pacing.evalMs;
     if (!isIdle(r, now, pacing.idleMs)) {
+      dropPlan('camera moved');
       return;
     }
-
-    const eye = r.camera.eye();
-    const fwd = r.camera.forward();
-    const cuts: Cuts = { sizeM: s.vramCutSizeM, distM: s.vramCutDistM, dropHidden: s.vramDropHidden };
-    const action = planResidency({
-      zones: snapshotZones(r),
-      now,
-      budgetMb: s.maxVramMb,
-      used: r.vramBuffers + r.vramTextures,
-      eye,
-      fwd,
-      cuts,
-      pacing,
-    });
-    applyAction(r, action, eye, fwd, cuts, pacing);
+    const settingsKey = `${vramBudgetMb(s)}|${s.vramCutSizeM}|${s.vramCutDistM}|${s.vramDropHidden}|${s.vramSwapSpeed}`;
+    if (settingsKey !== lastSettingsKey) {
+      lastSettingsKey = settingsKey;
+      dropPlan('settings changed');
+    }
+    if (planDirty) {
+      planDirty = false;
+      dropPlan('scene changed');
+    }
+    evaluate(r, now, pacing);
   },
 
-  /** Activity snapshot for the viewport chip: swaps in flight + whether the
-   * last idle evaluation found nothing left to do. */
+  /** Activity snapshot for the viewport chip: swaps in flight (preparing or
+   * waiting to commit) + whether the last idle evaluation found nothing
+   * left to do. */
   activity(): { inFlight: number; settled: boolean } {
     return { inFlight: inFlight.size, settled };
+  },
+
+  /** Where an export must take this slot's geometry from: null when the slot
+   * holds full detail (or is not budget-managed) and the GPU readback is the
+   * truth; else the store + asset id of its full cook, because a coarse,
+   * mixed or unloaded slot would export the budget's cuts. Callers pause the
+   * manager for the export's duration so the answer stays true. */
+  exportSource(slot: number): { store: string; assetId: string } | null {
+    const rec = bySlot.get(slot);
+    return rec && rec.variant !== 'full' ? { store: rec.store, assetId: rec.assetId } : null;
+  },
+
+  /** Tracked zones with no renderer slot right now — an export must still
+   * include them (their DbModel and full cook are intact). */
+  unloadedSlots(): number[] {
+    const out: number[] = [];
+    for (const rec of bySlot.values()) {
+      if (rec.variant === 'unloaded') {
+        out.push(rec.slot);
+      }
+    }
+    return out;
   },
 
   /** Debug dump: current per-zone state + the recent swap event log, as text
@@ -836,35 +872,38 @@ export const residency = {
     const now = performance.now();
     const s = viewerState.get();
     const eye = r?.camera.eye() ?? [0, 0, 0];
+    const total = r ? r.vramBuffers + r.vramTextures : 0;
     const lines: string[] = [
       `VRAM budget debug — ${new Date().toISOString()}`,
-      `budget ${s.maxVramMb} MB · speed ${s.vramSwapSpeed} · cut ${s.vramCutSizeM} m / ${s.vramCutDistM} m · ` +
-        `dropHidden ${s.vramDropHidden}`,
+      `budget ${vramBudgetMb(s)} MB · speed ${s.vramSwapSpeed} · cut ${s.vramCutSizeM} m / ${s.vramCutDistM} m · ` +
+        `dropHidden ${s.vramDropHidden} · holdAccum ${s.vramHoldAccum}`,
       r
-        ? `used ${((r.vramBuffers + r.vramTextures) / 1048576).toFixed(0)} MB ` +
-          `(buf ${(r.vramBuffers / 1048576).toFixed(0)} + tex ${(r.vramTextures / 1048576).toFixed(0)}) · ` +
-          `eye ${eye.map((v) => v.toFixed(1)).join(', ')}`
+        ? `used ${(total / MB).toFixed(0)} MB (models ${(r.modelBytesTotal / MB).toFixed(0)} + ` +
+          `targets/other ${((total - r.modelBytesTotal) / MB).toFixed(0)}) · eye ${eye.map((v) => v.toFixed(1)).join(', ')}`
         : 'no renderer',
-      `tracked ${bySlot.size} · inFlight ${inFlight.size} · settled ${settled} · paused ${pauseCount}`,
+      `tracked ${bySlot.size} · inFlight ${inFlight.size} (ready ${ready.length}) · ` +
+        `plan ${plan ? `${plan.next}/${plan.steps.length}` : 'none'} · settled ${settled} · paused ${pauseCount}`,
       '',
       `CONVERGENCE (${settleReports.length} recent, newest last):`,
       ...(settleReports.length ? settleReports : ['  (none yet — settle once with a budget set)']),
       '',
-      'ZONES (variant, prio, dist, unseen, dwell since promote/demote, cooldown, packTarget, limited):',
+      'ZONES (variant, prio, dist, radius, unseen, dwell since promote/demote, cooldown, packTarget, limited):',
     ];
     for (const rec of bySlot.values()) {
+      const z = zoneOf(rec, r, now);
       lines.push(
         `  ${rec.label} [slot ${rec.slot}] ${rec.variant.padEnd(8)} ` +
-          `prio ${priority(zoneOf(rec, r), now).toExponential(2)} ` +
-          `near ${rec.nearestDist.toFixed(0)}m vis ${(rec.visibleFrac * 100).toFixed(0)}% ` +
+          `prio ${priority(z, now).toExponential(2)} ` +
+          `near ${rec.nearestDist.toFixed(0)}m R ${z.denseRadius.toFixed(0)}m vis ${(rec.visibleFrac * 100).toFixed(0)}% ` +
           `span ${spanOf(decisionBox(rec)).toFixed(0)}/${spanOf(rec.liveBounds ?? rec.bounds).toFixed(0)}m ` +
           `meshlets ${r?.modelMeshletCount(rec.slot) ?? 0} ` +
           `unseen ${((now - rec.lastSeenT) / 1000).toFixed(1)}s streak ${((now - rec.seenStreakT) / 1000).toFixed(1)}s ` +
           `sincePromote ${((now - rec.lastPromoteT) / 1000).toFixed(1)}s sinceDemote ${((now - rec.lastDemoteT) / 1000).toFixed(1)}s ` +
           `cooldown ${Math.max(0, (rec.cooldownUntil - now) / 1000).toFixed(1)}s ` +
-          `bytes ${(r?.modelBytes(rec.slot) ?? 0) / 1048576 > 0 ? ((r?.modelBytes(rec.slot) ?? 0) / 1048576).toFixed(1) : '0'} MB ` +
-          `packTarget ${(rec.packedTarget / 1048576).toFixed(0)} MB limited ${rec.packLimited} stale ${rec.coarseStale} ` +
-          `dropped ${rec.packDropped}${rec.deadviewEye ? ' deadview' : ''}`,
+          `bytes ${mb(r?.modelBytes(rec.slot) ?? 0)} MB ` +
+          `packTarget ${(rec.packedTarget / MB).toFixed(0)} MB limited ${rec.packLimited} stale ${rec.coarseStale} ` +
+          `dropped ${rec.packDropped}${rec.deadviewEye ? ' deadview' : ''}` +
+          `${rec.coarseFails ? ` coarseFails ${rec.coarseFails}` : ''}${inFlight.has(rec.slot) ? ' in-flight' : ''}`,
       );
     }
     lines.push('', `EVENTS (${eventLog.length}, newest last):`, ...eventLog);

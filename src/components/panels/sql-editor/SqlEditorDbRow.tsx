@@ -8,17 +8,17 @@ import { openSqlAssetsPanel } from '../sql-assets/sqlAssetsPanel';
  *  attach-only runs) and jump to the SQL Assets panel. */
 export function SqlEditorDbRow() {
   const { dbs } = sqlAssetsState.use();
-  const { mainDbPath } = sqlEditorState.use();
+  const { draft } = sqlEditorState.use();
 
   return (
     <label className="flex shrink-0 items-center gap-2 text-slate-400 text-xs">
-      <span className="w-16 shrink-0">Main db</span>
+      <span className="w-[70px] shrink-0">Main db</span>
       <div
         className="min-w-0 flex-1"
         data-tooltip="The database opened directly. Pick None to run purely off ATTACH'd files (an in-memory scratch db is used)."
       >
         <Select
-          value={mainDbPath}
+          value={draft.db}
           placeholder={dbs.length ? 'Pick a database…' : 'No databases — import one in SQL Assets'}
           searchable
           options={[

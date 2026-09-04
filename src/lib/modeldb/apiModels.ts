@@ -3,11 +3,19 @@
 import * as Comlink from 'comlink';
 import { boxInFrustum } from '../math/frustum';
 import { parseModel } from '../model/format';
-import { healItemBounds, ITEM_DROP, type PackedModel, packModel, packModelMixed } from '../model/pack';
+import {
+  estimateItemFullBytes,
+  hasAuthoredNormals,
+  healItemBounds,
+  ITEM_DROP,
+  type PackedModel,
+  packModel,
+  packModelMixed,
+} from '../model/pack';
 import { clipCulledSphere } from '../render/clipCull';
 import { resetTransformUndo } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
-import { type DbModel, IS_HIDDEN, models, type StateUpdate } from './dbState';
+import { type DbModel, IS_HIDDEN, models, resetItemStates, type StateUpdate } from './dbState';
 import { resetGlobalIndex } from './globalNameIndex';
 import { buildIndexes, packStates } from './hierarchyIndex';
 import { itemWorldBounds, resetTransformPool } from './transformPool';
@@ -266,23 +274,9 @@ export const modelsApi = {
       );
     }
 
-    // estimated full-detail GPU bytes per item (positions 8 B/vert + u16
-    // indices + the fixed per-meshlet record overhead)
-    const estBytes = new Float32Array(m.itemCount);
-    const drToItem = full.colorGroups.map((cg) => new Uint32Array(cg.drawRangeCount));
-    for (let i = 0; i < m.itemCount; i++) {
-      drToItem[full.itemToCg[i]][full.itemToDr[i]] = i;
-    }
-    full.colorGroups.forEach((cg, cgIdx) => {
-      for (let d = 0; d < cg.drawRangeCount; d++) {
-        const item = drToItem[cgIdx][d];
-        const start = cg.drMeshletStarts[d];
-        for (let k = 0; k < cg.drMeshletCounts[d]; k++) {
-          const off = (start + k) * 40;
-          estBytes[item] += cg.descs.getUint32(off + 8, true) * 8 + cg.descs.getUint32(off + 12, true) * 6 + 116;
-        }
-      }
-    });
+    // estimated full-detail GPU bytes per item — the same terms the renderer
+    // allocates, normal stream included when the pack will carry one
+    const estBytes = estimateItemFullBytes(full, hasAuthoredNormals(full, coarse));
 
     // nearest-first over the WORLD-space item boxes (clamped AABB distance),
     // in-frustum items strictly before out-of-view ones — full detail lands
@@ -574,7 +568,9 @@ export const modelsApi = {
   },
 
   /** Tombstone models: indices stay stable (item ids / renderer slots keep
-   *  lining up); removed models vanish from groups/names/roots. */
+   *  lining up); removed models vanish from groups/names/roots. The per-item
+   *  state is kept — a residency swap revives the slot with it intact; an
+   *  explicit unload calls resetItemStates as well. */
   removeModels(indices: number[]) {
     for (const i of indices) {
       const m = models[i];
@@ -583,6 +579,18 @@ export const modelsApi = {
       }
       m.removed = true;
       m.selected = new Uint32Array(0);
+    }
+  },
+
+  /** Explicit unload: forget every per-item state (colors, opacity, hidden,
+   *  item edges, transforms) so a later load of the same file comes back
+   *  clean instead of reviving the old look with the slot. */
+  resetItemStates(indices: number[]) {
+    for (const i of indices) {
+      const m = models[i];
+      if (m) {
+        resetItemStates(m);
+      }
     }
   },
 

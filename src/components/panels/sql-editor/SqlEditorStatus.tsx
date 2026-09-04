@@ -8,7 +8,8 @@ import { sqlEditorState } from '../../../state/sqlAssets/sqlEditor.state';
  *  outcome. */
 export function SqlEditorStatus() {
   const { dbs } = sqlAssetsState.use();
-  const { mainDbPath, sql, running, lastError, lastMs, lastRows } = sqlEditorState.use();
+  const { draft, running, lastError, lastMs, lastRows } = sqlEditorState.use();
+  const { db: mainDbPath, sql } = draft;
 
   const known = new Set(dbs.map((d) => d.path));
   const attached = parseAttachPaths(sql).filter((p) => p !== mainDbPath);

@@ -70,19 +70,21 @@ export function sqlWorkspace(activeRibbon: string): DockState {
 }
 
 /** The "Assets" slot (F12): the asset-management workspace — Hierarchy |
- *  Model Assets | SQL Assets | (viewport over console) | Import Manager. */
+ *  (Model Assets over SQL Assets) | (viewport over console) | Import Manager |
+ *  Export. */
 export function assetsWorkspace(activeRibbon: string): DockState {
   const center = split('column', [tabs(['viewport']), tabs(['console'], { id: 'bottom', fixedSize: 150 })]);
+  const assetsCol = split('column', [tabs(['modelAssets']), tabs(['sqlAssets'])]);
   const row = split(
     'row',
     [
       tabs(['hierarchy'], { id: 'left' }),
-      tabs(['modelAssets']),
-      tabs(['sqlAssets']),
+      assetsCol,
       center,
       tabs(['importManager'], { id: 'right' }),
+      tabs(['export']),
     ],
-    [14, 16, 16, 39, 15],
+    [14, 18, 38, 15, 15],
   );
   return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
 }

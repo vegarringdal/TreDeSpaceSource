@@ -9,43 +9,43 @@
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
 import { bindDetailReport, openSqlDetailPanel } from '../../components/panels/sql-detail/sqlDetailPanel';
+import { openSqlReportsPanel } from '../../components/panels/sql-reports/sqlReportsPanel';
 import { openSqlTablePanel } from '../../components/panels/sql-table/sqlTablePanel';
 import { killSqliteWorker, sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements } from '../../lib/sqlite/sqlAttach';
-import { treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
+import { filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
+import {
+  addReportFilter,
+  removeReportFilter,
+  setReportFilter,
+  toggleReportType,
+  withDatabases,
+} from '../sqlReports/reportDraft';
 import { lastSelectedTree, sqlReportsActions } from '../sqlReports/sqlReports.actions';
-import type { ReportDef } from '../sqlReports/sqlReports.state';
-import { sqlEditorState } from './sqlEditor.state';
+import type { ReportDef, ReportFilter, ReportType } from '../sqlReports/sqlReports.state';
+import { sqlAssetsState } from './sqlAssets.state';
+import { emptyEditorDraft, sqlEditorState } from './sqlEditor.state';
 import { killHint } from './sqlKillHint';
 
 /** The SQL an action should run: the highlighted selection when there is one,
  *  otherwise the whole editor text. Lets you run just one of several statements. */
 function effectiveSql(): string {
-  const { sql, selStart, selEnd } = sqlEditorState.get();
+  const { draft, selStart, selEnd } = sqlEditorState.get();
+  const { sql } = draft;
   const a = Math.max(0, Math.min(selStart, sql.length));
   const b = Math.max(0, Math.min(selEnd, sql.length));
   return b > a ? sql.slice(a, b) : sql;
 }
 
-/** Wrap the editor's current SQL (selection or all) as a transient report so it
- *  can flow through the same table / coloring / detail consumers a saved report
- *  uses. Returns null (after a dialog) when no main db is picked. */
-function editorReport(): ReportDef | null {
-  const { mainDbPath } = sqlEditorState.get();
-  const sql = effectiveSql();
-  return {
-    id: '__editor__',
-    // transient report — never persisted, so store is irrelevant. mainDbPath
-    // may be '' (None): the report runs off ATTACH'd files only.
-    store: '',
-    db: mainDbPath,
-    name: 'SQL Editor',
-    description: '',
-    types: ['TABLE', 'COLORING', 'DETAIL'],
-    sql,
-    databases: [...new Set([mainDbPath, ...parseAttachPaths(sql)].filter(Boolean))],
-    filters: [],
-  };
+/** The editor's draft as a runnable report: the current SQL (selection or
+ *  all) with `databases` recomputed, so it flows through the same table /
+ *  coloring / detail consumers a saved report uses. */
+function editorReport(): ReportDef {
+  return withDatabases({ ...sqlEditorState.get().draft, sql: effectiveSql() });
+}
+
+function patchDraft(p: Partial<ReportDef>): void {
+  sqlEditorState.set((s) => ({ draft: { ...s.draft, ...p } }));
 }
 
 /** Rows come back as arrays/objects from sqlite; print them compactly. */
@@ -67,11 +67,102 @@ function titledBlock(sql: string, name: string): string {
 
 export const sqlEditorActions = {
   setMainDbPath(mainDbPath: string) {
-    sqlEditorState.set({ mainDbPath });
+    patchDraft({ db: mainDbPath });
   },
 
   setSql(sql: string) {
-    sqlEditorState.set({ sql });
+    patchDraft({ sql });
+  },
+
+  /** Edit the draft's report fields (name, description, db, sql, …). */
+  patch(p: Partial<ReportDef>) {
+    patchDraft(p);
+  },
+
+  toggleType(t: ReportType) {
+    sqlEditorState.set((s) => ({ draft: toggleReportType(s.draft, t) }));
+  },
+
+  setFilter(i: number, p: Partial<ReportFilter>) {
+    sqlEditorState.set((s) => ({ draft: setReportFilter(s.draft, i, p) }));
+  },
+
+  addFilter() {
+    sqlEditorState.set((s) => ({ draft: addReportFilter(s.draft) }));
+  },
+
+  removeFilter(i: number) {
+    sqlEditorState.set((s) => ({ draft: removeReportFilter(s.draft, i) }));
+  },
+
+  /** Empty the editor — name, description, SQL, filters and types back to a
+   *  fresh draft — after a confirm. The Main db pick stays. */
+  async clear() {
+    const ok = await dialogs.confirm('Clear the SQL Editor? Name, description, SQL and filters are removed.', {
+      title: 'Clear SQL Editor',
+      okLabel: 'Clear',
+    });
+    if (!ok) {
+      return;
+    }
+    sqlEditorState.set((s) => ({
+      draft: emptyEditorDraft(s.draft.db),
+      selStart: 0,
+      selEnd: 0,
+      lastError: '',
+      lastMs: 0,
+      lastRows: 0,
+    }));
+    consoleActions.log('info', 'SQL: editor cleared');
+  },
+
+  /** Replace the draft with a report's definition (SQL Reports → editor):
+   *  db, name, description, types, SQL and filters. The id and store stay the
+   *  editor's own, so a later Save Local adds a new report instead of
+   *  touching the original. */
+  setFromReport(report: ReportDef) {
+    const { id, store } = emptyEditorDraft();
+    sqlEditorState.set({
+      draft: withDatabases({ ...report, id, store, filters: structuredClone(report.filters) }),
+      selStart: 0,
+      selEnd: 0,
+      lastError: '',
+      lastMs: 0,
+      lastRows: 0,
+    });
+    consoleActions.log('info', `SQL: editor set from report "${report.name}"`);
+  },
+
+  /** Save the draft as a NEW report in the Main db's store (its
+   *  SQL_Reports.json) — the local counterpart of a host storing it through
+   *  `sql.editor.get`. The Main db decides the store, so it is required; a
+   *  blank name is asked for. The SQL Reports panel switches to that store
+   *  and opens, so the new report is in view. */
+  async saveLocal() {
+    const { draft } = sqlEditorState.get();
+    const store = sqlAssetsState.get().dbs.find((d) => d.path === draft.db)?.store;
+    if (!store) {
+      dialogs.error('Pick a Main db first — its store is where the report is saved.', 'Save Local');
+      return;
+    }
+    let name = draft.name.trim();
+    if (!name) {
+      const typed = await dialogs.prompt('Name for the report', {
+        title: 'Save to SQL Reports',
+        defaultValue: 'New report',
+        okLabel: 'Save',
+      });
+      name = typed?.trim() ?? '';
+      if (!name) {
+        return;
+      }
+      patchDraft({ name });
+    }
+    // save() writes the store's file from the reports in memory, so the
+    // target store's list must be loaded first
+    await sqlReportsActions.setStore(store);
+    await sqlReportsActions.save({ ...draft, id: crypto.randomUUID(), store, name });
+    openSqlReportsPanel();
   },
 
   /** Host API `sql.editor`: put SQL into the panel. Replacing swaps the whole
@@ -81,11 +172,11 @@ export const sqlEditorActions = {
    *  buttons run a slice of the OLD script. Returns the resulting text. */
   setEditorSql(sql: string, opts: { replace?: boolean; name?: string } = {}): string {
     const body = sql.trim();
-    const current = sqlEditorState.get().sql;
+    const current = sqlEditorState.get().draft.sql;
     const replace = opts.replace !== false;
     const block = opts.name !== undefined || !replace ? titledBlock(body, opts.name?.trim() || 'sql') : body;
     const next = replace || !current.trim() ? block : `${current.replace(/\s+$/, '')}\n\n${block}`;
-    sqlEditorState.set({ sql: next, selStart: 0, selEnd: 0 });
+    sqlEditorState.set((s) => ({ draft: { ...s.draft, sql: next }, selStart: 0, selEnd: 0 }));
     return next;
   },
 
@@ -100,7 +191,9 @@ export const sqlEditorActions = {
   },
 
   /** Run the editor's script against the selected database. Everything —
-   *  rows, logs, errors — goes to the Console panel for now. */
+   *  rows, logs, errors — goes to the Console panel for now. FILTER_ARGS is
+   *  seeded from the draft's filters and TREE_VIEW_ARGS from the last
+   *  selection, so a query reads the same scratch tables a report run sees. */
   async run() {
     const s = sqlEditorState.get();
     if (s.running) {
@@ -115,13 +208,14 @@ export const sqlEditorActions = {
     // Seed TREE_VIEW_ARGS from the last viewport click so a query can read it
     // (e.g. testing a detail SELECT) without clicking the model again.
     const tree = await lastSelectedTree();
-    const setup = tree.length ? treeViewArgsStatements(tree) : [];
+    const setup = [...filterArgsStatements(s.draft.filters), ...(tree.length ? treeViewArgsStatements(tree) : [])];
 
-    const additionalDbPaths = parseAttachPaths(sql).filter((p) => p !== s.mainDbPath);
+    const mainDbPath = s.draft.db;
+    const additionalDbPaths = parseAttachPaths(sql).filter((p) => p !== mainDbPath);
     sqlEditorState.set({ running: true, lastError: '' });
     consoleActions.log(
       'info',
-      `SQL: running ${statements.length} statement(s) on ${s.mainDbPath || '(no main db)'}${
+      `SQL: running ${statements.length} statement(s) on ${mainDbPath || '(no main db)'}${
         additionalDbPaths.length ? ` (+ ${additionalDbPaths.join(', ')})` : ''
       }${tree.length ? ` — TREE_VIEW_ARGS seeded with ${tree.length} level(s)` : ''} — ${s.lockmode} lock`,
     );
@@ -130,7 +224,7 @@ export const sqlEditorActions = {
     try {
       const result = await sqliteClient().execute(
         sqlOptions({
-          mainDbPath: s.mainDbPath,
+          mainDbPath,
           additionalDbPaths,
           lockmode: s.lockmode,
           statements: [...setup, ...statements.map((sql) => ({ sql, collect: true }))],
@@ -145,8 +239,8 @@ export const sqlEditorActions = {
       );
       let rows = 0;
       if (result.data) {
-        // skip the injected TREE_VIEW_ARGS setup statements so numbering matches
-        // the user's own statements
+        // skip the injected scratch-table setup statements so numbering
+        // matches the user's own statements
         result.data.slice(setup.length).forEach((r, i) => {
           const list = (r ?? []) as unknown[];
           rows += list.length;
@@ -196,21 +290,13 @@ export const sqlEditorActions = {
 
   /** Run the current SQL and show it in the SQL Table panel. */
   async asTable() {
-    const r = editorReport();
-    if (!r) {
-      return;
-    }
-    await sqlReportsActions.runTable(r);
+    await sqlReportsActions.runTable(editorReport());
     openSqlTablePanel();
   },
 
   /** White base coat + the result as a colored Multi highlight in Set Color. */
   async colorWhite() {
-    const r = editorReport();
-    if (!r) {
-      return;
-    }
-    const rows = await sqlReportsActions.runColoring(r);
+    const rows = await sqlReportsActions.runColoring(editorReport());
     if (rows) {
       await sqlReportsActions.colorWhite(rows);
     }
@@ -219,11 +305,7 @@ export const sqlEditorActions = {
   /** Opacity-0 base coat + the result colored (default yellow): isolates the
    *  returned rows, like Color White but hiding the rest instead of whitening. */
   async colorHidden() {
-    const r = editorReport();
-    if (!r) {
-      return;
-    }
-    const rows = await sqlReportsActions.runColoring(r);
+    const rows = await sqlReportsActions.runColoring(editorReport());
     if (rows) {
       await sqlReportsActions.colorHidden(rows);
     }
@@ -232,11 +314,7 @@ export const sqlEditorActions = {
   /** White base at 10% + the result colored: like Color White, but the rest of
    *  the model stays faintly visible instead of going flat white. */
   async colorTransparent() {
-    const r = editorReport();
-    if (!r) {
-      return;
-    }
-    const rows = await sqlReportsActions.runColoring(r);
+    const rows = await sqlReportsActions.runColoring(editorReport());
     if (rows) {
       await sqlReportsActions.colorTransparent(rows);
     }
@@ -244,11 +322,7 @@ export const sqlEditorActions = {
 
   /** Append a per-row Multi rule (fullname + fullname_color) to Set Color and run it. */
   async colorSet() {
-    const r = editorReport();
-    if (!r) {
-      return;
-    }
-    const rows = await sqlReportsActions.runColoring(r);
+    const rows = await sqlReportsActions.runColoring(editorReport());
     if (rows) {
       await sqlReportsActions.colorSetColor(rows);
     }
@@ -259,9 +333,6 @@ export const sqlEditorActions = {
    *  `debug` (ALT+click) prints the SQL just bound, so you can verify it was set. */
   asDetail(debug = false) {
     const r = editorReport();
-    if (!r) {
-      return;
-    }
     bindDetailReport(r);
     if (debug) {
       sqlReportsActions.logDetailSql(r);

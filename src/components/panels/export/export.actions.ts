@@ -2,12 +2,16 @@
 // OPFS (temp/export/) → download the finished file from disk. The heavy work
 // (GLB/IFC assembly in the modeldb worker, the .tdp cook in a cooker worker)
 // never blocks the main thread, and the loading dialog shows staged progress.
-// Exports WHAT IS VISIBLE with the CURRENT colors/opacity/transforms.
+// Exports WHAT IS VISIBLE with the CURRENT colors/opacity/transforms — at FULL
+// detail regardless of the VRAM budget: a zone the budget holds coarse, mixed
+// or unloaded is read from its full cook on disk instead of the GPU slot.
 import * as Comlink from 'comlink';
 import type { CookerApi } from '../../../lib/cooker/cookerWorker';
 import type { ExportGeom } from '../../../lib/modeldb/modeldbWorker';
-import { clearDir, exportTempDir } from '../../../lib/opfs/opfs';
+import { clearDir, exportTempDir, modelStoreDir, readFile } from '../../../lib/opfs/opfs';
+import type { Renderer } from '../../../lib/render/renderer';
 import { db, transfer } from '../../../state/viewer/db';
+import { residency } from '../../../state/viewer/residency';
 import { getRenderer } from '../../../state/viewer/viewer.actions';
 import { dialogs } from '../../dialogs/dialogs.actions';
 import { consoleActions } from '../console/console.actions';
@@ -16,46 +20,65 @@ import { exportState } from './export.state';
 /** OPFS scratch dir the workers stream into (path from the OPFS root). */
 const TMP = 'temp/export';
 
-/** Read every live model's packed geometry back from the GPU (shared by all
- *  exports; must run on the main thread — the renderer owns the device).
- *  Fills the progress bar's first half. Returns null (after an error dialog)
- *  when empty. */
+/** Every model an export covers: the renderer's live slots plus the zones the
+ *  VRAM budget has unloaded (their DbModel is live and their full cook is on
+ *  disk — an export must not silently drop them). Worker indices, ascending. */
+function exportModelIndices(r: Renderer): number[] {
+  const indices = new Set(r.liveModels().map((m) => m.index));
+  for (const slot of residency.unloadedSlots()) {
+    indices.add(slot);
+  }
+  return [...indices].sort((a, b) => a - b);
+}
+
+/** One model's geometry for the export: the GPU readback when the slot holds
+ *  full detail (or is not budget-managed), else the zone's full cook from
+ *  OPFS — the budget's cuts must never reach an export. */
+async function geomFor(r: Renderer, index: number): Promise<{ geom: ExportGeom; fromDisk: boolean } | null> {
+  const src = residency.exportSource(index);
+  if (src) {
+    const tdp = await readFile(await modelStoreDir(src.store), `${src.assetId}.tdp`);
+    return { geom: { model: index, tdp }, fromDisk: true };
+  }
+  const g = await r.readModelGeometry(index);
+  if (!g) {
+    return null;
+  }
+  const { name: _name, ...geom } = g;
+  return { geom: { model: index, ...geom }, fromDisk: false };
+}
+
+/** Read every model's packed geometry (shared by all exports; must run on
+ *  the main thread — the renderer owns the device). Fills the progress bar's
+ *  first half. Returns null (after an error dialog) when empty. */
 async function readGeoms(title: string): Promise<ExportGeom[] | null> {
   const r = getRenderer();
   if (!r) {
     return null;
   }
-  const live = r.liveModels();
-  if (live.length === 0) {
+  const indices = exportModelIndices(r);
+  if (indices.length === 0) {
     dialogs.error('No models are loaded — nothing to export.', 'Export');
     return null;
   }
   const geoms: ExportGeom[] = [];
-  for (const { index } of live) {
+  for (let i = 0; i < indices.length; i++) {
+    const fromDisk = residency.exportSource(indices[i]) !== null;
     dialogs.loading(
-      `Reading model ${geoms.length + 1} of ${live.length} from the GPU…`,
+      `Reading model ${i + 1} of ${indices.length} ${fromDisk ? 'from disk (full detail)' : 'from the GPU'}…`,
       title,
-      (0.5 * geoms.length) / live.length,
+      (0.5 * i) / indices.length,
     );
-    const g = await r.readModelGeometry(index);
-    if (!g) {
-      continue;
+    const g = await geomFor(r, indices[i]);
+    if (g) {
+      geoms.push(g.geom);
     }
-    geoms.push({
-      model: index,
-      meshletCount: g.meshletCount,
-      positionsQ: g.positionsQ,
-      indices16: g.indices16,
-      cull: g.cull,
-      meshletInfo: g.meshletInfo,
-      cgColors: g.cgColors,
-    });
   }
   return geoms;
 }
 
-const geomTransfers = (geoms: ExportGeom[]) =>
-  geoms.flatMap((g) => [g.positionsQ, g.indices16, g.cull, g.meshletInfo, g.cgColors]);
+const geomTransfers = (geoms: ExportGeom[]): ArrayBuffer[] =>
+  geoms.flatMap((g) => ('tdp' in g ? [g.tdp] : [g.positionsQ, g.indices16, g.cull, g.meshletInfo, g.cgColors]));
 
 /** Trigger a download for a finished export file straight from OPFS — the
  *  blob streams from disk, nothing is copied into JS memory. The file stays in
@@ -86,6 +109,7 @@ export const exportActions = {
    *  hierarchy = full entry tree with named nodes + per-item meshes. */
   async exportGlb(mode: 'merged' | 'hierarchy') {
     const t0 = performance.now();
+    residency.pause(); // no swap may land between listing a zone and reading it
     try {
       await clearDir(await exportTempDir());
       const geoms = await readGeoms('Export GLB');
@@ -109,6 +133,7 @@ export const exportActions = {
     } catch (e) {
       reportError(e);
     } finally {
+      residency.resume();
       dialogs.hideLoading();
     }
   },
@@ -126,8 +151,8 @@ export const exportActions = {
     if (!r) {
       return;
     }
-    const live = r.liveModels();
-    if (live.length === 0) {
+    const indices = exportModelIndices(r);
+    if (indices.length === 0) {
       dialogs.error('No models are loaded — nothing to export.', 'Export');
       return;
     }
@@ -142,31 +167,29 @@ export const exportActions = {
     }
     const clean = (seg: string) => seg.replace(/[\\/:*?"<>|]/g, '_').trim() || '_';
     const worker = new Worker(new URL('../../../lib/cooker/cookerWorker.ts', import.meta.url), { type: 'module' });
+    residency.pause(); // no swap may land between listing a zone and reading it
     try {
       await clearDir(await exportTempDir());
       const cooker = Comlink.wrap<CookerApi>(worker);
-      const metas = await db.modelMetas(live.map((l) => l.index));
+      const metas = await db.modelMetas(indices);
       const used = new Set<string>();
       let totalTris = 0;
       let totalSize = 0;
       let written = 0;
-      const N = live.length;
+      const N = indices.length;
       for (let i = 0; i < N; i++) {
         const label = `Model ${i + 1} of ${N} — ${metas[i].name}`;
-        dialogs.loading(`${label}: reading from the GPU…`, 'Export TDP', i / N);
-        const g = await r.readModelGeometry(live[i].index);
+        const fromDisk = residency.exportSource(indices[i]) !== null;
+        dialogs.loading(
+          `${label}: reading ${fromDisk ? 'from disk (full detail)' : 'from the GPU'}…`,
+          'Export TDP',
+          i / N,
+        );
+        const g = await geomFor(r, indices[i]);
         if (!g) {
           continue;
         }
-        const geom: ExportGeom = {
-          model: live[i].index,
-          meshletCount: g.meshletCount,
-          positionsQ: g.positionsQ,
-          indices16: g.indices16,
-          cull: g.cull,
-          meshletInfo: g.meshletInfo,
-          cgColors: g.cgColors,
-        };
+        const geom = g.geom;
         dialogs.loading(`${label}: building…`, 'Export TDP', (i + 0.35) / N);
         const tmpGlb = `${TMP}/model-${i}.glb`;
         let tris: number;
@@ -211,6 +234,7 @@ export const exportActions = {
     } catch (e) {
       reportError(e);
     } finally {
+      residency.resume();
       worker.terminate();
       dialogs.hideLoading();
     }
@@ -221,6 +245,7 @@ export const exportActions = {
    *  hierarchy = the app's tree as nested aggregates. */
   async exportIfc(mode: 'merged' | 'hierarchy') {
     const t0 = performance.now();
+    residency.pause(); // no swap may land between listing a zone and reading it
     try {
       await clearDir(await exportTempDir());
       const geoms = await readGeoms('Export IFC');
@@ -241,6 +266,7 @@ export const exportActions = {
     } catch (e) {
       reportError(e);
     } finally {
+      residency.resume();
       dialogs.hideLoading();
     }
   },

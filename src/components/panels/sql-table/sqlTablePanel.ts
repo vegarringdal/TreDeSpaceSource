@@ -33,3 +33,25 @@ export function subscribeTablePayload(fn: () => void): () => void {
   subs.add(fn);
   return () => void subs.delete(fn);
 }
+
+/** Grid-local abilities (export, copy, select-all, load-all) that hotkeys
+ *  reach through this slot: TableGrid registers on mount, clears on unmount. */
+export interface TableActions {
+  exportAll: () => void;
+  exportSelected: () => void;
+  copyAll: () => void;
+  copySelected: () => void;
+  toggleSelectAll: () => void;
+  loadAll: () => void;
+}
+
+let tableActions: TableActions | null = null;
+
+export function registerTableActions(actions: TableActions | null): void {
+  tableActions = actions;
+}
+
+/** Invoke one grid ability — a no-op while no grid is mounted. */
+export function callTableAction(name: keyof TableActions): void {
+  tableActions?.[name]();
+}

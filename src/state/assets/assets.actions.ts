@@ -36,6 +36,7 @@ import { db } from '../viewer/db';
 import { residency } from '../viewer/residency';
 import { getRenderer, loadModelBytes, viewerActions } from '../viewer/viewer.actions';
 import { viewerState } from '../viewer/viewer.state';
+import { vramBudgetMb } from '../viewer/vramBudget';
 import {
   type AssetBounds,
   type AssetEntry,
@@ -350,7 +351,7 @@ async function loadOne(id: string): Promise<boolean> {
     const dir = await modelStoreDir(entry.store);
     let variant: 'full' | 'coarse' = 'full';
     let bytes: ArrayBuffer;
-    if (viewerState.get().maxVramMb > 0 && entry.coarse) {
+    if (vramBudgetMb(viewerState.get()) > 0 && entry.coarse) {
       try {
         bytes = await readFile(dir, `${entry.id}.coarse.tdp`);
         variant = 'coarse';

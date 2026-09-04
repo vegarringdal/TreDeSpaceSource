@@ -1,6 +1,7 @@
 import type { Renderer } from '../../lib/render/renderer';
 import { residency } from './residency';
 import { viewerState } from './viewer.state';
+import { vramBudgetMb } from './vramBudget';
 
 export type StatRow = Readonly<{ key: string; label: string; value: string }>;
 
@@ -37,7 +38,7 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
   const culls = r.cullMode !== 'full';
   const drawn = r.drawnPass1 + r.drawnPass2;
   const culledPct = s.meshlets > 0 ? (100 * (1 - drawn / s.meshlets)).toFixed(1) : '0.0';
-  const res = st.maxVramMb > 0 ? residency.statsSummary() : null;
+  const res = vramBudgetMb(st) > 0 ? residency.statsSummary() : null;
   const rows: StatRow[] = [
     { key: 'adapter', label: 'adapter', value: r.adapterInfo },
     { key: 'models', label: 'models', value: String(s.models) },
@@ -61,12 +62,14 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
     {
       key: 'vram',
       label: 'vram (tracked)',
-      value: `${mb(vram)} MB (buf ${mb(r.vramBuffers)} + tex ${mb(r.vramTextures)})`,
+      // models = what the budget can move; the rest is render targets and
+      // shared buffers, which count against the ceiling all the same
+      value: `${mb(vram)} MB (models ${mb(r.modelBytesTotal)} + targets/other ${mb(vram - r.modelBytesTotal)})`,
     },
     {
       key: 'vramBudget',
       label: 'vram budget',
-      value: res ? `${st.maxVramMb} MB (${Math.round((vram / MB / st.maxVramMb) * 100)}% used)` : NONE,
+      value: res ? `${vramBudgetMb(st)} MB (${Math.round((vram / MB / vramBudgetMb(st)) * 100)}% used)` : NONE,
     },
     {
       key: 'residency',

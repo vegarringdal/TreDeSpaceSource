@@ -59,6 +59,52 @@ function packCone(ax: number, ay: number, az: number, cutoff: number): number {
  */
 export const ITEM_DROP = 2;
 
+/** GPU bytes per meshlet that do not depend on its size: the cull record,
+ *  the two draw-record slots, the visibility word, the info record and the
+ *  full-list entry (renderer.ts MESHLET_RECORD_BYTES). */
+export const MESHLET_RECORD_BYTES = 116;
+const POSITION_BYTES_PER_VERTEX = 8;
+const NORMAL_BYTES_PER_VERTEX = 4;
+const INDEX_BYTES_PER_TRIANGLE = 6;
+
+/** Whether a pack of these parses would carry an authored-normal stream: the
+ *  packer only emits one when EVERY color group of every source has normals. */
+export function hasAuthoredNormals(full: ParsedModel, coarse: ParsedModel | null): boolean {
+  return (
+    full.colorGroups.length > 0 &&
+    full.colorGroups.every((cg) => cg.normals != null) &&
+    (!coarse || coarse.colorGroups.every((cg) => cg.normals != null))
+  );
+}
+
+/** Estimated GPU bytes per item at full detail — what the mixed pack's greedy
+ *  fill budgets with. Positions, indices, the per-meshlet records, and the
+ *  normal stream when the model has one (omitting it under-estimated
+ *  smooth-shaded models by a third of their vertex bytes, so mixed packs
+ *  overshot their target). */
+export function estimateItemFullBytes(full: ParsedModel, withNormals: boolean): Float32Array {
+  const est = new Float32Array(full.itemCount);
+  const drToItem = full.colorGroups.map((cg) => new Uint32Array(cg.drawRangeCount));
+  for (let i = 0; i < full.itemCount; i++) {
+    drToItem[full.itemToCg[i]][full.itemToDr[i]] = i;
+  }
+  const vertexBytes = POSITION_BYTES_PER_VERTEX + (withNormals ? NORMAL_BYTES_PER_VERTEX : 0);
+  full.colorGroups.forEach((cg, cgIdx) => {
+    for (let d = 0; d < cg.drawRangeCount; d++) {
+      const item = drToItem[cgIdx][d];
+      const start = cg.drMeshletStarts[d];
+      for (let k = 0; k < cg.drMeshletCounts[d]; k++) {
+        const off = (start + k) * 40;
+        est[item] +=
+          cg.descs.getUint32(off + 8, true) * vertexBytes +
+          cg.descs.getUint32(off + 12, true) * INDEX_BYTES_PER_TRIANGLE +
+          MESHLET_RECORD_BYTES;
+      }
+    }
+  });
+  return est;
+}
+
 /**
  * Upgrade-only merge of freshly packed item bounds into a model's stored ones:
  * items whose stored bounds are non-finite adopt the incoming bounds when

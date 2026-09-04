@@ -25,6 +25,7 @@ export type GpuPackedModel = Omit<PackedModel, 'itemBounds'>;
 import type { GizmoFace } from '../overlay/ViewGizmo';
 import { trackDeviceAllocations } from './allocationTracker';
 import { CameraController } from './camera';
+import { isMobileDevice } from './device';
 import type { GpuModel } from './gpuModel';
 import { GpuTimings } from './gpuTimings';
 import { ItemPickPass } from './itemPickPass';
@@ -32,6 +33,7 @@ import { classifySnap, type MeasureProbe, type MeasureSnap } from './measureSnap
 import { OutlinePass } from './outlinePass';
 import { cullWgsl, hzbWgsl, lineWgsl, measureSnapWgsl, postWgsl, renderVpWgsl, renderWgsl, vbaoWgsl } from './shaders';
 import { ViewCubePass } from './viewCubePass';
+import { type AdapterHints, readDeviceMemoryGb } from './vramHint';
 
 export type { MeasureProbe, MeasureSnap } from './measureSnap';
 
@@ -224,6 +226,9 @@ export class Renderer {
   private models: GpuModel[] = [];
   multiDraw = false;
   adapterInfo = '';
+  /** Adapter facts a VRAM-budget suggestion can be derived from (vramHint.ts);
+   *  display is `adapterInfo`, policy reads this. */
+  adapterHints: AdapterHints | null = null;
   /** Adapter request preference — set BEFORE init() (Settings → Rendering → GPU). */
   gpuPreference: 'high-performance' | 'low-power' | 'fallback' = 'high-performance';
   cullMode: 'mdi' | 'vp' | 'full' = 'full'; // resolved per frame (for the HUD)
@@ -233,6 +238,45 @@ export class Renderer {
   // own createBuffer/createTexture, decremented on destroy())
   vramBuffers = 0;
   vramTextures = 0;
+
+  /** Tracked GPU bytes held by live model slots — the part of `vramBuffers`
+   *  the residency manager can move; the rest is render targets and shared
+   *  buffers. */
+  get modelBytesTotal(): number {
+    let sum = 0;
+    for (const m of this.models) {
+      if (!m.dead) {
+        sum += m.bytes;
+      }
+    }
+    return sum;
+  }
+
+  // -----------------------------------------------------------------------------
+  // residency measurement + burst hold (DESIGN.md "VRAM budget & residency")
+  // -----------------------------------------------------------------------------
+
+  /** Monotonic counters the residency manager diffs across a swap burst: frames
+   *  that ran `frame()` past the idle skip, frames that re-rendered the scene
+   *  (not the hold path), TAA/AO accumulation restarts, and scene frames drawn
+   *  while `holdAccumulation` was set. */
+  frameCounter = 0;
+  sceneFrames = 0;
+  accumResets = 0;
+  heldFrames = 0;
+  /** Sum of raw per-frame GPU ms from timestamp queries (0 while timing is off). */
+  get gpuMsTotal(): number {
+    return this.timings.totalMs;
+  }
+  /** While set, every scene frame is sample 0: no TAA history, no AO — the
+   *  residency manager holds this during a swap burst so the renderer does
+   *  not converge a picture the next commit throws away. Clearing it forces
+   *  one full convergence. */
+  holdAccumulation = false;
+  private wasHoldingAccum = false;
+  /** `heldFrames` when the current hold began — a hold that rendered
+   *  nothing (every commit was quiet) releases without a re-convergence. */
+  private heldAtHoldStart = 0;
 
   /** Effective device pixel ratio (options.pixelRatio, or the real one when null). */
   private get dpr(): number {
@@ -514,10 +558,20 @@ export class Renderer {
   private statsBuf!: GPUBuffer;
   private statsInFlight = false;
   private lastCountRead = 0;
-  /** Per-slot drawn-meshlet counts from the last readback (~2 Hz) — 0 means
-   *  the model was frustum-culled or fully HiZ-occluded that frame (the
-   *  residency manager treats such zones as "not seen"). */
+  /** Per-slot drawn-meshlet counts from the last readback (~2 Hz, plus the
+   *  first still frame after any scene change) — 0 means the model was
+   *  frustum-culled or fully HiZ-occluded that frame (the residency manager
+   *  treats such zones as "not seen"). */
   drawnPerModel: Uint32Array = new Uint32Array(0);
+  /** `performance.now()` of the frame whose counts `drawnPerModel` holds —
+   *  residency compares it against its last loud commit to know the counts
+   *  describe the current scene. */
+  drawnResolvedT = 0;
+  /** Whether `drawnPerModel` is maintained at all: never in the no-cull
+   *  path (no MDI and vertex-pull off) or while the cull is frozen. */
+  get drawCountsUsable(): boolean {
+    return this.cullMode !== 'full' && !this.options.freezeCull;
+  }
   drawnPass1 = 0;
   drawnPass2 = 0;
 
@@ -635,6 +689,13 @@ export class Renderer {
 
     const info = adapter.info;
     this.adapterInfo = `${info.vendor} ${info.architecture} ${info.device} ${info.description}`.trim();
+    this.adapterHints = {
+      vendor: info.vendor,
+      architecture: info.architecture,
+      maxBufferSize: adapter.limits.maxBufferSize,
+      deviceMemoryGb: readDeviceMemoryGb(),
+      isMobile: isMobileDevice(),
+    };
 
     const wanted: string[] = [];
     if (adapter.features.has('chromium-experimental-multi-draw-indirect')) {
@@ -1079,8 +1140,16 @@ export class Renderer {
     const indexBuf = mkBuf(indices16, GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
     const cgColorBuf = mkBuf(cgColors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
     const meshletCullBuf = mkBuf(cull, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
-    // visibility starts at 1: first frame's pass 1 draws everything in-frustum
-    const visBuf = mkBuf(new Uint32Array(totalMeshlets).fill(1), GPUBufferUsage.STORAGE);
+    // visibility starts at 0: the first frame's pass 2 discovers the model
+    // against the HZB the OTHER models built (pass 2 tests every meshlet and
+    // draws those with vis == 0), so a swapped-in zone costs at most the
+    // meshlets other geometry does not hide — a seed of 1 made pass 1 draw
+    // every in-frustum meshlet of the zone first. Same picture either way.
+    const visBuf = dev.createBuffer({
+      label: 'modelBuf',
+      size: Math.max(64, totalMeshlets * 4),
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
 
     const mkRecords = () =>
       dev.createBuffer({
@@ -1251,7 +1320,7 @@ export class Renderer {
    * allocating anything if the slot is live or the item count differs — the
    * caller falls back to a fresh uploadModel in that case. Scene bounds are
    * not re-unioned (they were on first upload and never shrink). */
-  reviveModel(slot: number, packed: GpuPackedModel, opts: { edges?: boolean } = {}): void {
+  reviveModel(slot: number, packed: GpuPackedModel, opts: { edges?: boolean; quiet?: boolean } = {}): void {
     const m = this.models[slot];
     if (!m?.dead) {
       throw new Error(`reviveModel: slot ${slot} is not a tombstone`);
@@ -1260,8 +1329,13 @@ export class Renderer {
       throw new Error(`itemcount-mismatch: slot ${slot} has ${m.itemCount}, packed has ${packed.itemCount}`);
     }
     this.models[slot] = this.buildModelResources(packed, opts, m.itemBase, m.countOffset1, m.countOffset2);
-    this.lastKey = ''; // force a re-render with the new geometry
-    this.stateVersion++;
+    // quiet: the caller proved the slot draws nothing from this viewpoint, so
+    // the converged picture stays valid — no re-render, no accumulation reset.
+    // Its zeroed record buffers replay as no-op draws until the next real cull.
+    if (!opts.quiet) {
+      this.lastKey = ''; // force a re-render with the new geometry
+      this.stateVersion++;
+    }
   }
 
   /** GPU bytes held by one model slot (0 for tombstones). */
@@ -1297,13 +1371,15 @@ export class Renderer {
 
   /** Upload fresh per-item state for one model (from the worker). Dead slots
    * are skipped — state producers keep emitting for unloaded-but-live DbModels. */
-  writeItemStates(model: number, states: Uint32Array) {
+  writeItemStates(model: number, states: Uint32Array, quiet = false) {
     const m = this.models[model];
     if (!m || m.dead) {
       return;
     }
     this.device.queue.writeBuffer(m.itemStateBuf, 0, states, 0, Math.min(states.length, m.itemCount * 3));
-    this.stateVersion++; // re-render even when idle
+    if (!quiet) {
+      this.stateVersion++; // re-render even when idle
+    }
   }
 
   /** Live selection transform (gizmo drag preview): one UBO write per model,
@@ -1470,8 +1546,9 @@ export class Renderer {
     return null;
   }
 
-  /** Tombstone + free specific models (worker indices stay aligned). */
-  removeModels(indices: number[]) {
+  /** Tombstone + free specific models (worker indices stay aligned). `quiet`
+   *  skips the forced re-render (see reviveModel). */
+  removeModels(indices: number[], opts: { quiet?: boolean } = {}) {
     for (const i of indices) {
       const m = this.models[i];
       if (!m || m.dead) {
@@ -1494,7 +1571,9 @@ export class Renderer {
       m.meshletCount = 0;
       m.triangleCount = 0;
     }
-    this.lastKey = ''; // force re-render without the removed geometry
+    if (!opts.quiet) {
+      this.lastKey = ''; // force re-render without the removed geometry
+    }
   }
 
   /** Unload every model and release its GPU buffers. */
@@ -1690,6 +1769,7 @@ export class Renderer {
     this.statsInFlight = false;
     this.drawnPass1 = p1;
     this.drawnPass2 = p2;
+    this.drawnResolvedT = this.lastCountRead;
   }
 
   // (Re)create depth / offscreen color / MSAA targets, the HZB pyramid and the
@@ -1968,10 +2048,21 @@ export class Renderer {
     // take the HOLD path: skip the scene re-render, re-present the converged
     // accumulation, and draw only the overlays — so animated overlays never
     // corrupt or restart the accumulated image (native hover-fast-path idea).
+    // Burst hold (residency): every scene frame is sample 0 — converged at
+    // once, no AO. Releasing the hold breaks the key once so exactly one full
+    // convergence follows the burst.
+    const holdAccum = this.holdAccumulation;
+    if (holdAccum && !this.wasHoldingAccum) {
+      this.heldAtHoldStart = this.heldFrames;
+    } else if (!holdAccum && this.wasHoldingAccum && this.heldFrames !== this.heldAtHoldStart) {
+      this.lastKey = '';
+    }
+    this.wasHoldingAccum = holdAccum;
+
     let hold = false;
     if (key === this.lastKey) {
-      const taaConverged = !opt.fastAA || this.accumIdx >= this.aaMax - 1;
-      const aoConverged = opt.aoMode === 0 || this.aoAccum >= this.aaMax - 1;
+      const taaConverged = holdAccum || !opt.fastAA || this.accumIdx >= this.aaMax - 1;
+      const aoConverged = holdAccum || opt.aoMode === 0 || this.aoAccum >= this.aaMax - 1;
       if (
         taaConverged &&
         aoConverged &&
@@ -1995,9 +2086,17 @@ export class Renderer {
     } else {
       this.accumIdx = 0; // scene changed: restart accumulation
       this.aoAccum = 0;
+      this.accumResets++;
     }
     this.lastKey = key;
     this.idle = false;
+    this.frameCounter++;
+    if (!hold) {
+      this.sceneFrames++;
+      if (holdAccum) {
+        this.heldFrames++;
+      }
+    }
     this.accumCount = opt.fastAA ? this.accumIdx + 1 : 0;
     // this frame completes accumulation → it's the one a snapshot may capture
     // (same convergence terms as the idle check above)
@@ -2104,7 +2203,7 @@ export class Renderer {
     // is still. Static+moving neither computes NOR applies AO (a stale buffer
     // would ghost old-viewpoint shadows onto new geometry), and when the
     // dispatch resumes the accumulator restarts so blend=1 overwrites history.
-    const aoActive = opt.aoMode === 1 || (opt.aoMode === 2 && !moving && this.models.length > 0);
+    const aoActive = !holdAccum && (opt.aoMode === 1 || (opt.aoMode === 2 && !moving && this.models.length > 0));
     if (aoActive && !this.aoRanLastFrame) {
       this.aoAccum = 0;
     }
@@ -2428,8 +2527,11 @@ export class Renderer {
 
     const pickJob = this.encodeDepthPick(enc, dev, canvas, opt, cullMode);
 
+    // the first still frame after any scene change reads counts too, so a
+    // residency commit's effect is known before the next decision
     let statsBytes = 0;
-    if (cullActive && !this.statsInFlight && t0 - this.lastCountRead > 500) {
+    const countsDue = t0 - this.lastCountRead > 500 || (this.accumIdx === 0 && !moving);
+    if (cullActive && !this.statsInFlight && countsDue) {
       this.statsInFlight = true;
       this.lastCountRead = t0;
       statsBytes = this.models.length * COUNT_SLOT * 2;

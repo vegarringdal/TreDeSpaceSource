@@ -38,10 +38,11 @@ import { settingsActions } from '../components/panels/settings/settings.actions'
 import { callSqlImport, openSqlAssetsPanel } from '../components/panels/sql-assets/sqlAssetsPanel';
 import { openSqlDetailPanel, toggleAllDetailListening } from '../components/panels/sql-detail/sqlDetailPanel';
 import { callSqlRun, openSqlEditorPanel } from '../components/panels/sql-editor/sqlEditorPanel';
-import { openSqlReportsPanel } from '../components/panels/sql-reports/sqlReportsPanel';
-import { openSqlTablePanel } from '../components/panels/sql-table/sqlTablePanel';
+import { callReportSetEditor, openSqlReportsPanel } from '../components/panels/sql-reports/sqlReportsPanel';
+import { callTableAction, openSqlTablePanel } from '../components/panels/sql-table/sqlTablePanel';
 import { openViewpointsPanel, openViewpointViewerPanel } from '../components/panels/viewpoints/viewpointsPanel';
 import { openProductPage } from '../lib/productUrl';
+import { suggestVramBudgetMb } from '../lib/render/vramHint';
 import { apiSecurityState } from '../state/apiSecurity.state';
 import { assetsActions } from '../state/assets/assets.actions';
 import { assetsState } from '../state/assets/assets.state';
@@ -81,7 +82,7 @@ const NUM_SETTINGS = [
   { id: 'protectDist', label: 'Protect distance', field: 'protectDist', step: 5, lo: 0, hi: 100000, code: 454 },
   { id: 'pickOpacity', label: 'Pick opacity threshold', field: 'pickOpacityPct', step: 0.5, lo: 0, hi: 100, code: 476 },
   { id: 'fpsLimit', label: 'FPS limit', field: 'fpsLimit', step: 5, lo: 5, hi: 240, code: 478 },
-  { id: 'maxVram', label: 'Max VRAM (MB)', field: 'maxVramMb', step: 256, lo: 0, hi: 65536, code: 490 },
+  { id: 'maxVram', label: 'Max VRAM (MB)', field: 'maxVramMb', step: 256, lo: 256, hi: 65536, code: 490 },
   { id: 'vramCutSize', label: 'VRAM cut size (m)', field: 'vramCutSizeM', step: 0.1, lo: 0, hi: 10, code: 496 },
   { id: 'vramCutDist', label: 'VRAM cut distance (m)', field: 'vramCutDistM', step: 25, lo: 0, hi: 100000, code: 498 },
   { id: 'pixelRatio', label: 'Pixel ratio', field: 'pixelRatio', step: 0.1, lo: 0.25, hi: 4, code: 486 },
@@ -641,6 +642,35 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 444',
     description: 'Drop hidden items from VRAM-budget packs (frees their memory for visible detail)',
     run: () => viewerState.set((p) => ({ vramDropHidden: !p.vramDropHidden })),
+  },
+  {
+    id: 'render.vramHoldAccum',
+    category: 'View',
+    label: 'VRAM budget: pause AO / TAA while optimizing',
+    defaultKeys: 'ALT + 447',
+    description: 'Render single-sample frames while a swap burst lands and converge once at the end',
+    run: () => viewerState.set((p) => ({ vramHoldAccum: !p.vramHoldAccum })),
+  },
+  {
+    id: 'render.vramEnabled',
+    category: 'View',
+    label: 'VRAM budget: enabled',
+    defaultKeys: 'ALT + 449',
+    description: 'Turn the VRAM budget on or off (the Max VRAM ceiling applies while on)',
+    run: () => viewerState.set((p) => ({ vramBudgetOn: !p.vramBudgetOn })),
+  },
+  {
+    id: 'render.vramUseSuggested',
+    category: 'View',
+    label: 'VRAM budget: use the suggested budget',
+    defaultKeys: 'ALT + 448',
+    description: 'Set Max VRAM to the budget suggested for this GPU (integrated and mobile GPUs only)',
+    run: () => {
+      const mbSuggested = suggestVramBudgetMb(getRenderer()?.adapterHints ?? null);
+      if (mbSuggested !== null) {
+        viewerState.set({ maxVramMb: mbSuggested, vramBudgetOn: true });
+      }
+    },
   },
   // debug buffer (radio, codes 420..425)
   ...(['off', 'normal', 'depth', 'id', 'edge', 'ao'] as const).map((name, i) => ({
@@ -1579,6 +1609,7 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 643',
     description: 'Run the editor SQL and show it in the SQL Table panel',
     run: () => void sqlEditorActions.asTable(),
+    context: () => sqlEditorState.get().draft.types.includes('TABLE'),
   },
   {
     id: 'sql.editor.colorWhite',
@@ -1587,6 +1618,7 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 644',
     description: 'Paint every returned fullname white',
     run: () => void sqlEditorActions.colorWhite(),
+    context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
     id: 'sql.editor.colorHidden',
@@ -1595,6 +1627,7 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 645',
     description: 'Hide every returned fullname',
     run: () => void sqlEditorActions.colorHidden(),
+    context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
     id: 'sql.editor.colorTransparent',
@@ -1603,6 +1636,7 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 1220',
     description: 'Run the editor SQL and color the result over a white base at 10% opacity',
     run: () => void sqlEditorActions.colorTransparent(),
+    context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
     id: 'sql.editor.colorSet',
@@ -1611,6 +1645,7 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 646',
     description: 'Append a per-row Multi rule to Set Color and run it',
     run: () => void sqlEditorActions.colorSet(),
+    context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
     id: 'sql.editor.asDetail',
@@ -1619,6 +1654,33 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 647',
     description: 'Bind the editor SQL to the SQL Detail panel',
     run: () => sqlEditorActions.asDetail(),
+    context: () => sqlEditorState.get().draft.types.includes('DETAIL'),
+  },
+  {
+    id: 'sql.editor.clear',
+    category: 'SQL',
+    label: 'SQL Editor: clear',
+    defaultKeys: 'ALT + 658',
+    description:
+      'Empty the editor draft — name, description, SQL, filters, types — after a confirm (the Main db stays)',
+    run: () => void sqlEditorActions.clear(),
+  },
+  {
+    id: 'sql.editor.addFilter',
+    category: 'SQL',
+    label: 'SQL Editor: add filter',
+    defaultKeys: 'ALT + 659',
+    description: 'Add a filter input to the editor draft (FILTER_ARGS)',
+    run: () => sqlEditorActions.addFilter(),
+  },
+  {
+    id: 'sql.editor.saveLocal',
+    category: 'SQL',
+    label: 'SQL Editor: save local',
+    defaultKeys: 'ALT + 660',
+    description: "Add the editor draft to SQL Reports as a new report in the Main db's store (needs a Main db)",
+    run: () => void sqlEditorActions.saveLocal(),
+    context: () => sqlEditorState.get().draft.db !== '',
   },
   {
     id: 'sql.reports',
@@ -1629,12 +1691,68 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => openSqlReportsPanel(),
   },
   {
+    id: 'sql.reports.setEditor',
+    category: 'SQL',
+    label: 'SQL Reports: set editor',
+    defaultKeys: 'ALT + 661',
+    description: 'Put the report being edited into the SQL Editor, replacing its draft (asks first)',
+    run: () => callReportSetEditor(),
+  },
+  {
     id: 'sql.table.open',
     category: 'SQL',
     label: 'SQL: open SQL Table',
     defaultKeys: 'ALT + 641',
     description: 'Open the SQL Table panel (last report result)',
     run: () => openSqlTablePanel(),
+  },
+  {
+    id: 'sql.table.toggleSelectAll',
+    category: 'SQL',
+    label: 'SQL Table: select all / none',
+    defaultKeys: 'ALT + 652',
+    description: 'Select every row shown in the SQL Table, or clear the selection when all of them are',
+    run: () => callTableAction('toggleSelectAll'),
+  },
+  {
+    id: 'sql.table.loadAll',
+    category: 'SQL',
+    label: 'SQL Table: load all rows',
+    defaultKeys: 'ALT + 653',
+    description: 'Re-run the SQL Table report without the 50-row cap (max 250,000)',
+    run: () => callTableAction('loadAll'),
+  },
+  {
+    id: 'sql.table.exportAll',
+    category: 'SQL',
+    label: 'SQL Table: export to Excel (all)',
+    defaultKeys: 'ALT + 654',
+    description: 'Every row as shown (column filters and sort applied) to an .xlsx file',
+    run: () => callTableAction('exportAll'),
+  },
+  {
+    id: 'sql.table.exportSelected',
+    category: 'SQL',
+    label: 'SQL Table: export to Excel (selected)',
+    defaultKeys: 'ALT + 655',
+    description: 'Only the selected rows, in the shown order, to an .xlsx file',
+    run: () => callTableAction('exportSelected'),
+  },
+  {
+    id: 'sql.table.copyAll',
+    category: 'SQL',
+    label: 'SQL Table: copy to clipboard (all)',
+    defaultKeys: 'ALT + 656',
+    description: 'Every row as shown, tab-separated with a header row',
+    run: () => callTableAction('copyAll'),
+  },
+  {
+    id: 'sql.table.copySelected',
+    category: 'SQL',
+    label: 'SQL Table: copy to clipboard (selected)',
+    defaultKeys: 'ALT + 657',
+    description: 'Only the selected rows, tab-separated with a header row',
+    run: () => callTableAction('copySelected'),
   },
   {
     id: 'sql.detail.open',
