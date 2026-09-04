@@ -11,6 +11,7 @@ const RENDER_FRAME = /* wgsl */ `struct Frame {
   // geometry through both z-fighting and the derivative face normal.
   view_proj: mat4x4f,
   // xyz: the frame's rebase origin (the camera position, rounded); w unused
+  // xyz = rebase origin; w = dark-colour lift floor (unlit luma, 0 = off)
   origin: vec4f,
   // eye in REBASED space (= absolute eye - origin)
   eye: vec4f,
@@ -79,9 +80,22 @@ fn item_opacity(item: u32, base_a: f32) -> f32 {
   return base_a; // no override -> the baked material alpha (cg color .a)
 }
 
+// A black material shows no shading at all — nothing for the headlight to
+// modulate — so colours darker than the floor blend toward a grey of that
+// luma: black lands exactly on it, a colour just under it barely moves, hue
+// survives. Only the cooked material colour is lifted; a user override is
+// the user's choice.
+fn lift_dark(c: vec3f) -> vec3f {
+  let floor = frame.origin.w;
+  if (floor <= 0.0) { return c; }
+  let luma = dot(c, vec3f(0.299, 0.587, 0.114));
+  if (luma >= floor) { return c; }
+  return mix(c, vec3f(floor), (floor - luma) / floor);
+}
+
 fn apply_item_state(base: vec4f, item: u32) -> vec4f {
   let st = item_states[item];
-  var c = base;
+  var c = vec4f(lift_dark(base.rgb), base.a);
   let overridden = (st.flags & 16u) != 0u;
   if (overridden) { // color override
     c = vec4f(

@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../../../lib/storageKeys';
 
 /** Export panel options — persisted like every other settings store. */
 export interface ExportState {
@@ -7,6 +8,9 @@ export interface ExportState {
   /** Shift the model onto its bounding-box centre so far-from-origin building
    *  coordinates stay f32-precise (Office viewers go crazy far from 0,0,0). */
   recenter: boolean;
+  /** Leave out items that lie entirely outside the active clipping planes /
+   *  box / shapes (TDP, GLB and IFC alike); an intersected item is kept whole. */
+  excludeClipped: boolean;
   /** Snapshot save: only items with an override/hidden flag/transform, or
    *  every item's effective state. */
   snapModifiedOnly: boolean;
@@ -28,12 +32,13 @@ export interface ExportState {
   snapApplyStore: string;
 }
 
-const KEY = 'export';
+const KEY = storageKey('export');
 
 function load(): ExportState {
   const fallback: ExportState = {
     zUp: false,
     recenter: true,
+    excludeClipped: false,
     snapModifiedOnly: true,
     snapColor: true,
     snapTransform: true,

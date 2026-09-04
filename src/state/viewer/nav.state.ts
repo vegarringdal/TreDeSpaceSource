@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../../lib/storageKeys';
 
 /** Camera navigation settings — fly vs walk mode and per-mode speeds
  *  (units/second), with a separate speed while Shift is held. Persisted. */
@@ -28,7 +29,7 @@ const DEFAULTS: NavState = {
   keyPanSens: 0.3,
   keysDefaultWalk: false,
 };
-const KEY = 'nav';
+const KEY = storageKey('nav');
 
 function load(): NavState {
   try {

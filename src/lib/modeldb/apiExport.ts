@@ -6,6 +6,7 @@ import { buildGlb, type ExportNode, type ExportPrimitive, writeGlb } from '../mo
 import { type IfcSink, writeIfc, writeIfcHierarchy } from '../model/ifcWrite';
 import { packModel } from '../model/pack';
 import { opfsOpenByteStream, opfsOpenTextStream } from '../opfs/opfsSyncWrite';
+import { clipCulledSphere } from '../render/clipCull';
 import {
   type DbModel,
   HAS_COLOR_OVERRIDE,
@@ -16,7 +17,7 @@ import {
   OPACITY_SHIFT,
 } from './dbState';
 import { entryName } from './hierarchyIndex';
-import { transforms } from './transformPool';
+import { itemWorldBounds, transforms } from './transformPool';
 
 /** GPU-read-back packed geometry for one model (renderer.readModelGeometry). */
 export interface GpuGeom {
@@ -80,15 +81,44 @@ async function resolveGeom(g: ExportGeom, m: DbModel): Promise<DecodedGeom> {
   };
 }
 
+/** Per item: 1 when its world-space bounding sphere is provably outside every
+ *  active clipping plane, box and shape (the cull shader's own test, mirrored
+ *  on the CPU) — the parts a clip volume hides entirely. An intersected item
+ *  counts as visible, and an item without geometry is never excluded. */
+function clippedItems(m: DbModel, clip: Float32Array): Uint8Array {
+  const clipU32 = new Uint32Array(clip.buffer, clip.byteOffset, clip.length);
+  const out = new Uint8Array(m.itemCount);
+  const wb = new Float32Array(6);
+  for (let i = 0; i < m.itemCount; i++) {
+    if (!itemWorldBounds(m.itemBounds, m.tidx, i, wb)) {
+      continue;
+    }
+    const center: [number, number, number] = [(wb[0] + wb[3]) / 2, (wb[1] + wb[4]) / 2, (wb[2] + wb[5]) / 2];
+    const radius = Math.hypot(wb[3] - wb[0], wb[4] - wb[1], wb[5] - wb[2]) / 2;
+    if (clipCulledSphere(clip, clipU32, center, radius)) {
+      out[i] = 1;
+    }
+  }
+  return out;
+}
+
+/** Export options both writers share. `clip` = the packed clip uniform
+ *  (renderer.clipData) when clipped-away parts must be left out; null or
+ *  absent exports everything that is not hidden, as if clipping were off. */
+export interface ExportDecodeOpts {
+  clip?: Float32Array | null;
+}
+
 export const exportApi = {
   /** Decode packed geometry (pack.ts layouts; read back from the GPU, or the
    *  full cook from disk) into an export node tree — visibility, color/opacity
-   *  overrides and committed transforms applied. Shared by the GLB and IFC
-   *  exporters. merged = one primitive per final color; hierarchy = the full
-   *  entry tree with per-item meshes. */
+   *  overrides, committed transforms and (optionally) the clip volume applied.
+   *  Shared by the GLB and IFC exporters. merged = one primitive per final
+   *  color; hierarchy = the full entry tree with per-item meshes. */
   async decodeExportTree(
     mode: 'merged' | 'hierarchy',
     geoms: ExportGeom[],
+    decodeOpts: ExportDecodeOpts = {},
   ): Promise<{ roots: ExportNode[]; tris: number }> {
     const modelRoots: ExportNode[] = [];
     let totalTris = 0;
@@ -104,11 +134,12 @@ export const exportApi = {
       }
       const g = await resolveGeom(src, m);
       const { posQ, idx16, cullU, infoU, infoF, cgColors } = g;
+      const clipped = decodeOpts.clip ? clippedItems(m, decodeOpts.clip) : null;
 
       /** Final display RGBA of an item, or null when it must not export. */
       const itemColor = (item: number, cg: number): [number, number, number, number] | null => {
         const flags = m.states[item * 2];
-        if (flags & IS_HIDDEN) {
+        if (flags & IS_HIDDEN || clipped?.[item] === 1) {
           return null;
         }
         let a = 1;
@@ -425,9 +456,9 @@ export const exportApi = {
   async exportGlb(
     mode: 'merged' | 'hierarchy',
     geoms: ExportGeom[],
-    opts: { zUp?: boolean; bareRoot?: boolean; recenter?: boolean; opfsOut?: string } = {},
+    opts: { zUp?: boolean; bareRoot?: boolean; recenter?: boolean; opfsOut?: string } & ExportDecodeOpts = {},
   ): Promise<{ glb: ArrayBuffer | null; tris: number; size: number }> {
-    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms);
+    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms, { clip: opts.clip });
     if (tris === 0) {
       throw new Error('nothing visible to export');
     }
@@ -461,9 +492,9 @@ export const exportApi = {
   async exportIfc(
     mode: 'merged' | 'hierarchy',
     geoms: ExportGeom[],
-    opts: { opfsOut?: string } = {},
+    opts: { opfsOut?: string } & ExportDecodeOpts = {},
   ): Promise<{ ifc: ArrayBuffer | null; tris: number; size: number }> {
-    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms);
+    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms, { clip: opts.clip });
     if (tris === 0) {
       throw new Error('nothing visible to export');
     }

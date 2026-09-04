@@ -50,10 +50,21 @@ export class ResidencyBoxOverlay {
     this.ctx = ctx;
   }
 
-  /** Per-frame: draw every tracked zone's box (no-op unless enabled). */
+  private drawn = false;
+
+  /** Per-frame: draw every tracked zone's box. While the overlay is off it
+   *  touches nothing — a clearRect per tick repainted this full-viewport
+   *  canvas at the frame rate with the scene at rest. */
   update(): void {
     const s = viewerState.get();
     const show = s.vramDebugBoxes && vramBudgetMb(s) > 0;
+    if (!show) {
+      if (this.drawn) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawn = false;
+      }
+      return;
+    }
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     if (this.canvas.width !== w || this.canvas.height !== h) {
@@ -61,7 +72,8 @@ export class ResidencyBoxOverlay {
       this.canvas.height = h;
     }
     this.ctx.clearRect(0, 0, w, h);
-    if (!show || w === 0 || h === 0) {
+    this.drawn = true;
+    if (w === 0 || h === 0) {
       return;
     }
     const vp = this.renderer.viewProjMatrix;

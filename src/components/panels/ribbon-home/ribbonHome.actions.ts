@@ -1,4 +1,6 @@
 import { projectToScreen } from '../../../lib/math/project';
+import { removeViewerOpfsEntries } from '../../../lib/opfs/opfs';
+import { clearViewerStorage } from '../../../lib/storageKeys';
 import { labelsActions } from '../../../state/viewer/labels.actions';
 import { labelsState, type SceneLabel } from '../../../state/viewer/labels.state';
 import { measurementsActions } from '../../../state/viewer/measurements.actions';
@@ -218,19 +220,10 @@ export const ribbonHomeActions = {
     if (!ok) {
       return;
     }
-    try {
-      const root = await navigator.storage.getDirectory();
-      const names: string[] = [];
-      for await (const name of root.keys()) {
-        names.push(name);
-      }
-      for (const n of names) {
-        await root.removeEntry(n, { recursive: true });
-      }
-    } catch {
-      // OPFS unavailable — still clear localStorage below
-    }
-    localStorage.clear();
+    // only the viewer's own OPFS entries and tds: keys — a host page sharing
+    // the origin (a path-proxied viewer) keeps its storage
+    await removeViewerOpfsEntries();
+    clearViewerStorage();
     location.reload();
   },
 

@@ -1,11 +1,12 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 import { DEFAULT_PICKER_SWATCHES, setColorSelectSwatchesStore } from '@treDeSpaceUI/widgets';
+import { storageKey } from '../lib/storageKeys';
 
 // The default 8×4 grid lives with the ColorSelect widget; users override the
 // colors in Settings → Editor and this store persists them.
 export { DEFAULT_PICKER_SWATCHES };
 
-const KEY = 'pickerSwatches';
+const KEY = storageKey('pickerSwatches');
 
 function load(): { colors: string[] } {
   try {

@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../../../lib/storageKeys';
 
 export const DEFAULT_QUICK_COLORS = [
   '#ef4444',
@@ -18,7 +19,7 @@ export const DEFAULT_QUICK_COLORS = [
   '#6366f1',
 ];
 
-const KEY = 'quickColors';
+const KEY = storageKey('quickColors');
 
 function load(): string[] {
   try {

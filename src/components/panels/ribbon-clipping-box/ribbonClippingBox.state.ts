@@ -8,6 +8,11 @@ export interface RibbonClippingBoxState {
   boxOn: boolean;
   helper: boolean;
   gizmoMode: 'none' | 'move' | 'rotate' | 'scale';
+  /** What X restores: the mode the gizmo last had while on … */
+  lastGizmoMode: 'move' | 'rotate' | 'scale';
+  /** … and where it was — the main box, or an armed clip shape's id (falls
+   *  back to the main box when that shape no longer exists). */
+  lastGizmoTarget: 'main' | number;
   /** scale tool variant: false = 3-axis symmetric, true = 6-axis per-face */
   sixAxis: boolean;
   step: number;
@@ -29,7 +34,9 @@ export const ribbonClippingBoxState = createStore<RibbonClippingBoxState>({
   boxOn: true,
   helper: true,
   gizmoMode: 'none',
-  sixAxis: false,
+  lastGizmoMode: 'scale',
+  lastGizmoTarget: 'main',
+  sixAxis: true,
   step: 1,
   fitOffset: 2,
   focusOnSet: true,

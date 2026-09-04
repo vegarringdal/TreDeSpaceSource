@@ -3,7 +3,9 @@
 // enforces that. postMessage is the only channel, and the API surface is the
 // validated command list in src/lib/messageApi.ts. These settings control
 // which ORIGINS may use that channel at all.
+
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../lib/storageKeys';
 
 export interface ApiSecurityState {
   /** Master switch for the postMessage API (same-origin included). */
@@ -17,7 +19,7 @@ export interface ApiSecurityState {
   allowUrlParam: boolean;
 }
 
-const KEY = 'apiSecurity';
+const KEY = storageKey('apiSecurity');
 
 function load(): ApiSecurityState {
   const fallback: ApiSecurityState = { enabled: true, origins: [], allowUrlParam: true };

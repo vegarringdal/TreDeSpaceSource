@@ -5,10 +5,15 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 import { externalAppIframePolicy, type IframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
+import { dialogIdFor, freshDialogId } from '../../../state/externalDialogIds';
 
 export interface OpenModal {
   /** Instance id — the dialog id the postMessage API addresses it by. */
   key: string;
+  /** The `?tdsDialogId=` on the page's URL: stable per app for a
+   *  single-instance dialog (close → reopen gets the same one), fresh per
+   *  open for a multi-instance one. */
+  tdsDialogId: string;
   appId: string;
   name: string;
   url: string;
@@ -62,10 +67,19 @@ export function openExternalModal(app: ExternalApp): string {
     }
     const size = initialSize(app.config);
     key = `${app.id}:${seq++}`;
+    const tdsDialogId = app.multiple ? freshDialogId() : dialogIdFor(`modal:${app.id}`);
     return {
       open: [
         ...s.open,
-        { key, appId: app.id, name: app.name, url: externalAppUrl(app), policy: externalAppIframePolicy(app), ...size },
+        {
+          key,
+          tdsDialogId,
+          appId: app.id,
+          name: app.name,
+          url: externalAppUrl(app, tdsDialogId),
+          policy: externalAppIframePolicy(app),
+          ...size,
+        },
       ],
     };
   });

@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../../lib/storageKeys';
 
 /** User-configurable names for the view-cube faces; the letter buttons on the
  * clipping-box / transform ribbons derive from their first letters. */
@@ -30,7 +31,7 @@ export function mergeGizmoLabels(partial: Partial<Record<GizmoFaceName, string>>
   return out;
 }
 
-const KEY = 'gizmoLabels';
+const KEY = storageKey('gizmoLabels');
 
 function load(): Record<GizmoFaceName, string> {
   try {

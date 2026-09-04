@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../../../lib/storageKeys';
 
 /** Ribbon-local opacity values — promoted from component useState to a store so
  *  they persist across refresh and can be driven by hotkeys. */
@@ -12,7 +13,7 @@ export interface RibbonSelectionColorState {
 }
 
 const DEFAULTS: RibbonSelectionColorState = { quickOpacity: 100, opacity: 10, customColor: '#e36414' };
-const KEY = 'ribbonColor';
+const KEY = storageKey('ribbonColor');
 
 function load(): RibbonSelectionColorState {
   try {

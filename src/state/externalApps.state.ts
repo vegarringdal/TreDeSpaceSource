@@ -2,7 +2,9 @@
 // as iframe panels from the "External" ribbon. Hosted tools can drive the app
 // through the postMessage API (EVENTS.md) — their origins are allowlisted
 // automatically at boot.
+
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../lib/storageKeys';
 import {
   type PermissionOption,
   readPermissionOptions,
@@ -59,7 +61,7 @@ interface ExternalAppsState {
   apps: ExternalApp[];
 }
 
-const KEY = 'externalApps';
+const KEY = storageKey('externalApps');
 
 function load(): ExternalAppsState {
   try {
@@ -172,9 +174,12 @@ export const externalAppsActions = {
 
   /** Declaratively replace the SESSION-ONLY host-managed set (postMessage
    *  `externalApps.set`): all prior host entries go, the given ones come in.
-   *  User-configured entries are untouched. Returns the created entries. */
-  setHostManaged(apps: Omit<ExternalApp, 'id' | 'hostManaged'>[]): ExternalApp[] {
-    const created = apps.map((a) => ({ ...a, id: newId(), hostManaged: true as const }));
+   *  An entry that brings its own `id` keeps it across calls, so it is the
+   *  SAME app to everything that references it — its open panels and dialogs
+   *  stay attached while the button / tooltip / config update. User-configured
+   *  entries are untouched. Returns the created entries. */
+  setHostManaged(apps: (Omit<ExternalApp, 'id' | 'hostManaged'> & { id?: string })[]): ExternalApp[] {
+    const created = apps.map((a) => ({ ...a, id: a.id ?? newId(), hostManaged: true as const }));
     externalAppsState.set((s) => ({ apps: [...s.apps.filter((a) => !a.hostManaged), ...created] }));
     return created;
   },
@@ -205,10 +210,12 @@ export function openExternalAppNow(app: ExternalApp): { opened: boolean; dialogI
 }
 
 /** The app's URL with its JSON config attached as a `?config=` param (the
- *  value is the config MINIFIED — parse errors fall back to the raw text). */
-export function externalAppUrl(a: ExternalApp): string {
+ *  value is the config MINIFIED — parse errors fall back to the raw text) and,
+ *  for a panel / dialog instance, its `?tdsDialogId=` identity (see
+ *  externalDialogIds.ts). */
+export function externalAppUrl(a: ExternalApp, tdsDialogId?: string): string {
   const cfg = a.config.trim();
-  if (!cfg) {
+  if (!cfg && !tdsDialogId) {
     return a.url;
   }
   let value = cfg;
@@ -219,7 +226,12 @@ export function externalAppUrl(a: ExternalApp): string {
   }
   try {
     const u = new URL(a.url, location.href);
-    u.searchParams.set('config', value);
+    if (cfg) {
+      u.searchParams.set('config', value);
+    }
+    if (tdsDialogId) {
+      u.searchParams.set('tdsDialogId', tdsDialogId);
+    }
     return u.href;
   } catch {
     return a.url;

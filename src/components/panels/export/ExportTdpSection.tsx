@@ -1,5 +1,6 @@
 import { IconBox, IconSitemap } from '@tabler/icons-react';
 import { Button, Collapsible } from '@treDeSpaceUI/widgets';
+import { ExportClipCheck } from './ExportClipCheck';
 import { exportActions as act } from './export.actions';
 
 /** Export → TDP: write the visible scene to this app's cooked format, merged
@@ -14,10 +15,12 @@ export function ExportTdpSection() {
           transforms — so you can trim a scene to just the elements you want, restyle it, and save it ready to load. You
           pick a folder; each loaded model becomes its own <code>.tdp</code> there, mirroring the loaded folder
           structure. Coordinates stay <b>true world</b> (Z-up, never recentered), so a re-import lands exactly on top of
-          the source models. Import the files back through the Import Manager (Import TDP) or load them directly.
+          the source models. Import the files back through the Import Manager (Import TDP) or load them directly.{' '}
+          <b>Exclude clipped parts</b> leaves out the parts the clip volume hides entirely.
         </>
       }
     >
+      <ExportClipCheck />
       <Button
         icon={<IconBox size={14} />}
         tooltip="Write one merged .tdp per loaded model into a folder you pick: one color group per final color — smallest and fastest to load"

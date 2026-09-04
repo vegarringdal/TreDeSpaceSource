@@ -22,6 +22,12 @@ export const ribbonClippingPlaneActions = {
     patch(axis, { helper: on });
     log(`${axis.toUpperCase()} helper ${on ? 'on' : 'off'}`);
   },
+  /** Show / hide the plane's viewport transform tool (independent of the helper). */
+  toggleGizmo(axis: PlaneAxis) {
+    const on = !ribbonClippingPlaneState.get()[axis].gizmo;
+    patch(axis, { gizmo: on });
+    log(`${axis.toUpperCase()} gizmo ${on ? 'on' : 'off'}`);
+  },
   center(axis: PlaneAxis) {
     // bring the plane to the last click (falls back to the scene center)
     patch(axis, { anchor: lastClick(), position: 0 });
@@ -41,8 +47,8 @@ export const ribbonClippingPlaneActions = {
     patch(axis, { flipped: !ribbonClippingPlaneState.get()[axis].flipped });
     log(`${axis.toUpperCase()} flipped`);
   },
-  /** Rotate: toggles rotation mode — unlocks the el/az inputs now, and will
-   * show the rotation gizmo in phase B. */
+  /** Rotate: toggles rotation mode — unlocks the el/az inputs and swaps the
+   * plane's gizmo from move arrows to rotation rings. */
   rotate(axis: PlaneAxis) {
     patch(axis, { rotateMode: !ribbonClippingPlaneState.get()[axis].rotateMode });
   },
@@ -53,6 +59,7 @@ export const ribbonClippingPlaneActions = {
       x: {
         enabled: false,
         helper: true,
+        gizmo: true,
         position: 0,
         step: 0.5,
         el: 5,
@@ -64,6 +71,7 @@ export const ribbonClippingPlaneActions = {
       y: {
         enabled: false,
         helper: true,
+        gizmo: true,
         position: 0,
         step: 0.5,
         el: 0,
@@ -75,6 +83,7 @@ export const ribbonClippingPlaneActions = {
       z: {
         enabled: false,
         helper: true,
+        gizmo: true,
         position: 0,
         step: 0.5,
         el: 90,

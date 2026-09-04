@@ -321,6 +321,8 @@ export class ViewGizmo {
   }
 
   /** Sync to the camera each frame (pass `camera.quaternion`). */
+  private lastTransform = '';
+
   update(q: { x: number; y: number; z: number; w: number }) {
     const { x, y, z, w } = q;
     // View rotation = R(q)ᵀ, expressed in CSS space (y down) by conjugating
@@ -335,7 +337,13 @@ export class ViewGizmo {
     const m20 = 2 * (x * z - y * w);
     const m21 = 2 * (y * z + x * w);
     const m22 = 1 - 2 * (x * x + y * y);
-    this.cube.style.transform = `matrix3d(${m00},${-m01},${m02},0,${-m10},${m11},${-m12},0,${m20},${-m21},${m22},0,0,0,0,1)`;
+    const transform = `matrix3d(${m00},${-m01},${m02},0,${-m10},${m11},${-m12},0,${m20},${-m21},${m22},0,0,0,0,1)`;
+    // written only on change: the update runs every tick, and an identical
+    // inline style must not invalidate the cube's layer while the camera rests
+    if (transform !== this.lastTransform) {
+      this.lastTransform = transform;
+      this.cube.style.transform = transform;
+    }
   }
 
   /** Uniform face font: always sized to the MAX_LABEL_CHARS cap, so a short

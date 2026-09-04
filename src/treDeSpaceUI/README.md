@@ -811,6 +811,12 @@ Modifiers: `CTRL`, `ALT`, `SHIFT`, `META`/`CMD`. Named keys: `ESC`, `ENTER`,
 `DELETE`, `BACKSPACE`, `F1`–`F12`. A shorter binding may be a prefix of a
 longer one (`F` alongside `F+F`) — the short one fires on timeout.
 
+### Storage key
+
+Overrides persist under the localStorage key `hotkeys`. An app that
+namespaces its storage moves them with `hotkeysActions.setStorageKey('myapp:hotkeys')`
+before registering its shortcuts — the overrides are reloaded from that key.
+
 ### Registering shortcuts
 
 ```ts

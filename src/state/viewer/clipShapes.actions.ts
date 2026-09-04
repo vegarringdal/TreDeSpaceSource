@@ -183,6 +183,24 @@ export const clipShapesActions = {
     });
   },
 
+  /** move → rotate → scale for the armed shape (rotate skipped where the
+   *  kind cannot rotate). */
+  cycleGizmoMode() {
+    const s = clipShapesState.get();
+    const sh = s.shapes.find((x) => x.id === s.gizmoId);
+    const order = (['move', 'rotate', 'scale'] as const).filter(
+      (m) => m !== 'rotate' || !sh || supportsRotate(sh.kind),
+    );
+    const next = order[(order.indexOf(s.gizmoMode) + 1) % order.length];
+    clipShapesState.set({ gizmoMode: next });
+  },
+
+  /** Scale handles: per face (box: six, cylinder: diameter + top + bottom)
+   *  or the three symmetric ones. */
+  toggleSixAxis() {
+    clipShapesState.set((s) => ({ sixAxis: !s.sixAxis }));
+  },
+
   /** Bump a numeric field on a shape (drives the +/- steppers). */
   bump(id: number, field: 'radius' | 'height', delta: number) {
     clipShapesState.set((s) => ({

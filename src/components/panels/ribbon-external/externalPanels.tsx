@@ -1,12 +1,13 @@
 import { definePanel } from '@treDeSpaceUI/dockable';
 import { externalAppIframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppsState, externalAppUrl } from '../../../state/externalApps.state';
+import { dialogIdFor } from '../../../state/externalDialogIds';
 
-/** Iframe panel body for one external app: its URL (with `?config=`) and its
- *  per-app sandbox / allow policy (the base policy unless the app opted into
- *  more — see externalAppPolicy.ts). */
+/** Iframe panel body for one external app: its URL (with `?config=` and the
+ *  panel's stable `?tdsDialogId=`) and its per-app sandbox / allow policy (the
+ *  base policy unless the app opted into more — see externalAppPolicy.ts). */
 export function makeExternalPanel(id: string, app: ExternalApp) {
-  const url = externalAppUrl(app);
+  const url = externalAppUrl(app, dialogIdFor(id));
   const policy = externalAppIframePolicy(app);
   return definePanel({
     id,

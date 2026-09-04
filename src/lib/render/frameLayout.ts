@@ -15,6 +15,9 @@ export const FRAME_SLOT = {
   viewProj: 0,
   /** vec4f — xyz = the frame's rebase origin */
   origin: 16,
+  /** origin.w — unlit-luma floor near-black material colours are lifted to
+   *  (Settings → Rendering → Dark colours); 0 = off */
+  darkFloor: 19,
   /** vec4f — eye in rebased space */
   eye: 20,
   /** vec4u — x: meshlet debug, y: suppress tint, z: blend routing, w: AA seed */

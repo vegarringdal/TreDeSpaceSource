@@ -570,6 +570,12 @@ export type ExternalAppPermission =
  *  {@link TredespaceClient.externalAppsSet}. Mirrors the Settings → External
  *  fields; only `name` and `url` are required. */
 export interface HostExternalApp {
+  /** Optional STABLE id (1–64 of letters, digits, `_ . : -`, unique in the
+   *  call): a later {@link TredespaceClient.externalAppsSet} with the same id
+   *  is the same app — its button, tooltip and config update while any open
+   *  panel or dialog of it keeps running. Omit it and the entry gets a fresh
+   *  id every call. */
+  id?: string;
   /** ribbon button + panel title */
   name: string;
   url: string;
@@ -674,6 +680,10 @@ export interface CameraState {
 export interface DialogInfo {
   /** dialog id — what the ui.dialog* methods address it by */
   id: string;
+  /** the `?tdsDialogId=` the page itself sees on its URL: stable per app for
+   *  a single-instance dialog (close → reopen gets the same one), fresh per
+   *  open for a `multiple` one — what the page keys its saved state by */
+  tdsDialogId: string;
   /** the external-app entry it was opened from */
   appId: string;
   name: string;
@@ -1798,10 +1808,24 @@ export class TredespaceClient {
    *  VIEWER's own origin comes back with a `warning`: no sandbox isolates a
    *  same-origin page from the viewer window, so only host pages you fully
    *  trust belong there (a page on any other origin is isolated by the
-   *  browser's same-origin policy regardless of `sandbox` / `allow`). */
+   *  browser's same-origin policy regardless of `sandbox` / `allow`).
+   *
+   *  Give entries a stable `id` (see {@link HostExternalApp.id}) when you
+   *  re-set the apps for a new context — a project switch, say — so an open
+   *  dialog of an app that stays in the set keeps running instead of turning
+   *  into an orphan. A modal opened by this call also reports the
+   *  `tdsDialogId` its page sees on its URL (`?tdsDialogId=`), the value the
+   *  page keys its saved state by across a close → reopen. */
   externalAppsSet(apps: HostExternalApp[]): Promise<
     Result<{
-      apps: { id: string; name: string; url: string; dialogId?: string; warning?: string }[];
+      apps: {
+        id: string;
+        name: string;
+        url: string;
+        dialogId?: string;
+        tdsDialogId?: string;
+        warning?: string;
+      }[];
       opened: number;
     }>
   > {

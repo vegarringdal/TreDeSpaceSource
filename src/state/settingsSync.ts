@@ -10,11 +10,13 @@
 // mute-swap rewrites them and would stomp other tabs' scenes), the auto layout
 // (per-tab by design), hotkey overrides (the engine rebuild is local), and
 // anything content-like (assets, labels, measurements).
+
 import { exportState } from '../components/panels/export/export.state';
 import { DEFAULT_QUICK_COLORS, quickColorsState } from '../components/panels/quick-colors/quickColors.state';
 import { ribbonSelectionColorState } from '../components/panels/ribbon-selection-color/ribbonSelectionColor.state';
 import { initTheme } from '../components/panels/settings/settings.actions';
 import { settingsState } from '../components/panels/settings/settings.state';
+import { storageName } from '../lib/storageKeys';
 import { apiSecurityState } from './apiSecurity.state';
 import { externalAppsState } from './externalApps.state';
 import { layoutsState } from './layouts.state';
@@ -151,7 +153,8 @@ export function initSettingsSync() {
   const origSetItem = localStorage.setItem.bind(localStorage);
   try {
     localStorage.setItem = (key: string, value: string) => {
-      if (adapters[key]) {
+      const name = storageName(key);
+      if (name && adapters[name]) {
         lastLocalWrite[key] = Date.now();
       }
       origSetItem(key, value);
@@ -163,7 +166,8 @@ export function initSettingsSync() {
     if (e.storageArea !== localStorage || e.key == null) {
       return;
     }
-    const apply = adapters[e.key];
+    const name = storageName(e.key);
+    const apply = name ? adapters[name] : undefined;
     if (!apply) {
       return;
     }

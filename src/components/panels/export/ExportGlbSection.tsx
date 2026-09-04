@@ -1,5 +1,6 @@
 import { IconFileExport, IconSitemap } from '@tabler/icons-react';
 import { Button, Collapsible } from '@treDeSpaceUI/widgets';
+import { ExportClipCheck } from './ExportClipCheck';
 import { exportActions as act } from './export.actions';
 import { exportState } from './export.state';
 
@@ -17,8 +18,9 @@ export function ExportGlbSection() {
           path: a whole plant makes a file most viewers choke on. Use TDP for full scenes.
           <br />
           <br />
-          Exports what is currently <b>visible</b>, with the current colors, opacity and transforms. Clipping, labels
-          and measurements are not included.
+          Exports what is currently <b>visible</b>, with the current colors, opacity and transforms, at full detail
+          whatever the VRAM budget holds. Labels and measurements are not included; clipping is not baked into the
+          geometry, but <b>Exclude clipped parts</b> leaves out the parts the clip volume hides entirely.
           <br />
           <br />
           Geometry is read back from the GPU on demand — nothing extra is kept in memory while you are not exporting. No
@@ -42,6 +44,7 @@ export function ExportGlbSection() {
         <input type="checkbox" checked={s.zUp} onChange={(e) => exportState.set({ zUp: e.target.checked })} />
         Keep Z up
       </label>
+      <ExportClipCheck />
       <Button
         icon={<IconFileExport size={14} />}
         tooltip="Export a merged GLB: one mesh primitive per color — small node count, fast to view anywhere"

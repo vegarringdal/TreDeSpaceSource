@@ -28,6 +28,7 @@ import type { PanelDefinition } from '@treDeSpaceUI/dockable';
 import { ViewGizmo } from '../../../lib/overlay/ViewGizmo';
 import { Renderer } from '../../../lib/render/renderer';
 import { buildViewCubeGeometry } from '../../../lib/render/viewCubeGpu';
+import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { db, transfer } from '../../../state/viewer/db';
 import { gizmoLabelsState } from '../../../state/viewer/gizmoLabels.state';
 import { labelsActions } from '../../../state/viewer/labels.actions';
@@ -266,20 +267,17 @@ export const viewport: PanelDefinition = {
       // first enabled plane in rotate mode gets the normal handle
       const AXES = ['x', 'y', 'z'] as const;
       const COLORS = ['#ef4444', '#16a34a', '#3b82f6'];
-      // gizmo shows only while the helper is on: move arrows normally,
-      // the normal-drag handle when rotate mode is active
-      let plane: GizmoTargets['plane'] = null;
+      // every enabled plane whose Gizmo toggle is on gets its own handles:
+      // move arrows normally, rotation rings when rotate mode is active
+      const planeTargets: GizmoTargets['planes'] = [];
       AXES.forEach((axis, i) => {
-        if (plane) {
-          return;
-        }
         const pl = planes[axis];
-        if (!pl.enabled || !pl.helper) {
+        if (!pl.enabled || !pl.gizmo) {
           return;
         }
         const base = pl.anchor ?? center;
         const n = sph(pl.el, pl.az);
-        plane = {
+        planeTargets.push({
           mode: pl.rotateMode ? 'rotate' : 'move',
           anchor: [base[0] + n[0] * pl.position, base[1] + n[1] * pl.position, base[2] + n[2] * pl.position],
           normal: n,
@@ -296,7 +294,7 @@ export const viewport: PanelDefinition = {
               p[2] - n[2] * pl.position,
             ]);
           },
-        };
+        });
       });
       // selection transform gizmo (Transform ribbon): world axes at the
       // selection center (or the locked pivot for rotate/scale); drags
@@ -368,7 +366,7 @@ export const viewport: PanelDefinition = {
                 onRotate: (q) => ribbonClippingBoxState.set({ rotation: q }),
               }
             : null),
-        plane,
+        planes: planeTargets,
       };
     };
 
@@ -403,6 +401,7 @@ export const viewport: PanelDefinition = {
       o.normalThr = s.sketch ? s.sketchNormalThr : s.normalThr;
       o.whiteOnDark = s.whiteOnDark;
       o.darkThr = s.darkThr;
+      o.darkFloor = s.darkLift ? s.darkLiftPct / 100 : 0;
       // sketch mode overrides BOTH threshold sets for one uniform line look
       o.smoothFadeExp = s.sketch ? s.sketchFadeExp : s.smoothFadeExp;
       o.smoothDepthThr = s.sketch ? s.sketchDepthThr : s.smoothDepthThr;
@@ -417,6 +416,7 @@ export const viewport: PanelDefinition = {
       o.aoSlices = s.aoSlices;
       o.aoSamples = s.aoSamples;
       o.debugBuf = s.debugBuf;
+      o.traceKey = s.trace;
       const clip = buildClip(renderer);
       renderer.setClip(clip.data);
       renderer.setHelperLines(clip.lines);
@@ -479,6 +479,24 @@ export const viewport: PanelDefinition = {
         }
       }
     };
+
+    // applyOptions reads a handful of stores and the host size; re-running it
+    // every tick cost more at rest than the (idle) renderer itself, so it runs
+    // only after one of its inputs changed
+    let optionsDirty = true;
+    const markOptionsDirty = () => {
+      optionsDirty = true;
+    };
+    const unsubOptions = [
+      viewerState,
+      navState,
+      selectionState,
+      clipShapesState,
+      ribbonClippingBoxState,
+      ribbonClippingPlaneState,
+    ].map((store) => store.subscribe(markOptionsDirty));
+    const hostResize = new ResizeObserver(markOptionsDirty);
+    hostResize.observe(host);
 
     const boot = async () => {
       try {
@@ -788,7 +806,10 @@ export const viewport: PanelDefinition = {
           return;
         }
         lastFrameT = now - lastFrameT > minDt * 2 ? now : lastFrameT + minDt;
-        applyOptions();
+        if (optionsDirty) {
+          optionsDirty = false;
+          applyOptions();
+        }
         const cubeQ = cameraQuat(renderer.camera.forward());
         renderer.setViewCube(gizmo ? gizmo.getRect() : null, cubeHoverId(), cubeQ);
         renderer.frame(canvas);
@@ -859,6 +880,10 @@ export const viewport: PanelDefinition = {
       labelOverlay?.dispose();
       residencyBoxes?.dispose();
       removeMeasureKeys?.();
+      for (const off of unsubOptions) {
+        off();
+      }
+      hostResize.disconnect();
       renderer.dispose();
       canvas.remove();
       hudWrap.remove();

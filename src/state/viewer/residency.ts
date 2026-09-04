@@ -54,6 +54,12 @@ const mb = (b: number) => (b / MB).toFixed(1);
 
 /** A prepared swap waits at most this long for batch-mates before it commits. */
 const READY_MAX_WAIT_MS = 300;
+/** Once settled, the planner only re-checks at this pace — every trigger
+ * (visibility, clip or settings change, a new zone, camera motion) wakes it
+ * at once; re-planning every tick at rest was the idle loop's main cost. */
+const SETTLED_RECHECK_MS = 2000;
+/** Blocked only by a cooldown or dwell: re-check at this pace at least. */
+const WAITING_RECHECK_MS = 250;
 /** Visible-bounds refresh triggers: the eye moved this far, or the view
  * turned past this dot, since the last refresh. */
 const VIS_MOVE_M = 2;
@@ -680,6 +686,7 @@ function evaluate(r: Renderer, now: number, pacing: Pacing): void {
       if (res.settled && burstStartT !== 0) {
         reportSettled(r, now);
       }
+      nextEvalAt = now + (res.settled ? SETTLED_RECHECK_MS : Math.max(pacing.evalMs, WAITING_RECHECK_MS));
       return;
     }
     plan = { steps: res.steps, next: 0 };
@@ -817,22 +824,25 @@ export const residency = {
     }
     flushReady(r, now, pacing);
     r.holdAccumulation = s.vramHoldAccum && vramBudgetMb(s) > 0 && burstActive();
+    const settingsKey = `${vramBudgetMb(s)}|${s.vramCutSizeM}|${s.vramCutDistM}|${s.vramDropHidden}|${s.vramSwapSpeed}`;
+    if (settingsKey !== lastSettingsKey) {
+      lastSettingsKey = settingsKey;
+      dropPlan('settings changed');
+      nextEvalAt = 0;
+    }
+    if (planDirty) {
+      planDirty = false;
+      dropPlan('scene changed');
+      nextEvalAt = 0;
+    }
     if (now < nextEvalAt) {
       return;
     }
     nextEvalAt = now + pacing.evalMs;
     if (!isIdle(r, now, pacing.idleMs)) {
       dropPlan('camera moved');
+      nextEvalAt = 0; // evaluate as soon as the camera rests
       return;
-    }
-    const settingsKey = `${vramBudgetMb(s)}|${s.vramCutSizeM}|${s.vramCutDistM}|${s.vramDropHidden}|${s.vramSwapSpeed}`;
-    if (settingsKey !== lastSettingsKey) {
-      lastSettingsKey = settingsKey;
-      dropPlan('settings changed');
-    }
-    if (planDirty) {
-      planDirty = false;
-      dropPlan('scene changed');
     }
     evaluate(r, now, pacing);
   },

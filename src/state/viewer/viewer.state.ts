@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../../lib/storageKeys';
 import { DEFAULT_VRAM_BUDGET_MB, migrateVramBudget } from './vramBudget';
 
 /**
@@ -58,6 +59,13 @@ export interface ViewerState {
   normalThr: number;
   whiteOnDark: boolean;
   darkThr: number;
+  /** Lift near-black material colours toward grey for RENDERING only — a
+   *  black surface shows no shading. Exports and the cooked colours are
+   *  untouched; user colour overrides are never lifted. */
+  darkLift: boolean;
+  /** The grey level (percent luma) black is lifted to; colours brighter than
+   *  it are left alone, darker ones blend toward it. */
+  darkLiftPct: number;
   // separate edge tuning for meshes with AUTHORED normals (smooth shading)
   smoothFadeExp: number;
   smoothDepthThr: number;
@@ -191,6 +199,8 @@ export const initialViewerState: ViewerState = {
   normalThr: 0.25,
   whiteOnDark: true,
   darkThr: 0.07,
+  darkLift: true,
+  darkLiftPct: 50,
   smoothFadeExp: 0.3,
   smoothDepthThr: 0.01,
   smoothNormalThr: 0.25,
@@ -253,7 +263,7 @@ export const initialViewerState: ViewerState = {
 // and keeping them out lets two instances' persisted blobs converge to
 // identical strings — the cross-tab sync's no-echo invariant depends on that
 // (differing blobs ping-pong storage events and fight e.g. color-picker drags).
-const VIEWER_KEY = 'viewer';
+const VIEWER_KEY = storageKey('viewer');
 const TRANSIENT: (keyof ViewerState)[] = ['hasTransparency', 'suppressTintOnOverride', 'orthographic', 'sketch'];
 
 function loadViewer(): ViewerState {

@@ -68,6 +68,10 @@ export interface ClipShapesState {
   /** Shape id the viewport gizmo is armed on (null = none). */
   gizmoId: number | null;
   gizmoMode: 'move' | 'rotate' | 'scale';
+  /** Scale handles of the armed shape: per face for a box (six), the three
+   *  special handles for a cylinder (diameter, top, bottom) — instead of the
+   *  three symmetric ones. */
+  sixAxis: boolean;
   nextId: number;
 }
 
@@ -77,5 +81,6 @@ export const clipShapesState = createStore<ClipShapesState>({
   helpers: true,
   gizmoId: null,
   gizmoMode: 'move',
+  sixAxis: true,
   nextId: 0,
 });

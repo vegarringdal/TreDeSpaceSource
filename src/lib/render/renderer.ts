@@ -315,6 +315,7 @@ export class Renderer {
     sketchColorMode: 'off' as 'off' | 'fill' | 'edges',
     whiteOnDark: true, // white edge color on items darker than darkThr (unlit luma)
     darkThr: 0.07,
+    darkFloor: 0, // lift material colours below this unlit luma toward it (0 = off)
     freezeCull: false, // keep last cull results, camera stays live
     debugBuf: 0, // 0 off, 1 normal, 2 depth, 3 item id, 4 raw edge, 5 ao
     aoMode: 0, // 0 off, 1 motion (every frame), 2 static (accumulate at rest)
@@ -337,6 +338,9 @@ export class Renderer {
     // the selection tint; any new selection turns it off again
     suppressTintOnOverride: false,
     gpuTimings: false, // per-pass GPU times via timestamp-query (Stats tab)
+    // dev diagnostic (Settings → Stats → trace): log which render-key segment
+    // changed whenever the scene re-renders with the camera at rest
+    traceKey: false,
     // -----------------------------------------------------------------------------
     // outline effect (three.js OutlinePass port on the native hover_xray mask)
     // -----------------------------------------------------------------------------
@@ -1338,6 +1342,16 @@ export class Renderer {
     }
   }
 
+  /** Name the first render-key segment that differs — the reason a frame
+   *  rendered while the camera stood still (`options.traceKey`). */
+  private traceKeyChange(prev: string, next: string): void {
+    const a = prev.split(';');
+    const b = next.split(';');
+    const i = a.findIndex((seg, k) => seg !== b[k]);
+    const at = i < 0 ? '(length)' : `#${i}`;
+    console.debug(`[render] re-render at rest — key segment ${at}: ${a[i] ?? ''} → ${b[i] ?? ''}`);
+  }
+
   /** GPU bytes held by one model slot (0 for tombstones). */
   modelBytes(slot: number): number {
     const m = this.models[slot];
@@ -2016,7 +2030,7 @@ export class Renderer {
       `${vpKey};${pxCut};${opt.meshletVis};${opt.protectDist};` +
       `${opt.fastAA};${opt.msaa4x};${opt.freezeCull};` +
       `${opt.geoEdges};${opt.itemEdges};${opt.sketch};${opt.edgeColor.join(',')};${opt.fadeExp};` +
-      `${opt.depthThr};${opt.normalThr};${opt.whiteOnDark};${opt.darkThr};${opt.debugBuf};` +
+      `${opt.depthThr};${opt.normalThr};${opt.whiteOnDark};${opt.darkThr};${opt.darkFloor};${opt.debugBuf};` +
       `${opt.smoothDepthThr};${opt.smoothNormalThr};${opt.smoothFadeExp};` +
       `${opt.flatMeshEdges};${opt.smoothMeshEdges};${opt.sketchRespectsEdgesOff};${opt.sketchColorMode};` +
       `${opt.aoMode};${opt.aoRadius};${opt.aoStrength};${opt.aoSlices};${opt.aoSamples};` +
@@ -2058,6 +2072,10 @@ export class Renderer {
       this.lastKey = '';
     }
     this.wasHoldingAccum = holdAccum;
+
+    if (opt.traceKey && !moving && this.lastKey !== '' && key !== this.lastKey) {
+      this.traceKeyChange(this.lastKey, key);
+    }
 
     let hold = false;
     if (key === this.lastKey) {
@@ -2153,6 +2171,7 @@ export class Renderer {
     const ff = new Float32Array(frameData);
     ff.set(vpRel, FRAME_SLOT.viewProj);
     ff.set([...origin, 0], FRAME_SLOT.origin);
+    ff[FRAME_SLOT.darkFloor] = opt.darkFloor;
     ff.set([eye[0] - origin[0], eye[1] - origin[1], eye[2] - origin[2], 1], FRAME_SLOT.eye);
     const fu = new Uint32Array(frameData);
     fu[FRAME_SLOT.flags] = opt.meshletVis ? 1 : 0;

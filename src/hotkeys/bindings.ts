@@ -43,6 +43,7 @@ import { callTableAction, openSqlTablePanel } from '../components/panels/sql-tab
 import { openViewpointsPanel, openViewpointViewerPanel } from '../components/panels/viewpoints/viewpointsPanel';
 import { openProductPage } from '../lib/productUrl';
 import { suggestVramBudgetMb } from '../lib/render/vramHint';
+import { storageKey } from '../lib/storageKeys';
 import { apiSecurityState } from '../state/apiSecurity.state';
 import { assetsActions } from '../state/assets/assets.actions';
 import { assetsState } from '../state/assets/assets.state';
@@ -96,6 +97,7 @@ const NUM_SETTINGS = [
   { id: 'aoStrength', label: 'AO strength', field: 'aoStrength', step: 0.05, lo: 0, hi: 1, code: 470 },
   { id: 'aoSlices', label: 'AO slices', field: 'aoSlices', step: 1, lo: 1, hi: 16, code: 472 },
   { id: 'aoSamples', label: 'AO samples', field: 'aoSamples', step: 1, lo: 1, hi: 12, code: 474 },
+  { id: 'darkLift', label: 'Dark colour lift (%)', field: 'darkLiftPct', step: 5, lo: 0, hi: 100, code: 438 },
 ] as const;
 
 export const HOTKEYS: HotkeyDef[] = [
@@ -1224,6 +1226,14 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => exportState.set((s) => ({ zUp: !s.zUp })),
   },
   {
+    id: 'export.excludeClipped',
+    category: 'Home',
+    label: 'Export: exclude clipped parts',
+    defaultKeys: 'ALT + 1221',
+    description: 'Toggle: leave parts clipped away entirely by the clipping planes, box and shapes out of exports',
+    run: () => exportState.set((s) => ({ excludeClipped: !s.excludeClipped })),
+  },
+  {
     id: 'export.ifc',
     category: 'Home',
     label: 'Export merged IFC',
@@ -1390,6 +1400,14 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 442',
     description: 'Toggle white edges on dark items',
     run: () => viewerState.set((s) => ({ whiteOnDark: !s.whiteOnDark })),
+  },
+  {
+    id: 'render.darkLift',
+    category: 'View',
+    label: 'Toggle dark colour lift',
+    defaultKeys: 'ALT + 437',
+    description: 'Lift near-black material colours toward grey so their shading shows (rendering only)',
+    run: () => viewerState.set((s) => ({ darkLift: !s.darkLift })),
   },
   // number-input steppers (codes 450..459)
   ...NUM_SETTINGS.flatMap((n) => [
@@ -2393,6 +2411,22 @@ export const HOTKEYS: HotkeyDef[] = [
       description: `Toggle rotate mode for the ${axis.toUpperCase()} plane`,
       run: () => plane.rotate(axis),
     },
+    {
+      id: `clip.plane.${axis}.helper`,
+      category: 'Clipping',
+      label: `Plane ${axis.toUpperCase()}: helper`,
+      defaultKeys: `ALT + ${{ x: 317, y: 318, z: 319 }[axis]}`,
+      description: `Show the ${axis.toUpperCase()} plane's 3×3 m marker`,
+      run: () => plane.toggleHelper(axis),
+    },
+    {
+      id: `clip.plane.${axis}.gizmo`,
+      category: 'Clipping',
+      label: `Plane ${axis.toUpperCase()}: gizmo`,
+      defaultKeys: `ALT + ${{ x: 314, y: 315, z: 316 }[axis]}`,
+      description: `Show the ${axis.toUpperCase()} plane's transform tool in the viewport`,
+      run: () => plane.toggleGizmo(axis),
+    },
   ]),
   {
     id: 'clip.plane.resetAll',
@@ -2453,12 +2487,29 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => clipbox.setGizmoMode('scale'),
   },
   {
+    id: 'clip.box.gizmo.none',
+    category: 'Clipping',
+    label: 'Box gizmo: none',
+    defaultKeys: 'ALT + 339',
+    description: 'Hide the main box gizmo',
+    run: () => clipbox.setGizmoMode('none'),
+  },
+  {
     id: 'clip.box.gizmo.cycle',
     category: 'Clipping',
-    label: 'Box gizmo: cycle mode',
+    label: 'Clip gizmo: cycle mode',
     defaultKeys: 'M',
-    description: 'Cycle the box gizmo none → move → rotate → scale',
+    description: 'Cycle move → rotate → scale on the armed clip shape, else the main box (off → on at the last mode)',
     run: () => clipbox.cycleGizmoMode(),
+  },
+  {
+    id: 'clip.gizmo.toggle',
+    category: 'Clipping',
+    label: 'Clip gizmo: off / on',
+    defaultKeys: 'X',
+    description:
+      'Hide the clip gizmo, or bring it back where it was — the armed shape (the main box if that shape is gone) at its last mode',
+    run: () => clipbox.toggleGizmo(),
   },
   {
     id: 'clip.box.sixAxis',
@@ -2557,6 +2608,14 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 311',
     description: 'Move mode for the armed clip shape',
     run: () => clipShapeData.setGizmoMode('move'),
+  },
+  {
+    id: 'clip.shape.sixAxis',
+    category: 'Clipping',
+    label: 'Shape gizmo: 3/6 axis',
+    defaultKeys: 'ALT + 338',
+    description: 'Scale handles of the armed shape: per face (box) or diameter + top + bottom (cylinder), vs symmetric',
+    run: () => clipShapeData.toggleSixAxis(),
   },
   {
     id: 'clip.shape.gizmo.rotate',
@@ -3083,6 +3142,7 @@ export const HOTKEYS: HotkeyDef[] = [
  *  caught by the smoke test before it can ship; in prod it's logged and the
  *  offending binding is simply skipped by the engine's own guards. */
 export function installHotkeys() {
+  hotkeysActions.setStorageKey(storageKey('hotkeys'));
   const errors = validateBindings(HOTKEYS);
   if (errors.length > 0) {
     const msg = `Invalid hotkey bindings:\n  ${errors.join('\n  ')}`;

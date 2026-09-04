@@ -4,6 +4,44 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.85):
+  The idle loop does (almost) nothing at rest. A profile of a still scene
+  showed the renderer idling correctly while the loop around it paid every
+  tick: the residency-box overlay cleared its full-viewport 2D canvas each
+  frame even with the overlay off (that was the whole-viewport paint flash),
+  `applyOptions` re-derived every renderer option, re-packed the clip
+  uniform and re-parsed every colour, and at Fast pacing the residency
+  planner re-planned on every tick although it was settled. Now the overlay
+  touches nothing while off, options sync only after one of their stores
+  (viewer, nav, selection, clip shapes, clip box, clip planes) or the host
+  size changed, the planner re-checks every 2 s once settled (any trigger —
+  visibility, clipping, settings, a new zone, camera motion — wakes it at
+  once), and the mobile-device test is evaluated once instead of per frame.
+  Idle viewport: the view cube's CSS transform was rewritten every tick even
+  when the camera stood still, so its layer repainted at the frame rate (paint
+  flashing showed it); it is written on change only now. And when the scene
+  re-renders with the camera at rest, Settings → Stats → trace logs to the
+  browser console which render-key segment changed (`[render] re-render at
+  rest — key segment #N: old → new`), so "why is it still rendering" is
+  answerable without reading code.
+  Export → **Exclude clipped parts** (TDP, GLB and IFC alike, Alt&1221): with
+  it on, an export leaves out every item whose bounding sphere is provably
+  outside the active clipping planes, box AND shapes — holes and keep
+  volumes, the cull shader's own test mirrored on the CPU (`clipCulledSphere`)
+  per item in the modeldb worker — and keeps anything the clip volume cuts
+  through, whole. Off (the default) exports everything not hidden, as if
+  clipping were disabled, which is what it always did.
+  Settings → Rendering → **Dark colours**: some models arrive with black
+  material colours, and a black surface shows no shading — nothing for the
+  headlight to modulate. **Lift black colours to grey** (default on,
+  Alt&437) renders any cooked colour darker than the **Grey level** (default
+  50 %, Alt&438/439) blended toward a grey of that luma: black lands exactly
+  on it, a colour just under it barely moves, hue survives. Rendering only —
+  the lift rides in the frame uniform's spare `origin.w` and runs in the
+  scene shaders before the item state is applied — so exports, the
+  hierarchy and colour overrides the user sets keep the true colours;
+  white-on-dark edge colouring sees the lifted colour, so lifted items get
+  the normal dark edge lines.
 - **2026.09.04** (>0.0.84):
   SQL Table gets a right-click menu — **Export to Excel** and **Copy to
   clipboard**, each for all rows or the selected rows, always AS SHOWN
@@ -85,6 +123,52 @@ version at release time. See CLAUDE.md for the rule.
   `plans/VRAM_V2.md` removed — all three phases landed 2026-09-03; the
   measurement protocol, the "shipped differently" notes and the commit-path
   guards moved into DESIGN.md "VRAM budget & residency".
+  Clip gizmo: **M** now cycles move → rotate → scale on whatever the gizmo
+  targets — the armed clip shape, else the main box — and turns it on at
+  the last mode when it is off; **X** hides the gizmo and brings it back
+  where it was, the armed shape or the main box if that shape is gone, at
+  its last mode (clipping itself stays as it is; a Console line says when
+  the box is off). **6 Axis** defaults on for the main box and comes to the
+  Clip Shapes panel (Alt&338): a box shape gets the six face handles, a
+  cylinder its three special handles — one diameter handle scaling the
+  radius symmetrically, top and bottom handles that move one end only.
+  Shrinking a cylinder's radius with the gizmo works now (the adapter took
+  the larger of the two diameters, so a shrink was ignored). The clipping
+  plane ribbon gets a per-axis **Gizmo** toggle (Alt&314–316) to show or
+  hide the plane's transform tool independently of the Helper marker
+  (Helper gets Alt&317–319) — and every enabled plane with Gizmo on shows its
+  own handles; only the first enabled plane had one before. The Clip Shapes
+  panel's "Hide box" reads "Hide main box". The main box's Resize / Move sections are
+  labelled "(main)"; the ribbon's None gizmo button has its hotkey
+  (Alt&339).
+  External apps get identity. `externalApps.set` entries take an optional
+  `id`: a later call with the same id is the SAME app — button, tooltip and
+  config update while its open panels and dialogs keep running — so a host
+  can re-set the apps for a newly selected project without the user losing an
+  open dialog (every call used to mint fresh ids, so open dialogs were
+  orphaned and a single-instance app opened twice). A dialog left out of the
+  new set stays open. Every panel and dialog page now gets a
+  `?tdsDialogId=<uuid>` on its URL — the same value on every open of a
+  single-instance app in this tab (kept in the viewer's sessionStorage, so a
+  reload keeps it too), fresh per instance for a `multiple` app — so a page
+  can key its own sessionStorage or the `instance` blob by it and pick up its
+  last state after a close → reopen. `ui.dialogs` and the `externalApps.set`
+  response carry it; EVENTS.md → "Dialog identity and state".
+  The viewer's storage is namespaced. Every localStorage key is `tds:<name>`
+  now (`tds:settings`, `tds:layouts`, …; `src/lib/storageKeys.ts` is the one
+  place the prefix lives) and both resets are scoped to the viewer: Home →
+  Clear all local data removes only `tds:` keys and the viewer's own OPFS
+  entries instead of `localStorage.clear()` and the whole OPFS root, and the
+  startup reset after a breaking change removes prefixed keys only. Why: a
+  viewer proxied under a path of the host's own site shares the host page's
+  origin — with bare names such as `settings` or `labels` the viewer
+  overwrote and, on its resets, deleted the host's keys of the same name.
+  Existing installs keep their settings: the bare-name values are copied
+  under the prefix once (a `tds:migrated` marker stops it re-running, so a
+  later reset is not undone) and the old keys are left in place, since on a
+  shared origin they may be the host's. The hotkeys library gained
+  `hotkeysActions.setStorageKey` for this. EVENTS.md → "Storage on a shared
+  origin".
 - **2026.09.03** (>0.0.84):
   VRAM budget v2 — the plan in `plans/VRAM_V2.md`, all three phases. Swaps
   now PREPARE in the worker and COMMIT in batches: one re-render per batch

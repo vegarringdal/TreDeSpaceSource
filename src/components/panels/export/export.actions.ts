@@ -77,6 +77,16 @@ async function readGeoms(title: string): Promise<ExportGeom[] | null> {
   return geoms;
 }
 
+/** The clip uniform to export against: a compact copy of the renderer's
+ *  packed clip data while "Exclude clipped parts" is on (and clipping is
+ *  active), else null — everything not hidden exports. */
+function clipOption(r: Renderer): Float32Array | null {
+  if (!exportState.get().excludeClipped || !r.clipData) {
+    return null;
+  }
+  return r.clipData.slice();
+}
+
 const geomTransfers = (geoms: ExportGeom[]): ArrayBuffer[] =>
   geoms.flatMap((g) => ('tdp' in g ? [g.tdp] : [g.positionsQ, g.indices16, g.cull, g.meshletInfo, g.cgColors]));
 
@@ -109,6 +119,10 @@ export const exportActions = {
    *  hierarchy = full entry tree with named nodes + per-item meshes. */
   async exportGlb(mode: 'merged' | 'hierarchy') {
     const t0 = performance.now();
+    const r = getRenderer();
+    if (!r) {
+      return;
+    }
     residency.pause(); // no swap may land between listing a zone and reading it
     try {
       await clearDir(await exportTempDir());
@@ -122,6 +136,7 @@ export const exportActions = {
       const { tris, size } = await db.exportGlb(mode, transfer(geoms, geomTransfers(geoms)), {
         zUp,
         recenter,
+        clip: clipOption(r),
         opfsOut: `${TMP}/${out}`,
       });
       dialogs.loading('Starting the download…', 'Export GLB', 0.95);
@@ -198,6 +213,7 @@ export const exportActions = {
             zUp: true,
             bareRoot: true,
             recenter: false,
+            clip: clipOption(r),
             opfsOut: tmpGlb,
           }));
         } catch {
@@ -245,6 +261,10 @@ export const exportActions = {
    *  hierarchy = the app's tree as nested aggregates. */
   async exportIfc(mode: 'merged' | 'hierarchy') {
     const t0 = performance.now();
+    const r = getRenderer();
+    if (!r) {
+      return;
+    }
     residency.pause(); // no swap may land between listing a zone and reading it
     try {
       await clearDir(await exportTempDir());
@@ -255,6 +275,7 @@ export const exportActions = {
       dialogs.loading(`Building the IFC (triangulated, ${mode})…`, 'Export IFC', 0.6);
       const out = `export-${mode}.ifc`;
       const { tris, size } = await db.exportIfc(mode, transfer(geoms, geomTransfers(geoms)), {
+        clip: clipOption(r),
         opfsOut: `${TMP}/${out}`,
       });
       dialogs.loading('Starting the download…', 'Export IFC', 0.95);

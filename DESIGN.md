@@ -74,7 +74,7 @@ own. Key facts, kept here so the port history isn't lost:
   Clipping-Box ribbon box; user shapes fill slots 1–7. Combine semantics:
   inverted shapes are holes (AND), normal shapes are keep-volumes (UNION).
   Mirrored conservatively in the cull compute. Ribbon `Enable` (Z) is the
-  global clip switch; `Hide box` disables only the default box.
+  global clip switch; `Hide main box` disables only the default box.
 - **Pick pass** (`mesh_pick.frag.slang` port): dedicated id-only render pass
   with the opacity rule — plain click selects `opacity ≥ threshold`
   (default 10.1 %, Settings → Rendering → Picking); Shift inverts the band
@@ -86,6 +86,11 @@ own. Key facts, kept here so the port history isn't lost:
   Settings in the Measurements panel).
 - **Transparency**: alpha-hash (converges under TAA) or unsorted blend pass;
   per-item opacity overrides.
+- **Dark-colour lift** (Settings → Rendering → Dark colours, 2026-09-04): a
+  black material shows no shading, so cooked colours below a luma floor
+  (`origin.w` of the Frame uniform, `lift_dark` in `shaders/scene.ts`) blend
+  toward a grey of that luma before the item state is applied. Rendering
+  only — colour overrides, exports and the hierarchy keep the true colours.
 
 ## Feature panels
 
@@ -99,6 +104,17 @@ own. Key facts, kept here so the port history isn't lost:
 - **Clip Shapes**: add sphere/cylinder/box (fits the selection on add),
   per-shape gizmo (move/rotate/scale mapped per kind), Fit Sel / +2m /
   Center, outline helpers, ShapeSet JSON save/load.
+- **Clip gizmo rules** (2026-09-04): one SVG gizmo (`ClipGizmo.ts`) serves
+  the main box, the armed clip shape (which wins the box slot) and every
+  enabled plane whose Gizmo toggle is on (each plane has its own handles). `M` cycles move → rotate → scale on whatever it targets
+  (off → on at the last mode); `X` hides it and brings it back where it was —
+  the armed shape, or the main box when that shape is gone — at its last mode,
+  without touching clipping itself (Z). `6 Axis` defaults on for the main box
+  and for shapes: a box gets six face handles, a cylinder its three special
+  handles (one diameter handle scaling the radius symmetrically, top and
+  bottom handles moving one end only — `mode: 'cylinder'`). The plane's
+  gizmo has its own per-axis toggle, independent of the Helper marker.
+  Ribbon `Resize (main)` / `Move (main)` say which box they act on.
 - **Selection transforms**: move/rotate/scale gizmo with custom pivot
   (lock/adjust/item-pivot), nudge/rotate-90° grids, move-to-click,
   per-domain undo/redo.
@@ -336,6 +352,17 @@ are posted unsolicited with `id: null`.
   first 10 lines forever, rotates the rest above 50.
 - First model load sets the default view: from the top, halfway between
   FRONT and RIGHT (az 3π/4, el −35°), then fits the scene bounds.
+- **Storage namespace** (`src/lib/storageKeys.ts`, 2026-09-04): every
+  localStorage / sessionStorage key is `tds:<name>` and a store must be in
+  `VIEWER_STORAGE_NAMES` to get one. `globalReset.ts` (the first import)
+  copies the pre-0.0.85 bare-name values under the prefix once, guarded by a
+  `tds:migrated` marker so a later reset is not undone by re-copying, and
+  leaves the bare keys alone (on a path-proxied viewer they may be the
+  host's). Clear all local data removes only `tds:` keys and the viewer's
+  own OPFS entries (`VIEWER_OPFS_ENTRIES`), never the origin's whole storage
+  — the fix for a host page losing its keys to the viewer. The hotkeys
+  library keeps its own default key and is pointed at `tds:hotkeys` by
+  `installHotkeys`.
 
 ## Not yet ported from native
 

@@ -10,7 +10,7 @@ import { ribbonClipShapesActions as ribbon } from './ribbonClipShapes.actions';
 
 /** Clip Shapes → Common: add shapes, save/load, global toggles, gizmo mode. */
 export function ClipShapesCommonSection() {
-  const { shapes, muted, helpers, gizmoId, gizmoMode } = clipShapesState.use();
+  const { shapes, muted, helpers, gizmoId, gizmoMode, sixAxis } = clipShapesState.use();
   const boxOn = ribbonClippingBoxState.use().boxOn;
   const armed = shapes.find((s) => s.id === gizmoId);
   const picker = useFilePicker('application/json,.json', (f) =>
@@ -33,7 +33,7 @@ export function ClipShapesCommonSection() {
   return (
     <Collapsible
       title="Common"
-      info="Add sphere/cylinder/box clip volumes — a new shape fits the current selection, or the whole scene when nothing is selected. Save/Load stores the set as JSON. Delete all, Hide all, Hide box and Helpers are global toggles; the Gizmo row arms move/rotate/scale on whichever shape you've armed below."
+      info="Add sphere/cylinder/box clip volumes — a new shape fits the current selection, or the whole scene when nothing is selected. Save/Load stores the set as JSON. Delete all, Hide all, Hide main box and Helpers are global toggles; the Gizmo row arms move/rotate/scale on whichever shape you've armed below."
     >
       <div className="grid grid-cols-3 gap-1.5">
         <Button
@@ -107,7 +107,7 @@ export function ClipShapesCommonSection() {
           tooltip="Hide the default clip box only (global clipping stays on)"
           shortcut="clip.shape.hideDefault"
         >
-          Hide box
+          Hide main box
         </Button>
         <Button
           className="w-full"
@@ -121,7 +121,7 @@ export function ClipShapesCommonSection() {
         {picker.element}
       </div>
 
-      <div className="grid grid-cols-4 items-center gap-1.5">
+      <div className="grid grid-cols-5 items-center gap-1.5">
         <span className="px-1 text-[11px] text-slate-400">Gizmo</span>
         {(['move', 'rotate', 'scale'] as const).map((m) => (
           <Button
@@ -136,6 +136,18 @@ export function ClipShapesCommonSection() {
             {m[0].toUpperCase() + m.slice(1)}
           </Button>
         ))}
+        <Button
+          className="w-full"
+          active={sixAxis}
+          disabled={armed == null || gizmoMode !== 'scale' || armed.kind === 'sphere'}
+          onClick={act.toggleSixAxis}
+          tooltip={
+            'Scale handles of the armed shape: 6 axis = per face (a box), or diameter + top + bottom (a cylinder); 3 axis = symmetric'
+          }
+          shortcut="clip.shape.sixAxis"
+        >
+          {sixAxis ? '6 Axis' : '3 Axis'}
+        </Button>
       </div>
     </Collapsible>
   );

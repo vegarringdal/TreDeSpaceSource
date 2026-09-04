@@ -1,5 +1,6 @@
 import { IconBuildingFactory2, IconSitemap } from '@tabler/icons-react';
 import { Button, Collapsible } from '@treDeSpaceUI/widgets';
+import { ExportClipCheck } from './ExportClipCheck';
 import { exportActions as act } from './export.actions';
 
 /** Export → IFC: hand a small visible selection to BIM tools as IFC4 with
@@ -18,10 +19,11 @@ export function ExportIfcSection() {
           IFC4 with <b>triangulated</b> geometry and colors as surface styles. Exports what is currently <b>visible</b>{' '}
           with the current colors and transforms. Meshes keep their <b>true world positions</b> — the GLB options above
           (Recenter, Keep Z up) do not apply; IFC is natively Z-up in metres and BIM coordination needs real
-          coordinates.
+          coordinates. <b>Exclude clipped parts</b> leaves out the parts the clip volume hides entirely.
         </>
       }
     >
+      <ExportClipCheck />
       <Button
         icon={<IconBuildingFactory2 size={14} />}
         tooltip="Export the visible scene as a merged IFC4 file (one proxy per color under a default building)"

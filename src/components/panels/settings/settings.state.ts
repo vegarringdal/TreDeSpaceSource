@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { storageKey } from '../../../lib/storageKeys';
 
 /** Editor preferences — plain JSON, persistable. */
 export interface SettingsState {
@@ -18,7 +19,7 @@ export const SETTINGS_DEFAULTS: SettingsState = {
   snap: '0.25',
 };
 const DEFAULTS = SETTINGS_DEFAULTS;
-const KEY = 'settings';
+const KEY = storageKey('settings');
 
 function load(): SettingsState {
   try {

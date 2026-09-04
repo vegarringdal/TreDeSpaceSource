@@ -1,4 +1,6 @@
 import { quatAxes } from '../../../lib/math/quat';
+import { clipShapesActions } from '../../../state/viewer/clipShapes.actions';
+import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { db } from '../../../state/viewer/db';
 import { getRenderer } from '../../../state/viewer/viewer.actions';
 import { openClipShapesPanel } from '../clip-shapes/clipShapesPanel';
@@ -55,15 +57,49 @@ export const ribbonClippingBoxActions = {
     log(`Cut ${get().inverted ? 'inside' : 'outside'}`);
   },
   setGizmoMode(gizmoMode: RibbonClippingBoxState['gizmoMode']) {
-    ribbonClippingBoxState.set({ gizmoMode });
+    ribbonClippingBoxState.set(gizmoMode === 'none' ? { gizmoMode } : { gizmoMode, lastGizmoMode: gizmoMode });
     log(`Gizmo mode → ${gizmoMode}`);
   },
-  /** Cycle none → move → rotate → scale → none (the M hotkey). */
+  /** The M hotkey: cycle move → rotate → scale on whatever the gizmo targets —
+   *  the armed clip shape, else the main box (off → on at the last mode). */
   cycleGizmoMode() {
-    const order = ['none', 'move', 'rotate', 'scale'] as const;
-    const cur = ribbonClippingBoxState.get().gizmoMode;
-    const next = order[(order.indexOf(cur) + 1) % order.length];
+    if (clipShapesState.get().gizmoId !== null) {
+      clipShapesActions.cycleGizmoMode();
+      return;
+    }
+    const order = ['move', 'rotate', 'scale'] as const;
+    const { gizmoMode, lastGizmoMode } = ribbonClippingBoxState.get();
+    const next = gizmoMode === 'none' ? lastGizmoMode : order[(order.indexOf(gizmoMode) + 1) % order.length];
     ribbonClippingBoxActions.setGizmoMode(next);
+  },
+  /** The X hotkey: gizmo off / on. Off remembers where it was (main box or
+   *  armed shape) and its mode; on brings that back — a shape that no longer
+   *  exists falls back to the main box. Clipping itself (Z) is left alone. */
+  toggleGizmo() {
+    const shp = clipShapesState.get();
+    const s = ribbonClippingBoxState.get();
+    const armed = shp.shapes.find((x) => x.id === shp.gizmoId);
+    if (armed || s.gizmoMode !== 'none') {
+      ribbonClippingBoxState.set({
+        gizmoMode: 'none',
+        lastGizmoMode: s.gizmoMode === 'none' ? s.lastGizmoMode : s.gizmoMode,
+        lastGizmoTarget: armed ? armed.id : 'main',
+      });
+      if (armed) {
+        clipShapesActions.armGizmo(null);
+      }
+      log('Gizmo off');
+      return;
+    }
+    const target = s.lastGizmoTarget;
+    const shape = target === 'main' ? undefined : shp.shapes.find((x) => x.id === target);
+    if (shape) {
+      clipShapesActions.armGizmo(shape.id);
+      log(`Gizmo on → shape "${shape.label}"`);
+      return;
+    }
+    ribbonClippingBoxState.set({ gizmoMode: s.lastGizmoMode, lastGizmoTarget: 'main' });
+    log(`Gizmo on → main box (${s.lastGizmoMode})${s.enabled ? '' : ' — clipping is off, press Z to enable'}`);
   },
   toggleSixAxis() {
     ribbonClippingBoxState.set({ sixAxis: !ribbonClippingBoxState.get().sixAxis });

@@ -101,6 +101,7 @@ export const uiHandlers: Record<string, ApiHandler> = {
   'ui.dialogs': () => ({
     dialogs: externalModalsState.get().open.map((m) => ({
       id: m.key,
+      tdsDialogId: m.tdsDialogId,
       appId: m.appId,
       name: m.name,
       url: m.url,

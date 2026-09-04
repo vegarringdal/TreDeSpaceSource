@@ -14,6 +14,8 @@
 // Saved files that no longer match the reset config may be left behind — that's
 // accepted for now; a proper migration step comes once things settle.
 
+import { migrateLegacyStorage, storageKey } from './storageKeys';
+
 /** part → its current reset token. Bump a token to force that part to reset. */
 export const GLOBAL_RESET: Record<string, string> = {
   layout: '0.0.11',
@@ -27,22 +29,29 @@ export const GLOBAL_RESET: Record<string, string> = {
 };
 
 /** localStorage record of the token last applied per part. */
-const STATE_KEY = 'globalReset';
+const STATE_KEY = storageKey('globalReset');
 
 // Where each part lives. `local` = localStorage keys, wiped synchronously before
 // the stores load. `opfs` = top-level OPFS directories, wiped asynchronously.
 const LOCAL_KEYS: Record<string, string[]> = {
-  layout: ['layouts'],
+  layout: [storageKey('layouts')],
   // mirrors the "Reset all settings" scope: viewer + nav + gizmo + editor + shortcuts
-  setting: ['settings', 'viewer', 'nav', 'gizmoLabels', 'pickerSwatches', 'hotkeys'],
-  external: ['externalApps', 'apiSecurity'],
-  viewPoints: ['viewpoints'],
+  setting: [
+    storageKey('settings'),
+    storageKey('viewer'),
+    storageKey('nav'),
+    storageKey('gizmoLabels'),
+    storageKey('pickerSwatches'),
+    storageKey('hotkeys'),
+  ],
+  external: [storageKey('externalApps'), storageKey('apiSecurity')],
+  viewPoints: [storageKey('viewpoints')],
   // labels have no standalone store today (they ride inside viewpoints) — the
   // key is a placeholder so the mechanism is ready if that changes.
-  labels: ['labels'],
+  labels: [storageKey('labels')],
   // SQL reports live in OPFS under sql_assets/<store>/ — cleared with sqlAssets;
   // the key is a placeholder for any future localStorage-side report state.
-  sqlReports: ['sqlReports'],
+  sqlReports: [storageKey('sqlReports')],
 };
 const OPFS_DIRS: Record<string, string[]> = {
   modelAssets: ['model_assets'],
@@ -76,6 +85,8 @@ async function clearOpfsDirs(dirs: string[]): Promise<void> {
 
 // Run immediately, at import time — before App's state modules load.
 (() => {
+  // app ≤ 0.0.84 wrote bare key names — copy them under the tds: prefix once
+  migrateLegacyStorage();
   const applied = readState();
   const opfsDirs = new Set<string>();
   let changed = false;

@@ -30,12 +30,13 @@ interface Override {
   timeout?: number;
 }
 
-const KEY = 'hotkeys'; // localStorage: Record<id, Override>
+// localStorage: Record<id, Override> — an app that namespaces its storage moves it (setStorageKey)
+let storageKey = 'hotkeys';
 const engine = new HotkeyEngine();
 
 function loadOverrides(): Record<string, Override> {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}');
+    return JSON.parse(localStorage.getItem(storageKey) ?? '{}');
   } catch {
     return {};
   }
@@ -53,7 +54,7 @@ function effective(d: HotkeyDef, ov?: Override): Sequence {
 }
 
 function persist() {
-  localStorage.setItem(KEY, JSON.stringify(hotkeysState.get().overrides));
+  localStorage.setItem(storageKey, JSON.stringify(hotkeysState.get().overrides));
 }
 
 function rebuild() {
@@ -151,9 +152,17 @@ export const hotkeysActions = {
     rebuild();
   },
 
+  /** Persist the overrides under another localStorage key (an app that
+   *  namespaces its storage) — the overrides are reloaded from it. */
+  setStorageKey(key: string) {
+    storageKey = key;
+    hotkeysState.set({ overrides: loadOverrides() });
+    rebuild();
+  },
+
   resetAll() {
     hotkeysState.set({ overrides: {} });
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(storageKey);
     rebuild();
   },
 

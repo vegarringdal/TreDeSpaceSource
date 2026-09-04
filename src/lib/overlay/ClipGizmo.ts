@@ -24,23 +24,29 @@ const AXIS_COLORS = ['#ef4444', '#22c55e', '#3b82f6'];
 const RING_SEGS = 48;
 const SNAP = (15 * Math.PI) / 180;
 
+export interface PlaneTarget {
+  mode: 'move' | 'rotate';
+  anchor: V3;
+  normal: V3;
+  color: string;
+  onRotate(elDeg: number, azDeg: number): void;
+  onMove(newPoint: V3): void;
+}
+
 export interface GizmoTargets {
   box: {
-    mode: 'move' | 'scale' | 'rotate' | 'faces';
+    /** 'faces' = six per-face handles; 'cylinder' = the three special
+     *  handles of a cylinder: one diameter handle on the surface (local X,
+     *  symmetric) plus top / bottom face handles on local Z (one end only). */
+    mode: 'move' | 'scale' | 'rotate' | 'faces' | 'cylinder';
     center: V3;
     size: V3;
     rotation: Quat;
     onChange(center: V3, size: V3): void;
     onRotate(rotation: Quat): void;
   } | null;
-  plane: {
-    mode: 'move' | 'rotate';
-    anchor: V3;
-    normal: V3;
-    color: string;
-    onRotate(elDeg: number, azDeg: number): void;
-    onMove(newPoint: V3): void;
-  } | null;
+  /** Every enabled plane whose Gizmo toggle is on — each gets its own handles. */
+  planes: PlaneTarget[];
   /** Selection transform gizmo (world axes at the selection center). Drags
    * produce a GROUP matrix: onDrag previews it live (model_global), onCommit
    * bakes it into the items' committed transforms on release. 'pivot' mode
@@ -105,11 +111,22 @@ function rayPlane(ro: V3, rd: V3, o: V3, n: V3): V3 | null {
 }
 
 type Drag =
-  | { kind: 'move' | 'scale' | 'pmove'; axis: number; startParam: number; startCenter: V3; startSize: V3; axisDir: V3 }
+  | {
+      kind: 'move' | 'scale' | 'pmove';
+      axis: number;
+      startParam: number;
+      startCenter: V3;
+      startSize: V3;
+      axisDir: V3;
+      /** pmove: index into targets().planes */
+      plane?: number;
+    }
   | { kind: 'face'; axis: number; dir: 1 | -1; startParam: number; startCenter: V3; startSize: V3; axisDir: V3 }
   | {
       kind: 'rotate' | 'protate';
       axis: number;
+      /** protate: index into targets().planes */
+      plane?: number;
       ringCenter: V3;
       ringNormal: V3;
       startVec: V3;
@@ -201,15 +218,16 @@ export class ClipGizmo {
       t.box.onRotate(quatNormalize(quatMul(quatFromAxisAngle(d.ringNormal, angle), d.startRotation)));
       return;
     }
-    if (d.kind === 'protate' && t.plane) {
+    if (d.kind === 'protate') {
+      const pl: PlaneTarget | undefined = t.planes[d.plane ?? 0];
       const angle = this.ringAngle(d, e);
-      if (angle === null) {
+      if (!pl || angle === null) {
         return;
       }
       const n = quatRotate(quatFromAxisAngle(d.ringNormal, angle), d.startNormal);
       const el = (Math.asin(Math.max(-1, Math.min(1, n[2]))) * 180) / Math.PI;
       const az = (Math.atan2(n[1], n[0]) * 180) / Math.PI;
-      t.plane.onRotate(Math.round(el * 10) / 10, Math.round(az * 10) / 10);
+      pl.onRotate(Math.round(el * 10) / 10, Math.round(az * 10) / 10);
       return;
     }
     if (d.kind === 'srotate' && t.sel) {
@@ -274,7 +292,7 @@ export class ClipGizmo {
     const param = closestAxisParam(d.startCenter, d.axisDir, ray.origin, ray.dir);
     const delta = param - d.startParam;
     if (d.kind === 'pmove') {
-      t.plane?.onMove(add(d.startCenter, d.axisDir, delta));
+      t.planes[d.plane ?? 0]?.onMove(add(d.startCenter, d.axisDir, delta));
       return;
     }
     if (!t.box) {
@@ -385,8 +403,9 @@ export class ClipGizmo {
         quatRotate(t.box.rotation, [0, 1, 0]),
         quatRotate(t.box.rotation, [0, 0, 1]),
       ];
-      if (t.box.mode === 'faces') {
-        for (let a = 0; a < 3; a++) {
+      if (t.box.mode === 'faces' || t.box.mode === 'cylinder') {
+        const faceAxes = t.box.mode === 'faces' ? [0, 1, 2] : [2];
+        for (const a of faceAxes) {
           for (const dir of [1, -1] as const) {
             const ts = this.toScreen(add(c, axes[a], (t.box.size[a] / 2) * dir));
             if (!ts) {
@@ -394,6 +413,16 @@ export class ClipGizmo {
             }
             parts.push(
               `<rect data-h="face:${a}:${dir}" x="${ts[0] - 6}" y="${ts[1] - 6}" width="12" height="12" fill="${AXIS_COLORS[a]}" stroke="#0008" style="pointer-events:auto;cursor:grab" />`,
+            );
+          }
+        }
+        if (t.box.mode === 'cylinder' && cs) {
+          // diameter: one symmetric handle sitting on the surface along local X
+          const ts = this.toScreen(add(c, axes[0], t.box.size[0] / 2));
+          if (ts) {
+            parts.push(
+              `<line x1="${cs[0]}" y1="${cs[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${AXIS_COLORS[0]}" stroke-width="2.5" />`,
+              `<rect data-h="scale:0" x="${ts[0] - 6}" y="${ts[1] - 6}" width="12" height="12" fill="${AXIS_COLORS[0]}" stroke="#0008" style="pointer-events:auto;cursor:grab" />`,
             );
           }
         }
@@ -467,11 +496,11 @@ export class ClipGizmo {
       }
     }
 
-    if (t.plane) {
-      const a = t.plane.anchor;
+    t.planes.forEach((pl, pi) => {
+      const a = pl.anchor;
       const as = this.toScreen(a);
       if (as) {
-        if (t.plane.mode === 'rotate') {
+        if (pl.mode === 'rotate') {
           // world-axis rings reorienting the normal, plus the normal itself
           for (let ax = 0; ax < 3; ax++) {
             const path = this.ringPath(a, WORLD_AXES[ax], 2);
@@ -480,33 +509,33 @@ export class ClipGizmo {
             }
             parts.push(
               `<path d="${path}" fill="none" stroke="${AXIS_COLORS[ax]}" stroke-width="2" />`,
-              `<path data-h="protate:${ax}" d="${path}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:grab" />`,
+              `<path data-h="protate:${ax}:${pi}" d="${path}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:grab" />`,
             );
           }
-          const ts = this.toScreen(add(a, t.plane.normal, 2.5));
+          const ts = this.toScreen(add(a, pl.normal, 2.5));
           if (ts) {
             parts.push(
-              `<line x1="${as[0]}" y1="${as[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${t.plane.color}" stroke-width="2.5" stroke-dasharray="4 3" />`,
+              `<line x1="${as[0]}" y1="${as[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${pl.color}" stroke-width="2.5" stroke-dasharray="4 3" />`,
             );
           }
         } else {
           // arrows follow the PLANE's orientation: normal + two in-plane axes
-          const paxes = planeAxes(t.plane.normal);
+          const paxes = planeAxes(pl.normal);
           for (let ax = 0; ax < 3; ax++) {
             const ts = this.toScreen(add(a, paxes[ax], 2));
             if (!ts) {
               continue;
             }
-            const col = ax === 0 ? t.plane.color : AXIS_COLORS[ax];
+            const col = ax === 0 ? pl.color : AXIS_COLORS[ax];
             parts.push(
               `<line x1="${as[0]}" y1="${as[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${col}" stroke-width="2.5" ${ax === 0 ? 'stroke-dasharray="4 3"' : ''} />`,
-              `<circle data-h="pmove:${ax}" cx="${ts[0]}" cy="${ts[1]}" r="7" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
+              `<circle data-h="pmove:${ax}:${pi}" cx="${ts[0]}" cy="${ts[1]}" r="7" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
             );
           }
         }
-        parts.push(`<circle cx="${as[0]}" cy="${as[1]}" r="3" fill="${t.plane.color}" />`);
+        parts.push(`<circle cx="${as[0]}" cy="${as[1]}" r="3" fill="${pl.color}" />`);
       }
-    }
+    });
 
     const html = parts.join('');
     if (this.svg.innerHTML !== html) {
@@ -578,30 +607,35 @@ export class ClipGizmo {
       };
       return;
     }
-    if (kind === 'protate' && t.plane) {
+    // plane handles carry their plane's index as the tag's third part
+    const planeIdx = Number(dirStr);
+    const pl: PlaneTarget | undefined = t.planes[planeIdx];
+    if (kind === 'protate' && pl) {
       const n = WORLD_AXES[axis];
-      const p = rayPlane(ray.origin, ray.dir, t.plane.anchor, n);
+      const p = rayPlane(ray.origin, ray.dir, pl.anchor, n);
       if (!p) {
         return;
       }
       this.drag = {
         kind: 'protate',
         axis,
-        ringCenter: [...t.plane.anchor],
+        plane: planeIdx,
+        ringCenter: [...pl.anchor],
         ringNormal: n,
-        startVec: sub(p, t.plane.anchor),
+        startVec: sub(p, pl.anchor),
         startRotation: [0, 0, 0, 1],
-        startNormal: [...t.plane.normal],
+        startNormal: [...pl.normal],
       };
       return;
     }
-    if (kind === 'pmove' && t.plane) {
-      const axisDir = planeAxes(t.plane.normal)[axis];
+    if (kind === 'pmove' && pl) {
+      const axisDir = planeAxes(pl.normal)[axis];
       this.drag = {
         kind: 'pmove',
         axis,
-        startParam: closestAxisParam(t.plane.anchor, axisDir, ray.origin, ray.dir),
-        startCenter: [...t.plane.anchor],
+        plane: planeIdx,
+        startParam: closestAxisParam(pl.anchor, axisDir, ray.origin, ray.dir),
+        startCenter: [...pl.anchor],
         startSize: [0, 0, 0],
         axisDir,
       };

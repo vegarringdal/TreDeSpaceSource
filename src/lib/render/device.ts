@@ -6,12 +6,15 @@
 // FRACTIONAL ratios that shred the post pass's 1px edge lines unless the
 // canvas renders at the native device pixel grid.
 
+let cached: boolean | null = null;
+
 /** True on Android/iOS phones and tablets. iPadOS 13+ masquerades as desktop
- *  macOS in the UA — touch points are the only remaining distinguisher. */
+ *  macOS in the UA — touch points are the only remaining distinguisher.
+ *  Evaluated once: it was being asked every frame. */
 export function isMobileDevice(): boolean {
-  const ua = navigator.userAgent;
-  if (/Android|iPhone|iPod/i.test(ua)) {
-    return true;
+  if (cached === null) {
+    const ua = navigator.userAgent;
+    cached = /Android|iPhone|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   }
-  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  return cached;
 }

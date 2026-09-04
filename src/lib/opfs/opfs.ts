@@ -1,3 +1,5 @@
+import { storageKey } from '../storageKeys';
+
 // Origin-private file system (OPFS) helpers. Layout:
 //   stores.json      the shared store registry (name + description), used by
 //                    BOTH the Model Assets and SQL Assets panels.
@@ -21,6 +23,26 @@ export const rootDir = () => navigator.storage.getDirectory();
 export const modelAssetsDir = () => dir('model_assets');
 export const sqlAssetsDir = () => dir('sql_assets');
 export const tempDir = () => dir('temp');
+
+/** Everything the viewer owns at the OPFS root — what "Clear all local data"
+ *  removes. Nothing else at the root is touched: a host page sharing the
+ *  origin may keep its own files there. */
+export const VIEWER_OPFS_ENTRIES = ['stores.json', 'model_assets', 'sql_assets', 'temp', 'manual_assets'] as const;
+
+export async function removeViewerOpfsEntries(): Promise<void> {
+  try {
+    const root = await navigator.storage.getDirectory();
+    for (const name of VIEWER_OPFS_ENTRIES) {
+      try {
+        await root.removeEntry(name, { recursive: true });
+      } catch {
+        // absent — fine
+      }
+    }
+  } catch {
+    // OPFS unavailable — nothing to clear
+  }
+}
 
 /** The real directory holding one store's cooked models. */
 export async function modelStoreDir(store: string): Promise<FileSystemDirectoryHandle> {
@@ -59,7 +81,7 @@ export async function deleteLegacyManualAssets() {
   }
 }
 
-const LAYOUT_KEY = 'opfsLayout';
+const LAYOUT_KEY = storageKey('opfsLayout');
 const LAYOUT_VERSION = 'v2';
 
 /** One-time migration (app ≤ 0.0.18): the model library used to be FLAT

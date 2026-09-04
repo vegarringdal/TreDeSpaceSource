@@ -1,5 +1,6 @@
 import { AntialiasingSection } from './AntialiasingSection';
 import { CullingSection } from './CullingSection';
+import { DarkColorsSection } from './DarkColorsSection';
 import { DebugSection } from './DebugSection';
 import { SelectionSection } from './SelectionSection';
 import { VramBudgetSection } from './VramBudgetSection';
@@ -12,6 +13,7 @@ export function RenderingTab() {
       <CullingSection />
       <VramBudgetSection />
       <SelectionSection />
+      <DarkColorsSection />
       <DebugSection />
     </div>
   );

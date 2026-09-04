@@ -631,7 +631,17 @@ prior host-set entries with `apps` — user-configured Settings entries are
 untouched, and `apps: []` clears the host set. Entries take the same fields as
 Settings → External (`name` + `url` required; `section`, `size`, `tooltip`,
 `multiple`, `newWindow`, `modal`, `openOnStart`, `config` optional — `config`
-may be an object, stringified onto the page's `?config=` param). For a
+may be an object, stringified onto the page's `?config=` param).
+
+An optional `id` (1–64 of letters, digits, `_ . : -`, unique in the call)
+makes an entry STABLE across calls: a later `externalApps.set` with the same
+id is the SAME app — its ribbon button, tooltip and config update while any
+open panel or dialog of it keeps running, so a host can re-set the apps for a
+newly selected project without the user losing an open dialog. Without an
+`id` the entry gets a fresh id every call. An open dialog whose app is left
+out of the new set stays open (a project selector may be about to close
+itself). Every panel and dialog page also gets a `?tdsDialogId=` — see
+"Dialog identity and state" under External app hosting. For a
 `modal` app the config's `width` / `height` also set the dialog's initial
 size (`"600px"`, `"60%"` of the viewport, or a bare number = px; both default
 to `"70%"`, capped at 96vw × 96vh and still user-movable/resizable). They appear
@@ -656,7 +666,7 @@ same-origin page from the viewer window.
 
 ```js
 payload:  { apps: [
-              { name: 'Projects', url: 'https://portal.example.com/picker',
+              { id: 'projects', name: 'Projects', url: 'https://portal.example.com/picker',
                 modal: true, openOnStart: true,
                 // width/height size the dialog (default 70% × 70%)
                 config: { width: '480px', height: '320px', project: 'plant-7' } },
@@ -668,8 +678,9 @@ payload:  { apps: [
               // homeAt picks which end of it ('start' default, or 'end')
               { name: 'Project', url: 'https://portal.example.com/projects',
                 home: true, homeAt: 'start', section: 'Portal', modal: true } ] }
-response: { apps: [ { id: 'm3k9x-a1b2', name: 'Projects', url: 'https://…/picker',
-                      dialogId: 'm3k9x-a1b2:0' },   // modal opened by this call
+response: { apps: [ { id: 'projects', name: 'Projects', url: 'https://…/picker',
+                      dialogId: 'projects:0',        // modal opened by this call
+                      tdsDialogId: '7f0c…-…' },      // the ?tdsDialogId= its page sees
                     { id: 'm3k9x-c3d4', name: 'Docs', url: 'https://…/docs' } ],
             opened: 1 }
 // an entry on the viewer's own origin additionally carries
@@ -1232,13 +1243,15 @@ response: { color: true, opacity: true, hidden: true, transform: false }
 ### ui.dialogs
 List the open EXTERNAL modal dialogs (external-app entries with "Modal
 dialog"). Each `id` is what the `ui.dialog.*` commands address; a modal opened
-by `externalApps.set` reports the same value as `dialogId`.
+by `externalApps.set` reports the same value as `dialogId`. `tdsDialogId` is
+the identity the page itself sees on its URL (see "Dialog identity and
+state").
 
 ```js
 payload:  { }
 response: { dialogs: [
-  { id: 'm3k9x-a1b2:0', appId: 'm3k9x-a1b2', name: 'Projects',
-    url: 'https://…/picker', hidden: false } ] }
+  { id: 'm3k9x-a1b2:0', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
+    name: 'Projects', url: 'https://…/picker', hidden: false } ] }
 ```
 
 ### ui.dialog.hide / ui.dialog.show
@@ -1430,6 +1443,35 @@ The config JSON doubles as the modal's initial-size source — `width` and
 a bare number means px), defaulting to 70% × 70%. The rest of the object is
 still delivered verbatim to the page.
 
+### Dialog identity and state (`tdsDialogId`)
+
+Closing a panel or dialog unmounts its iframe; the next open is a fresh page
+at the same URL, and the viewer tells it nothing about earlier opens. So every
+panel and dialog page gets a `?tdsDialogId=<uuid>` on its URL: for a
+single-instance app it is the SAME value every time that app opens in this
+tab (close from the ✕ or `ui.dialog.close`, reopen from the ribbon — same id;
+a viewer reload in the same tab keeps it too), for a `multiple` app it is fresh
+per instance. Key your state by it and you know whether you are a reopen:
+
+- **Your own storage** — the base sandbox includes `allow-same-origin`, so
+  `sessionStorage` / `localStorage` work inside the page. They are partitioned
+  under the viewer's site (the host's top page cannot see them), but every
+  reopen in the same tab lands in the same partition: read
+  `sessionStorage[tdsDialogId]` on load — present means reopened. Measured
+  in Chrome 151 with a cross-site iframe under the viewer's exact `sandbox`
+  attribute: remove the iframe and create it again in the same tab and the
+  page finds its earlier `sessionStorage` value; a new tab starts empty
+  (`localStorage` is visible in both).
+- **The viewer's instance blob** — `instance.set` with `merge: true` under
+  a key of your own on every change (not on close: `ui.close` unmounts you
+  at once), `instance.get` on load. Visible to the host and to every embedded
+  frame, gone with the viewer window.
+- **Hide instead of close** — `ui.dialog.hide` / `.show` keep the iframe
+  mounted; nothing to save at all.
+
+The host reads the same value from `ui.dialogs` and from the
+`externalApps.set` response of a dialog it opened.
+
 ### Iframe policy (Sandbox / Permissions)
 
 Every panel and modal iframe carries the base policy
@@ -1542,6 +1584,17 @@ location /tredespace/ {
 ```
 
 and embed `https://your-site.example.com/tredespace/`. The build uses relative asset paths, so a sub-path like `/tredespace/` works as-is.
+
+**Storage on a shared origin.** A path-proxied viewer shares the host site's
+origin, and with it `localStorage` and OPFS. The viewer stays out of the
+host's way: every key it writes is prefixed `tds:` (`tds:settings`,
+`tds:layouts`, …), its OPFS lives in `stores.json`, `model_assets/`,
+`sql_assets/` and `temp/`, and its resets — Home → Clear all local data, the
+startup reset after a breaking change — touch only those. Before 0.0.85 the
+keys were bare names (`settings`, `viewer`, `layouts`, `hotkeys`, …) and
+Clear all local data wiped the whole origin; a host page that lost a key of
+such a name to the viewer was hit by exactly that. The old values are copied
+under the new keys once and then left alone.
 
 **Internal networks — this is not optional.** `tredespace.com` is a public
 site. If your host application lives on an internal network, framing the

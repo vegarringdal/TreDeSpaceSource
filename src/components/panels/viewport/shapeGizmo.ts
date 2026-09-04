@@ -16,9 +16,10 @@ export function shapeGizmoTarget(): GizmoTargets['box'] {
     return null;
   }
   const id = shape.id;
+  const faces = shp.gizmoMode === 'scale' && shp.sixAxis;
   if (shape.kind === 'box') {
     return {
-      mode: shp.gizmoMode,
+      mode: faces ? 'faces' : shp.gizmoMode,
       center: [...shape.center],
       size: [shape.halfExtents[0] * 2, shape.halfExtents[1] * 2, shape.halfExtents[2] * 2],
       rotation: [...shape.rotation],
@@ -48,12 +49,15 @@ export function shapeGizmoTarget(): GizmoTargets['box'] {
   const al = Math.hypot(a[0], a[1], a[2]) || 1;
   const axis: [number, number, number] = [a[0] / al, a[1] / al, a[2] / al];
   return {
-    mode: shp.gizmoMode,
+    mode: faces ? 'cylinder' : shp.gizmoMode,
     center: mid,
     size: [shape.radius * 2, shape.radius * 2, shape.height],
     rotation: quatFromZTo(axis),
     onChange: (c, sz) => {
-      const radius = Math.max(Math.max(sz[0], sz[1]) / 2, 0.01);
+      // the handle that moved is the one whose diameter differs from the
+      // current one (taking the max of both would ignore a shrink)
+      const cur = shape.radius * 2;
+      const radius = Math.max((sz[0] !== cur ? sz[0] : sz[1]) / 2, 0.01);
       const height = Math.max(sz[2], 0.01);
       clipShapesActions.update(id, {
         radius,

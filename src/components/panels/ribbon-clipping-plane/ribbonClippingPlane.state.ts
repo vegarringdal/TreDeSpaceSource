@@ -4,7 +4,10 @@ export type PlaneAxis = 'x' | 'y' | 'z';
 
 export interface PlaneState {
   enabled: boolean;
+  /** the 3×3 m marker drawn on the plane */
   helper: boolean;
+  /** the viewport transform tool (move arrows / rotation rings) */
+  gizmo: boolean;
   position: number;
   step: number;
   el: number;
@@ -13,7 +16,7 @@ export interface PlaneState {
   flipped: boolean;
   /** plane anchor (last click when enabled/centred); null = scene center */
   anchor: [number, number, number] | null;
-  /** rotation mode: unlocks the el/az inputs (rotation gizmo in phase B) */
+  /** rotation mode: unlocks the el/az inputs and swaps the gizmo to rings */
   rotateMode: boolean;
 }
 
@@ -22,6 +25,7 @@ export type RibbonClippingPlaneState = Record<PlaneAxis, PlaneState>;
 const plane = (el: number, az: number): PlaneState => ({
   enabled: false,
   helper: true,
+  gizmo: true,
   position: 0,
   step: 0.5,
   el,

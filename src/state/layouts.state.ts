@@ -6,6 +6,7 @@ import type { DockState, LayoutNode, TabsNode } from '@treDeSpaceUI/dockable';
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 import { settingsTabState } from '../components/panels/settings/settings.state';
 import { assetsWorkspace, sqlWorkspace, viewpointWorkspace, workspace } from '../lib/appLayout';
+import { storageKey } from '../lib/storageKeys';
 
 export interface LayoutSlot {
   /** Display name (renamable in Settings → Layouts). */
@@ -87,7 +88,7 @@ const defaultSlots = (): LayoutSlot[] => {
   return slots;
 };
 
-const KEY = 'layouts';
+const KEY = storageKey('layouts');
 
 function load(): LayoutsState {
   const fallback: LayoutsState = { slots: defaultSlots(), selected: null };
