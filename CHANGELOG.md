@@ -4,6 +4,11 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.91):
+  The Panels ribbon drops a removed external panel (and shows a newly
+  registered one) immediately: the dockable library's `registerPanel` /
+  `unregisterPanel` now notify layout subscribers, where before the ribbon
+  only caught up on the next layout change (switching ribbons and back).
 - **2026.09.04** (>0.0.90):
   `ui.close` and `ui.dialog.close` take `remove: true`: besides closing, the
   instance is forgotten for good — a panel's definition and remembered dock

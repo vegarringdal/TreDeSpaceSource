@@ -215,14 +215,18 @@ export class DockManager {
 
   // ------------------------------------------------------------------- panels
 
+  /** Add (or replace) a panel definition. Notifies layout subscribers: a
+   *  toggle bar built from `allDefs()` shows the new panel at once. */
   registerPanel(def: PanelDefinition) {
     this.defs.set(def.id, def);
+    this.commit();
   }
 
   /** Forget a panel definition — for panels registered at runtime. Closes it
    *  first if it is open (without firing `onClose`: the caller is the one
    *  removing it), and drops its remembered location, title and min size, so
-   *  a later panel reusing the id starts clean. */
+   *  a later panel reusing the id starts clean. Notifies layout subscribers,
+   *  so a toggle bar built from `allDefs()` drops it at once. */
   unregisterPanel(panelId: string) {
     if (this.isOpen(panelId)) {
       this.closePanel(panelId, { silent: true });
@@ -231,6 +235,7 @@ export class DockManager {
     this.lastLocation.delete(panelId);
     this.titleOverrides.delete(panelId);
     this.runtimeMin.delete(panelId);
+    this.commit();
   }
 
   getPanel(id: string) {

@@ -1087,8 +1087,9 @@ manager.dragPanelFrom(e, panelId)      // start a dock-drag from your own pointe
 **Runtime panels.** `registerPanel` + `openPanel` create a panel on demand (a
 host-driven report view, one tab per opened document); `unregisterPanel` drops
 it again, closing it first and forgetting its remembered location, so an id
-reused later starts clean. Pair them with `onClose` for panels that should not
-outlive their tab:
+reused later starts clean. Both notify layout subscribers (`useDockLayout`),
+so a toggle bar built from `allDefs()` follows without a layout change. Pair
+them with `onClose` for panels that should not outlive their tab:
 
 ```ts
 manager.registerPanel(
