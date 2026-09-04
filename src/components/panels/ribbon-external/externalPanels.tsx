@@ -1,28 +1,61 @@
-import { definePanel } from '@treDeSpaceUI/dockable';
-import { externalAppIframePolicy } from '../../../state/externalAppPolicy';
+import { definePanel, usePanelTitle } from '@treDeSpaceUI/dockable';
+import { useEffect } from 'react';
+import { externalAppIframePolicy, type IframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppsState, externalAppUrl } from '../../../state/externalApps.state';
 import { dialogIdFor } from '../../../state/externalDialogIds';
+import { externalPanelsActions } from '../../../state/externalPanels/externalPanels.actions';
+import { externalPanelsState, type OpenPanel } from '../../../state/externalPanels/externalPanels.state';
 
-/** Iframe panel body for one external app: its URL (with `?config=` and the
+/** The tab title while the panel is open: what `ui.dialog.rename` set, else
+ *  the app entry's name. */
+function useExternalPanelTitle(entry: OpenPanel): string {
+  const { open } = externalPanelsState.use();
+  return open.find((p) => p.key === entry.key)?.name ?? entry.name;
+}
+
+/** The iframe plus the panel's lifecycle: mounted = open (the page is alive),
+ *  unmounted = closed — by the tab ✕, `ui.dialog.close`, `ui.close` or a
+ *  layout swap that drops the panel — so `ui.dialogs` and `dialog.changed`
+ *  follow exactly the page's lifetime. */
+function ExternalPanelBody({ entry, policy }: { entry: OpenPanel; policy: IframePolicy }) {
+  const title = useExternalPanelTitle(entry);
+  usePanelTitle(title);
+
+  useEffect(() => {
+    externalPanelsActions.open(entry);
+    return () => externalPanelsActions.close(entry.key);
+  }, [entry]);
+
+  return (
+    <iframe
+      title={title}
+      src={entry.url}
+      className="h-full w-full border-0 bg-white"
+      // never top-navigation: the tool lives inside its panel
+      sandbox={policy.sandbox}
+      allow={policy.allow}
+    />
+  );
+}
+
+/** Iframe panel for one external app: its URL (with `?config=` and the
  *  panel's stable `?tdsDialogId=`) and its per-app sandbox / allow policy (the
  *  base policy unless the app opted into more — see externalAppPolicy.ts). */
 export function makeExternalPanel(id: string, app: ExternalApp) {
-  const url = externalAppUrl(app, dialogIdFor(id));
+  const tdsDialogId = dialogIdFor(id);
+  const entry: OpenPanel = {
+    key: id,
+    tdsDialogId,
+    appId: app.id,
+    name: app.name,
+    url: externalAppUrl(app, tdsDialogId),
+  };
   const policy = externalAppIframePolicy(app);
   return definePanel({
     id,
     title: app.name,
     home: 'right',
-    component: () => (
-      <iframe
-        title={app.name}
-        src={url}
-        className="h-full w-full border-0 bg-white"
-        // never top-navigation: the tool lives inside its panel
-        sandbox={policy.sandbox}
-        allow={policy.allow}
-      />
-    ),
+    component: () => <ExternalPanelBody entry={entry} policy={policy} />,
   });
 }
 

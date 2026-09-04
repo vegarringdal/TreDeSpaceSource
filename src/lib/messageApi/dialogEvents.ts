@@ -1,16 +1,22 @@
-// `dialog.changed` payloads: the open external-modal set is diffed against its
-// previous snapshot, so every route that opens, hides, shows, renames or
-// closes a dialog (the ribbon button, the title-bar ✕, `ui.close`,
-// `ui.dialog.*`, `externalApps.set`) reports the same way. Pure — handlersUi.ts
-// wires it to the store and the transport — so it is unit-tested as is.
+// `dialog.changed` payloads: the set of open external modal dialogs and
+// external-app dock panels is diffed against its previous snapshot, so every
+// route that opens, hides, shows, renames or closes one (the ribbon button,
+// the ✕, `ui.close`, `ui.dialog.*`, `externalApps.set`, a layout swap) reports
+// the same way. Pure — handlersUi.ts wires it to the stores and the
+// transport — so it is unit-tested as is.
 
 /** What happened to one dialog. `hidden` / `shown` are the `ui.dialog.hide` /
- *  `.show` round trip (the page stays mounted); `closed` means unmounted. */
+ *  `.show` round trip (the page stays mounted; modal dialogs only); `closed`
+ *  means unmounted. */
 export type DialogChangeState = 'opened' | 'hidden' | 'shown' | 'renamed' | 'closed';
 
-/** The fields of an open external modal the diff looks at — structurally a
- *  subset of `OpenModal`. */
+/** A modal dialog over the viewer, or an external-app dock panel. */
+export type DialogKind = 'dialog' | 'panel';
+
+/** The fields of an open external modal / panel the diff looks at —
+ *  structurally `OpenModal` / `OpenPanel` plus `kind`. */
 export interface DialogSnapshot {
+  kind: DialogKind;
   key: string;
   tdsDialogId: string;
   appId: string;
@@ -23,6 +29,7 @@ export interface DialogSnapshot {
  *  changed. A `closed` entry carries the dialog's last known fields. */
 export interface DialogChange {
   state: DialogChangeState;
+  kind: DialogKind;
   id: string;
   tdsDialogId: string;
   appId: string;
@@ -34,6 +41,7 @@ export interface DialogChange {
 function change(state: DialogChangeState, m: DialogSnapshot): DialogChange {
   return {
     state,
+    kind: m.kind,
     id: m.key,
     tdsDialogId: m.tdsDialogId,
     appId: m.appId,

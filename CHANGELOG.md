@@ -5,19 +5,24 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.09.04** (>0.0.87):
-  postMessage API: external dialogs report their lifecycle. A new
-  `dialog.changed` event fires whenever an external modal dialog is opened,
-  hidden, shown, renamed or closed — whichever route did it (the ribbon
-  button, the title-bar ✕, `ui.close`, `ui.dialog.*`, `externalApps.set`) —
-  carrying the dialog as `ui.dialogs` lists it plus a `state`, so a host keeps
-  its own list of open dialogs current instead of polling, and a dialog page
-  can notice it was hidden. New `ui.dialog.rename` retitles a dialog (its
-  title bar and the `name` in `ui.dialogs`; the app entry is untouched) — a
-  report list can name its dialog after the report the user opened. Every
-  `ui.dialog.*` command now also accepts the page's own `tdsDialogId` as `id`,
-  so a page addresses itself by the value on its URL. SDK: `onDialogChanged`
-  (`{ self: true }` from inside a dialog delivers only that dialog's events),
-  `uiDialogRename`; the API demo has a rename box and logs the event.
+  postMessage API: external dialogs AND panels report their lifecycle. A new
+  `dialog.changed` event fires whenever an external modal dialog or
+  external-app dock panel is opened, hidden, shown, renamed or closed —
+  whichever route did it (the ribbon button, the ✕ on the title bar or tab,
+  `ui.close`, `ui.dialog.*`, `externalApps.set`, a layout swap that drops a
+  panel) — carrying the entry as `ui.dialogs` lists it plus a `state`, so a
+  host keeps its own list current instead of polling, and a dialog page can
+  notice it was hidden. `ui.dialogs` now lists panels too, with a `kind`
+  (`'dialog'` | `'panel'`) on every entry; `ui.dialog.close` closes either,
+  hide/show stay modal-only. New `ui.dialog.rename` retitles a dialog's title
+  bar or a panel's tab (and the `name` in `ui.dialogs`; the app entry is
+  untouched) — a report list can name itself after the report the user
+  opened. Every `ui.dialog.*` command also accepts the page's own
+  `tdsDialogId` as `id`, so a page addresses itself by the value on its URL,
+  and `externalApps.set` reports `dialogId` / `tdsDialogId` for panels it
+  opens as well. SDK: `onDialogChanged` (`{ self: true }` from inside a
+  dialog or panel delivers only its own events), `uiDialogRename`; the API
+  demo has a rename box and logs the event.
 - **2026.09.04** (>0.0.86):
   Selection Color ribbon: new "Clipping Shape Select" section between Hidden
   items and Quick coloring — **Select Inside** and **Select Intersecting**

@@ -3,6 +3,7 @@ import { type DialogSnapshot, diffDialogChanges } from '../src/lib/messageApi/di
 
 function dialog(key: string, patch: Partial<DialogSnapshot> = {}): DialogSnapshot {
   return {
+    kind: 'dialog',
     key,
     tdsDialogId: `tds-${key}`,
     appId: key.split(':')[0],
@@ -18,6 +19,7 @@ describe('diffDialogChanges', () => {
     expect(diffDialogChanges([], [a])).toEqual([
       {
         state: 'opened',
+        kind: 'dialog',
         id: 'app:0',
         tdsDialogId: 'tds-app:0',
         appId: 'app',
@@ -43,8 +45,14 @@ describe('diffDialogChanges', () => {
   it('orders closed, then state changes, then opened within one step', () => {
     const a = dialog('app:0');
     const b = dialog('app:1');
-    const c = dialog('app:2');
-    const steps = diffDialogChanges([a, b], [{ ...b, hidden: true, name: 'X' }, c]).map((x) => `${x.state} ${x.id}`);
-    expect(steps).toEqual(['closed app:0', 'hidden app:1', 'renamed app:1', 'opened app:2']);
+    const c = dialog('ext:app:2', { kind: 'panel' });
+    const changes = diffDialogChanges([a, b], [{ ...b, hidden: true, name: 'X' }, c]);
+    expect(changes.map((x) => `${x.state} ${x.id}`)).toEqual([
+      'closed app:0',
+      'hidden app:1',
+      'renamed app:1',
+      'opened ext:app:2',
+    ]);
+    expect(changes[3].kind).toBe('panel');
   });
 });

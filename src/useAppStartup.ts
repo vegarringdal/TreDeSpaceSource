@@ -8,7 +8,11 @@ import { registerLabelsOpener } from './components/panels/labels/labelsPanel';
 import { registerMeasurementsOpener } from './components/panels/measurements/measurementsPanel';
 import { registerModelAssetsOpener } from './components/panels/model-assets/modelAssetsPanel';
 import { registerMultiColorOpener } from './components/panels/multi-color/multiColorPanel';
-import { closeExternalModal, openExternalModal } from './components/panels/ribbon-external/externalModals.state';
+import {
+  closeExternalModal,
+  findExternalModal,
+  openExternalModal,
+} from './components/panels/ribbon-external/externalModals.state';
 import {
   externalPanelId,
   makeExternalPanel,
@@ -44,6 +48,7 @@ import {
   registerPanelControl,
 } from './lib/messageApi';
 import { externalAppsState, registerExternalAppOpener } from './state/externalApps.state';
+import { dialogIdFor } from './state/externalDialogIds';
 import { findTopTabs, layoutsActions, layoutsState, noteActiveRibbon, registerLayoutDock } from './state/layouts.state';
 import { initSettingsSync } from './state/settingsSync';
 
@@ -162,12 +167,13 @@ export function useAppStartup(manager: DockManager): void {
     // so their panel defs don't exist yet — register on open, like the ribbon
     registerExternalAppOpener((a) => {
       if (a.modal) {
-        return openExternalModal(a); // the dialog id the API addresses it by
+        const dialogId = openExternalModal(a); // the dialog id the API addresses it by
+        return { dialogId, tdsDialogId: findExternalModal(dialogId)?.tdsDialogId ?? '' };
       }
       const id = externalPanelId(a.id);
       manager.registerPanel(makeExternalPanel(id, a));
       manager.openPanel(id);
-      return null;
+      return { dialogId: id, tdsDialogId: dialogIdFor(id) };
     });
     markApiReady(__APP_VERSION__);
     // named layout slots (Layout ribbon, F1-F12) drive the manager through these

@@ -10,7 +10,9 @@ import {
 } from '../../components/panels/ribbon-external/externalModals.state';
 import { settingsActions } from '../../components/panels/settings/settings.actions';
 import { settingsState } from '../../components/panels/settings/settings.state';
-import { diffDialogChanges } from './dialogEvents';
+import { externalPanelsActions, findExternalPanel } from '../../state/externalPanels/externalPanels.actions';
+import { externalPanelsState } from '../../state/externalPanels/externalPanels.state';
+import { type DialogSnapshot, diffDialogChanges } from './dialogEvents';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
 import { getDialogCloser, getInstanceData, getKiosk, getPanelControl, setInstanceData } from './registry';
 import { emitApiEvent } from './transport';
@@ -32,42 +34,76 @@ const showOrHidePanel: ApiHandler = ({ type, p }) => {
   return { hidden: true };
 };
 
-/** The external-modal dialog id hosting `source`, for the id-less form of the
- *  dialog commands (an embedded app addressing ITSELF). DOM-only, so it needs
- *  no dock-manager registration. */
+/** The external modal dialog id or dock panel id hosting `source`, for the
+ *  id-less form of the dialog commands (an embedded app addressing ITSELF).
+ *  DOM-only, so it needs no dock-manager registration. */
 function dialogIdOfSource(source?: Window | null): string | null {
   if (!source) {
     return null;
   }
   for (const f of document.querySelectorAll('iframe')) {
     if (f.contentWindow === source) {
-      return f.closest('[data-ext-modal]')?.getAttribute('data-ext-modal') ?? null;
+      return (
+        f.closest('[data-ext-modal]')?.getAttribute('data-ext-modal') ??
+        f.closest('[data-panel]')?.getAttribute('data-panel') ??
+        null
+      );
     }
   }
   return null;
 }
 
-/** Resolve the dialog a command targets: an explicit `id` — the dialog id OR
- *  the `tdsDialogId` its page sees on its URL — else the sending window's own
- *  dialog. Returns the dialog id. */
-function requireDialogId(p: Record<string, unknown>, source?: Window | null): string {
+/** The modal dialog or dock panel a command targets, by its own id. */
+type DialogTarget = { kind: 'dialog' | 'panel'; id: string };
+
+/** Resolve the dialog a command targets: an explicit `id` — a dialog id, a
+ *  panel id, or the `tdsDialogId` the page sees on its URL — else the sending
+ *  window's own dialog or panel. */
+function requireDialogTarget(p: Record<string, unknown>, source?: Window | null): DialogTarget {
   const id = typeof p.id === 'string' && p.id ? p.id : dialogIdOfSource(source);
   if (!id) {
-    throw new ApiError('bad-payload', 'id is required (no external dialog hosts the sending window)');
+    throw new ApiError('bad-payload', 'id is required (no external dialog or panel hosts the sending window)');
   }
-  const hit = findExternalModal(id);
-  if (!hit) {
-    throw new ApiError('not-found', `no open dialog with id "${id}"`);
+  const modal = findExternalModal(id);
+  if (modal) {
+    return { kind: 'dialog', id: modal.key };
   }
-  return hit.key;
+  const panel = findExternalPanel(id);
+  if (panel) {
+    return { kind: 'panel', id: panel.key };
+  }
+  throw new ApiError('not-found', `no open dialog or panel with id "${id}"`);
 }
 
+// hide/show keep the iframe MOUNTED — the app inside keeps its state, so a
+// dialog parked during a load can come back exactly as the user left it.
+// Modal dialogs only: a dock panel has no hidden state
 const hideOrShowDialog: ApiHandler = ({ type, p, source }) => {
-  const id = requireDialogId(p, source);
+  const { kind, id } = requireDialogTarget(p, source);
+  if (kind === 'panel') {
+    throw new ApiError('bad-payload', `"${id}" is a panel — only modal dialogs can be hidden and shown`);
+  }
   const hidden = type === 'ui.dialog.hide';
   setExternalModalHidden(id, hidden);
   return { id, hidden };
 };
+
+/** Every open external modal dialog and dock panel — what `ui.dialogs` lists
+ *  and `dialog.changed` diffs. */
+function dialogSnapshot(): DialogSnapshot[] {
+  return [
+    ...externalModalsState.get().open.map((m) => ({
+      kind: 'dialog' as const,
+      key: m.key,
+      tdsDialogId: m.tdsDialogId,
+      appId: m.appId,
+      name: m.name,
+      url: m.url,
+      hidden: m.hidden === true,
+    })),
+    ...externalPanelsState.get().open.map((p) => ({ kind: 'panel' as const, ...p, hidden: false })),
+  ];
+}
 
 export const uiHandlers: Record<string, ApiHandler> = {
   'ui.kiosk': ({ p }) => {
@@ -103,37 +139,41 @@ export const uiHandlers: Record<string, ApiHandler> = {
   'ui.showPanel': showOrHidePanel,
   'ui.hidePanel': showOrHidePanel,
 
+  // modal dialogs AND external-app dock panels, told apart by `kind`
   'ui.dialogs': () => ({
-    dialogs: externalModalsState.get().open.map((m) => ({
-      id: m.key,
-      tdsDialogId: m.tdsDialogId,
-      appId: m.appId,
-      name: m.name,
-      url: m.url,
-      hidden: m.hidden === true,
-    })),
+    dialogs: dialogSnapshot().map(({ key, ...rest }) => ({ id: key, ...rest })),
   }),
 
-  // hide/show keep the iframe MOUNTED — the app inside keeps its state, so a
-  // dialog parked during a load can come back exactly as the user left it
   'ui.dialog.hide': hideOrShowDialog,
   'ui.dialog.show': hideOrShowDialog,
 
   'ui.dialog.close': ({ p, source }) => {
-    const id = requireDialogId(p, source);
-    closeExternalModal(id);
+    const { kind, id } = requireDialogTarget(p, source);
+    if (kind === 'dialog') {
+      closeExternalModal(id);
+      return { id, closed: true };
+    }
+    const panelControl = getPanelControl();
+    if (!panelControl) {
+      throw new ApiError('internal', 'panel control not registered');
+    }
+    panelControl.close(id);
     return { id, closed: true };
   },
 
-  // retitle a dialog — a report list that just opened one report, say. The
-  // title bar and `ui.dialogs`' `name` follow; the app entry is untouched
+  // retitle a dialog's title bar or a panel's tab — a report list that just
+  // opened one report, say. `ui.dialogs`' `name` follows; the app entry is untouched
   'ui.dialog.rename': ({ p, source }) => {
-    const id = requireDialogId(p, source);
+    const { kind, id } = requireDialogTarget(p, source);
     const title = typeof p.title === 'string' ? p.title.trim() : '';
     if (!title) {
       throw new ApiError('bad-payload', 'title is required');
     }
-    renameExternalModal(id, title);
+    if (kind === 'dialog') {
+      renameExternalModal(id, title);
+    } else {
+      externalPanelsActions.rename(id, title);
+    }
     return { id, title };
   },
 
@@ -189,16 +229,19 @@ export const uiHandlers: Record<string, ApiHandler> = {
   'instance.get': () => ({ data: getInstanceData() }),
 };
 
-/** `dialog.changed` for hosts and embedded apps: fired from the STORE, so
- *  every route — the ribbon button, the title-bar ✕, `ui.close`,
- *  `ui.dialog.*`, `externalApps.set` — reports the same way. */
+/** `dialog.changed` for hosts and embedded apps: fired from the STORES (modal
+ *  dialogs and external-app panels), so every route — the ribbon button, the
+ *  ✕, `ui.close`, `ui.dialog.*`, `externalApps.set`, a layout swap dropping a
+ *  panel — reports the same way. */
 export function installDialogEvents() {
-  let prev = externalModalsState.get().open;
-  externalModalsState.subscribe(() => {
-    const next = externalModalsState.get().open;
+  let prev = dialogSnapshot();
+  const sync = () => {
+    const next = dialogSnapshot();
     for (const change of diffDialogChanges(prev, next)) {
       emitApiEvent('dialog.changed', change);
     }
     prev = next;
-  });
+  };
+  externalModalsState.subscribe(sync);
+  externalPanelsState.subscribe(sync);
 }

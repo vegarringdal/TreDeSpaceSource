@@ -4,7 +4,6 @@
 // after app.ready, so a viewer opened without its host simply has none.
 // See EVENTS.md for the payload contracts.
 
-import { externalModalsState } from '../../components/panels/ribbon-external/externalModals.state';
 import {
   isViewerOriginUrl,
   PERMISSION_OPTIONS,
@@ -19,6 +18,7 @@ import {
   type ExternalAppSize,
   externalAppsActions,
   externalAppsState,
+  type OpenedExternalApp,
   openExternalAppNow,
 } from '../../state/externalApps.state';
 import { ApiError, type ApiHandler, isRecord, records } from './protocol';
@@ -120,7 +120,7 @@ export const externalAppsHandlers: Record<string, ApiHandler> = {
     // openOnStart on a host entry = open NOW (the host sets apps after boot);
     // new-window entries are skipped — window.open without a gesture is blocked
     let opened = 0;
-    const dialogIds = new Map<string, string>();
+    const openedIds = new Map<string, OpenedExternalApp>();
     for (const a of created) {
       if (!a.openOnStart) {
         continue;
@@ -129,8 +129,8 @@ export const externalAppsHandlers: Record<string, ApiHandler> = {
       if (r.opened) {
         opened++;
       }
-      if (r.dialogId) {
-        dialogIds.set(a.id, r.dialogId);
+      if (r.dialogId && r.tdsDialogId) {
+        openedIds.set(a.id, { dialogId: r.dialogId, tdsDialogId: r.tdsDialogId });
       }
     }
     return {
@@ -138,14 +138,9 @@ export const externalAppsHandlers: Record<string, ApiHandler> = {
         id: a.id,
         name: a.name,
         url: a.url,
-        // present for a MODAL app opened by this call — what ui.dialog.* uses,
-        // plus the ?tdsDialogId= its page sees
-        ...(dialogIds.has(a.id)
-          ? {
-              dialogId: dialogIds.get(a.id),
-              tdsDialogId: externalModalsState.get().open.find((m) => m.key === dialogIds.get(a.id))?.tdsDialogId,
-            }
-          : {}),
+        // present for a modal or panel app opened by this call — what
+        // ui.dialog.* address it by, plus the ?tdsDialogId= its page sees
+        ...(openedIds.get(a.id) ?? {}),
         // a page on the viewer's own origin is beyond what any sandbox isolates
         ...(isViewerOriginUrl(a.url) ? { warning: VIEWER_ORIGIN_WARNING } : {}),
       })),

@@ -679,7 +679,7 @@ payload:  { apps: [
               { name: 'Project', url: 'https://portal.example.com/projects',
                 home: true, homeAt: 'start', section: 'Portal', modal: true } ] }
 response: { apps: [ { id: 'projects', name: 'Projects', url: 'https://…/picker',
-                      dialogId: 'projects:0',        // modal opened by this call
+                      dialogId: 'projects:0',        // opened by this call (a panel: its 'ext:…' id)
                       tdsDialogId: '7f0c…-…' },      // the ?tdsDialogId= its page sees
                     { id: 'm3k9x-c3d4', name: 'Docs', url: 'https://…/docs' } ],
             opened: 1 }
@@ -1241,20 +1241,25 @@ response: { color: true, opacity: true, hidden: true, transform: false }
 ```
 
 ### ui.dialogs
-List the open EXTERNAL modal dialogs (external-app entries with "Modal
-dialog"). Each `id` is what the `ui.dialog.*` commands address; a modal opened
-by `externalApps.set` reports the same value as `dialogId`. `tdsDialogId` is
-the identity the page itself sees on its URL (see "Dialog identity and
-state") — the `ui.dialog.*` commands accept it as `id` too, so a page can
-address itself by the value it already has. `name` is the title as shown: the
-app entry's name until `ui.dialog.rename` changes it. For changes after this
+List the external apps the viewer is hosting right now: modal dialogs
+(`kind: 'dialog'`, external-app entries with "Modal dialog") and dock panels
+(`kind: 'panel'`, the iframe tabs). Each `id` is what the `ui.dialog.*`
+commands address — a dialog's `<appId>:<n>`, a panel's `ext:<appId>[:<suffix>]`;
+an entry opened by `externalApps.set` reports the same value as `dialogId`.
+`tdsDialogId` is the identity the page itself sees on its URL (see "Dialog
+identity and state") — the `ui.dialog.*` commands accept it as `id` too, so a
+page can address itself by the value it already has. `name` is the title as
+shown (title bar or tab): the app entry's name until `ui.dialog.rename`
+changes it. `hidden` is always false for a panel. For changes after this
 snapshot, listen for the `dialog.changed` event.
 
 ```js
 payload:  { }
 response: { dialogs: [
-  { id: 'm3k9x-a1b2:0', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
-    name: 'Projects', url: 'https://…/picker', hidden: false } ] }
+  { id: 'm3k9x-a1b2:0', kind: 'dialog', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
+    name: 'Projects', url: 'https://…/picker', hidden: false },
+  { id: 'ext:q2w8e-r5t6:1', kind: 'panel', tdsDialogId: '3b1d…-…', appId: 'q2w8e-r5t6',
+    name: 'Report 42 — details', url: 'https://…/reports', hidden: false } ] }
 ```
 
 ### ui.dialog.hide / ui.dialog.show
@@ -1265,7 +1270,8 @@ half-filled form or a live session survives hide → show, unlike
 while a model loads, then either show it again or close it; showing also
 raises it above the other dialogs. `id` is the dialog id or the page's own
 `tdsDialogId`, and optional for a request coming FROM an embedded app — it
-then addresses the dialog hosting the sender.
+then addresses the dialog hosting the sender. Modal dialogs only: a panel id
+is a `bad-payload` error — a dock panel has no hidden state.
 
 ```js
 payload:  { id: 'm3k9x-a1b2:0' }
@@ -1273,8 +1279,9 @@ response: { id: 'm3k9x-a1b2:0', hidden: true }
 ```
 
 ### ui.dialog.close
-Close one external modal dialog by id (its page is unmounted, context lost).
-`id` is optional from inside an embedded app — same self-close as `ui.close`.
+Close one external modal dialog or dock panel by id (its page is unmounted,
+context lost). `id` is optional from inside an embedded app — same self-close
+as `ui.close`.
 
 ```js
 payload:  { id: 'm3k9x-a1b2:0' }
@@ -1282,12 +1289,13 @@ response: { id: 'm3k9x-a1b2:0', closed: true }
 ```
 
 ### ui.dialog.rename
-Retitle one external modal dialog: its title bar and the `name` that
-`ui.dialogs` reports change; the app entry's own name (the ribbon button) is
-untouched. A dialog that lists reports can name itself after the report the
-user opened. `id` is the dialog id or the page's own `tdsDialogId`, and
-optional from inside an embedded app (it then renames the dialog hosting the
-sender). Fires `dialog.changed` with `state: 'renamed'`.
+Retitle one external modal dialog or dock panel: the title bar or the tab,
+and the `name` that `ui.dialogs` reports; the app entry's own name (the
+ribbon button) is untouched. A dialog that lists reports can name itself
+after the report the user opened. `id` is the dialog / panel id or the
+page's own `tdsDialogId`, and optional from inside an embedded app (it then
+renames whatever hosts the sender). Fires `dialog.changed` with
+`state: 'renamed'`.
 
 ```js
 payload:  { id: '7f0c…-…', title: 'Report 42 — details' }     // tdsDialogId works as id
@@ -1435,21 +1443,26 @@ via `viewpoints.set` to restore. SDK: `onViewpointsBookmark(handler)`.
 ```
 
 ### dialog.changed
-An external modal dialog opened, was hidden or shown (`ui.dialog.hide` /
-`.show` — the page stays mounted), was renamed (`ui.dialog.rename`) or closed
-— by the title-bar ✕, `ui.close`, `ui.dialog.close` or a host replacing the
-app set — one event for every route. The payload is the dialog as
-`ui.dialogs` lists it plus `state`, so a host keeps its own list of open
-dialogs current without polling: `ui.dialogs` for the snapshot, then this.
-The dialog's own page receives it too (events reach every embedded frame) and
-recognises itself by the `tdsDialogId` on its URL — to pause work while
-hidden, say. SDK: `onDialogChanged(handler)`, or
+An external modal dialog or dock panel opened, was hidden or shown
+(`ui.dialog.hide` / `.show`, modal dialogs only — the page stays mounted), was
+renamed (`ui.dialog.rename`) or closed — by the ✕ on its title bar or tab,
+`ui.close`, `ui.dialog.close`, a host replacing the app set, or a layout swap
+that drops a panel — one event for every route. The payload is the dialog or
+panel as `ui.dialogs` lists it (`kind` tells them apart) plus `state`, so a
+host keeps its own list of open dialogs current without polling: `ui.dialogs`
+for the snapshot, then this. The page inside receives it too (events reach
+every embedded frame) and recognises itself by the `tdsDialogId` on its URL —
+to pause work while hidden, say. Not its own `closed`, though: the page is
+unmounted in the same task, before the message could be delivered, so a page
+must persist its state as it changes (see "Dialog identity and state"), never
+on close. SDK: `onDialogChanged(handler)`, or
 `onDialogChanged(handler, { self: true })` from inside a dialog to hear about
 that dialog only.
 
 ```js
 { tredespace: 1, id: null, type: 'dialog.changed', ok: true,
   payload: { state: 'closed',        // 'opened' | 'hidden' | 'shown' | 'renamed' | 'closed'
+             kind: 'dialog',         // or 'panel' — an external-app dock panel
              id: 'm3k9x-a1b2:0', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
              name: 'Report 42 — details', url: 'https://…/reports', hidden: false } }
 ```

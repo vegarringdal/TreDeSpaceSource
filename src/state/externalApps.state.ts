@@ -190,23 +190,27 @@ export const externalAppsActions = {
 // app as a panel/modal, so the postMessage handler can honour `openOnStart`
 // -----------------------------------------------------------------------------
 
-let opener: ((app: ExternalApp) => string | null) | null = null;
+/** What opening an app as a panel or modal yields: the id the `ui.dialog.*`
+ *  commands address it by, and the `?tdsDialogId=` its page sees. */
+export interface OpenedExternalApp {
+  dialogId: string;
+  tdsDialogId: string;
+}
 
-export function registerExternalAppOpener(fn: (app: ExternalApp) => string | null) {
+let opener: ((app: ExternalApp) => OpenedExternalApp | null) | null = null;
+
+export function registerExternalAppOpener(fn: (app: ExternalApp) => OpenedExternalApp | null) {
   opener = fn;
 }
 
 /** Open an app as its panel/modal NOW (used for host-set `openOnStart`
  *  entries). New-window apps are skipped — window.open without a user gesture
- *  is popup-blocked. No-op before the dock manager registers the opener.
- *  `dialogId` is set for a MODAL app — the id `ui.dialog.hide` / `.show` /
- *  `.close` address it by. */
-export function openExternalAppNow(app: ExternalApp): { opened: boolean; dialogId?: string } {
+ *  is popup-blocked. No-op before the dock manager registers the opener. */
+export function openExternalAppNow(app: ExternalApp): { opened: boolean } & Partial<OpenedExternalApp> {
   if (!opener || app.newWindow || !app.name.trim() || !app.url.trim()) {
     return { opened: false };
   }
-  const dialogId = opener(app);
-  return { opened: true, ...(dialogId ? { dialogId } : {}) };
+  return { opened: true, ...opener(app) };
 }
 
 /** The app's URL with its JSON config attached as a `?config=` param (the
