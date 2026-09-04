@@ -13,10 +13,11 @@ export const ribbonMeasurementsActions = {
     measurementsActions.setTool(tool === 'off' ? null : tool);
     log(`Tool → ${tool}`);
   },
-  /** The "Off when ribbon switch" preference (default on). */
+  /** The "Auto disable" preference (default on): leaving the ribbon turns
+   *  the measure tool off. */
   setOffOnRibbonSwitch(on: boolean) {
     ribbonMeasurementsState.set({ offOnRibbonSwitch: on });
-    log(`Off when ribbon switch → ${on ? 'on' : 'off'}`);
+    log(`Auto disable → ${on ? 'on' : 'off'}`);
   },
   toggleOffOnRibbonSwitch() {
     ribbonMeasurementsActions.setOffOnRibbonSwitch(!ribbonMeasurementsState.get().offOnRibbonSwitch);

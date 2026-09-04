@@ -344,6 +344,22 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => void colorNum.unhideAroundEachSelected(),
   },
   {
+    id: 'selection.clipInside',
+    category: 'Selection',
+    label: 'Select inside clipping shapes',
+    defaultKeys: 'ALT + 508',
+    description: 'Select every item fully inside the clipping box or an enabled clip shape (inverted shapes skipped)',
+    run: () => void colorNum.selectInClipShapes('inside'),
+  },
+  {
+    id: 'selection.clipIntersect',
+    category: 'Selection',
+    label: 'Select intersecting clipping shapes',
+    defaultKeys: 'ALT + 509',
+    description: 'Select every item touching the clipping box or an enabled clip shape (inverted shapes skipped)',
+    run: () => void colorNum.selectInClipShapes('intersect'),
+  },
+  {
     id: 'selection.invert',
     category: 'Selection',
     label: 'Invert selection',
@@ -1406,7 +1422,7 @@ export const HOTKEYS: HotkeyDef[] = [
     category: 'View',
     label: 'Toggle dark colour lift',
     defaultKeys: 'ALT + 437',
-    description: 'Lift near-black material colours toward grey so their shading shows (rendering only)',
+    description: 'Render pure-black material colours as grey so their shading shows (rendering only)',
     run: () => viewerState.set((s) => ({ darkLift: !s.darkLift })),
   },
   // number-input steppers (codes 450..459)
@@ -1847,10 +1863,10 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'measure.offOnSwitch',
     category: 'Measure',
-    label: 'Measure: off when ribbon switch',
+    label: 'Measure: auto disable',
     defaultKeys: 'ALT + 1213',
     description:
-      'Toggle whether leaving the Measurements ribbon (another tab or a layout switch) turns the measurement tool off',
+      'Toggle auto disable — whether leaving the Measurements ribbon (another tab or a layout switch) turns the measure tool off',
     run: () => measure.toggleOffOnRibbonSwitch(),
   },
   {

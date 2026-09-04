@@ -2,6 +2,7 @@ import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
 import { quickColorsState } from '../../components/panels/quick-colors/quickColors.state';
 import type { PackedNames } from '../../lib/color/packedNames';
+import type { SelectShape, SelectShapeMode } from '../../lib/math/shapeBounds';
 import type { ColorRuleSpec, StateUpdate } from '../../lib/modeldb/modeldbWorker';
 import type { Renderer } from '../../lib/render/renderer';
 import { startTrace, traceEnabled } from '../../lib/trace';
@@ -721,6 +722,17 @@ export const viewerActions = {
     viewerState.set({ suppressTintOnOverride: false });
     selectionState.set({ activeGroup: null, activeGroups: [], actives: [] });
     await refreshSelectionMeta(null);
+  },
+
+  /** Replace the selection with every item inside / intersecting the given
+   *  clip volumes (Selection Color ribbon → Clipping Shape Select). Resolves
+   *  to the new selection count. */
+  async selectByShapes(shapes: SelectShape[], mode: SelectShapeMode): Promise<number> {
+    applyStateUpdates(await db.selectByShapes(shapes, mode));
+    viewerState.set({ suppressTintOnOverride: false });
+    selectionState.set({ activeGroup: null, activeGroups: [], actives: [], reveal: null });
+    await refreshSelectionMeta(null);
+    return selectionState.get().count;
   },
 
   /** Opacity overrides (state undo domain, like coloring). */

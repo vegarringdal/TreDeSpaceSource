@@ -4,6 +4,28 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.86):
+  Selection Color ribbon: new "Clipping Shape Select" section between Hidden
+  items and Quick coloring — **Select Inside** and **Select Intersecting**
+  replace the selection with every item whose bounds lie fully inside, or
+  touch, the clipping box or any enabled extra clip shape (sphere, cylinder,
+  box). Inverted shapes are holes, not volumes, so they are skipped, and the
+  buttons stay disabled while clipping is off (or only holes are active).
+  Per shape, not the union: an item straddling two overlapping shapes is
+  "intersecting", not "inside". Boxes and spheres are tested exactly (a
+  rotated box by the separating-axis test, so nothing in the corners of its
+  world envelope is picked up); a cylinder is exact when its axis is
+  world-aligned and slightly generous when tilted. Hotkeys Alt 508 / 509.
+  Dark colours: "Lift black color to grey" now lifts ONLY a pure-black cooked
+  colour (every 8-bit channel zero) to the grey level. It used to blend every
+  colour darker than the level toward it, which also lightened deliberate dark
+  navies and browns.
+  The default canvas background is rgb(57, 57, 57); a saved background
+  colour is kept as-is.
+  Measurements ribbon: the "Off when ribbon switch" toggle is now called
+  "Auto disable", with a tooltip that spells out what it does (leaving the
+  ribbon by tab or layout switch turns the measure tool off) and why (an
+  armed tool would otherwise place a point on every click elsewhere).
 - **2026.09.04** (>0.0.85):
   The idle loop does (almost) nothing at rest. A profile of a still scene
   showed the renderer idling correctly while the loop around it paid every

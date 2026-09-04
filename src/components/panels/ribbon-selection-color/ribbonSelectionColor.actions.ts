@@ -1,7 +1,10 @@
+import type { SelectShapeMode } from '../../../lib/math/shapeBounds';
+import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { db } from '../../../state/viewer/db';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { consoleActions } from '../console/console.actions';
 import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
+import { activeSelectShapes } from './clipSelectShapes';
 import { ribbonSelectionColorState } from './ribbonSelectionColor.state';
 
 const clamp = (v: number) => Math.min(100, Math.max(0, v));
@@ -20,6 +23,23 @@ export const ribbonSelectionColorActions = {
     const { center, size, rotation } = ribbonClippingBoxState.get();
     await viewerActions.unhideIntersecting({ center: [...center], size: [...size], rotation: [...rotation] });
     consoleActions.log('info', 'Selection → unhid items intersecting the clipping box');
+  },
+
+  /** Select every item inside (or intersecting) the ACTIVE clip volumes — the
+   *  default box plus the enabled extra shapes. Inverted shapes are holes, not
+   *  volumes to select in, so they are skipped. Replaces the selection. */
+  async selectInClipShapes(mode: SelectShapeMode) {
+    const shapes = activeSelectShapes(ribbonClippingBoxState.get(), clipShapesState.get());
+    if (shapes.length === 0) {
+      consoleActions.log('info', 'Selection → clipping is off (or every shape is inverted), nothing to select in');
+      return;
+    }
+    const n = await viewerActions.selectByShapes(shapes, mode);
+    const how = mode === 'inside' ? 'inside' : 'intersecting';
+    consoleActions.log(
+      'info',
+      `Selection → selected ${n.toLocaleString()} item(s) ${how} the ${shapes.length} clipping shape(s)`,
+    );
   },
 
   /** Unhide everything within the selection's bounds grown by the Clipping Box

@@ -1,11 +1,12 @@
 import * as Comlink from 'comlink';
 import { type PackedNames, packedName } from '../color/packedNames';
+import { aabbInsideShape, aabbIntersectsShape, type SelectShape, type SelectShapeMode } from '../math/shapeBounds';
 // Selection domain: subtree/group/item selection, inversion, counts, and the
 // transform-aware world bounds of the current selection.
 import { IS_SELECTED, models, type StateUpdate } from './dbState';
 import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel } from './globalNameIndex';
 import { entryName, interleaveStates, itemsUnder, packStates, stateAggregates } from './hierarchyIndex';
-import { transforms } from './transformPool';
+import { itemWorldBounds, transforms } from './transformPool';
 
 export const selectionApi = {
   /** Replace the selection with the subtree under (model, entry).
@@ -256,6 +257,44 @@ export const selectionApi = {
     } else {
       updates.push(packStates(m, model));
     }
+    return updates;
+  },
+
+  /** Replace the selection with every item (of every model) whose world AABB
+   *  is fully inside ('inside') or overlaps ('intersect') at least ONE of the
+   *  given clip volumes — the Selection Color ribbon's Clipping Shape Select.
+   *  Per-shape, not the union: an item straddling two overlapping shapes is
+   *  not "inside". Items without geometry are skipped; hidden ones are not. */
+  selectByShapes(shapes: SelectShape[], mode: SelectShapeMode): StateUpdate[] {
+    const updates = selectionApi.clearSelection();
+    const test = mode === 'inside' ? aabbInsideShape : aabbIntersectsShape;
+    const wb = new Float32Array(6);
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      const hits: number[] = [];
+      for (let i = 0; i < m.itemCount; i++) {
+        if (!itemWorldBounds(m.itemBounds, m.tidx, i, wb)) {
+          continue;
+        }
+        if (!shapes.some((s) => test(wb, s))) {
+          continue;
+        }
+        m.states[i * 2] |= IS_SELECTED;
+        hits.push(i);
+      }
+      if (hits.length === 0) {
+        return;
+      }
+      m.selected = Uint32Array.from(hits);
+      const existing = updates.find((u) => u.model === idx);
+      if (existing) {
+        existing.states = interleaveStates(m);
+      } else {
+        updates.push(packStates(m, idx));
+      }
+    });
     return updates;
   },
 

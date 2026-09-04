@@ -1,4 +1,5 @@
 import { Ribbon } from '@treDeSpaceUI/widgets';
+import { ColorClipSelectGroup } from './ColorClipSelectGroup';
 import { ColorHiddenItemsGroup } from './ColorHiddenItemsGroup';
 import { ColorMiscGroups } from './ColorMiscGroups';
 import { ColorOpacityGroup } from './ColorOpacityGroup';
@@ -13,6 +14,7 @@ export function RibbonSelectionColor() {
   return (
     <Ribbon>
       <ColorHiddenItemsGroup />
+      <ColorClipSelectGroup />
       <ColorQuickColoringGroup />
       <ColorOpacityGroup />
       <ColorMiscGroups />

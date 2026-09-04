@@ -59,12 +59,12 @@ export interface ViewerState {
   normalThr: number;
   whiteOnDark: boolean;
   darkThr: number;
-  /** Lift near-black material colours toward grey for RENDERING only — a
-   *  black surface shows no shading. Exports and the cooked colours are
-   *  untouched; user colour overrides are never lifted. */
+  /** Render PURE-black material colours as grey, for RENDERING only — a
+   *  black surface shows no shading. Only exact black is touched; other dark
+   *  colours, exports and the cooked colours are untouched, and user colour
+   *  overrides are never lifted. */
   darkLift: boolean;
-  /** The grey level (percent luma) black is lifted to; colours brighter than
-   *  it are left alone, darker ones blend toward it. */
+  /** The grey level (percent luma) black is rendered at. */
   darkLiftPct: number;
   // separate edge tuning for meshes with AUTHORED normals (smooth shading)
   smoothFadeExp: number;
@@ -227,7 +227,7 @@ export const initialViewerState: ViewerState = {
   outlinePulse: 0,
   outlineVisibleColor: '#ffffff',
   outlineHiddenColor: '#190a05', // three.js OutlinePass default
-  bgColor: '#8e949f',
+  bgColor: '#393939',
   selectionColor: '#2233ff', // dark blue, a touch brighter than pure blue
   suppressTintOnOverride: false,
   transparencyBlend: true,

@@ -315,7 +315,7 @@ export class Renderer {
     sketchColorMode: 'off' as 'off' | 'fill' | 'edges',
     whiteOnDark: true, // white edge color on items darker than darkThr (unlit luma)
     darkThr: 0.07,
-    darkFloor: 0, // lift material colours below this unlit luma toward it (0 = off)
+    darkFloor: 0, // render pure-black material colours at this unlit luma (0 = off)
     freezeCull: false, // keep last cull results, camera stays live
     debugBuf: 0, // 0 off, 1 normal, 2 depth, 3 item id, 4 raw edge, 5 ao
     aoMode: 0, // 0 off, 1 motion (every frame), 2 static (accumulate at rest)
@@ -325,7 +325,7 @@ export class Renderer {
     aoSamples: 6,
     orthographic: false,
     vertexPull: false, // cull + draw via vertex pulling (core WebGPU, no MDI)
-    bgColor: [0.557, 0.58, 0.624] satisfies [number, number, number], // #8e949f
+    bgColor: [0.224, 0.224, 0.224] satisfies [number, number, number], // #393939
     ambientColor: [1, 1, 1] satisfies [number, number, number],
     ambientIntensity: 0.45, // native LightingSettings defaults
     headlightColor: [1, 1, 1] satisfies [number, number, number],

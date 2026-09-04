@@ -4,7 +4,7 @@ import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
 
-/** Rendering → Dark colours: lift near-black material colours toward grey so
+/** Rendering → Dark colours: render pure-black material colours as grey so
  *  the headlight has something to shade. */
 export function DarkColorsSection() {
   const v = useViewer();
@@ -16,15 +16,16 @@ export function DarkColorsSection() {
       info={
         <>
           Some models arrive with black material colours, and a black surface shows no shading at all — there is nothing
-          for the light to modulate, so shape and depth vanish. With this on, any cooked colour darker than the grey
-          level blends toward a grey of that level (black lands exactly on it, a colour just under it barely moves, hue
-          survives). Rendering only: exports, the hierarchy and colour overrides you set yourself keep the true colours.
+          for the light to modulate, so shape and depth vanish. With this on, a cooked colour that is exactly black is
+          rendered as a grey of the level below. Only pure black is touched: dark navy, brown or charcoal are deliberate
+          colours and stay as they are. Rendering only: exports, the hierarchy and colour overrides you set yourself
+          keep the true colours.
         </>
       }
     >
       <Check
-        label="Lift black colours to grey"
-        tooltip="Render near-black material colours as grey so their shading shows; the cooked colours and exports are untouched"
+        label="Lift black color to grey"
+        tooltip="Render pure-black material colours as grey so their shading shows; other dark colours, the cooked colours and exports are untouched"
         shortcut="render.darkLift"
         checked={v.darkLift}
         onChange={(x) => act.update({ darkLift: x })}

@@ -81,16 +81,15 @@ fn item_opacity(item: u32, base_a: f32) -> f32 {
 }
 
 // A black material shows no shading at all — nothing for the headlight to
-// modulate — so colours darker than the floor blend toward a grey of that
-// luma: black lands exactly on it, a colour just under it barely moves, hue
-// survives. Only the cooked material colour is lifted; a user override is
-// the user's choice.
+// modulate — so a PURE black cooked colour is replaced by a grey of the
+// floor's luma. Only exact black (every 8-bit channel 0) is touched: a dark
+// navy or brown is a deliberate colour and stays. A user override is the
+// user's choice and is never lifted.
 fn lift_dark(c: vec3f) -> vec3f {
   let floor = frame.origin.w;
   if (floor <= 0.0) { return c; }
-  let luma = dot(c, vec3f(0.299, 0.587, 0.114));
-  if (luma >= floor) { return c; }
-  return mix(c, vec3f(floor), (floor - luma) / floor);
+  if (any(c > vec3f(0.5 / 255.0))) { return c; }
+  return vec3f(floor);
 }
 
 fn apply_item_state(base: vec4f, item: u32) -> vec4f {
