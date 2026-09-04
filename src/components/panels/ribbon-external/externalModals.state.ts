@@ -6,7 +6,7 @@ import { createStore } from '@treDeSpaceUI/lib/createStore';
 import { externalAppIframePolicy, type IframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
 import { beginHeldClose, clearCloseHold } from '../../../state/externalCloseHold';
-import { dialogIdFor, freshDialogId } from '../../../state/externalDialogIds';
+import { dialogIdFor, forgetDialogId, freshDialogId } from '../../../state/externalDialogIds';
 
 export interface OpenModal {
   /** Instance id — the dialog id the postMessage API addresses it by. */
@@ -111,11 +111,15 @@ export function setExternalModalHidden(key: string, hidden: boolean): boolean {
 /** Close one external modal dialog by its instance key. A page that asked to
  *  be told first (`ui.dialog.holdClose`) gets `dialog.changed: closing` and a
  *  moment to flush state: the dialog is hidden at once and unmounted when the
- *  page releases the hold or the timeout passes. */
-export function closeExternalModal(key: string) {
+ *  page releases the hold or the timeout passes. `remove` also forgets a
+ *  single-instance app's `tdsDialogId`, so its next open is a fresh identity. */
+export function closeExternalModal(key: string, opts: { remove?: boolean } = {}) {
   const target = externalModalsState.get().open.find((m) => m.key === key);
   if (!target || target.closing) {
     return;
+  }
+  if (opts.remove) {
+    forgetDialogId(`modal:${target.appId}`);
   }
   const wait = beginHeldClose(key);
   if (!wait) {

@@ -1757,8 +1757,13 @@ export class DockManager {
       id: panelId,
       manager: this,
       setTitle: (title) => {
+        if (this.titleOverrides.get(panelId) === title) {
+          return;
+        }
         this.titleOverrides.set(panelId, title);
-        this.requestRender();
+        // titles show outside the dock too (a panels toggle bar reading
+        // `title(id)`) — notify layout subscribers, not just the dock's render
+        this.commit();
       },
       setMinSize: (min) => {
         const prev = this.runtimeMin.get(panelId);

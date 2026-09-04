@@ -4,6 +4,20 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.90):
+  `ui.close` and `ui.dialog.close` take `remove: true`: besides closing, the
+  instance is forgotten for good — a panel's definition and remembered dock
+  location go once the close completes (a closed tab of a `multiple` app no
+  longer lingers in the dock manager), and its `tdsDialogId` is dropped so a
+  later open under the same entry starts fresh. SDK: `uiClose({ remove })`,
+  `uiDialogClose(id, { remove })`; the demo has a "close (remove)" button.
+  A renamed external panel (`ui.dialog.rename`, or `usePanelTitle` from
+  inside any panel) now shows its new title in the Panels ribbon as well, not
+  just on its tab: the ribbon reads the live title and the dockable library's
+  `setTitle` notifies layout subscribers. Host-opened panels of a `multiple`
+  app (`externalApps.set` with `openOnStart`) get a fresh panel per call, like
+  the ribbon button, instead of replacing the one already open; the instance
+  suffix is also unique against ids restored from a saved layout.
 - **2026.09.04** (>0.0.89):
   postMessage API: a hosted page can ask for a last word before it is
   unmounted. `ui.dialog.holdClose` (SDK `onDialogClosing(handler)`) makes a

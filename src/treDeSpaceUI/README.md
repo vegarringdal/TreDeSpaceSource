@@ -1013,7 +1013,7 @@ reactPanel(Component)                                 // ComponentType<{ ctx: Pa
 ```ts
 usePanelContext()      // the PanelContext of the enclosing panel (throws outside one)
 useMinSize(w?, h?)     // declare how small the content may be squeezed
-usePanelTitle(title)   // rename the tab from inside
+usePanelTitle(title)   // rename the tab from inside (layout subscribers are notified — read manager.title(id))
 useIsFloating(manager, panelId) // reactive: true while in a floating window
 useDockLayout(manager) // re-render on ANY layout change; returns the version counter
 

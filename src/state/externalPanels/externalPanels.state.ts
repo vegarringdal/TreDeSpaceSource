@@ -20,6 +20,10 @@ export interface OpenPanel {
    *  the page still mounted and flushing state until it releases the hold or
    *  the timeout passes. */
   closing?: boolean;
+  /** `remove: true` was requested (`ui.close` / `ui.dialog.close`): once the
+   *  close completes the dock manager forgets the panel too — definition and
+   *  remembered location. */
+  remove?: boolean;
 }
 
 export const externalPanelsState = createStore<{ open: OpenPanel[] }>({ open: [] });

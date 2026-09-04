@@ -1837,11 +1837,15 @@ export class TredespaceClient {
     return this.send('ui.dialog.show', id ? { id } : {});
   }
 
-  /** Close a dialog or panel by id — its page is unmounted, its context lost. Omit
+  /** Close a dialog or panel by id — its page is unmounted, its context lost;
+   *  `remove: true` also forgets the instance for good (see `uiClose`). Omit
    *  `id` from inside an embedded app to close the dialog hosting it (the
    *  same as `uiClose`). */
-  uiDialogClose(id?: string): Promise<Result<{ id: string; closed: boolean }>> {
-    return this.send('ui.dialog.close', id ? { id } : {});
+  uiDialogClose(
+    id?: string,
+    opts?: { remove?: boolean },
+  ): Promise<Result<{ id: string; closed: boolean; removed: boolean }>> {
+    return this.send('ui.dialog.close', { ...(id ? { id } : {}), ...(opts?.remove ? { remove: true } : {}) });
   }
 
   /** Retitle a dialog's title bar or a panel's tab — and the `name` that
@@ -1886,7 +1890,8 @@ export class TredespaceClient {
    *  drops them until the host calls this again after `app.ready`, so a viewer
    *  opened without its host has none. `openOnStart: true` opens that entry
    *  immediately (panels/modals only — new-window entries are popup-blocked
-   *  without a user gesture); an entry opened that way reports its `dialogId`
+   *  without a user gesture; a `multiple` entry opens a NEW instance per call,
+   *  a single-instance one re-focuses the open one); an entry opened that way reports its `dialogId`
    *  — a modal's dialog id or a panel's id — which `uiDialogClose` /
    *  `uiDialogRename` (and, for a modal, `uiDialogHide` / `uiDialogShow`)
    *  address. Call
@@ -2133,9 +2138,14 @@ export class TredespaceClient {
   }
 
   /** Ask the viewer to close the dialog/panel hosting THIS window (embedded
-   *  external apps closing themselves, e.g. a project selector after pick). */
-  uiClose(): Promise<Result<{ closed: boolean }>> {
-    return this.send('ui.close', {});
+   *  external apps closing themselves, e.g. a project selector after pick).
+   *  `remove: true` forgets the instance for good: the dock manager drops a
+   *  panel's definition and remembered location once the close completes, and
+   *  the `tdsDialogId` is dropped so a later open under the same entry starts
+   *  fresh — the natural end for one tab of a `multiple` app. A close hold
+   *  (`onDialogClosing`) is honoured either way. */
+  uiClose(opts?: { remove?: boolean }): Promise<Result<{ closed: boolean; removed: boolean }>> {
+    return this.send('ui.close', opts?.remove ? { remove: true } : {});
   }
 
   /** Open / close a dock panel by id (e.g. 'hierarchy'). */

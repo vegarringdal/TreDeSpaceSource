@@ -651,7 +651,10 @@ this again after `app.ready`, so a viewer opened without its host simply has
 none — this is how a hosting page configures an out-of-the-box viewer for its
 context without touching the user's settings. `openOnStart: true` opens that
 entry immediately (panels/modals only; new-window entries are never
-auto-opened — window.open without a user gesture is popup-blocked).
+auto-opened — window.open without a user gesture is popup-blocked). A
+`multiple` entry opens a NEW panel or dialog instance on every call, each with
+its own `dialogId` / `tdsDialogId` — a report list opening one detail per
+report; a single-instance entry re-focuses the one already open.
 
 Two OPTIONAL lists widen the page's iframe policy (see "Iframe policy" under
 External app hosting); omit both and the app gets exactly the base policy
@@ -1088,11 +1091,16 @@ response: { theme: 'light' }   // theme after the call
 Sent BY an embedded external app: close the modal dialog or dock panel that
 hosts the sending window (e.g. a project selector closing itself after the
 choice is made). Errors with `not-found` when the sender is not hosted in a
-closable dialog/panel.
+closable dialog/panel. `remove: true` forgets the instance for good: a panel's
+definition and remembered dock location go once the close completes (a closed
+tab of a `multiple` app would otherwise linger, unreachable, in the dock
+manager), and its `tdsDialogId` is dropped so a later open under the same
+entry starts fresh. A close hold (`ui.dialog.holdClose`) is honoured either
+way.
 
 ```js
-payload:  {}
-response: { closed: true }
+payload:  { remove: true }              // optional — forget the instance for good
+response: { closed: true, removed: true }
 ```
 
 ### instance.set / instance.get
@@ -1282,11 +1290,12 @@ response: { id: 'm3k9x-a1b2:0', hidden: true }
 ### ui.dialog.close
 Close one external modal dialog or dock panel by id (its page is unmounted,
 context lost). `id` is optional from inside an embedded app — same self-close
-as `ui.close`.
+as `ui.close`, and `remove: true` means the same as there: forget the instance
+for good.
 
 ```js
-payload:  { id: 'm3k9x-a1b2:0' }
-response: { id: 'm3k9x-a1b2:0', closed: true }
+payload:  { id: 'ext:q2w8e-r5t6:1', remove: true }     // remove is optional
+response: { id: 'ext:q2w8e-r5t6:1', closed: true, removed: true }
 ```
 
 ### ui.dialog.rename

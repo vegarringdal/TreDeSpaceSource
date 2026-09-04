@@ -62,6 +62,9 @@ export function RibbonPanels() {
       <RibbonSection title="Panel (drag/drop to place where you want it)">
         {panels.map((d) => {
           const Icon = PANEL_ICON[d.id] ?? IconLayoutBoard;
+          // the live title — a rename from inside the panel (usePanelTitle,
+          // ui.dialog.rename) shows here too, not just on the tab
+          const title = manager.title(d.id);
           return (
             <RibbonButton
               key={d.id}
@@ -72,9 +75,9 @@ export function RibbonPanels() {
               // drag-to-place affordance.
               className="!cursor-grab active:!cursor-grabbing touch-none"
               icon={<Icon />}
-              label={d.title}
+              label={title}
               selected={manager.isOpen(d.id)}
-              tooltip={`Click to enable / disable · drag to place the ${d.title} panel where you want it`}
+              tooltip={`Click to enable / disable · drag to place the ${title} panel where you want it`}
               // drag it out like a tab; a plain click still toggles (the drag
               // guard skips the click that follows a real drag)
               onPointerDown={(e) => manager.dragPanelFrom(e.nativeEvent, d.id)}

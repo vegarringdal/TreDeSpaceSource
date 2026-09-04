@@ -11,11 +11,12 @@ import {
 import { settingsActions } from '../../components/panels/settings/settings.actions';
 import { settingsState } from '../../components/panels/settings/settings.state';
 import { releaseHeldClose, setCloseHold } from '../../state/externalCloseHold';
+import { forgetDialogId } from '../../state/externalDialogIds';
 import { externalPanelsActions, findExternalPanel } from '../../state/externalPanels/externalPanels.actions';
 import { externalPanelsState } from '../../state/externalPanels/externalPanels.state';
 import { type DialogSnapshot, diffDialogChanges } from './dialogEvents';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
-import { getDialogCloser, getInstanceData, getKiosk, getPanelControl, setInstanceData } from './registry';
+import { getInstanceData, getKiosk, getPanelControl, setInstanceData } from './registry';
 import { emitApiEvent } from './transport';
 
 const showOrHidePanel: ApiHandler = ({ type, p }) => {
@@ -89,6 +90,27 @@ const hideOrShowDialog: ApiHandler = ({ type, p, source }) => {
   return { id, hidden };
 };
 
+/** Close a modal dialog or dock panel, honouring a page's close hold. With
+ *  `remove`, forget the instance for good: a panel's definition and remembered
+ *  dock location go once the close completes, and the `tdsDialogId` is
+ *  dropped so a later open under the same key starts fresh. */
+function closeTarget({ kind, id }: DialogTarget, remove: boolean): { id: string; closed: true; removed: boolean } {
+  if (kind === 'dialog') {
+    closeExternalModal(id, { remove });
+    return { id, closed: true, removed: remove };
+  }
+  const panelControl = getPanelControl();
+  if (!panelControl) {
+    throw new ApiError('internal', 'panel control not registered');
+  }
+  if (remove) {
+    forgetDialogId(id);
+    externalPanelsActions.markRemove(id);
+  }
+  panelControl.close(id);
+  return { id, closed: true, removed: remove };
+}
+
 /** Every open external modal dialog and dock panel — what `ui.dialogs` lists
  *  and `dialog.changed` diffs. */
 function dialogSnapshot(): DialogSnapshot[] {
@@ -135,12 +157,14 @@ export const uiHandlers: Record<string, ApiHandler> = {
   },
 
   // close the dialog/panel that hosts the SENDING window (external apps
-  // closing themselves, e.g. a project selector after a choice)
-  'ui.close': ({ source }) => {
-    if (!source || !getDialogCloser()?.(source)) {
+  // closing themselves, e.g. a project selector after a choice); `remove`
+  // forgets the instance for good — the end of one tab of a multi-instance app
+  'ui.close': ({ p, source }) => {
+    const id = dialogIdOfSource(source);
+    if (!id) {
       throw new ApiError('not-found', 'no closable dialog or panel hosts the sending window');
     }
-    return { closed: true };
+    return closeTarget(requireDialogTarget({ id }, source), p.remove === true);
   },
 
   'ui.showPanel': showOrHidePanel,
@@ -154,19 +178,7 @@ export const uiHandlers: Record<string, ApiHandler> = {
   'ui.dialog.hide': hideOrShowDialog,
   'ui.dialog.show': hideOrShowDialog,
 
-  'ui.dialog.close': ({ p, source }) => {
-    const { kind, id } = requireDialogTarget(p, source);
-    if (kind === 'dialog') {
-      closeExternalModal(id);
-      return { id, closed: true };
-    }
-    const panelControl = getPanelControl();
-    if (!panelControl) {
-      throw new ApiError('internal', 'panel control not registered');
-    }
-    panelControl.close(id);
-    return { id, closed: true };
-  },
+  'ui.dialog.close': ({ p, source }) => closeTarget(requireDialogTarget(p, source), p.remove === true),
 
   // retitle a dialog's title bar or a panel's tab — a report list that just
   // opened one report, say. `ui.dialogs`' `name` follows; the app entry is untouched

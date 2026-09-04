@@ -6,14 +6,10 @@ import { usePanelContext } from '@treDeSpaceUI/dockable';
 import { RibbonButton, type RibbonSize } from '@treDeSpaceUI/widgets';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
 import { openExternalModal } from './externalModals.state';
-import { externalPanelId, makeExternalPanel } from './externalPanels';
+import { makeExternalPanel, newExternalPanelId } from './externalPanels';
 
 // the state's "small" is the ribbon's "mini" (3 stacked per column)
 const RIBBON_SIZE: Record<ExternalApp['size'], RibbonSize> = { big: 'big', medium: 'medium', small: 'mini' };
-
-// multi-instance panels need a fresh id per click; module-scoped so the
-// counter survives re-renders and is shared across both ribbons
-let instanceSeq = 0;
 
 function defaultTooltip(a: ExternalApp): string {
   if (a.newWindow) {
@@ -38,7 +34,7 @@ export function ExternalAppButton({ app }: { app: ExternalApp }) {
       openExternalModal(app);
       return;
     }
-    const id = app.multiple ? `${externalPanelId(app.id)}:${(instanceSeq++).toString(36)}` : externalPanelId(app.id);
+    const id = newExternalPanelId(app);
     manager.registerPanel(makeExternalPanel(id, app));
     manager.openPanel(id);
   };

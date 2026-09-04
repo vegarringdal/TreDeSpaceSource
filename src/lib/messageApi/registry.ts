@@ -17,19 +17,6 @@ export function getKiosk(): KioskControl | null {
   return kiosk;
 }
 
-/** ui.close: App.tsx registers how to close the dialog/panel hosting a given
- *  window (external modal → close it; dock panel → closePanel). Returns
- *  whether something was closed. */
-let dialogCloser: ((source: Window) => boolean) | null = null;
-
-export function registerDialogCloser(fn: (source: Window) => boolean) {
-  dialogCloser = fn;
-}
-
-export function getDialogCloser(): ((source: Window) => boolean) | null {
-  return dialogCloser;
-}
-
 /** ui.showPanel / ui.hidePanel: App.tsx registers open/close/has against the
  *  DockManager so the API can toggle panels (e.g. the Hierarchy) by id. */
 type PanelControl = { open(id: string): boolean; close(id: string): boolean; has(id: string): boolean };

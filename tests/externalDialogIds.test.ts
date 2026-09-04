@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type DialogIdStore, dialogIdFor, freshDialogId } from '../src/state/externalDialogIds';
+import { type DialogIdStore, dialogIdFor, forgetDialogId, freshDialogId } from '../src/state/externalDialogIds';
 
 function memoryStore(initial: Record<string, string> = {}): DialogIdStore & { data: Record<string, string> } {
   const data = { ...initial };
@@ -32,6 +32,16 @@ describe('dialogIdFor', () => {
     expect(dialogIdFor('k', memoryStore({ tdsDialogIds: 'not json' }))).toMatch(/^[0-9a-f-]{36}$/);
     expect(dialogIdFor('k', memoryStore({ tdsDialogIds: '[1,2]' }))).toMatch(/^[0-9a-f-]{36}$/);
     expect(dialogIdFor('k', null)).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('forgetDialogId makes the next id under that key fresh, and leaves others alone', () => {
+    const store = memoryStore();
+    const a = dialogIdFor('ext:app1', store);
+    const b = dialogIdFor('ext:app2', store);
+    forgetDialogId('ext:app1', store);
+    forgetDialogId('never-seen', store);
+    expect(dialogIdFor('ext:app1', store)).not.toBe(a);
+    expect(dialogIdFor('ext:app2', store)).toBe(b);
   });
 
   it('freshDialogId never repeats', () => {

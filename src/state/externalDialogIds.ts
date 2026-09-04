@@ -63,6 +63,21 @@ export function dialogIdFor(instanceKey: string, store: DialogIdStore | null = d
   return id;
 }
 
+/** Drop the remembered UUID for an instance key (`ui.close` / `ui.dialog.close`
+ *  with `remove: true`): the next open under that key is a fresh identity. */
+export function forgetDialogId(instanceKey: string, store: DialogIdStore | null = defaultStore()): void {
+  const map = readMap(store);
+  if (!(instanceKey in map)) {
+    return;
+  }
+  delete map[instanceKey];
+  try {
+    store?.setItem(KEY, JSON.stringify(map));
+  } catch {
+    // storage unavailable — nothing was remembered anyway
+  }
+}
+
 /** A fresh UUID for a multi-instance dialog — every open is a new instance,
  *  so nothing to remember. */
 export function freshDialogId(): string {

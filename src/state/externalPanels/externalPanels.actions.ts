@@ -12,6 +12,12 @@ export const externalPanelsActions = {
     externalPanelsState.set((s) => ({ open: s.open.map((p) => (p.key === key ? { ...p, closing: true } : p)) }));
   },
 
+  /** `ui.close` / `ui.dialog.close` with `remove: true`: when this panel's
+   *  close completes, forget it entirely (see externalPanels.tsx). */
+  markRemove(key: string) {
+    externalPanelsState.set((s) => ({ open: s.open.map((p) => (p.key === key ? { ...p, remove: true } : p)) }));
+  },
+
   /** The panel body unmounted — its page is gone, whatever closed it. */
   close(key: string) {
     externalPanelsState.set((s) => ({ open: s.open.filter((p) => p.key !== key) }));

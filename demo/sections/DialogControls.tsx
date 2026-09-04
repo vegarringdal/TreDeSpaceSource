@@ -25,15 +25,19 @@ export function DialogControls({ dialogId, onDialogIdChange }: DialogControlsPro
     return id;
   };
 
-  const handleDialog = (action: 'hide' | 'show' | 'close') => {
+  const handleDialog = (action: 'hide' | 'show' | 'close', remove = false) => {
     const id = requireId();
     if (!id) {
       return;
     }
 
-    const call = () =>
-      action === 'hide' ? c().uiDialogHide(id) : action === 'show' ? c().uiDialogShow(id) : c().uiDialogClose(id);
-    void run(`ui.dialog.${action}`, { id }, call);
+    const call = () => {
+      if (action === 'close') {
+        return c().uiDialogClose(id, remove ? { remove } : undefined);
+      }
+      return action === 'hide' ? c().uiDialogHide(id) : c().uiDialogShow(id);
+    };
+    void run(`ui.dialog.${action}`, remove ? { id, remove } : { id }, call);
   };
 
   const handleRename = () => {
@@ -61,6 +65,12 @@ export function DialogControls({ dialogId, onDialogIdChange }: DialogControlsPro
         <Button onClick={() => handleDialog('hide')}>ui.dialog.hide</Button>
         <Button onClick={() => handleDialog('show')}>ui.dialog.show</Button>
         <Button onClick={() => handleDialog('close')}>ui.dialog.close</Button>
+        <Button
+          tooltip="Close AND forget the instance: definition, dock location, tdsDialogId"
+          onClick={() => handleDialog('close', true)}
+        >
+          ui.dialog.close (remove)
+        </Button>
       </Row>
       <Row>
         <TextInput value={title} onChange={setTitle} placeholder="new title" className="min-w-0 flex-1" />

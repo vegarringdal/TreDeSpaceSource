@@ -22,7 +22,7 @@ import { viewerHandlers } from './handlersViewer';
 import { ApiError, type ApiHandler, isRecord, PROTOCOL } from './protocol';
 import { allowApiOrigins, announceReady, emitApiEvent, isApiReady, markApiReady, originAllowed } from './transport';
 
-export { registerDialogCloser, registerKiosk, registerPanelControl } from './registry';
+export { registerKiosk, registerPanelControl } from './registry';
 export { allowApiOrigins, emitApiEvent, markApiReady };
 
 const handlers: Record<string, ApiHandler> = {

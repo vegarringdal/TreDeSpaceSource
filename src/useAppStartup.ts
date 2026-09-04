@@ -8,14 +8,11 @@ import { registerLabelsOpener } from './components/panels/labels/labelsPanel';
 import { registerMeasurementsOpener } from './components/panels/measurements/measurementsPanel';
 import { registerModelAssetsOpener } from './components/panels/model-assets/modelAssetsPanel';
 import { registerMultiColorOpener } from './components/panels/multi-color/multiColorPanel';
-import {
-  closeExternalModal,
-  findExternalModal,
-  openExternalModal,
-} from './components/panels/ribbon-external/externalModals.state';
+import { findExternalModal, openExternalModal } from './components/panels/ribbon-external/externalModals.state';
 import {
   externalPanelId,
   makeExternalPanel,
+  newExternalPanelId,
   registerExternalPanels,
 } from './components/panels/ribbon-external/externalPanels';
 import { registerKioskToggle, registerSoloToggle } from './components/panels/ribbon-home/soloPanels';
@@ -40,13 +37,7 @@ import {
   registerViewpointViewerRightOpener,
 } from './components/panels/viewpoints/viewpointsPanel';
 import { viewportOnly } from './lib/appLayout';
-import {
-  initMessageApi,
-  markApiReady,
-  registerDialogCloser,
-  registerKiosk,
-  registerPanelControl,
-} from './lib/messageApi';
+import { initMessageApi, markApiReady, registerKiosk, registerPanelControl } from './lib/messageApi';
 import { externalAppsState, registerExternalAppOpener } from './state/externalApps.state';
 import { dialogIdFor } from './state/externalDialogIds';
 import { findTopTabs, layoutsActions, layoutsState, noteActiveRibbon, registerLayoutDock } from './state/layouts.state';
@@ -115,25 +106,6 @@ export function useAppStartup(manager: DockManager): void {
     if (new URLSearchParams(location.search).get('kiosk') === '1') {
       setKiosk(true);
     }
-    // ui.close: find the dialog/panel hosting the sending iframe and close it
-    registerDialogCloser((source) => {
-      for (const f of document.querySelectorAll('iframe')) {
-        if (f.contentWindow !== source) {
-          continue;
-        }
-        const modalKey = f.closest('[data-ext-modal]')?.getAttribute('data-ext-modal');
-        if (modalKey) {
-          closeExternalModal(modalKey);
-          return true;
-        }
-        const panelId = f.closest('[data-panel]')?.getAttribute('data-panel');
-        if (panelId) {
-          manager.closePanel(panelId);
-          return true;
-        }
-      }
-      return false;
-    });
     // ui.showPanel / ui.hidePanel: toggle a dock panel by id (e.g. 'hierarchy')
     registerPanelControl({
       has: (id) => !!manager.getPanel(id),
@@ -170,7 +142,8 @@ export function useAppStartup(manager: DockManager): void {
         const dialogId = openExternalModal(a); // the dialog id the API addresses it by
         return { dialogId, tdsDialogId: findExternalModal(dialogId)?.tdsDialogId ?? '' };
       }
-      const id = externalPanelId(a.id);
+      // like the ribbon button: a `multiple` app gets a fresh panel per open
+      const id = newExternalPanelId(a);
       manager.registerPanel(makeExternalPanel(id, a));
       manager.openPanel(id);
       return { dialogId: id, tdsDialogId: dialogIdFor(id) };
