@@ -127,11 +127,23 @@ async function cookMerged(gltf: Gltf, bin: Uint8Array): Promise<CookResult> {
       continue;
     }
     const nodeIdx = Number(m[1]);
+    // rvm2glb writes `draw_ranges_node<N>: null` (or `{}`) for a material no
+    // item ended up using — nothing to cook for that node, which may well have
+    // no geometry either: skip it rather than fail the import
+    if (val === null) {
+      continue;
+    }
+    if (typeof val !== 'object') {
+      throw new Error(`merged GLB: ${key} is not an object`);
+    }
     const list: Dr[] = Object.entries(val as Record<string, [number, number]>).map(([id, r]) => ({
       id: Number(id),
       start: r[0],
       count: r[1],
     }));
+    if (list.length === 0) {
+      continue;
+    }
     list.sort((a, b) => a.id - b.id);
     byNode.set(nodeIdx, list);
   }

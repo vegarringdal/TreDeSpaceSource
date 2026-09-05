@@ -4,6 +4,12 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.94):
+  Merged GLB import: a `draw_ranges_node<N>` that is `null` (or `{}`) in
+  the scene extras — how rvm2glb leaves a material no item ended up using —
+  is now skipped instead of failing the import; such a node usually has no
+  geometry either. Both cookers (the Rust wasm one the app runs and the
+  TypeScript reference) skip it identically; the wasm artifact is rebuilt.
 - **2026.09.04** (>0.0.93):
   Transparency: a third mode, **Background** (Settings → Rendering →
   Transparency; Alt 412), for a test run. It is Blend with transparent items

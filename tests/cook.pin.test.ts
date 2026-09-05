@@ -81,7 +81,9 @@ function genericGlb(): ArrayBuffer {
   );
 }
 
-function mergedGlb(): ArrayBuffer {
+/** `extraRanges` / `extraNodes`: more `draw_ranges_node<N>` extras and glTF
+ *  nodes on top of the one real part — for the unused-material case. */
+function mergedGlb(extraRanges: Record<string, unknown> = {}, extraNodes: object[] = []): ArrayBuffer {
   return buildGlb(
     {
       asset: { version: '2.0', extras: { web3dversion: 2 } },
@@ -92,10 +94,11 @@ function mergedGlb(): ArrayBuffer {
           extras: {
             id_hierarchy: { '1': ['Root', '*'], '2': ['Part', '1'] },
             draw_ranges_node0: { '2': [0, 6] },
+            ...extraRanges,
           },
         },
       ],
-      nodes: [{ name: 'node0', mesh: 0 }],
+      nodes: [{ name: 'node0', mesh: 0 }, ...extraNodes],
       meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 2, material: 0 }] }],
       materials: [{ pbrMetallicRoughness: { baseColorFactor: [0.2, 0.4, 0.6, 1] } }],
       accessors: QUAD_ACCESSORS,
@@ -131,6 +134,15 @@ describe('cook output pins', () => {
     const r = await cookGlb(mergedGlb());
     expect(r.rootName).toBe('Root');
     expect(sha(r.bytes)).toMatchSnapshot();
+  });
+
+  it('skips draw_ranges_node<N> that are null or empty — an unused material', async () => {
+    const plain = await cookGlb(mergedGlb());
+    // node1 / node2 carry no geometry at all, as rvm2glb leaves unused materials
+    const withUnused = await cookGlb(
+      mergedGlb({ draw_ranges_node1: null, draw_ranges_node2: {} }, [{ name: 'node1' }, { name: 'node2' }]),
+    );
+    expect(sha(withUnused.bytes)).toBe(sha(plain.bytes));
   });
 
   it('rejects a non-merged GLB in the merged path', async () => {

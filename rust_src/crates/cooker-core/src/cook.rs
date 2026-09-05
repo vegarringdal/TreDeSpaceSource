@@ -1070,9 +1070,18 @@ fn parse_extras(
             let node_index: usize = suffix
                 .parse()
                 .with_context(|| format!("draw_ranges key `{key}` has non-numeric suffix"))?;
+            // rvm2glb writes `draw_ranges_node<N>: null` (or `{}`) for a material
+            // no item ended up using — nothing to cook for that node, which may
+            // well have no geometry either: skip it rather than fail the import
+            if value.is_null() {
+                continue;
+            }
             let ranges_obj = value
                 .as_object()
                 .ok_or_else(|| anyhow!("`{key}` is not a JSON object"))?;
+            if ranges_obj.is_empty() {
+                continue;
+            }
             node_keys.push((node_index, ranges_obj));
         }
     }
@@ -1211,4 +1220,29 @@ fn write_u32(buf: &mut [u8], offset: usize, v: u32) {
 #[inline]
 fn write_u16(buf: &mut [u8], offset: usize, v: u16) {
     buf[offset..offset + 2].copy_from_slice(&v.to_ne_bytes());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_extras;
+
+    /// rvm2glb emits `draw_ranges_node<N>: null` (or an empty object) for a
+    /// material no item uses; such a node has no ranges and usually no
+    /// geometry, and must be skipped rather than fail the import.
+    #[test]
+    fn null_or_empty_draw_ranges_node_is_skipped() {
+        let json = serde_json::json!({
+            "asset": { "extras": { "web3dversion": 2 } },
+            "scenes": [{ "extras": {
+                "id_hierarchy": { "1": ["Root", "*"], "2": ["Part", "1"] },
+                "draw_ranges_node0": { "2": [0, 6] },
+                "draw_ranges_node1": null,
+                "draw_ranges_node2": {}
+            } }]
+        });
+        let (ranges, hierarchy) = parse_extras(&json).unwrap();
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(ranges[0].node_index, 0);
+        assert_eq!(hierarchy.len(), 2);
+    }
 }
