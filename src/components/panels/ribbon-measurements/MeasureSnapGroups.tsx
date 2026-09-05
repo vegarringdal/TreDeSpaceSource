@@ -67,6 +67,16 @@ export function MeasureSnapGroups() {
               incShortcut="measure.snap.edgePx.inc"
             />
           </div>
+          <Button
+            className="col-span-2 h-auto min-h-7 justify-center px-1.5 py-1 text-xs"
+            active={snap.seam}
+            disabled={!snap.enabled}
+            tooltip="Snap onto the line where two different items intersect (a box through a floor) — items with an opacity override don't count"
+            shortcut="measure.snap.seam"
+            onClick={() => measurementsActions.toggleSnap('seam')}
+          >
+            Seams
+          </Button>
         </div>
       </RibbonSection>
 

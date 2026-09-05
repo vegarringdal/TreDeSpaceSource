@@ -290,7 +290,7 @@ export const measurementsActions = {
   },
 
   /** Toggle one snap flag (hotkeys for the Snapping checkboxes). */
-  toggleSnap(field: 'enabled' | 'corner' | 'edge') {
+  toggleSnap(field: 'enabled' | 'corner' | 'edge' | 'seam') {
     measurementsState.set((s) => ({ snap: { ...s.snap, [field]: !s.snap[field] } }));
   },
 

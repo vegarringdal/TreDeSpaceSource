@@ -401,6 +401,8 @@ export interface SnapConfig {
   enabled: boolean;
   corner: boolean;
   edge: boolean;
+  /** snap onto the line where two different items intersect (a box through a floor) */
+  seam: boolean;
   cornerPx: number;
   edgePx: number;
 }
@@ -413,7 +415,7 @@ const INITIAL: MeasurementsState = {
   hover: null,
   perp: false,
   lock: 'none',
-  snap: { enabled: true, corner: true, edge: true, cornerPx: 12, edgePx: 8 },
+  snap: { enabled: true, corner: true, edge: true, seam: true, cornerPx: 12, edgePx: 8 },
   precision: 3,
   lineColor: '#000000',
   sphere: { ...DEFAULT_SPHERE_MARKER },

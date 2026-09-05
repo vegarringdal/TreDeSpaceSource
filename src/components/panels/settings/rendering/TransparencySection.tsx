@@ -37,9 +37,10 @@ export function TransparencySection() {
           wrong order and edges/AO can look off. Alpha hash avoids this and converges with AA. Background renders the
           items you set transparent SOLID, as a backdrop behind everything else: they never cover opaque geometry, so
           the transparency itself goes away and what you left opaque always stands in front — the "ghosted context"
-          look, at the price of depth cues between the two groups. Clicks on backdrop items pick nothing. Fade sets how
-          far backdrop colours move toward the canvas background: 0 keeps their own colours, 100 makes them flat
-          silhouettes.
+          look, at the price of depth cues between the two groups. Clicks on backdrop items pick nothing. In Sketch
+          mode, Blend and Background leave transparent items out entirely — on the paper they would only smear colour.
+          Fade sets how far backdrop colours move toward the canvas background: 0 keeps their own colours, 100 makes
+          them flat silhouettes.
         </>
       }
     >

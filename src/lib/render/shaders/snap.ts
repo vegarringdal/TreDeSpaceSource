@@ -15,6 +15,10 @@
 // one compute pass. Hidden items are skipped; committed item transforms apply.
 //
 // Result words: [0]=t bits · [1]=valid · [2]=u · [3]=v · [4..6]=A · [7..9]=B ·
+// [10..12]=C · [13]=global item id + 1 · [14]=item flags · [15]=item color word.
+// `exclude` lets a SECOND cast along the same sight line skip the first hit's
+// item (and every item with an opacity override) to find the surface just
+// behind it — the seam snap (measureSnap.ts seamProbe).
 export function measureSnapWgsl(): string {
   return /* wgsl */ `
 // logical view of one packed 36-byte cull record (cullWgsl layout, raw words)
@@ -40,6 +44,9 @@ struct ItemState {
 struct SnapParams {
   ray_origin: vec4f, // xyz = origin (near-plane point under the cursor)
   ray_dir: vec4f,    // xyz = normalized direction
+  // x = global item id + 1 to skip (0 = none); y = 1 also skips items with an
+  // opacity override (transparent counts as not there for a seam)
+  exclude: vec4u,
 };
 
 @group(0) @binding(0) var<storage, read_write> result: array<atomic<u32>, 16>;
@@ -61,6 +68,24 @@ fn load_geo(mi: u32) -> MeshletGeo {
 @group(0) @binding(5) var<storage, read> item_states: array<ItemState>;
 @group(0) @binding(6) var<storage, read> transforms: array<mat4x4f>;
 @group(0) @binding(7) var<uniform> sp: SnapParams;
+// ModelUni.info (scene.ts): x = this model's global item id base
+@group(0) @binding(8) var<uniform> model_info: vec4u;
+
+// An opacity override below 1 (explicit, or a colour override with alpha) —
+// mirrors item_opacity in scene.ts minus the baked material alpha
+fn is_transparent(st: ItemState) -> bool {
+  if ((st.flags & 64u) != 0u) { return ((st.flags >> 25u) & 127u) < 100u; }
+  if ((st.flags & 16u) != 0u) { return ((st.color >> 24u) & 255u) < 255u; }
+  return false;
+}
+
+// hidden items never hit; a seam cast also skips the excluded / transparent ones
+fn skip_item(info: MeshletInfo, st: ItemState) -> bool {
+  if ((st.flags & 1u) != 0u) { return true; }
+  if (sp.exclude.x != 0u && info.item + model_info.x + 1u == sp.exclude.x) { return true; }
+  if (sp.exclude.y != 0u && is_transparent(st)) { return true; }
+  return false;
+}
 
 // Möller–Trumbore. Returns vec4f(t, u, v, hit): hit > 0 when the ray o + t·d
 // (t > 0) pierces [A,B,C]; hit point = (1−u−v)A + uB + vC.
@@ -121,7 +146,7 @@ fn snapMin(@builtin(global_invocation_id) gid: vec3u) {
   let m = load_geo(mi);
   let info = minfo[mi];
   let st = item_states[info.item];
-  if ((st.flags & 1u) != 0u) { return; } // hidden item
+  if (skip_item(info, st)) { return; }
   if (sphere_miss(m, st.tidx)) { return; }
   let o = sp.ray_origin.xyz;
   let d = sp.ray_dir.xyz;
@@ -144,7 +169,7 @@ fn snapWrite(@builtin(global_invocation_id) gid: vec3u) {
   let m = load_geo(mi);
   let info = minfo[mi];
   let st = item_states[info.item];
-  if ((st.flags & 1u) != 0u) { return; }
+  if (skip_item(info, st)) { return; }
   if (sphere_miss(m, st.tidx)) { return; }
   let best_t = bitcast<f32>(atomicLoad(&result[0]));
   let o = sp.ray_origin.xyz;
@@ -169,6 +194,9 @@ fn snapWrite(@builtin(global_invocation_id) gid: vec3u) {
       atomicStore(&result[10], bitcast<u32>(C.x));
       atomicStore(&result[11], bitcast<u32>(C.y));
       atomicStore(&result[12], bitcast<u32>(C.z));
+      atomicStore(&result[13], info.item + model_info.x + 1u);
+      atomicStore(&result[14], st.flags);
+      atomicStore(&result[15], st.color);
     }
   }
 }

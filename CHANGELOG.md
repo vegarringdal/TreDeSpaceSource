@@ -4,6 +4,19 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.95):
+  Measurement snap onto SEAMS — the line where one item cuts through another
+  (a box standing through a floor), and the corners it makes. Neither is a
+  vertex or edge of either mesh, so the snap never found them; now a second
+  cast along the same sight line finds the surface just behind the hit and the
+  intersection line of the two surfaces snaps like an edge, its crossings with
+  a mesh edge like a corner. Items with an opacity override count as not there,
+  and a surface merely hidden behind the hit one cannot fake a seam. Ribbon:
+  Snapping → Seams (on by default, Alt 739); real corners and edges still win.
+  Sketch mode with Blend (or Background) transparency no longer draws
+  transparent items at all: the blend pass they are routed to is skipped, so
+  they cannot smear colour and ghost geometry onto the paper. Alpha hash is
+  unchanged.
 - **2026.09.04** (>0.0.94):
   Merged GLB import: a `draw_ranges_node<N>` that is `null` (or `{}`) in
   the scene extras — how rvm2glb leaves a material no item ended up using —

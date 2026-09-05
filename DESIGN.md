@@ -84,6 +84,16 @@ own. Key facts, kept here so the port history isn't lost:
   atomic arg-min), CPU classification corner/edge/face by screen-pixel
   distance to the hit triangle's vertices/edges (sensitivity in px,
   Settings in the Measurements panel).
+- **Seam snap** (2026-09-04): a corner made by one item penetrating another is
+  no vertex of either mesh, so the plain snap missed it. When the hit is not a
+  real corner, a SECOND cast along the same sight line skips the hit item — and
+  every item with an opacity override, transparent counting as not there — to
+  find the surface just behind; the two triangle planes' intersection line is
+  the seam. Its point nearest the sight line snaps as an edge, where it crosses
+  a triangle edge of either hit as a corner; both only when the point lies on
+  BOTH triangles (a surface merely hidden behind the hit one cannot fake it).
+  Priority: corner > seam corner > edge > seam edge > face. Ribbon: Snapping →
+  Seams. Pure math in `measureSnap.ts` (`seamProbe`, unit-tested).
 - **Transparency**: alpha-hash (converges under TAA) or unsorted blend pass;
   per-item opacity overrides. A third mode, **background** (2026-09-04),
   renders the items set transparent SOLID as a backdrop layer: the same

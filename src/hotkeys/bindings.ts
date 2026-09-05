@@ -3152,6 +3152,14 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => measureData.toggleSnap('edge'),
   },
   {
+    id: 'measure.snap.seam',
+    category: 'Measure',
+    label: 'Snap to seams',
+    defaultKeys: 'ALT + 739',
+    description: 'Toggle snapping onto the line where two different items intersect',
+    run: () => measureData.toggleSnap('seam'),
+  },
+  {
     id: 'measure.snap.cornerPx.inc',
     category: 'Measure',
     label: 'Corner snap radius +',

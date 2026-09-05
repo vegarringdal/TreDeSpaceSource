@@ -29,7 +29,14 @@ import { isMobileDevice } from './device';
 import type { GpuModel } from './gpuModel';
 import { GpuTimings } from './gpuTimings';
 import { ItemPickPass } from './itemPickPass';
-import { classifySnap, type MeasureProbe, type MeasureSnap } from './measureSnap';
+import {
+  classifySnap,
+  isTransparentItem,
+  type MeasureProbe,
+  type MeasureSnap,
+  type SnapHit,
+  seamProbe,
+} from './measureSnap';
 import { OutlinePass } from './outlinePass';
 import {
   cullWgsl,
@@ -525,7 +532,7 @@ export class Renderer {
   // from depth discontinuities (the native's screen-space baseline; precise
   // per-vertex snap would need a GPU mesh raycast). One in flight at a time.
   private measureResolve: ((p: MeasureProbe | null) => void) | null = null;
-  private measureSnap: MeasureSnap = { enabled: true, corner: true, edge: true, cornerPx: 12, edgePx: 8 };
+  private measureSnap: MeasureSnap = { enabled: true, corner: true, edge: true, seam: true, cornerPx: 12, edgePx: 8 };
   probeMeasureAsync(cssX: number, cssY: number, snap: MeasureSnap): Promise<MeasureProbe | null> {
     return new Promise((resolve) => {
       this.measureResolve?.(null);
@@ -906,6 +913,7 @@ export class Renderer {
         sbuf(5, 'read-only-storage'),
         sbuf(6, 'read-only-storage'),
         sbuf(7, 'uniform'),
+        sbuf(8, 'uniform'),
       ],
     });
     const snapLayout = dev.createPipelineLayout({ bindGroupLayouts: [this.snapBGL] });
@@ -931,7 +939,7 @@ export class Renderer {
     });
     this.snapParamsBuf = dev.createBuffer({
       label: 'snapParamsBuf',
-      size: 32, // SnapParams: ray_origin + ray_dir
+      size: 48, // SnapParams: ray_origin + ray_dir
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     this.aoParamsBuf = dev.createBuffer({
@@ -1850,6 +1858,12 @@ export class Renderer {
   // (Möller–Trumbore, two-pass atomic arg-min), then classify the closest hit as
   // corner / edge / face from screen-space pixel distances to the triangle's
   // vertices / edges. Returns null on a miss (caller falls back to Face).
+  //
+  // Seams: when the hit is not a real corner, a second cast along the same
+  // sight line skips the hit item (and every item with an opacity override —
+  // transparent counts as not there) to find the surface just behind; where
+  // the two triangle planes meet within the edge radius, the seam wins over a
+  // face hit (seamProbe). Priority: corner > seam corner > edge > seam edge > face.
   private async raycastMeasure(px: number, py: number): Promise<MeasureProbe | null> {
     if (this.snapInFlight || this.models.length === 0) {
       return null;
@@ -1862,62 +1876,108 @@ export class Renderer {
     }
     this.snapInFlight = true;
     try {
-      const dev = this.device;
-      const params = new Float32Array(8);
-      params.set(ray.origin, 0);
-      params.set(ray.dir, 4);
-      dev.queue.writeBuffer(this.snapParamsBuf, 0, params);
-      // clear: t = 0xFFFFFFFF for the atomicMin, everything else 0
-      const clear = new Uint32Array(16);
-      clear[0] = 0xffffffff;
-      dev.queue.writeBuffer(this.snapResultBuf, 0, clear);
-
-      const enc = dev.createCommandEncoder();
-      const pass = enc.beginComputePass();
-      // pass 1 (min) over all models, then pass 2 (write) — WebGPU's implicit
-      // barriers between dispatches make result[0] the global minimum first
-      for (const pipeline of [this.snapMinPipeline, this.snapWritePipeline]) {
-        pass.setPipeline(pipeline);
-        for (const m of this.models) {
-          if (m.dead || m.meshletCount === 0) {
-            continue;
-          }
-          m.snapBind ??= dev.createBindGroup({
-            label: 'modelSnapBind',
-            layout: this.snapBGL,
-            entries: [
-              { binding: 0, resource: { buffer: this.snapResultBuf } },
-              { binding: 1, resource: { buffer: m.meshletCullBuf } },
-              { binding: 2, resource: { buffer: m.meshletInfoBuf } },
-              { binding: 3, resource: { buffer: m.indexBuf } },
-              { binding: 4, resource: { buffer: m.vertexBuf } },
-              { binding: 5, resource: { buffer: m.itemStateBuf } },
-              { binding: 6, resource: { buffer: this.transformsBuf } },
-              { binding: 7, resource: { buffer: this.snapParamsBuf } },
-            ],
-          });
-          pass.setBindGroup(0, m.snapBind);
-          pass.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
-        }
-      }
-      pass.end();
-      enc.copyBufferToBuffer(this.snapResultBuf, 0, this.snapStagingBuf, 0, 64);
-      dev.queue.submit([enc.finish()]);
-
-      await this.snapStagingBuf.mapAsync(GPUMapMode.READ);
-      const words = new Uint32Array(this.snapStagingBuf.getMappedRange()).slice();
-      this.snapStagingBuf.unmap();
-      if (words[1] === 0) {
+      const a = await this.castSnapRay(ray, 0, false);
+      if (!a) {
         return null; // no triangle hit
       }
-      const f = new Float32Array(words.buffer);
-      const A: [number, number, number] = [f[4], f[5], f[6]];
-      const B: [number, number, number] = [f[7], f[8], f[9]];
-      const C: [number, number, number] = [f[10], f[11], f[12]];
-      return classifySnap(A, B, C, f[2], f[3], ray.dir, px, py, this.measureSnap, (p) => this.worldToPixel(p));
+      const snap = this.measureSnap;
+      const w2p = (p: [number, number, number]) => this.worldToPixel(p);
+      const base = classifySnap(a.A, a.B, a.C, a.u, a.v, ray.dir, px, py, snap, w2p);
+      if (!snap.enabled || !snap.seam || base.kind === 'corner' || isTransparentItem(a.flags, a.color)) {
+        return base;
+      }
+      const b = await this.castSnapRay(ray, a.item, true);
+      const seam = b ? seamProbe(a, b, ray, px, py, snap, w2p, (t) => this.pixelFootprint(t)) : null;
+      if (!seam) {
+        return base;
+      }
+      if (seam.kind === 'corner' || base.kind === 'face') {
+        return seam;
+      }
+      return base;
     } finally {
       this.snapInFlight = false;
     }
+  }
+
+  /** World size of one screen pixel at sight-line distance `t`. */
+  private pixelFootprint(t: number): number {
+    const h = this.hostCanvas.height;
+    const halfTan = Math.tan(this.camera.fovY / 2);
+    return this.options.orthographic ? (2 * this.camera.focusDist * halfTan) / h : (2 * t * halfTan) / h;
+  }
+
+  /** One snap cast: the closest triangle along `ray` over every model.
+   *  `excludeItem` (global id + 1, 0 = none) and `skipTransparent` are the
+   *  seam cast's filters. Null on a miss. */
+  private async castSnapRay(
+    ray: { origin: [number, number, number]; dir: [number, number, number] },
+    excludeItem: number,
+    skipTransparent: boolean,
+  ): Promise<SnapHit | null> {
+    const dev = this.device;
+    const params = new ArrayBuffer(48);
+    const pf = new Float32Array(params);
+    pf.set(ray.origin, 0);
+    pf.set(ray.dir, 4);
+    new Uint32Array(params, 32, 4).set([excludeItem, skipTransparent ? 1 : 0, 0, 0]);
+    dev.queue.writeBuffer(this.snapParamsBuf, 0, params);
+    // clear: t = 0xFFFFFFFF for the atomicMin, everything else 0
+    const clear = new Uint32Array(16);
+    clear[0] = 0xffffffff;
+    dev.queue.writeBuffer(this.snapResultBuf, 0, clear);
+
+    const enc = dev.createCommandEncoder();
+    const pass = enc.beginComputePass();
+    // pass 1 (min) over all models, then pass 2 (write) — WebGPU's implicit
+    // barriers between dispatches make result[0] the global minimum first
+    for (const pipeline of [this.snapMinPipeline, this.snapWritePipeline]) {
+      pass.setPipeline(pipeline);
+      for (const m of this.models) {
+        if (m.dead || m.meshletCount === 0) {
+          continue;
+        }
+        m.snapBind ??= dev.createBindGroup({
+          label: 'modelSnapBind',
+          layout: this.snapBGL,
+          entries: [
+            { binding: 0, resource: { buffer: this.snapResultBuf } },
+            { binding: 1, resource: { buffer: m.meshletCullBuf } },
+            { binding: 2, resource: { buffer: m.meshletInfoBuf } },
+            { binding: 3, resource: { buffer: m.indexBuf } },
+            { binding: 4, resource: { buffer: m.vertexBuf } },
+            { binding: 5, resource: { buffer: m.itemStateBuf } },
+            { binding: 6, resource: { buffer: this.transformsBuf } },
+            { binding: 7, resource: { buffer: this.snapParamsBuf } },
+            { binding: 8, resource: { buffer: m.modelUniBuf } },
+          ],
+        });
+        pass.setBindGroup(0, m.snapBind);
+        pass.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
+      }
+    }
+    pass.end();
+    enc.copyBufferToBuffer(this.snapResultBuf, 0, this.snapStagingBuf, 0, 64);
+    dev.queue.submit([enc.finish()]);
+
+    await this.snapStagingBuf.mapAsync(GPUMapMode.READ);
+    const words = new Uint32Array(this.snapStagingBuf.getMappedRange()).slice();
+    this.snapStagingBuf.unmap();
+    if (words[1] === 0) {
+      return null; // no triangle hit
+    }
+    const f = new Float32Array(words.buffer);
+    return {
+      t: f[0],
+      u: f[2],
+      v: f[3],
+      A: [f[4], f[5], f[6]],
+      B: [f[7], f[8], f[9]],
+      C: [f[10], f[11], f[12]],
+      item: words[13],
+      flags: words[14],
+      color: words[15],
+    };
   }
 
   /** World point → device-pixel coords (same convention as the rasterizer);
@@ -2549,8 +2609,12 @@ export class Renderer {
       }
     };
     // transparency pass (blend mode only): replay both record sets blended
+    // Sketch mode skips the pass outright: blend mode routes every transparent
+    // item here, and on the white paper they would only smear colour (the
+    // opaque pass already leaves them out in blend mode) — so they are simply
+    // not drawn, edges included
     const drawBlendPass = (enc2: GPUCommandEncoder) => {
-      if (!opt.transparencyBlend || !opt.hasTransparency || this.models.length === 0) {
+      if (!opt.transparencyBlend || !opt.hasTransparency || this.models.length === 0 || opt.sketch) {
         return;
       }
       const pass = enc2.beginRenderPass({
