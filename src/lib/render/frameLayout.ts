@@ -7,7 +7,7 @@
 // and outlines precisely because those numbers were duplicated.
 
 /** Bytes in one Frame slot — also the bind layout's `minBindingSize`. */
-export const FRAME_SIZE = 176;
+export const FRAME_SIZE = 192;
 
 /** Index of each member in a Float32Array/Uint32Array view over a Frame. */
 export const FRAME_SLOT = {
@@ -30,4 +30,7 @@ export const FRAME_SLOT = {
   headlight: 36,
   /** vec4f — selection highlight rgb + blend amount */
   selColor: 40,
+  /** vec4f — rgb: canvas background; w: Background-mode fade amount, how far
+   *  a backdrop item's colour moves toward the canvas (0 = its own colour) */
+  backdrop: 44,
 } as const;

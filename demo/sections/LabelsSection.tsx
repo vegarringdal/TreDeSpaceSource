@@ -24,7 +24,10 @@ export function LabelsSection() {
   };
 
   const handleAnchor = () => {
-    const labels = [{ text: 'Demo anchor', anchor: [0, 0, 0] as [number, number, number] }];
+    // a sphere marker draws the anchor IN the scene, depth tested
+    const labels = [
+      { text: 'Demo anchor', anchor: [0, 0, 0] as [number, number, number], sphere: { size: 0.2, color: '#ff8800' } },
+    ];
     void run('labels.add', { labels }, () => c().labelsAdd(labels));
   };
 
@@ -37,6 +40,7 @@ export function LabelsSection() {
         <Button onClick={handleAdd}>labels.add</Button>
         <Button onClick={handleAnchor}>labels.add (anchor @ origin)</Button>
         <Button onClick={() => void run('labels.clear', {}, () => c().labelsClear())}>labels.clear</Button>
+        <Button onClick={() => void run('labels.get', {}, () => c().labelsGet())}>labels.get</Button>
       </Row>
       <Row>
         <Button onClick={() => void run('labels.explode', {}, () => c().labelsExplode())}>labels.explode</Button>

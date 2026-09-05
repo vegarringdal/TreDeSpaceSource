@@ -31,7 +31,18 @@ import { GpuTimings } from './gpuTimings';
 import { ItemPickPass } from './itemPickPass';
 import { classifySnap, type MeasureProbe, type MeasureSnap } from './measureSnap';
 import { OutlinePass } from './outlinePass';
-import { cullWgsl, hzbWgsl, lineWgsl, measureSnapWgsl, postWgsl, renderVpWgsl, renderWgsl, vbaoWgsl } from './shaders';
+import {
+  cullWgsl,
+  hzbWgsl,
+  lineWgsl,
+  markerWgsl,
+  measureSnapWgsl,
+  postWgsl,
+  renderVpWgsl,
+  renderWgsl,
+  vbaoWgsl,
+} from './shaders';
+import { unitSphereMesh } from './sphereMesh';
 import { ViewCubePass } from './viewCubePass';
 import { type AdapterHints, readDeviceMemoryGb } from './vramHint';
 
@@ -50,6 +61,15 @@ const MESHLET_RECORD_BYTES = 116;
 const COUNT_SLOT = 256; // storage-binding offset alignment
 const MAX_MODELS = 4096;
 const PARAMS_SIZE = 224; // CullParams in shaders.ts
+// Background transparency mode: the backdrop pass squeezes its depths into
+// (0, BACKDROP_DEPTH_MAX] through the viewport depth range, so every foreground
+// fragment beats a backdrop one while backdrop items still order among
+// themselves (a float depth keeps its relative precision when scaled). Depth at
+// or below this counts as background for picking — a click on a backdrop item
+// hits nothing, like glass in blend mode. With the camera's near plane at
+// orbit distance / 12500, a real surface only dips this low some 80 000 orbit
+// distances away.
+const BACKDROP_DEPTH_MAX = 1e-9;
 
 // General 4x4 inverse (column-major). Returns null when singular.
 function invert4(m: Float32Array): Float32Array | null {
@@ -199,6 +219,13 @@ export class Renderer {
   private renderBlend4x!: GPURenderPipeline;
   private renderVpBlend1x!: GPURenderPipeline;
   private renderVpBlend4x!: GPURenderPipeline;
+  // background transparency: the transparent-item pass rendered SOLID (no
+  // blending) with depth writes, its depths squeezed under BACKDROP_DEPTH_MAX
+  // by the pass viewport — a backdrop layer behind everything opaque
+  private renderBackdrop1x!: GPURenderPipeline;
+  private renderBackdrop4x!: GPURenderPipeline;
+  private renderVpBackdrop1x!: GPURenderPipeline;
+  private renderVpBackdrop4x!: GPURenderPipeline;
   private linePipeline1x!: GPURenderPipeline;
   private linePipeline4x!: GPURenderPipeline;
   private lineBind!: GPUBindGroup;
@@ -208,6 +235,23 @@ export class Renderer {
   private lineBuf: GPUBuffer | null = null;
   private lineCount = 0;
   private lastLineKey = '';
+  // filled marker spheres (labels / measurement points, the "solid" option):
+  // one instanced unit sphere; opaque instances first (depth-writing), then
+  // the translucent ones blended on top
+  private markerPipelines!: {
+    opaque1x: GPURenderPipeline;
+    opaque4x: GPURenderPipeline;
+    blend1x: GPURenderPipeline;
+    blend4x: GPURenderPipeline;
+  };
+  private markerBind!: GPUBindGroup;
+  private sphereMeshBuf!: GPUBuffer;
+  private sphereIndexBuf!: GPUBuffer;
+  private sphereIndexCount = 0;
+  private markerBuf: GPUBuffer | null = null;
+  private markerCount = 0;
+  private markerOpaque = 0;
+  private lastMarkerKey = '';
   private clipBuf!: GPUBuffer;
   private transformsBuf!: GPUBuffer;
   private lastClipKey = '';
@@ -332,6 +376,8 @@ export class Renderer {
     headlightIntensity: 0.65,
     selectionColor: [0.13, 0.2, 1.0] satisfies [number, number, number],
     transparencyBlend: false, // false = alpha hash (TAA), true = unsorted blend pass
+    transparencyBackdrop: false, // blend variant: transparent items render SOLID, behind everything opaque
+    backdropFade: 0.7, // Background mode: how far backdrop colours move toward the canvas (0..1)
     hasTransparency: false, // any opacity overrides exist (worker-reported)
     aaSamples: 32, // TAA/AO accumulation target (was a fixed 64)
     // true right after a color apply: overridden items show their color, not
@@ -649,9 +695,10 @@ export class Renderer {
   clipData: Float32Array | null = null;
   clipDataU32: Uint32Array | null = null;
 
-  /** Helper line list: [x, y, z, colorBits(f32-bitcast)] per vertex, pairs. */
-  setHelperLines(verts: Float32Array) {
-    const key = verts.join(',');
+  /** Helper line list: [x, y, z, colorBits(f32-bitcast)] per vertex, pairs.
+   *  `key` identifies the content (default: the joined values — pass a cheap
+   *  one for big lists); an unchanged key skips the upload and keeps AA. */
+  setHelperLines(verts: Float32Array, key = verts.join(',')) {
     if (key === this.lastLineKey) {
       return;
     }
@@ -670,6 +717,32 @@ export class Renderer {
       });
     }
     this.device.queue.writeBuffer(this.lineBuf, 0, verts);
+    this.clipVersion++;
+  }
+
+  /** Filled marker spheres — INSTANCE_FLOATS per instance [cx, cy, cz, r, rr,
+   *  g, b, a], the opaque ones (a = 1) FIRST so they write depth before the
+   *  translucent ones blend on top. `key` as in setHelperLines. */
+  setMarkerSpheres(inst: Float32Array, opaqueCount: number, key: string) {
+    if (key === this.lastMarkerKey) {
+      return;
+    }
+    this.lastMarkerKey = key;
+    this.markerCount = inst.length / 8;
+    this.markerOpaque = Math.min(opaqueCount, this.markerCount);
+    if (this.markerCount === 0) {
+      this.clipVersion++;
+      return;
+    }
+    if (!this.markerBuf || this.markerBuf.size < inst.byteLength) {
+      this.markerBuf?.destroy();
+      this.markerBuf = this.device.createBuffer({
+        label: 'markerBuf',
+        size: Math.max(256, inst.byteLength),
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+    }
+    this.device.queue.writeBuffer(this.markerBuf, 0, inst);
     this.clipVersion++;
   }
 
@@ -936,8 +1009,9 @@ export class Renderer {
     // blend variant: unsorted transparency pass — alpha blend on the color
     // target, G-buffer masked (transparent items don't get edges/ids, matching
     // native), depth-tested but not written
-    const blendTargets = (blend: boolean): GPUColorTargetState[] => [
-      blend
+    // backdrop: the same pass but solid — no blending, G-buffer still masked
+    const blendTargets = (blend: boolean, backdrop = false): GPUColorTargetState[] => [
+      blend && !backdrop
         ? {
             format: this.format,
             blend: {
@@ -949,7 +1023,7 @@ export class Renderer {
       { format: 'rgba8unorm', writeMask: blend ? 0 : 0xf },
       { format: 'rgba8unorm', writeMask: blend ? 0 : 0xf },
     ];
-    const makeRender = (sampleCount: number, blend = false) =>
+    const makeRender = (sampleCount: number, blend = false, backdrop = false) =>
       dev.createRenderPipeline({
         label: 'renderPipeline',
         layout: renderLayout,
@@ -963,11 +1037,13 @@ export class Renderer {
             },
           ],
         },
-        fragment: { module: renderModule, entryPoint: 'fs', targets: blendTargets(blend) },
+        fragment: { module: renderModule, entryPoint: 'fs', targets: blendTargets(blend, backdrop) },
         primitive: { topology: 'triangle-list', cullMode: 'none' },
         depthStencil: {
           format: 'depth32float',
-          depthWriteEnabled: !blend,
+          // the backdrop layer writes depth so its own items occlude each
+          // other — squeezed under every foreground depth by the pass viewport
+          depthWriteEnabled: !blend || backdrop,
           depthCompare: 'greater', // reversed-Z
         },
         multisample: { count: sampleCount },
@@ -976,6 +1052,8 @@ export class Renderer {
     this.renderPipeline4x = makeRender(4);
     this.renderBlend1x = makeRender(1, true);
     this.renderBlend4x = makeRender(4, true);
+    this.renderBackdrop1x = makeRender(1, true, true);
+    this.renderBackdrop4x = makeRender(4, true, true);
     // pick pass (native mesh_pick): ids only, opacity-threshold rule in fs_pick
     this.pickPipeline = dev.createRenderPipeline({
       label: 'pickPipeline',
@@ -1007,16 +1085,16 @@ export class Renderer {
       bindGroupLayouts: [this.renderBGL, this.vpGeoBGL],
     });
     const vpModule = dev.createShaderModule({ label: 'vpModule', code: renderVpWgsl() });
-    const makeRenderVp = (sampleCount: number, blend = false) =>
+    const makeRenderVp = (sampleCount: number, blend = false, backdrop = false) =>
       dev.createRenderPipeline({
         label: 'renderVpPipeline',
         layout: vpLayout,
         vertex: { module: vpModule, entryPoint: 'vs' },
-        fragment: { module: vpModule, entryPoint: 'fs', targets: blendTargets(blend) },
+        fragment: { module: vpModule, entryPoint: 'fs', targets: blendTargets(blend, backdrop) },
         primitive: { topology: 'triangle-list', cullMode: 'none' },
         depthStencil: {
           format: 'depth32float',
-          depthWriteEnabled: !blend,
+          depthWriteEnabled: !blend || backdrop,
           depthCompare: 'greater',
         },
         multisample: { count: sampleCount },
@@ -1025,6 +1103,8 @@ export class Renderer {
     this.renderVpPipeline4x = makeRenderVp(4);
     this.renderVpBlend1x = makeRenderVp(1, true);
     this.renderVpBlend4x = makeRenderVp(4, true);
+    this.renderVpBackdrop1x = makeRenderVp(1, true, true);
+    this.renderVpBackdrop4x = makeRenderVp(4, true, true);
     this.pickVpPipeline = dev.createRenderPipeline({
       label: 'pickVpPipeline',
       layout: vpLayout,
@@ -1078,6 +1158,89 @@ export class Renderer {
       layout: lineBGL,
       entries: [{ binding: 0, resource: { buffer: this.frameBuf } }],
     });
+
+    // filled marker spheres: a unit sphere mesh instanced per marker (centre,
+    // radius, rgba); same frame binding and targets as the helper lines
+    const sphere = unitSphereMesh(12, 24);
+    this.sphereMeshBuf = dev.createBuffer({
+      label: 'sphereMesh',
+      size: sphere.positions.byteLength,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(this.sphereMeshBuf, 0, sphere.positions);
+    this.sphereIndexBuf = dev.createBuffer({
+      label: 'sphereIndex',
+      size: sphere.indices.byteLength,
+      usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(this.sphereIndexBuf, 0, sphere.indices);
+    this.sphereIndexCount = sphere.indices.length;
+    const markerModule = dev.createShaderModule({ label: 'markerModule', code: markerWgsl() });
+    // unlike the lines, the marker FRAGMENT stage reads the frame too (eye /
+    // headlight for shading) — so its own layout with both stages visible
+    const markerBGL = dev.createBindGroupLayout({
+      label: 'markerBGL',
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        },
+      ],
+    });
+    this.markerBind = dev.createBindGroup({
+      label: 'markerBind',
+      layout: markerBGL,
+      entries: [{ binding: 0, resource: { buffer: this.frameBuf } }],
+    });
+    const makeMarker = (sampleCount: number, blend: boolean) =>
+      dev.createRenderPipeline({
+        label: 'markerPipeline',
+        layout: dev.createPipelineLayout({ bindGroupLayouts: [markerBGL] }),
+        vertex: {
+          module: markerModule,
+          entryPoint: 'vs',
+          buffers: [
+            { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' as const }] },
+            {
+              arrayStride: 32,
+              stepMode: 'instance',
+              attributes: [
+                { shaderLocation: 1, offset: 0, format: 'float32x3' as const },
+                { shaderLocation: 2, offset: 12, format: 'float32' as const },
+                { shaderLocation: 3, offset: 16, format: 'float32x4' as const },
+              ],
+            },
+          ],
+        },
+        fragment: {
+          module: markerModule,
+          entryPoint: 'fs',
+          targets: [
+            blend
+              ? {
+                  format: this.format,
+                  // the scene alpha carries unlit luma for post — leave it alone
+                  blend: {
+                    color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+                    alpha: { srcFactor: 'zero', dstFactor: 'one' },
+                  },
+                }
+              : { format: this.format },
+            { format: 'rgba8unorm', writeMask: 0 },
+            { format: 'rgba8unorm', writeMask: 0 },
+          ],
+        },
+        primitive: { topology: 'triangle-list', cullMode: 'back' },
+        depthStencil: { format: 'depth32float', depthWriteEnabled: !blend, depthCompare: 'greater' },
+        multisample: { count: sampleCount },
+      });
+    this.markerPipelines = {
+      opaque1x: makeMarker(1, false),
+      opaque4x: makeMarker(4, false),
+      blend1x: makeMarker(1, true),
+      blend4x: makeMarker(4, true),
+    };
 
     this.viewCube.init(dev, this.format);
 
@@ -1639,10 +1802,10 @@ export class Renderer {
       this.measureResolve = null;
     };
     const inv = invert4(this.lastVP);
-    if (depth <= 0 || !inv) {
+    if (depth <= BACKDROP_DEPTH_MAX || !inv) {
       probeDone(null);
       measureDone(null);
-      return; // reversed-Z: 0 = background, nothing hit
+      return; // reversed-Z: 0 = background, nothing hit; a backdrop item counts as none
     }
     const canvas = this.hostCanvas;
     // Unproject a full-res pixel (fx, fy) + depth to world; null if degenerate.
@@ -2037,7 +2200,7 @@ export class Renderer {
       `${opt.bgColor.join(',')};${opt.ambientColor.join(',')};${opt.ambientIntensity};` +
       `${opt.headlightColor.join(',')};${opt.headlightIntensity};${opt.vertexPull};` +
       `${opt.selectionColor.join(',')};${opt.suppressTintOnOverride};${this.stateVersion};${this.clipVersion};` +
-      `${opt.transparencyBlend};${opt.hasTransparency};${opt.aaSamples};` +
+      `${opt.transparencyBlend};${opt.transparencyBackdrop};${opt.backdropFade};${opt.hasTransparency};${opt.aaSamples};` +
       // outline: static options only — the hover id and pulse phase go through
       // the hold path instead so they never reset TAA/AO accumulation
       `${opt.outlineHover};${opt.outlineSelection};${opt.selectionTint};${opt.outlineStrength};` +
@@ -2186,8 +2349,9 @@ export class Renderer {
     // selection REPLACES the color (a = blend); outline-only style zeroes the
     // blend so selected items keep their true color (outline shows instead)
     ff.set([...opt.selectionColor, opt.selectionTint ? 1.0 : 0.0], FRAME_SLOT.selColor);
+    ff.set([...opt.bgColor, opt.backdropFade], FRAME_SLOT.backdrop);
     dev.queue.writeBuffer(this.frameBuf, 0, frameData);
-    fu[FRAME_SLOT.flags + 2] |= 2; // blend-pass slot
+    fu[FRAME_SLOT.flags + 2] |= opt.transparencyBackdrop ? 6 : 2; // blend-pass slot (+ bit2: Background mode)
     dev.queue.writeBuffer(this.frameBuf, 256, frameData);
 
     // vp = vertex pulling (core WebGPU); mdi = multi-draw indirect (feature);
@@ -2336,8 +2500,13 @@ export class Renderer {
     });
 
     const vpPipeline = opt.msaa4x ? this.renderVpPipeline4x : this.renderVpPipeline1x;
-    const blendPipeline = opt.msaa4x ? this.renderBlend4x : this.renderBlend1x;
-    const vpBlendPipeline = opt.msaa4x ? this.renderVpBlend4x : this.renderVpBlend1x;
+    const pick4 = (p1: GPURenderPipeline, p4: GPURenderPipeline) => (opt.msaa4x ? p4 : p1);
+    const blendPipeline = opt.transparencyBackdrop
+      ? pick4(this.renderBackdrop1x, this.renderBackdrop4x)
+      : pick4(this.renderBlend1x, this.renderBlend4x);
+    const vpBlendPipeline = opt.transparencyBackdrop
+      ? pick4(this.renderVpBackdrop1x, this.renderVpBackdrop4x)
+      : pick4(this.renderVpBlend1x, this.renderVpBlend4x);
     // draw all models with the mode's submission (pass = 1 or 2);
     // blend=true replays the same records through the transparency pipeline
     // (frame-uniform slot 1 routes transparent items in, opaque out)
@@ -2389,6 +2558,14 @@ export class Renderer {
         depthStencilAttachment: depthAttachment(false),
         timestampWrites: this.timings.writes(5),
       });
+      if (opt.transparencyBackdrop) {
+        // background mode: the depth range squeezes every fragment of this
+        // pass under BACKDROP_DEPTH_MAX, below any foreground depth, so the
+        // `greater` test hides them wherever something opaque was drawn while
+        // they still occlude each other. The items render solid: a backdrop
+        // layer behind everything opaque, the transparency itself gone.
+        pass.setViewport(0, 0, canvas.width, canvas.height, 0, BACKDROP_DEPTH_MAX);
+      }
       drawScene(pass, 1, true);
       if (cullMode !== 'full') {
         drawScene(pass, 2, true);
@@ -2463,6 +2640,7 @@ export class Renderer {
       });
       drawScene(pass2, 2);
       this.drawHelperLines(pass2, opt.msaa4x);
+      this.drawMarkerSpheres(pass2, opt.msaa4x);
       pass2.end();
 
       drawBlendPass(enc);
@@ -2475,6 +2653,7 @@ export class Renderer {
       });
       drawScene(pass, 1);
       this.drawHelperLines(pass, opt.msaa4x);
+      this.drawMarkerSpheres(pass, opt.msaa4x);
       pass.end();
 
       drawBlendPass(enc);
@@ -2735,6 +2914,26 @@ export class Renderer {
     pass.setBindGroup(0, this.lineBind);
     pass.setVertexBuffer(0, this.lineBuf);
     pass.draw(this.lineCount);
+  }
+
+  private drawMarkerSpheres(pass: GPURenderPassEncoder, msaa: boolean) {
+    if (this.markerCount === 0 || !this.markerBuf) {
+      return;
+    }
+    const p = this.markerPipelines;
+    pass.setBindGroup(0, this.markerBind);
+    pass.setVertexBuffer(0, this.sphereMeshBuf);
+    pass.setVertexBuffer(1, this.markerBuf);
+    pass.setIndexBuffer(this.sphereIndexBuf, 'uint16');
+    if (this.markerOpaque > 0) {
+      pass.setPipeline(msaa ? p.opaque4x : p.opaque1x);
+      pass.drawIndexed(this.sphereIndexCount, this.markerOpaque);
+    }
+    const translucent = this.markerCount - this.markerOpaque;
+    if (translucent > 0) {
+      pass.setPipeline(msaa ? p.blend4x : p.blend1x);
+      pass.drawIndexed(this.sphereIndexCount, translucent, 0, 0, this.markerOpaque);
+    }
   }
 
   // Extract world-space frustum planes from a column-major view-proj matrix.

@@ -4,6 +4,61 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.93):
+  Transparency: a third mode, **Background** (Settings → Rendering →
+  Transparency; Alt 412), for a test run. It is Blend with transparent items
+  drawn only where nothing opaque is: they become a backdrop that never
+  covers opaque geometry, so glass never tints what is behind it — the
+  "ghosted context" look — at the price of depth cues between the two groups
+  (an opaque part behind a glass wall draws in front of it). No extra pass or
+  shader: the blend pass runs with a zero viewport depth range and an `equal`
+  depth test, so it costs the same as Blend or less.
+  Transparency → Background redefined after the first test: the items set
+  transparent now render SOLID, as a backdrop layer behind everything opaque
+  — the transparency itself goes away, what is left opaque always stands in
+  front. (The first cut kept them blended and only stopped them covering
+  opaque parts, which looked like plain Blend.) Mechanism: the transparent-
+  item pass runs unblended with depth writes, its depths squeezed into
+  (0, 1e-9] by the pass viewport so every foreground fragment wins while
+  backdrop items still occlude each other; no extra pass or shader. A click
+  on a backdrop item picks nothing, like glass in Blend mode.
+  Background fade: in Background mode the backdrop items' colours move toward
+  the canvas background by a global amount (Settings → Rendering →
+  Transparency → "Background fade", default 70 %, Alt 413/414 to step), so
+  the context recedes and what is left opaque stands out. Rendered solid at
+  their own colours they had looked like ordinary geometry. The Frame uniform
+  grew by one vec4 (`backdrop`: canvas rgb + fade) and the scene shader
+  gained the mix, so the shader text pins were regenerated.
+  postMessage API: `labels.get` returns every scene label as the panel holds
+  it (the `labels.set` fields plus id, style, dragged offset, sphere marker,
+  mute) — SDK `labelsGet`. `sql.editor` now opens the SQL Editor docked to
+  the RIGHT of the viewport (an open editor is focused where it is) instead of
+  wherever it last was; the dockable `openPanelBeside` gained a `force`
+  option for that. `ui.kiosk` with `on` omitted now queries, as documented —
+  it used to toggle (the demo's "get" button flipped kiosk mode).
+  "Reset opacity override" moved from Alt 241 to Y.
+  3D sphere markers: a label's anchor and every point of a measurement can
+  carry a wireframe sphere drawn IN the scene — depth tested, so the point
+  reads at its true depth instead of floating on the overlay. Labels → Style
+  gets the toggle, size and colour (for the selection / the next labels;
+  Alt 1055–1057); each measurement row gets a sphere toggle, with the size
+  and colour under Measurements → Config (Alt 726/727). The API takes
+  `sphere: { size, color }` (or `true` for the panel default) on `labels.set`
+  / `labels.add` and `measurements.set` / `measurements.add`; JSON export /
+  import and viewpoints carry it. The spheres ride the clip-helper line list,
+  rebuilt only when the annotations change.
+  Measurement names now render styled and multiline in the viewport —
+  newlines and `**bold**` spans, the same markup as scene labels — and the
+  row's name field is a textarea (Enter for a new line).
+  Sphere markers can be SOLID: a shaded, filled sphere with its own opacity
+  (1 = opaque) instead of the wireframe — Labels → Style "Solid sphere" +
+  "Sphere opacity" (Alt 1058–1060), Measurements → Config "Sphere fill"
+  (Alt 728, 729, 737), and `solid` / `opacity` on the API's `sphere`. Filled
+  spheres are instances of one unit sphere drawn after the helper lines,
+  opaque ones first with depth writes, translucent ones blended on top; new
+  `shaders/marker.ts` (shader text pins regenerated).
+  Measurements → Config gains "Spheres on / off" (Alt 738): every
+  measurement gets the Config sphere at once, or all spheres go.
 - **2026.09.04** (>0.0.92):
   Clipping planes: the ribbon's Position now shows and edits the plane's
   WORLD coordinate along its axis (the point the plane passes through, e.g.

@@ -85,7 +85,27 @@ own. Key facts, kept here so the port history isn't lost:
   distance to the hit triangle's vertices/edges (sensitivity in px,
   Settings in the Measurements panel).
 - **Transparency**: alpha-hash (converges under TAA) or unsorted blend pass;
-  per-item opacity overrides.
+  per-item opacity overrides. A third mode, **background** (2026-09-04),
+  renders the items set transparent SOLID as a backdrop layer: the same
+  transparent-item pass, but unblended and writing depth, with the pass
+  viewport squeezing its depths into (0, 1e-9] so every foreground fragment
+  beats them while they still occlude each other (float depth keeps relative
+  precision when scaled). The transparency itself disappears; what is left
+  opaque always stands in front — the "ghosted context" look. No extra pass,
+  shader or culling; picking treats depth ≤ 1e-9 as background, so a click on
+  a backdrop item hits nothing. Post sees backdrop pixels as very far geometry
+  (AO ≈ 0, no G-buffer ids, so item edges outline only the foreground). The
+  backdrop is faded toward the canvas colour by a global amount (Settings →
+  Transparency → Background fade, default 70 %) carried in the Frame uniform's
+  `backdrop` vec4, so the context recedes and what is left opaque stands out.
+- **Marker spheres** (2026-09-04): labels and measurement points can carry a
+  sphere drawn in the scene, depth tested — wireframe rings through the
+  clip-helper line list, or `solid` fills as instances of one unit sphere
+  (`shaders/marker.ts`, `sphereMesh.ts`) drawn after the helper lines with the
+  frame uniform bound to both stages (the fragment shades by eye / headlight):
+  opaque instances first with depth writes, translucent
+  ones blended on top (scene alpha untouched), G-buffer masked so they get no
+  edges or ids. Built by `viewport/markerLines.ts`, re-uploaded only on change.
 - **Dark-colour lift** (Settings → Rendering → Dark colours, 2026-09-04): a
   black material shows no shading, so cooked colours below a luma floor
   (`origin.w` of the Frame uniform, `lift_dark` in `shaders/scene.ts`) blend

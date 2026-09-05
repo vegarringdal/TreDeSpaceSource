@@ -1,13 +1,9 @@
-import { Collapsible, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
+import { Collapsible, NumberInput } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
-
-const transparencyModes = [
-  { value: 'hash', label: 'Alpha hash', hint: 'converges with AA', shortcut: 'render.transparency.hash' },
-  { value: 'blend', label: 'Blend', hint: 'unsorted', shortcut: 'render.transparency.blend' },
-];
+import { TransparencySection } from './TransparencySection';
 
 /** Rendering → Transparency, Culling and Picking. */
 export function CullingSection() {
@@ -16,21 +12,7 @@ export function CullingSection() {
 
   return (
     <>
-      <Collapsible
-        title="Transparency"
-        info={
-          <>
-            Blend draws transparent surfaces unsorted, which can have side effects: overlapping glass may blend in the
-            wrong order and edges/AO can look off. Alpha hash avoids this and converges with AA.
-          </>
-        }
-      >
-        <RadioGroup
-          options={transparencyModes}
-          value={v.transparencyBlend ? 'blend' : 'hash'}
-          onChange={(x) => act.update({ transparencyBlend: x === 'blend' })}
-        />
-      </Collapsible>
+      <TransparencySection />
 
       <Collapsible title="Culling">
         <Row label="FPS limit">

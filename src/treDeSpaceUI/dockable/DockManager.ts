@@ -301,12 +301,16 @@ export class DockManager {
   /** Open `panelId` split on `zone` of the panel `siblingId` lives in (falls
    *  back to openPanel when the sibling isn't docked or a remembered spot
    *  exists). */
-  openPanelBeside(panelId: string, siblingId: string, zone: L.SplitZone) {
+  /** Open `panelId` split off the node `siblingId` lives in, at `zone`. An
+   *  open panel is focused where it is; a closed one goes back to its
+   *  remembered location unless `force` — then it always lands beside the
+   *  sibling (a host placing a workspace deterministically). */
+  openPanelBeside(panelId: string, siblingId: string, zone: L.SplitZone, opts: { force?: boolean } = {}) {
     if (this.isOpen(panelId)) {
       this.focusPanel(panelId);
       return;
     }
-    const remembered = this.lastLocation.get(panelId);
+    const remembered = opts.force ? undefined : this.lastLocation.get(panelId);
     const sibling = this.nodeOf(siblingId);
     if ((remembered && this.findNodeAnywhere(remembered)) || !sibling) {
       this.openPanel(panelId);

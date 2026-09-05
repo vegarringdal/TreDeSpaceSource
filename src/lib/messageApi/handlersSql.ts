@@ -6,7 +6,7 @@ import {
   getDetailAutoRemove,
   openSqlDetailPanel,
 } from '../../components/panels/sql-detail/sqlDetailPanel';
-import { openSqlEditorPanel } from '../../components/panels/sql-editor/sqlEditorPanel';
+import { openSqlEditorPanelBesideViewport } from '../../components/panels/sql-editor/sqlEditorPanel';
 import { openSqlTablePanel } from '../../components/panels/sql-table/sqlTablePanel';
 import { type SqlImportProgress, sqlAssetsActions } from '../../state/sqlAssets/sqlAssets.actions';
 import { sqlAssetsState } from '../../state/sqlAssets/sqlAssets.state';
@@ -476,7 +476,7 @@ export const sqlHandlers: Record<string, ApiHandler> = {
       sqlEditorActions.patch(draft.patch);
     }
     if (p.show !== false) {
-      openSqlEditorPanel();
+      openSqlEditorPanelBesideViewport();
     }
     return { replaced: replace, mainDb: sqlEditorState.get().draft.db, chars: text.length };
   },

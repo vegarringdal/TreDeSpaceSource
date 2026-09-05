@@ -50,6 +50,28 @@ const normV = (a: V3): V3 => {
   return [a[0] / l, a[1] / l, a[2] / l];
 };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const BOLD_SPAN = /(\*\*[^*]+\*\*)/;
+const isBold = (seg: string) => /^\*\*[^*]+\*\*$/.test(seg);
+
+/** One label line as SVG: `**bold**` spans → nested bold tspans, the rest
+ *  escaped — the same markup the scene labels take. */
+function richTspans(line: string): string {
+  return line
+    .split(BOLD_SPAN)
+    .filter((seg) => seg.length > 0)
+    .map((seg) => (isBold(seg) ? `<tspan font-weight="bold">${esc(seg.slice(2, -2))}</tspan>` : esc(seg)))
+    .join('');
+}
+
+/** Rendered width at 12px, roughly — bold runs a little wider, markers don't count. */
+function lineWidthPx(line: string): number {
+  let w = 0;
+  for (const seg of line.split(BOLD_SPAN)) {
+    w += isBold(seg) ? (seg.length - 4) * 7.3 : seg.length * 6.6;
+  }
+  return w;
+}
 const unit = (v: [number, number]): [number, number] => {
   const l = Math.hypot(v[0], v[1]) || 1;
   return [v[0] / l, v[1] / l];
@@ -166,7 +188,7 @@ export class MeasureOverlay {
 
   private labelC(p: Pt, text: string, color: string, lineColors?: (string | undefined)[], opaque = false): string {
     const lines = text.split('\n');
-    const w = Math.max(...lines.map((l) => l.length)) * 6.6 + 8;
+    const w = Math.max(...lines.map(lineWidthPx)) + 8;
     const h = lines.length * 14 + 4;
     this.pending.push({ x: p[0] + 8, y: p[1] - h / 2, w, h, lines, color, lineColors, opaque });
     return '';
@@ -203,7 +225,7 @@ export class MeasureOverlay {
       const tspans = l.lines
         .map((t, i) => {
           const fill = l.lineColors?.[i] ? ` fill="${l.lineColors[i]}"` : '';
-          return `<tspan x="${l.x + 4}" dy="${i === 0 ? 13 : 14}"${fill}>${esc(t)}</tspan>`;
+          return `<tspan x="${l.x + 4}" dy="${i === 0 ? 13 : 14}"${fill}>${richTspans(t)}</tspan>`;
         })
         .join('');
       out +=

@@ -250,6 +250,22 @@ export interface SelectionGetOptions {
   maxItems?: number;
 }
 
+/** A wireframe sphere drawn IN the scene at an annotation's point (a label's
+ *  anchor, every point of a measurement) — depth tested against the model, so
+ *  the point reads at its true depth, unlike the flat overlay glyphs. */
+export interface SphereMarker {
+  /** radius, metres */
+  size: number;
+  /** `#rrggbb` */
+  color: string;
+  /** filled sphere (shaded, `opacity` applies) instead of a wireframe;
+   *  default false */
+  solid?: boolean;
+  /** fill opacity 0..1 for a solid sphere; 1 = opaque (writes depth);
+   *  default 0.6 */
+  opacity?: number;
+}
+
 export interface LabelInput {
   /** shown text — supports **bold** and newlines in rich mode */
   text: string;
@@ -257,12 +273,32 @@ export interface LabelInput {
   fullname?: string;
   /** …or at an explicit world-space point */
   anchor?: [number, number, number];
+  /** 3D sphere marker at the anchor; `true` = the Labels panel's current
+   *  marker; omitted = the panel style (usually none); `null` = none */
+  sphere?: SphereMarker | true | null;
 }
 
 export interface LabelsResult {
   added: number;
   /** fullnames that resolved to nothing */
   missed: string[];
+}
+
+/** One scene label as {@link TredespaceClient.labelsGet} reports it. */
+export interface LabelInfo {
+  id: number;
+  text: string;
+  /** the linked item, or null for a hand-placed / point-anchored label */
+  fullname: string | null;
+  anchor: [number, number, number];
+  /** screen-px displacement after the user dragged it (a leader line is drawn) */
+  offset: [number, number];
+  bg: string;
+  opacity: number;
+  textColor: string;
+  sphere: SphereMarker | null;
+  /** hidden in the viewport by the panel's per-label mute */
+  muted: boolean;
 }
 
 export interface MeasurePointInput {
@@ -272,7 +308,11 @@ export interface MeasurePointInput {
 export interface MeasurementInput {
   kind: 'point' | 'line' | 'path' | 'area' | 'diameter' | 'angle';
   points: MeasurePointInput[];
+  /** name shown above the value — newlines and **bold** spans allowed */
   label?: string;
+  /** 3D sphere marker at every point; `true` = the Measurements panel's
+   *  Config default */
+  sphere?: SphereMarker | true;
 }
 
 export interface FilterRowInput {
@@ -1189,6 +1229,13 @@ export class TredespaceClient {
   labelsClear(): Promise<Result<Record<string, never>>> {
     return this.send('labels.clear', {});
   }
+
+  /** Every scene label as the Labels panel holds it — the {@link labelsSet}
+   *  fields plus id, style, the dragged offset and the sphere marker — so a
+   *  host can store and later restore or diff them. */
+  labelsGet(): Promise<Result<{ labels: LabelInfo[] }>> {
+    return this.send('labels.get', {});
+  }
   /** Spread overlapping labels apart from their anchors (the in-app explode). */
   labelsExplode(): Promise<Result<Record<string, never>>> {
     return this.send('labels.explode', {});
@@ -2018,7 +2065,9 @@ export class TredespaceClient {
    * `store` + `fileName` point the editor's Main db at a database without the
    * host building OPFS paths (`mainDb` takes a path directly, `''` = the
    * panel's "None — attach only"); omit them and the current pick stands.
-   * `show: false` fills the panel without opening it.
+   * `show: false` fills the panel without opening it; otherwise the editor
+   * opens docked to the RIGHT of the viewport (an already-open editor is
+   * focused where it is).
    *
    * `title`, `description`, `types` and `filters` fill the editor's report
    * fields — the shape {@link TredespaceClient.sqlEditorGet} returns, so a

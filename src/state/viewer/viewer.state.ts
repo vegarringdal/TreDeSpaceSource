@@ -109,6 +109,13 @@ export interface ViewerState {
   suppressTintOnOverride: boolean;
   /** false = alpha hash (converges under TAA), true = unsorted blend pass */
   transparencyBlend: boolean;
+  /** Blend variant: items set transparent render SOLID, as a backdrop behind
+   *  everything opaque — the transparency itself goes away and what is left
+   *  opaque always stands in front (the "ghosted context" look). */
+  transparencyBackdrop: boolean;
+  /** Background mode: how far (%) a backdrop item's colour moves toward the
+   *  canvas background — 0 keeps its own colour, 100 is a flat silhouette. */
+  backdropFadePct: number;
   /** transient: any opacity overrides exist (worker-reported) */
   hasTransparency: boolean;
   /** TAA/AO accumulation target */
@@ -231,6 +238,8 @@ export const initialViewerState: ViewerState = {
   selectionColor: '#2233ff', // dark blue, a touch brighter than pure blue
   suppressTintOnOverride: false,
   transparencyBlend: true,
+  transparencyBackdrop: false,
+  backdropFadePct: 70,
   hasTransparency: false,
   aaSamples: 32,
   fpsLimit: 30,

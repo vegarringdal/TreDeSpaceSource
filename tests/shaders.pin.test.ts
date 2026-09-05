@@ -8,6 +8,7 @@ import {
   cullWgsl,
   hzbWgsl,
   lineWgsl,
+  markerWgsl,
   measureSnapWgsl,
   outlineWgsl,
   postWgsl,
@@ -40,6 +41,7 @@ describe('shader text pins', () => {
     }
     hashes['renderVpWgsl()'] = sha(renderVpWgsl());
     hashes['lineWgsl()'] = sha(lineWgsl());
+    hashes['markerWgsl()'] = sha(markerWgsl());
     hashes['measureSnapWgsl()'] = sha(measureSnapWgsl());
     hashes['cubeBlitWgsl()'] = sha(cubeBlitWgsl());
     hashes['viewCubeWgsl()'] = sha(viewCubeWgsl());

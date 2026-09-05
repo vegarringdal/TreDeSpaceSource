@@ -15,6 +15,7 @@ import {
   perpProject,
   type SnapConfig,
 } from './measurements.state';
+import { readSphereMarker, type SphereMarker } from './sphereMarker';
 
 const KIND_LABEL: Record<MeasureToolKind, string> = {
   point: 'Point',
@@ -228,6 +229,48 @@ export const measurementsActions = {
     }));
   },
 
+  /** Per-row sphere toggle: on with the Config default, or off. */
+  toggleSphere(id: number) {
+    measurementsState.set((s) => ({
+      items: s.items.map((m) => (m.id === id ? { ...m, sphere: m.sphere ? null : { ...s.sphere } } : m)),
+    }));
+  },
+
+  /** Config → Point sphere: the default for the row toggle, applied to every
+   *  measurement that currently shows spheres too. */
+  setSphereDefault(patch: Partial<SphereMarker>) {
+    measurementsState.set((s) => ({
+      sphere: { ...s.sphere, ...patch },
+      items: s.items.map((m) => (m.sphere ? { ...m, sphere: { ...m.sphere, ...patch } } : m)),
+    }));
+  },
+
+  /** Step the point sphere radius (drives the number-input +/- hotkeys). */
+  bumpSphereSize(delta: number) {
+    const size = Math.max(0.01, +(measurementsState.get().sphere.size + delta * 0.05).toFixed(3));
+    this.setSphereDefault({ size });
+  },
+
+  /** Config → Spheres on / off: every measurement gets the Config sphere, or
+   *  none — all off when every one already has spheres, else all on. */
+  toggleAllSpheres() {
+    measurementsState.set((s) => {
+      const allOn = s.items.length > 0 && s.items.every((m) => m.sphere);
+      return { items: s.items.map((m) => ({ ...m, sphere: allOn ? null : { ...s.sphere } })) };
+    });
+  },
+
+  /** Filled spheres (shaded, with opacity) instead of wireframes. */
+  toggleSphereSolid() {
+    this.setSphereDefault({ solid: !measurementsState.get().sphere.solid });
+  },
+
+  /** Step the solid spheres' fill opacity (hotkeys); 1 = opaque. */
+  bumpSphereOpacity(delta: number) {
+    const cur = measurementsState.get().sphere.opacity;
+    this.setSphereDefault({ opacity: Math.min(1, Math.max(0.05, +(cur + delta * 0.05).toFixed(3))) });
+  },
+
   toggleMuted() {
     measurementsState.set((s) => ({ muted: !s.muted }));
   },
@@ -293,6 +336,7 @@ export const measurementsActions = {
       m.slopeInLabel = m.slopeInLabel ?? false;
       m.flipAngle = m.flipAngle ?? false;
       m.label = m.label ?? '';
+      m.sphere = readSphereMarker(m.sphere);
       nextId = Math.max(nextId, m.id ?? 0);
     }
     measurementsState.set({

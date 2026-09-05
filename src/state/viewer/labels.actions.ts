@@ -7,6 +7,7 @@ import { quatAxes } from '../../lib/math/quat';
 import { clipShapesState } from './clipShapes.state';
 import { db } from './db';
 import { LABEL_UNDO_MAX, type LabelsState, labelsState, MAX_LABELS, type SceneLabel } from './labels.state';
+import { DEFAULT_SPHERE_MARKER, readSphereMarker } from './sphereMarker';
 import { loadedIndicesForStore } from './storeScope';
 import { getRenderer } from './viewer.actions';
 
@@ -155,6 +156,7 @@ export const labelsActions = {
         bg: s.bg,
         opacity: s.opacity,
         textColor: s.textColor,
+        sphere: s.sphere,
       },
     ]);
   },
@@ -291,14 +293,41 @@ export const labelsActions = {
     labelsState.set({ undoDepth: undoStack.length, redoDepth: 0 });
   },
 
-  /** Apply the panel style (bg/opacity/text color) to the selected labels. */
-  setStyle(patch: Partial<Pick<SceneLabel, 'bg' | 'opacity' | 'textColor'>>) {
+  /** Apply the panel style (bg / opacity / text colour / sphere marker) to the
+   *  selected labels, and remember it for the next ones. */
+  setStyle(patch: Partial<Pick<SceneLabel, 'bg' | 'opacity' | 'textColor' | 'sphere'>>) {
     labelsState.set(patch);
     const items = labelsState.get().items;
     if (items.some((l) => l.selected)) {
       snapshot();
       commit(items.map((l) => (l.selected ? { ...l, ...patch } : l)));
     }
+  },
+
+  /** Sphere marker on/off for the selection / next labels (hotkey). */
+  toggleSphereStyle() {
+    const s = labelsState.get();
+    this.setStyle({ sphere: s.sphere ? null : { ...DEFAULT_SPHERE_MARKER } });
+  },
+
+  /** Step the sphere marker radius (drives the number-input +/- hotkeys). */
+  bumpSphereSize(delta: number) {
+    const cur = labelsState.get().sphere ?? DEFAULT_SPHERE_MARKER;
+    this.setStyle({ sphere: { ...cur, size: Math.max(0.01, +(cur.size + delta * 0.05).toFixed(3)) } });
+  },
+
+  /** Filled sphere (shaded, with opacity) instead of a wireframe. */
+  toggleSphereSolid() {
+    const cur = labelsState.get().sphere ?? DEFAULT_SPHERE_MARKER;
+    this.setStyle({ sphere: { ...cur, solid: !cur.solid } });
+  },
+
+  /** Step the solid sphere's fill opacity (hotkeys); 1 = opaque. */
+  bumpSphereOpacity(delta: number) {
+    const cur = labelsState.get().sphere ?? DEFAULT_SPHERE_MARKER;
+    this.setStyle({
+      sphere: { ...cur, opacity: Math.min(1, Math.max(0.05, +(cur.opacity + delta * 0.05).toFixed(3))) },
+    });
   },
 
   setLeaderColor(leaderColor: string) {
@@ -535,6 +564,7 @@ export const labelsActions = {
         bg: s.bg,
         opacity: s.opacity,
         textColor: s.textColor,
+        sphere: s.sphere,
       })),
     ]);
     consoleActions.log(
@@ -556,7 +586,7 @@ export const labelsActions = {
       {
         items: s.items,
         muted: s.muted,
-        style: { bg: s.bg, opacity: s.opacity, textColor: s.textColor, leaderColor: s.leaderColor },
+        style: { bg: s.bg, opacity: s.opacity, textColor: s.textColor, leaderColor: s.leaderColor, sphere: s.sphere },
       },
       (_k, v) => (typeof v === 'number' ? +v.toFixed(6) : v),
       2,
@@ -568,7 +598,7 @@ export const labelsActions = {
     const data = JSON.parse(text) as {
       items?: SceneLabel[];
       muted?: boolean;
-      style?: Partial<Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'leaderColor'>>;
+      style?: Partial<Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'leaderColor' | 'sphere'>>;
     };
     const items = (data.items ?? []).filter(
       (l) => l && typeof l.text === 'string' && Array.isArray(l.anchor) && l.anchor.length === 3,
@@ -579,8 +609,14 @@ export const labelsActions = {
       l.bg = l.bg ?? labelsState.get().bg;
       l.opacity = l.opacity ?? 1;
       l.textColor = l.textColor ?? labelsState.get().textColor;
+      l.sphere = readSphereMarker(l.sphere);
     }
-    labelsState.set({ muted: data.muted ?? false, ...(data.style ?? {}) });
+    const style = data.style ?? {};
+    labelsState.set({
+      muted: data.muted ?? false,
+      ...style,
+      ...(style.sphere !== undefined ? { sphere: readSphereMarker(style.sphere) } : {}),
+    });
     // setAll re-bases ids and snapshots for undo
     this.setAll(items.slice(0, MAX_LABELS));
     return Math.min(items.length, MAX_LABELS);

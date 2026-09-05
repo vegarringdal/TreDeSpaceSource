@@ -173,13 +173,32 @@ response: { count: 3, fullnames: ['/TP400-BEAM-01'],
 ### labels.set / labels.add
 Replace / append scene labels. Two anchor forms: a world-space point, or a
 `fullname` (anchored to the item's bounds center — the tag-import path).
+`sphere` draws a sphere IN the scene at the anchor — depth tested against the
+model, so the point reads at its true depth: `{ size, color, solid, opacity }`
+(radius in m, `#rrggbb`; `solid: true` fills it, shaded, at `opacity` 0..1
+where 1 is opaque — default a wireframe), `true` for the Labels panel's
+current marker, or omitted for the panel style (usually none).
 
 ```js
 payload: { labels: [
   { text: 'Check **this** flange', fullname: '/TP400-PIPE-01' },
-  { text: 'Hand note', anchor: [12.5, 3.2, 8.0] },
+  { text: 'Hand note', anchor: [12.5, 3.2, 8.0], sphere: { size: 0.2, color: '#ff8800', solid: true, opacity: 0.6 } },
 ] }
 response: { added: 2, missed: [] }   // missed = unresolvable fullnames
+```
+
+### labels.get
+Every scene label as the Labels panel holds it: the `labels.set` fields plus
+`id`, the style, the offset the user dragged it to (screen px; a leader line
+is drawn when non-zero), the sphere marker and the per-label mute — so a host
+can store labels and later restore (`labels.set`) or diff them.
+
+```js
+payload:  {}
+response: { labels: [
+  { id: 3, text: 'Hand note', fullname: null, anchor: [12.5, 3.2, 8.0], offset: [0, 0],
+    bg: '#ffffff', opacity: 1, textColor: '#14161a',
+    sphere: { size: 0.2, color: '#ff8800', solid: true, opacity: 0.6 }, muted: false } ] }
 ```
 
 ### labels.clear
@@ -190,11 +209,17 @@ response: {}
 
 ### measurements.set / measurements.add
 Replace / append measurements (world-space points; same shapes as the
-measurements JSON export).
+measurements JSON export). `label` is the name drawn above the value — it may
+hold newlines and `**bold**` spans. `sphere` draws a depth-tested sphere at
+every point of the measurement (`{ size, color, solid, opacity }` — radius in
+m, `#rrggbb`, `solid: true` for a shaded fill at `opacity` 0..1 instead of a
+wireframe — or `true` for the Measurements panel's Config default), so the
+points read at their true depth.
 
 ```js
 payload: { measurements: [
-  { kind: 'line', points: [{ pos: [0,0,0] }, { pos: [0,0,2.5] }], label: 'riser' },
+  { kind: 'line', points: [{ pos: [0,0,0] }, { pos: [0,0,2.5] }],
+    label: '**Riser**\nfield check', sphere: { size: 0.1, color: '#ff8800' } },
 ] }
 response: { added: 1 }
 ```
@@ -917,7 +942,9 @@ script.
 `store` + `fileName` point the editor's Main db at a database without the host
 building OPFS paths; `mainDb` takes a path directly (`''` selects "None —
 attach only"), and omitting all three leaves the current pick alone.
-`show: false` fills the panel without opening it.
+`show: false` fills the panel without opening it; otherwise the editor opens
+docked to the RIGHT of the viewport (an already-open editor is focused where
+it is).
 
 `title`, `description`, `types` (`TABLE` / `COLORING` / `DETAIL`) and
 `filters` fill the editor's report fields — the same shape `sql.editor.get`

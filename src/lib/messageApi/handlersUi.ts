@@ -140,8 +140,14 @@ export const uiHandlers: Record<string, ApiHandler> = {
     if (!kiosk) {
       throw new ApiError('internal', 'kiosk control not registered');
     }
-    const on = typeof p.on === 'boolean' ? p.on : !kiosk.get();
-    return { kiosk: kiosk.set(on) };
+    // omit `on` to query, as documented — never toggle by accident
+    if (p.on === undefined) {
+      return { kiosk: kiosk.get() };
+    }
+    if (typeof p.on !== 'boolean') {
+      throw new ApiError('bad-payload', 'on must be a boolean');
+    }
+    return { kiosk: kiosk.set(p.on) };
   },
 
   // omit `theme` to query; otherwise set the viewer's light/dark theme

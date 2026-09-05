@@ -5,6 +5,7 @@
 // *formatted* (units are metres — model data is treated as m, never converted).
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 import type { V3 } from '../../lib/math/quat';
+import { DEFAULT_SPHERE_MARKER, type SphereMarker } from './sphereMarker';
 
 export type MeasureToolKind = 'point' | 'line' | 'path' | 'area' | 'diameter' | 'angle' | 'face';
 
@@ -111,6 +112,9 @@ export interface Measurement {
   legsInLabel: boolean;
   /** Line only: append the slope (∠ from horizontal + % fall) to the label. */
   slopeInLabel: boolean;
+  /** 3D wireframe sphere at every point, depth tested — null/absent = none.
+   *  The per-row toggle applies the Config default; the API sets it directly. */
+  sphere?: SphereMarker | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -386,6 +390,8 @@ export interface MeasurementsState {
   precision: number;
   /** Line/marker/fill colour for every measurement in the viewport. */
   lineColor: string;
+  /** Point sphere the per-row toggle applies (and every current sphere follows). */
+  sphere: SphereMarker;
   nextId: number;
 }
 
@@ -410,6 +416,7 @@ const INITIAL: MeasurementsState = {
   snap: { enabled: true, corner: true, edge: true, cornerPx: 12, edgePx: 8 },
   precision: 3,
   lineColor: '#000000',
+  sphere: { ...DEFAULT_SPHERE_MARKER },
   nextId: 0,
 };
 

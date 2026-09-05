@@ -25,7 +25,10 @@ import {
   registerSqlDetailOpener,
   removeDetailBinding,
 } from './components/panels/sql-detail/sqlDetailPanel';
-import { registerSqlEditorOpener } from './components/panels/sql-editor/sqlEditorPanel';
+import {
+  registerSqlEditorOpener,
+  registerSqlEditorViewportOpener,
+} from './components/panels/sql-editor/sqlEditorPanel';
 import { registerSqlReportsOpener } from './components/panels/sql-reports/sqlReportsPanel';
 import { registerSqlTableOpener } from './components/panels/sql-table/sqlTablePanel';
 import {
@@ -167,6 +170,8 @@ export function useAppStartup(manager: DockManager): void {
     registerModelAssetsOpener(() => manager.openPanelBeside('modelAssets', 'hierarchy', 'right'));
     registerSqlAssetsOpener(() => manager.openPanelBeside('sqlAssets', 'hierarchy', 'right'));
     registerSqlEditorOpener(() => manager.openPanel('sqlEditor'));
+    // the host API's placement: a fresh split right of the viewport, every time
+    registerSqlEditorViewportOpener(() => manager.openPanelBeside('sqlEditor', 'viewport', 'right', { force: true }));
     registerSqlReportsOpener(() => manager.openPanelBeside('sqlReports', 'hierarchy', 'right'));
     registerSqlTableOpener(() => manager.openPanel('sqlTable'));
     // a NAMED detail panel is created on demand (session-only, like a

@@ -2,6 +2,7 @@
 // pinned by tests/shaders.pin.test.ts — regenerate snapshots on intentional
 // shader changes.
 export { cullWgsl, hzbWgsl } from './cull';
+export { markerWgsl } from './marker';
 export { outlineWgsl, postWgsl, vbaoWgsl } from './post';
 export { lineWgsl, renderVpWgsl, renderWgsl } from './scene';
 export { measureSnapWgsl } from './snap';

@@ -3,16 +3,11 @@ import {
   IconArrowAutofitHeight,
   IconChartArea,
   IconCircleDashed,
-  IconEye,
-  IconEyeOff,
   IconMapPin,
   IconRoute,
   IconRuler,
-  IconTag,
-  IconTrash,
-  IconTrendingUp,
 } from '@tabler/icons-react';
-import { Button, Collapsible, TextInput } from '@treDeSpaceUI/widgets';
+import { Collapsible, TextArea } from '@treDeSpaceUI/widgets';
 import { measurementsActions as act } from '../../../state/viewer/measurements.actions';
 import {
   displayName,
@@ -21,6 +16,7 @@ import {
   valueLabel,
 } from '../../../state/viewer/measurements.state';
 import { MeasurementAxisLegs } from './MeasurementAxisLegs';
+import { MeasurementRowButtons } from './MeasurementRowButtons';
 
 const KIND_ICON: Record<MeasureToolKind, typeof IconRuler> = {
   point: IconMapPin,
@@ -32,8 +28,8 @@ const KIND_ICON: Record<MeasureToolKind, typeof IconRuler> = {
   face: IconArrowAutofitHeight,
 };
 
-/** One measurement's list row: rename, label/perpendicular/visibility toggles,
- *  delete, and the ΔX/ΔY/ΔZ leg controls for line/path measurements. */
+/** One measurement's list row: the name (multiline, **bold** allowed), the
+ *  row toggles, and the ΔX/ΔY/ΔZ leg controls for line/path measurements. */
 export function MeasurementRow({ m, precision }: { m: Measurement; precision: number }) {
   const Icon = KIND_ICON[m.kind];
   const staircase = m.kind === 'line' || m.kind === 'path';
@@ -49,59 +45,15 @@ export function MeasurementRow({ m, precision }: { m: Measurement; precision: nu
         <div className="flex items-center gap-2">
           <Icon size={16} className="shrink-0 text-slate-400" />
           <div className="min-w-0 flex-1">
-            <TextInput value={m.label} onChange={(v) => act.setLabel(m.id, v)} placeholder="(name)" />
+            <TextArea
+              value={m.label}
+              onChange={(v) => act.setLabel(m.id, v)}
+              rows={1}
+              clearable={false}
+              placeholder="(name — Enter for a new line, **bold**)"
+            />
           </div>
-          <Button
-            iconOnly
-            active={m.showLabel}
-            onClick={() => act.toggleShowLabel(m.id)}
-            tooltip="Show the name/value label in the viewport"
-          >
-            <IconTag size={14} />
-          </Button>
-          <Button
-            iconOnly
-            active={m.showPerp}
-            disabled={!m.points.some((p) => p.clicked)}
-            onClick={() => act.toggleShowPerp(m.id)}
-            tooltip={
-              m.points.some((p) => p.clicked)
-                ? 'Show the perpendicular (Shift) construction helper'
-                : 'No perpendicular (Shift) points in this measurement'
-            }
-          >
-            <IconAngle size={14} />
-          </Button>
-          {m.kind === 'angle' && (
-            <Button
-              iconOnly
-              active={m.flipAngle ?? false}
-              onClick={() => act.toggleFlipAngle(m.id)}
-              tooltip="Flip to the reflex angle (360° − θ)"
-            >
-              <IconAngle size={14} className="-scale-x-100" />
-            </Button>
-          )}
-          {m.kind === 'line' && (
-            <Button
-              iconOnly
-              active={m.slopeInLabel}
-              onClick={() => act.toggleSlopeInLabel(m.id)}
-              tooltip="Append the slope (∠ from horizontal + % fall) to the label"
-            >
-              <IconTrendingUp size={14} />
-            </Button>
-          )}
-          <Button
-            iconOnly
-            onClick={() => act.toggleVisible(m.id)}
-            tooltip={m.visible ? 'Hide in the viewport' : 'Show in the viewport'}
-          >
-            {m.visible ? <IconEye size={14} /> : <IconEyeOff size={14} />}
-          </Button>
-          <Button iconOnly onClick={() => act.remove(m.id)} tooltip="Delete this measurement">
-            <IconTrash size={14} />
-          </Button>
+          <MeasurementRowButtons m={m} />
         </div>
         {staircase && <MeasurementAxisLegs m={m} />}
       </div>

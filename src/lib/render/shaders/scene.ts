@@ -16,7 +16,8 @@ const RENDER_FRAME = /* wgsl */ `struct Frame {
   // eye in REBASED space (= absolute eye - origin)
   eye: vec4f,
   // x: 1 = per-meshlet debug colors; y: suppress selection tint on overrides;
-  // z: bit0 = blend transparency mode, bit1 = this is the blend pass;
+  // z: bit0 = blend transparency mode, bit1 = this is the blend pass,
+  //    bit2 = Background mode (the blend pass renders solid, faded);
   // w: frame counter (alpha-hash seed)
   flags: vec4u,
   // xyz: directional headlight (surface -> light), used when w == 1 (ortho).
@@ -25,6 +26,7 @@ const RENDER_FRAME = /* wgsl */ `struct Frame {
   ambient: vec4f, // rgb = ambient color, a = intensity
   headlight: vec4f, // rgb = headlight color, a = intensity
   sel_color: vec4f, // selection highlight (rgb) + blend amount (a)
+  backdrop: vec4f, // rgb = canvas background; a = Background-mode fade amount
 };`;
 
 // item state + per-model uniform + shared bindings + the full clip system
@@ -252,9 +254,15 @@ fn fs(in: VsOut) -> FsOut {
               frame.headlight.rgb * (frame.headlight.a * (diffuse + spec));
   let unlit_luma = dot(in.color.rgb, vec3f(0.299, 0.587, 0.114));
   var o: FsOut;
-  // blend pass: alpha is the blend factor; otherwise it carries unlit luma
-  let alpha = select(unlit_luma, in.opacity, (frame.flags.z & 2u) != 0u);
-  o.color = vec4f(in.color.rgb * shade, alpha);
+  let blend_pass = (frame.flags.z & 2u) != 0u;
+  let backdrop = (frame.flags.z & 4u) != 0u;
+  // blend pass: alpha is the blend factor; otherwise it carries unlit luma.
+  // Background mode renders that pass solid instead, the colour faded toward
+  // the canvas by the frame's backdrop amount — a receding context layer
+  let alpha = select(unlit_luma, in.opacity, blend_pass && !backdrop);
+  var rgb = in.color.rgb * shade;
+  if (backdrop) { rgb = mix(rgb, frame.backdrop.rgb, frame.backdrop.a); }
+  o.color = vec4f(rgb, alpha);
   // normal alpha = edge tag BITS for the post pass (quantized to 8 bits):
   //   1 = authored normals (own edge thresholds), 2 = edge lines OFF (asset
   //   import option), 4 = item edges OFF for this item (item state)

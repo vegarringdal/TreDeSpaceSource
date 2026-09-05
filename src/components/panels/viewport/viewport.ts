@@ -47,6 +47,7 @@ import { ribbonClippingPlaneState } from '../ribbon-clipping-plane/ribbonClippin
 import { ribbonSelectionTransformActions } from '../ribbon-selection-transform/ribbonSelectionTransform.actions';
 import { ribbonSelectionTransformState } from '../ribbon-selection-transform/ribbonSelectionTransform.state';
 import { settingsState } from '../settings/settings.state';
+import { concatLines, MarkerCache } from './markerLines';
 
 function hexRgb(hex: string): [number, number, number] {
   return [
@@ -370,6 +371,9 @@ export const viewport: PanelDefinition = {
       };
     };
 
+    // marker spheres for labels / measurement points, merged into the clip
+    // helper line list (one depth-tested draw); rebuilt only on change
+    const markerLines = new MarkerCache();
     const applyOptions = () => {
       const s = viewerState.get();
       const o = renderer.options;
@@ -419,7 +423,11 @@ export const viewport: PanelDefinition = {
       o.traceKey = s.trace;
       const clip = buildClip(renderer);
       renderer.setClip(clip.data);
-      renderer.setHelperLines(clip.lines);
+      const labels = labelsState.get();
+      const measures = measurementsState.get();
+      const markers = markerLines.update(labels.items, labels.muted, measures.items, measures.muted);
+      renderer.setHelperLines(concatLines(clip.lines, markers), `${clip.lines.join(',')}|${markerLines.version}`);
+      renderer.setMarkerSpheres(markerLines.instances, markerLines.opaqueCount, `${markerLines.version}`);
       // Seed a new clip shape at the scene centre with a scene-scaled radius.
       const { min, max } = renderer.sceneBounds;
       if (Number.isFinite(min[0])) {
@@ -433,6 +441,8 @@ export const viewport: PanelDefinition = {
       o.suppressTintOnOverride = s.suppressTintOnOverride;
       o.gpuTimings = s.gpuTimings;
       o.transparencyBlend = s.transparencyBlend;
+      o.transparencyBackdrop = s.transparencyBackdrop;
+      o.backdropFade = s.backdropFadePct / 100;
       o.hasTransparency = s.hasTransparency;
       o.aaSamples = s.aaSamples;
       o.ambientColor = hexRgb(s.ambientColor);
@@ -494,6 +504,8 @@ export const viewport: PanelDefinition = {
       clipShapesState,
       ribbonClippingBoxState,
       ribbonClippingPlaneState,
+      labelsState,
+      measurementsState,
     ].map((store) => store.subscribe(markOptionsDirty));
     const hostResize = new ResizeObserver(markOptionsDirty);
     hostResize.observe(host);

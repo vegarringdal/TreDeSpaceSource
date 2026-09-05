@@ -2,6 +2,7 @@ import { Collapsible, ColorSelect, NumberInput } from '@treDeSpaceUI/widgets';
 import type { ReactNode } from 'react';
 import { labelsActions as act } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
+import { DEFAULT_SPHERE_MARKER } from '../../../state/viewer/sphereMarker';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -40,6 +41,59 @@ export function LabelsStyleSection() {
       </Row>
       <Row label="Leader line">
         <ColorSelect value={s.leaderColor} onChange={act.setLeaderColor} />
+      </Row>
+      <label
+        className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
+        data-tooltip="Draw a wireframe sphere IN the scene at the anchor — depth tested, so the point reads at its true depth"
+        data-shortcut="labels.sphere"
+      >
+        <input type="checkbox" checked={s.sphere !== null} onChange={() => act.toggleSphereStyle()} />
+        3D sphere at the anchor
+      </label>
+      <Row label="Sphere size">
+        <NumberInput
+          value={s.sphere?.size ?? DEFAULT_SPHERE_MARKER.size}
+          min={0.01}
+          step={0.05}
+          precision={2}
+          unit="m"
+          disabled={s.sphere === null}
+          decShortcut="labels.sphereSize.dec"
+          incShortcut="labels.sphereSize.inc"
+          onChange={(x) => act.setStyle({ sphere: { ...DEFAULT_SPHERE_MARKER, ...s.sphere, size: x } })}
+        />
+      </Row>
+      <Row label="Sphere color">
+        <ColorSelect
+          value={s.sphere?.color ?? DEFAULT_SPHERE_MARKER.color}
+          onChange={(c) => act.setStyle({ sphere: { ...DEFAULT_SPHERE_MARKER, ...s.sphere, color: c } })}
+        />
+      </Row>
+      <label
+        className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
+        data-tooltip="Fill the sphere (shaded, with the opacity below) instead of drawing a wireframe"
+        data-shortcut="labels.sphereSolid"
+      >
+        <input
+          type="checkbox"
+          disabled={s.sphere === null}
+          checked={s.sphere?.solid ?? DEFAULT_SPHERE_MARKER.solid}
+          onChange={() => act.toggleSphereSolid()}
+        />
+        Solid sphere
+      </label>
+      <Row label="Sphere opacity">
+        <NumberInput
+          value={s.sphere?.opacity ?? DEFAULT_SPHERE_MARKER.opacity}
+          min={0.05}
+          max={1}
+          step={0.05}
+          precision={2}
+          disabled={!s.sphere?.solid}
+          decShortcut="labels.sphereOpacity.dec"
+          incShortcut="labels.sphereOpacity.inc"
+          onChange={(x) => act.setStyle({ sphere: { ...DEFAULT_SPHERE_MARKER, ...s.sphere, opacity: x } })}
+        />
       </Row>
       <label className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs">
         <input type="checkbox" checked={s.richText} onChange={(e) => act.setRichText(e.target.checked)} />

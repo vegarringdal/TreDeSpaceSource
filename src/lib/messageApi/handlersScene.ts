@@ -8,6 +8,7 @@ import { labelsState, MAX_LABELS, type SceneLabel } from '../../state/viewer/lab
 import { measurementsActions } from '../../state/viewer/measurements.actions';
 import { measurementsState } from '../../state/viewer/measurements.state';
 import { selectionState } from '../../state/viewer/selection.state';
+import { readSphereMarker } from '../../state/viewer/sphereMarker';
 import { viewerActions } from '../../state/viewer/viewer.actions';
 import { viewpointsActions } from '../../state/viewer/viewpoints.actions';
 import { packedFromBytes } from '../color/packedNames';
@@ -46,6 +47,8 @@ const setOrAddLabels: ApiHandler = async ({ type, p }) => {
       bg: s.bg,
       opacity: s.opacity,
       textColor: s.textColor,
+      // explicit marker (or `true` for the panel default); omitted = the panel style
+      sphere: l.sphere === undefined ? s.sphere : readSphereMarker(l.sphere),
     });
   }
   const base = type === 'labels.set' ? [] : s.items;
@@ -107,6 +110,23 @@ export const sceneHandlers: Record<string, ApiHandler> = {
 
   'labels.set': setOrAddLabels,
   'labels.add': setOrAddLabels,
+
+  // every label as the panel holds it: the labels.set fields plus id, style,
+  // the dragged offset and the sphere marker
+  'labels.get': () => ({
+    labels: labelsState.get().items.map((l) => ({
+      id: l.id,
+      text: l.text,
+      fullname: l.fullname,
+      anchor: l.anchor,
+      offset: l.offset,
+      bg: l.bg,
+      opacity: l.opacity,
+      textColor: l.textColor,
+      sphere: l.sphere ?? null,
+      muted: l.muted === true,
+    })),
+  }),
 
   'labels.clear': () => {
     labelsActions.clearAll();

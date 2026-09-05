@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import type { SphereMarker } from './sphereMarker';
 
 /** A world-anchored text label. `offset` is the screen-px displacement from
  *  the anchor after dragging — non-zero draws a leader line back to it. */
@@ -16,6 +17,8 @@ export interface SceneLabel {
   bg: string;
   opacity: number;
   textColor: string;
+  /** 3D wireframe sphere at the anchor, depth tested — null/absent = none */
+  sphere?: SphereMarker | null;
 }
 
 export const MAX_LABELS = 200;
@@ -41,6 +44,8 @@ export interface LabelsState {
   bg: string;
   opacity: number;
   textColor: string;
+  /** sphere marker for new labels / the selection; null = none */
+  sphere: SphereMarker | null;
   leaderColor: string;
   /** explode layout shape + how many times explode has been pressed */
   explodeShape: 'circle' | 'box';
@@ -65,6 +70,7 @@ export const labelsState = createStore<LabelsState>({
   bg: '#ffffff',
   opacity: 1,
   textColor: '#14161a',
+  sphere: null,
   leaderColor: '#000000',
   explodeShape: 'circle',
   explodeStep: 0,
