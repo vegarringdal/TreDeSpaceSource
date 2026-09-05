@@ -2161,9 +2161,17 @@ export const HOTKEYS: HotkeyDef[] = [
     id: 'camera.focusClick',
     category: 'Camera',
     label: 'Focus last click',
-    defaultKeys: 'ALT + 1028',
+    defaultKeys: 'O',
     description: 'Re-pivot on the last clicked point (same as Alt+click) without moving the camera',
     run: () => viewerActions.focusLastClick(),
+  },
+  {
+    id: 'camera.gotoClick',
+    category: 'Camera',
+    label: 'Go to last click',
+    defaultKeys: 'G',
+    description: 'Fly to the last clicked point and pivot there — the Space+click move, after the fact',
+    run: () => viewerActions.flyToLastClick(),
   },
   {
     id: 'camera.focusSelection',

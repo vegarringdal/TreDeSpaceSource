@@ -2,6 +2,7 @@ import {
   IconArrowBigDown,
   IconArrowBigUp,
   IconArrowsMaximize,
+  IconCurrentLocation,
   IconFocus2,
   IconFocusCentered,
   IconLayoutDistributeVertical,
@@ -38,6 +39,13 @@ export function PadViewGroups() {
           tooltip="Re-pivot on the last clicked point (same as Alt+click) — camera stays put"
           shortcut="camera.focusClick"
           onClick={() => viewerActions.focusLastClick()}
+        />
+        <RibbonButton
+          icon={<IconCurrentLocation />}
+          label="Go to click"
+          tooltip="Fly to the last clicked point and pivot there — the Space+click move, after the fact"
+          shortcut="camera.gotoClick"
+          onClick={() => viewerActions.flyToLastClick()}
         />
         <RibbonButton
           icon={<IconFocusCentered />}

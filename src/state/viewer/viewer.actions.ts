@@ -627,6 +627,14 @@ export const viewerActions = {
     }
   },
 
+  /** Go to = Space+click replay: fly toward the last clicked point and pivot there. */
+  flyToLastClick() {
+    const p = renderer?.lastClickWorld;
+    if (renderer && p) {
+      renderer.camera.flyTo([p[0], p[1], p[2]]);
+    }
+  },
+
   /** Focus the selection: re-pivot on its bounds center, camera stays put. */
   async focusSelection() {
     if (!renderer) {

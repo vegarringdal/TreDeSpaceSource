@@ -27,7 +27,7 @@ const plane = (el: number, az: number): PlaneState => ({
   helper: true,
   gizmo: true,
   position: 0,
-  step: 0.5,
+  step: 0.1,
   el,
   az,
   flipped: false,

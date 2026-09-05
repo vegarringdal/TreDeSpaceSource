@@ -1,4 +1,11 @@
-import { IconArrowsMaximize, IconFocus2, IconFocusCentered, IconFoldUp, IconPlaneTilt } from '@tabler/icons-react';
+import {
+  IconArrowsMaximize,
+  IconCurrentLocation,
+  IconFocus2,
+  IconFocusCentered,
+  IconFoldUp,
+  IconPlaneTilt,
+} from '@tabler/icons-react';
 import { Button } from '@treDeSpaceUI/widgets';
 import { selectionState } from '../../../state/viewer/selection.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
@@ -29,6 +36,13 @@ export function HierarchyToolbar({
         tooltip={'Focus last click\n(re-pivot like Alt+click, camera stays)'}
         shortcut="camera.focusClick"
         onClick={() => viewerActions.focusLastClick()}
+      />
+      <Button
+        iconOnly
+        icon={<IconCurrentLocation />}
+        tooltip={'Go to last click\n(fly there and pivot, like Space+click)'}
+        shortcut="camera.gotoClick"
+        onClick={() => viewerActions.flyToLastClick()}
       />
       <Button
         iconOnly

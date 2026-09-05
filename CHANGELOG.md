@@ -4,6 +4,18 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.92):
+  Clipping planes: the ribbon's Position now shows and edits the plane's
+  WORLD coordinate along its axis (the point the plane passes through, e.g.
+  z = 12.0), not the offset from where it was enabled — so a position can be
+  typed straight from a drawing. The field is wide enough for ±999 999.9 m,
+  the +/− steps move that coordinate by exactly one step, and the Position
+  Step default is 0.1 m (was 0.5). The stored state (anchor + offset) and
+  saved viewpoints are unchanged.
+  Camera: "Focus last click" moved from Alt+1028 to O. New "Go to last
+  click" on G — fly to the last clicked point and pivot there, the same move
+  as Space+click but after the fact; also a button in the Pad ribbon's View
+  group and the Hierarchy toolbar.
 - **2026.09.04** (>0.0.91):
   The Panels ribbon drops a removed external panel (and shows a newly
   registered one) immediately: the dockable library's `registerPanel` /

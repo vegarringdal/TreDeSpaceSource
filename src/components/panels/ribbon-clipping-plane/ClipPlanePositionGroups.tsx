@@ -1,10 +1,15 @@
 import { IconFocusCentered } from '@tabler/icons-react';
 import { RibbonButton, RibbonNumber, RibbonSection } from '@treDeSpaceUI/widgets';
 import { AXES } from './clippingPlaneAxes';
-import { ribbonClippingPlaneActions as act } from './ribbonClippingPlane.actions';
+import { ribbonClippingPlaneActions as act, planeAxisPosition } from './ribbonClippingPlane.actions';
 import { ribbonClippingPlaneState } from './ribbonClippingPlane.state';
 
-/** Per-axis plane position (center + value) and the position step size. */
+// room for "-999999.9 m" plus the − / + steppers
+const POSITION_FIELD_WIDTH = 144;
+
+/** Per-axis plane position — the plane's WORLD coordinate along its axis, so
+ *  a value can be typed straight from a drawing — with Center, and the
+ *  position step size. */
 export function ClipPlanePositionGroups() {
   const s = ribbonClippingPlaneState.use();
 
@@ -27,12 +32,13 @@ export function ClipPlanePositionGroups() {
             key={axis}
             size="mini"
             unit="m"
+            fieldWidth={POSITION_FIELD_WIDTH}
             step={s[axis].step}
             precision={1}
-            value={s[axis].position}
+            value={planeAxisPosition(axis, s[axis])}
             decShortcut={`clip.plane.${axis}.position.dec`}
             incShortcut={`clip.plane.${axis}.position.inc`}
-            onChange={(v) => act.setPosition(axis, v)}
+            onChange={(v) => act.setAxisPosition(axis, v)}
           />
         ))}
       </RibbonSection>
