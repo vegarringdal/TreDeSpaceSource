@@ -4,6 +4,16 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.04** (>0.0.96):
+  Measurements ribbon: the Lock grid and the Corners / Edges snap grid now
+  share the column height like the big buttons do, so a ribbon squeezed by a
+  scrollbar shrinks their rows instead of clipping the grid at the top.
+  Docs: the README repository layout, DESIGN.md's host-API section and
+  EVENTS.md's implementation notes now describe `src/lib/messageApi/` (a
+  folder: listener, transport, per-domain handlers) and `render/shaders/`
+  instead of the single files they grew out of, name every app → host event,
+  and say what the TS cooker still does (standard / instanced glTF); the
+  "future" list drops `viewpoints.list`, which `viewpoints.get` already covers.
 - **2026.09.04** (>0.0.95):
   Measurement snap onto SEAMS — the line where one item cuts through another
   (a box standing through a floor), and the corners it makes. Neither is a

@@ -67,11 +67,13 @@ export function MeasureToolGroups() {
       </RibbonSection>
 
       <RibbonSection title="Lock">
-        <div className="grid grid-cols-2 gap-0.5">
+        {/* three rows that share the column height, so a squeezed ribbon
+            shrinks them instead of clipping the grid */}
+        <div className="grid h-full min-h-0 grid-cols-2 grid-rows-3 gap-0.5">
           {LOCKS.map(({ id, label, tip }) => (
             <Button
               key={id}
-              className="h-auto min-h-5 justify-start px-1.5 py-0.5 text-[11px]"
+              className="h-full min-h-0 justify-start px-1.5 py-0 text-[11px]"
               active={lock === id}
               tooltip={tip}
               shortcut={`measure.lock.${id}`}

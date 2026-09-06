@@ -2,15 +2,36 @@
 
 Made by Vegar Ringdal
 
-An experiment in using AI to port and merge my side projects into a
-good-looking, fast 3D viewer — and to see what is possible. I wanted the
-desktop-application feeling on the web; I am not a fan of oversimplified
-applications. Graphics will be simple, no normals/texture. Target is CAD/BIM
-models.
+Using AI to speed up development to make a good-looking, fast 3D viewer — and to see what is possible. Very helpful for merging prev side projects into one bigger application.
 
-> ⚠️ Still in a early phase, trying to find out what I need/want and shape the client SDK. Might be breaking changes.
+Going for desktop-application feeling on the web. Graphics will be simple, no normals/texture. But app will be able to do a lot. Target is CAD/BIM models.
 
-All processing happens in your browser — models never leave your machine.
+
+> All processing happens in your browser — models never leave your machine.
+
+For better understanding/see it in action have a look at these links:
+
+- [Product page](https://tredespace.com/docs/)
+- [Iframe SDK](https://tredespace.com/docs/events)
+- [Live demo](https://tredespace.com/docs/demo)
+- [Widget UI](https://tredespace.com/docs/widgets)
+
+
+## Versioning
+
+> Still working on last checks, so not active yet.
+
+When app is stable version will be per YY.NUMBER.0.
+
+So for first stable version in 2026, it will be "26.1.0", next will be "26.2.0"
+
+`DEV` branch will be main developer branch
+
+`MAIN` branch will only allow PR from `DEV` if it passes version check/test/linting etc.
+
+After branch is merged, I will create a docker build (hosted at github) & update tredespace.
+
+
 
 ## Three parts, three licenses
 
@@ -34,7 +55,7 @@ Full terms and third-party notices under [License](#license).
 
 Since I let AI run wild while experimenting, development is done on temp repos and when stable update main.
 Will most likely have a beta, preview branch later, that links to preview.tredespace.com and beta.tredespace.com
-No changelogs atm, will not have this until its stable
+
 
 ## How to get started with dev/how to build
 
@@ -116,9 +137,10 @@ See [DESIGN.md](DESIGN.md) for the cooker/converter internals.
 src/
   components/   React UI — dialogs + feature panels (the dockable shell lives
                 in treDeSpaceUI/dockable/)
-  lib/          one folder per domain; flat singles: messageApi.ts (postMessage
-                host API) + small utils
-    render/     renderer.ts (GPU pipeline), shaders.ts (WGSL), camera.ts, device.ts
+  lib/          one folder per domain (messageApi/ = the postMessage host API:
+                listener, transport, per-domain handlers) + small flat utils
+    render/     renderer.ts (GPU pipeline), shaders/ (WGSL, one module per pass
+                family), camera.ts, device.ts, measureSnap.ts (snap classifier)
     overlay/    view/clip gizmos, label + measure overlays
     model/      format.ts (cooked-model parser), pack.ts, GLB/IFC export writers
     math/       m4.ts, quat.ts, project.ts
@@ -126,7 +148,8 @@ src/
     color/      color names / hex parsing / multi-color rules
     sqlite/     OPFS SQLite VFS + SQL helpers
     modeldb/    model DB worker (hierarchy, selection, export geometry)
-    cooker/     GLB → .tdp cooker: worker + prebuilt wasm + TS fallback
+    cooker/     GLB → .tdp cooker: worker + prebuilt wasm (merged rvm2glb
+                files) + TS cook for standard / instanced glTF
     rvm2glb/    RVM converter — comlink worker + prebuilt wasm
     ifc2glb/    IFC converter — comlink worker + prebuilt wasm
     step2glb/   STEP converter — comlink worker + prebuilt wasm

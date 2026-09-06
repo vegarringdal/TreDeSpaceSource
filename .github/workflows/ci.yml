@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run check:size
+      - run: npm run build
+      - run: git diff --exit-code
+
+  version-gate:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only dev may target main
+        run: |
+          [ "${{ github.head_ref }}" = "dev" ] || {
+            echo "::error::PRs into main must come from dev (got ${{ github.head_ref }})"
+            exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version must be YY.N.0, incremented
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          NEW=$(node -p "require('./package.json').version")
+          git show origin/main:package.json > /tmp/old.json
+          OLD=$(node -p "require('/tmp/old.json').version")
+
+          YY=$(date +%y)
+          IFS=. read -r OMAJ OMIN _ <<< "$OLD"
+
+          if [ "$OMAJ" = "$YY" ]; then
+            EXPECT="$YY.$((OMIN + 1)).0"
+          else
+            EXPECT="$YY.1.0"
+          fi
+
+          [ "$NEW" = "$EXPECT" ] || {
+            echo "::error::package.json is $NEW, expected $EXPECT (previous: $OLD)"
+            exit 1; }
+
+          case "$TITLE" in
+            *"v$NEW"*) ;;
+            *) echo "::error::PR title must contain v$NEW"; exit 1 ;;
+          esac
+
+          echo "OK: v$NEW" >> "$GITHUB_STEP_SUMMARY"

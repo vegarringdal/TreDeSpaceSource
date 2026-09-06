@@ -3,7 +3,7 @@
 The app can be hosted in an iframe (or opened by a parent window) that drives
 it with `postMessage` and reads results back. This document is the protocol
 reference; the implementation is a thin validated adapter
-(`src/lib/messageApi.ts` + wiring in `App.tsx`). A demo host page lives at
+(`src/lib/messageApi/` + wiring in `useAppStartup.ts`). A demo host page lives at
 `/demo/` in dev (`demo/index.html` + `demo/main.tsx`) — it embeds the app in an
 iframe and drives every command through the SDK with a request/response log.
 `/demo/?dialog=1` is the same page for hosting INSIDE the viewer (add it as an
@@ -1775,7 +1775,8 @@ project — the proxy pattern is for staying current, not for pinning.
 
 ## Future (documented, not v1)
 
-- `viewpoints.list` / `viewpoints.activate` — drive presentations from the host.
+- `viewpoints.activate` — jump to one viewpoint from the host, to drive a
+  presentation (`viewpoints.get` already returns the whole set to pick from).
 - `export.glb` / `export.ifc` — return the exported bytes to the host
   instead of downloading.
 - More events (`selection.changed`, `model.loaded`) — `tree.select` sets the
@@ -1784,10 +1785,11 @@ project — the proxy pattern is for staying current, not for pinning.
 
 ## Implementation notes
 
-- One `window.addEventListener('message')` in `messageApi.ts` (installed from
-  `App.tsx`): origin check → envelope check → per-command payload validation
-  → call the existing action → post result. Async commands hold the same
-  Web-Locks import lock the UI uses.
+- One `window.addEventListener('message')` in `src/lib/messageApi/index.ts`
+  (installed from the app startup effect): origin check (`transport.ts`) →
+  envelope check → per-command payload validation in the per-domain
+  `handlers*.ts` → call the existing action → post result. Async commands hold
+  the same Web-Locks import lock the UI uses.
 - `app.ready` fires after renderer init + `assetsActions.init()`.
 - Responses go to `event.source` (works for iframe parent AND `window.open`
   openers), `targetOrigin` = `event.origin`.

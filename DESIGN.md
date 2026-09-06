@@ -54,7 +54,7 @@ own. Key facts, kept here so the port history isn't lost:
     the app stays React. Don't "React-ify" the shell, and don't grow new
     lit-html islands unless they share these constraints.
 - **Renderer as a library** (`src/lib/render/renderer.ts`, WGSL in
-  `src/lib/render/shaders.ts`): GPU-driven — cull compute → multi-draw indexed
+  `src/lib/render/shaders/`): GPU-driven — cull compute → multi-draw indexed
   indirect (`chromium-experimental-multi-draw-indirect`), vertex-pull fallback,
   two-pass HiZ occlusion, TAA (Halton jitter + accumulation), MSAA per-sample
   edges, VBAO. Within 5–10 % of the native Vulkan renderer.
@@ -346,12 +346,16 @@ Decisions:
 ## postMessage host API
 
 Shipped: the viewer embeds (iframe or `window.open`) and is driven by a host
-page over `postMessage`. `src/lib/messageApi.ts` is the whole app side — one
-message listener installed from `App.tsx`: origin allowlist → envelope check →
-per-command payload validation → a call into the SAME action the UI uses (async
-commands hold the same Web-Locks import lock). Responses go to `event.source`;
-app→host events (`tree.select`, `instance.changed`, `assets.importUrl:progress`)
-are posted unsolicited with `id: null`.
+page over `postMessage`. `src/lib/messageApi/` is the whole app side —
+`index.ts` installs the one message listener (from the app startup effect):
+origin allowlist (`transport.ts`) → envelope check → per-command payload
+validation in the per-domain `handlers*.ts` → a call into the SAME action the
+UI uses (async commands hold the same Web-Locks import lock); `registry.ts`
+holds the few app hooks (kiosk, panel control, instance data). Responses go to
+`event.source`; app→host events (`tree.select`, `instance.changed`,
+`theme.changed`, `viewpoints.bookmark`, `dialog.changed`, the `*:progress`
+family) are posted unsolicited with `id: null` to the parent, the opener AND
+every embedded external-app frame.
 
 - **Protocol & catalog** — `EVENTS.md` is canonical: envelope, `app.ready`
   handshake, the security allowlist, every `### command`, and the events.
@@ -401,7 +405,7 @@ does not (verified by a full feature diff, 2026-07-18):
 
 - **Smooth / computed vertex normals.** Native shades with per-vertex normals
   (`--compute-normals`, for weldable `_nor` models) and falls back to flat.
-  The web viewer is **flat-only**: `fs` in `shaders.ts` always derives the
+  The web viewer is **flat-only**: `fs` in `shaders/scene.ts` always derives the
   normal from `cross(dpdx, dpdy)`. The plumbing to change this mostly exists —
   `format.ts` already decodes an octahedral normal stream and the wasm cooker
   takes a `compute_normals` flag — but the cooker is called with `false` and
