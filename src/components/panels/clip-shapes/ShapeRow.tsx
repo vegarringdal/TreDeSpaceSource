@@ -22,7 +22,7 @@ export function ShapeRow({ s, armed }: { s: ClipShape; armed: boolean }) {
   const Icon = KIND_ICON[s.kind];
   const num = (v: number, on: (x: number) => void, step = 0.5) => <NumberInput value={v} step={step} onChange={on} />;
 
-  const fit = async (padM: number) => {
+  const fitShape = async (padM: number) => {
     const t = await fitTarget();
     if (t) {
       act.fit(s.id, t.mn, t.mx, padM);
@@ -88,14 +88,14 @@ export function ShapeRow({ s, armed }: { s: ClipShape; armed: boolean }) {
           <span>Fit</span>
           <Button
             icon={<IconMaximize size={13} />}
-            onClick={() => void fit(0)}
+            onClick={() => void fitShape(0)}
             tooltip="Fit the selection (or scene) exactly"
           >
             Sel
           </Button>
           <Button
             icon={<IconMaximize size={13} />}
-            onClick={() => void fit(2)}
+            onClick={() => void fitShape(2)}
             tooltip="Fit the selection (or scene) + 2 m padding"
           >
             +2m

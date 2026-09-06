@@ -10,11 +10,11 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { Button } from '@treDeSpaceUI/widgets';
-import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
 import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { labelsActions as act } from '../../../state/viewer/labels.actions';
 import { labelsState, MAX_LABELS } from '../../../state/viewer/labels.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
+import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
 
 /** Labels → Common, rows 1-3: place/mute, highlight the linked items in the
  *  model, and the label-selection actions (select/deselect/invert/delete). */
@@ -25,8 +25,7 @@ export function LabelsPlacementRows() {
   const clipShapes = clipShapesState.use();
   // mirrors activeClipVolumes' gating — drives the Select bbox disabled state
   const hasClipVolumes =
-    clipBox.enabled &&
-    (clipBox.boxOn || (!clipShapes.muted && clipShapes.shapes.slice(0, 7).some((x) => x.enabled)));
+    clipBox.enabled && (clipBox.boxOn || (!clipShapes.muted && clipShapes.shapes.slice(0, 7).some((x) => x.enabled)));
 
   return (
     <>

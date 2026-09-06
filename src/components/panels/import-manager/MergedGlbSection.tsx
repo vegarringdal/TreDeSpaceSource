@@ -8,7 +8,6 @@ import {
   FolderField,
   ImportCancelRow,
   ImportOptionsRows,
-
   StagingSelectButtons,
   StagingTree,
 } from './importWidgets';

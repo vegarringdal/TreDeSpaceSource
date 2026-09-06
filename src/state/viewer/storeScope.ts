@@ -26,6 +26,7 @@ export function useLoadedStores(): string[] {
   const { stores } = storesState.use();
   const [loaded, setLoaded] = useState<string[]>([]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: modelsVersion is the re-run trigger — a model loading or unloading changes which stores are present without any value read here changing
   useEffect(() => {
     let alive = true;
     void db.modelStores().then((ms) => {

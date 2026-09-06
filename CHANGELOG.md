@@ -4,6 +4,18 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.06** (>0.0.97):
+  Dependency refresh: sqlite-wasm 3.53, Tabler icons 3.46, React 19.2.8,
+  Biome 2.5.12, vitest 5.0, plugin-react 6.1.1, puppeteer-core 25.10,
+  @types bumps; third-party notices regenerated. TypeScript stays on 6.0.3:
+  7.0 ships no JavaScript compiler API, which the doc generators and the
+  `apiDocs()` Vite plugin parse with, so under 7 the build, the dev server and
+  the boot test all failed. Upgrading needs a port of the two generators first.
+- **2026.09.04** (>0.0.97):
+  `npm run check` is green again: four lint errors and three format findings
+  in committed code cleared — a clip-shape helper named `fit` (Biome read it as
+  a focused test) renamed, the store-scope effect's intentional `modelsVersion`
+  re-run trigger annotated, a useless fragment removed, two files formatted.
 - **2026.09.04** (>0.0.96):
   Measurements ribbon: the Lock grid and the Corners / Edges snap grid now
   share the column height like the big buttons do, so a ribbon squeezed by a

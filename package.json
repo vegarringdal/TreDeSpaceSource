@@ -1,7 +1,7 @@
 {
   "name": "tredespace",
   "private": true,
-  "version": "0.0.97",
+  "version": "0.0.98",
   "type": "module",
   "author": "Vegar Ringdal <vegar.ringdal@postboxen.no>",
   "scripts": {
@@ -23,30 +23,30 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@sqlite.org/sqlite-wasm": "3.51.2-build6",
-    "@tabler/icons-react": "3.45.0",
+    "@sqlite.org/sqlite-wasm": "3.53.0-build1",
+    "@tabler/icons-react": "3.46.0",
     "clsx": "2.1.1",
     "comlink": "4.4.2",
     "lit-html": "3.3.3",
     "meshoptimizer": "1.2.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.4",
+    "@biomejs/biome": "2.5.12",
     "@tailwindcss/vite": "4.3.3",
-    "@types/node": "26.2.0",
+    "@types/node": "26.4.1",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
+    "@types/react-dom": "19.2.7",
     "@vitejs/plugin-basic-ssl": "2.3.0",
-    "@vitejs/plugin-react": "6.0.5",
+    "@vitejs/plugin-react": "6.1.1",
     "@webgpu/types": "0.1.72",
-    "puppeteer-core": "25.3.0",
+    "puppeteer-core": "25.10.0",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "vite": "8.2.2",
-    "vitest": "4.1.11"
+    "vitest": "5.0.0"
   },
   "license": "SEE LICENSE IN LICENSE"
 }

@@ -23,45 +23,43 @@ export function StoreActionRows({ visibleIds }: StoreActionRowsProps) {
   };
 
   return (
-    <>
-      <div className="flex shrink-0 items-center gap-2">
-        <Button
-          icon={<IconTrash size={14} />}
-          className="h-auto min-h-6 flex-1 py-1 leading-tight"
-          disabled={visibleIds.length === 0}
-          onClick={handleDelete}
-          tooltip="Delete the selected VISIBLE assets from their stores (filter applies)"
-        >
-          Delete
-        </Button>
-        <Button
-          icon={<IconDownload size={14} />}
-          className="h-auto min-h-6 flex-1 py-1 leading-tight"
-          disabled={visibleIds.length === 0}
-          onClick={() => void act.loadSelected(visibleIds)}
-          tooltip="Load the selected VISIBLE assets into the viewer (filter applies)"
-        >
-          Load
-        </Button>
-        <Button
-          icon={<IconDownload size={14} className="rotate-180" />}
-          className="h-auto min-h-6 flex-1 py-1 leading-tight"
-          disabled={visibleIds.length === 0}
-          onClick={() => void act.unloadSelected(visibleIds)}
-          tooltip="Unload the selected VISIBLE assets from the viewer (files stay in the store)"
-        >
-          Unload
-        </Button>
-        <Button
-          icon={<IconFileExport size={14} />}
-          className="h-auto min-h-6 flex-1 py-1 leading-tight"
-          disabled={visibleIds.length === 0}
-          onClick={() => void act.exportSelected(visibleIds)}
-          tooltip="Write the selected VISIBLE assets as .tdp files into a folder you pick — the folder structure is recreated (filter applies)"
-        >
-          Export
-        </Button>
-      </div>
-    </>
+    <div className="flex shrink-0 items-center gap-2">
+      <Button
+        icon={<IconTrash size={14} />}
+        className="h-auto min-h-6 flex-1 py-1 leading-tight"
+        disabled={visibleIds.length === 0}
+        onClick={handleDelete}
+        tooltip="Delete the selected VISIBLE assets from their stores (filter applies)"
+      >
+        Delete
+      </Button>
+      <Button
+        icon={<IconDownload size={14} />}
+        className="h-auto min-h-6 flex-1 py-1 leading-tight"
+        disabled={visibleIds.length === 0}
+        onClick={() => void act.loadSelected(visibleIds)}
+        tooltip="Load the selected VISIBLE assets into the viewer (filter applies)"
+      >
+        Load
+      </Button>
+      <Button
+        icon={<IconDownload size={14} className="rotate-180" />}
+        className="h-auto min-h-6 flex-1 py-1 leading-tight"
+        disabled={visibleIds.length === 0}
+        onClick={() => void act.unloadSelected(visibleIds)}
+        tooltip="Unload the selected VISIBLE assets from the viewer (files stay in the store)"
+      >
+        Unload
+      </Button>
+      <Button
+        icon={<IconFileExport size={14} />}
+        className="h-auto min-h-6 flex-1 py-1 leading-tight"
+        disabled={visibleIds.length === 0}
+        onClick={() => void act.exportSelected(visibleIds)}
+        tooltip="Write the selected VISIBLE assets as .tdp files into a folder you pick — the folder structure is recreated (filter applies)"
+      >
+        Export
+      </Button>
+    </div>
   );
 }
