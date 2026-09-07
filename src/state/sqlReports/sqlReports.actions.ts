@@ -21,7 +21,7 @@ import { buildReportStatements, filterArgsStatements, treeViewArgsStatements } f
 import type { Statement } from '../../lib/sqlite/types';
 import { killHint } from '../sqlAssets/sqlKillHint';
 import { viewerActions } from '../viewer/viewer.actions';
-import { type ReportDef, type ReportType, sqlReportsState } from './sqlReports.state';
+import { type ReportDef, type ReportFilter, type ReportType, sqlReportsState } from './sqlReports.state';
 
 /** A rule matching EVERYTHING (blank Contains) with a given color/opacity — the
  *  base coat for White (white/1) and Hidden (default/0). */
@@ -360,23 +360,25 @@ export const sqlReportsActions = {
     consoleActions.log('warn', `Reports: deleted "${report.name}"`);
   },
 
-  /** Run the DROPDOWN filter's SQL to fill its async Select (≤25 rows). The
-   *  report's ATTACH statements run first, so the dropdown works whether the
-   *  report has a main db or None. The first two columns are id + value. */
-  /** Options for a DROPDOWN filter: its `dropdownSql` with `?` bound to the
-   *  search term. Runs with the same scratch tables a report run gets —
+  /** Options for a DROPDOWN `filter`: its `dropdownSql` (≤25 rows, first two
+   *  columns id + value) with `?` bound to the search term — `query`, or the
+   *  filter's `searchValue` (usually '%') while the box is empty. Runs with
+   *  the same scratch tables a report run gets, rebuilt on every call:
    *  FILTER_ARGS from the report's current filter values (the editor's draft
-   *  or the live inputs) and TREE_VIEW_ARGS from the last selection — so a
-   *  dropdown can cascade on the other filters, in the Test/selected box as
-   *  much as in the report. TEMP tables live per batch, so they are created
-   *  here, not left over from an earlier run. */
+   *  or the live inputs) with this filter's OWN key holding the search term
+   *  instead of its selection, and TREE_VIEW_ARGS from the last selection —
+   *  so a dropdown can cascade on the other filters and read its own term
+   *  from FILTER_ARGS, in the Test/selected box as much as in the report. The
+   *  report's ATTACH statements run first, so it works with a main db or
+   *  None. TEMP tables live per batch, so they are created here, not left
+   *  over from an earlier run. */
   async dropdownOptions(
     report: ReportDef,
-    sql: string,
+    filter: ReportFilter,
     query: string,
-    searchValue: string,
   ): Promise<{ value: string; label: string }[]> {
-    const bind = query.trim() ? query : searchValue || '%';
+    const sql = filter.dropdownSql ?? '';
+    const bind = query.trim() ? query : filter.searchValue || '%';
     const additionalDbPaths = report.databases.filter((p) => p !== report.db);
     const result = await sqliteClient().execute(
       sqlOptions({
@@ -384,7 +386,7 @@ export const sqlReportsActions = {
         additionalDbPaths,
         lockmode: 'shared',
         statements: [
-          ...filterArgsStatements(report.filters),
+          ...filterArgsStatements(report.filters, { key: filter.key, value: bind }),
           ...treeViewArgsStatements(await lastSelectedTree()),
           ...attachSetup(report.sql),
           { sql: `SELECT * FROM (${sql.replace(/;\s*$/, '')}) LIMIT 25`, binding: [[bind]], collect: true },

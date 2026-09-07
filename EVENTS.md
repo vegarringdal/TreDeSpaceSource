@@ -971,8 +971,9 @@ Read the **SQL Editor**'s draft — the report fields the user filled in: `title
 saved-report shape: `kind`, `key`, `label`, then `value` for an INPUT or
 `dropdownSql` / `searchValue` / `selected` for a DROPDOWN) — plus `databases`,
 the files a run would lock. A `dropdownSql` runs with FILTER_ARGS (the
-report's current filter values) and TREE_VIEW_ARGS seeded exactly like a
-report run, so a dropdown can cascade on the other filters. It is exactly what `sql.editor` takes back, so a
+report's current filter values, the dropdown's own key holding the live
+search term) and TREE_VIEW_ARGS seeded exactly like a report run, so a
+dropdown can cascade on the other filters and read its own term. It is exactly what `sql.editor` takes back, so a
 host can store the draft (the editor has no Save of its own) and later restore
 it unchanged.
 

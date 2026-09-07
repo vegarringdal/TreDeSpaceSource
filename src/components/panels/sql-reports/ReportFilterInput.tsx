@@ -35,7 +35,7 @@ export function ReportFilterInput({ report, filter, value, onChange }: ReportFil
           value={stringsOr(value, undefined) ?? []}
           searchable
           placeholder="Select…"
-          loadOptions={(q) => act.dropdownOptions(report, filter.dropdownSql ?? '', q, filter.searchValue ?? '%')}
+          loadOptions={(q) => act.dropdownOptions(report, filter, q)}
           onChange={onChange}
         />
       </div>

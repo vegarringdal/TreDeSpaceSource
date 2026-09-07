@@ -44,8 +44,8 @@ export function FilterEditRow({ report, filter: f, onChange, onRemove }: FilterE
             onChange={(v) => onChange({ searchValue: v })}
           />
           <span className="text-[11px] text-slate-500">
-            Dropdown SQL — returns (id, value); ? binds the search term; FILTER_ARGS / TREE_VIEW_ARGS are seeded as in a
-            run
+            Dropdown SQL — returns (id, value); ? binds the search term. FILTER_ARGS / TREE_VIEW_ARGS are seeded as in a
+            run, this filter's own key holding the search term
           </span>
           <SqlCodeEditor
             resizable
@@ -59,14 +59,14 @@ export function FilterEditRow({ report, filter: f, onChange, onRemove }: FilterE
               'Also the predefined selection: what you pick here is saved\nwith the report and pre-selected when the report is used.'
             }
           >
-            <span className="w-16 shrink-0">Test/selected</span>
+            <span className="w-[90px] shrink-0">Test/selected</span>
             <div className="min-w-0 flex-1">
               <Select
                 multiple
                 value={f.selected ?? []}
                 searchable
                 placeholder="Try the dropdown…"
-                loadOptions={(q) => act.dropdownOptions(report, f.dropdownSql ?? '', q, f.searchValue ?? '%')}
+                loadOptions={(q) => act.dropdownOptions(report, f, q)}
                 onChange={(v) => onChange({ selected: v })}
               />
             </div>

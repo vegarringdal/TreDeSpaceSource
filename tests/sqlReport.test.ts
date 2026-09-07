@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildReportStatements, detailScopedSql } from '../src/lib/sqlite/sqlReport';
+import { buildReportStatements, detailScopedSql, filterArgsStatements } from '../src/lib/sqlite/sqlReport';
 
 const base = { filters: [], sql: 'SELECT fullname FROM t' };
 
@@ -48,5 +48,29 @@ describe('detailScopedSql — the editor\'s As Detail wrap', () => {
 
   it('empty SQL stays empty', () => {
     expect(detailScopedSql('  ')).toBe('  ');
+  });
+});
+
+describe('filterArgsStatements — a dropdown\'s own search term', () => {
+  const filters = [
+    { kind: 'DROPDOWN' as const, key: 'arg1', label: '', selected: ['old-1', 'old-2'] },
+    { kind: 'INPUT' as const, key: 'arg2', label: '', value: 'elec' },
+  ];
+
+  it('seeds a selection per row without a search', () => {
+    const ins = filterArgsStatements(filters).find((s) => s.sql.startsWith('INSERT'));
+    expect(ins?.binding).toEqual([
+      ['arg1', 'old-1'],
+      ['arg1', 'old-2'],
+      ['arg2', 'elec'],
+    ]);
+  });
+
+  it('the searched key carries the term instead of its selection', () => {
+    const ins = filterArgsStatements(filters, { key: 'arg1', value: 'pum' }).find((s) => s.sql.startsWith('INSERT'));
+    expect(ins?.binding).toEqual([
+      ['arg1', 'pum'],
+      ['arg2', 'elec'],
+    ]);
   });
 });

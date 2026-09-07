@@ -5,6 +5,12 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.09.07** (>0.0.98):
+  SQL Reports editor: the "Test/selected" label of a dropdown filter had a
+  64px column, narrower than its text, so the select overlapped it; now the
+  same 90px label width the report's filter inputs use.
+  SQL Editor: the "How report SQL runs" info popover (FILTER_ARGS /
+  TREE_VIEW_ARGS idioms, Detail links and JSON arrays) now sits under Types
+  here too, shared with the Reports editor's SQL label row.
   Console: virtual scrolling (fixed 20px single-line rows, long lines scroll
   sideways) so the buffer can grow — it now keeps the last 1500 lines after
   the startup block instead of 100 — and a header row with INFO / WARN / ERROR
@@ -30,7 +36,9 @@ version at release time. See CLAUDE.md for the rule.
   run — in the editor's Test/selected box and in the live report alike — so a
   dropdown can cascade on the other filters. It used to fail with "no such
   table: FILTER_ARGS", since the temp tables only existed for the report run's
-  own batch.
+  own batch. The dropdown's OWN key holds the live search term (rebuilt on
+  every keystroke) rather than its selection, so the SQL can read its term
+  from FILTER_ARGS as well as bind it with `?`.
   Measurements panel: a measurement's row header shows only the first line of
   its name, with `**bold**` rendered instead of the raw markers — a multi-line
   label used to appear joined, asterisks and all. The editor below still holds

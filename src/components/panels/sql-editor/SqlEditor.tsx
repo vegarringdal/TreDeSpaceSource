@@ -8,6 +8,7 @@ import { withDatabases } from '../../../state/sqlReports/reportDraft';
 import { storesActions } from '../../../state/stores/stores.actions';
 import { ReportFiltersEditor } from '../sql-reports/ReportFiltersEditor';
 import { ReportMetaFields } from '../sql-reports/ReportMetaFields';
+import { ReportSqlInfo } from '../sql-reports/ReportSqlInfo';
 import { ReportTypeToggles } from '../sql-reports/ReportTypeToggles';
 import { SqlEditorDbRow } from './SqlEditorDbRow';
 import { SqlEditorReportRow } from './SqlEditorReportRow';
@@ -42,6 +43,7 @@ export function SqlEditor() {
       <ReportMetaFields draft={draft} patch={act.patch} />
       <SqlEditorDbRow />
       <ReportTypeToggles draft={draft} toggleType={act.toggleType} />
+      <ReportSqlInfo />
 
       <SqlCodeEditor
         resizable

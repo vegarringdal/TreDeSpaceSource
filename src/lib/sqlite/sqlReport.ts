@@ -84,13 +84,19 @@ export function treeViewArgsStatements(fullnames: string[]): Statement[] {
 
 /** DROP/CREATE TEMP TABLE FILTER_ARGS(k, v) + one insert per filter value —
  *  TEMP so a read-only db is fine. Shared by report runs and the SQL Editor's
- *  raw Run, so a query reads its filters the same way either way. */
-export function filterArgsStatements(filters: ReportFilter[]): Statement[] {
+ *  raw Run, so a query reads its filters the same way either way. `search` is
+ *  for a DROPDOWN's own option query: that filter's key carries the live
+ *  search term (one row) instead of its selection, refreshed on every
+ *  keystroke, so a `dropdownSql` can read its term from FILTER_ARGS as well
+ *  as bind it with `?`. */
+export function filterArgsStatements(filters: ReportFilter[], search?: { key: string; value: string }): Statement[] {
   const out: Statement[] = [
     { sql: 'DROP TABLE IF EXISTS FILTER_ARGS', useStatementInLog: false },
     { sql: 'CREATE TEMP TABLE FILTER_ARGS(k TEXT, v TEXT)', useStatementInLog: false },
   ];
-  const rows = filters.flatMap(filterRows);
+  const rows = filters.flatMap((f): [string, string][] =>
+    search && f.key === search.key ? [[f.key, search.value]] : filterRows(f),
+  );
   if (rows.length) {
     out.push({ sql: 'INSERT INTO FILTER_ARGS(k, v) VALUES (?, ?)', binding: rows, useStatementInLog: false });
   }
