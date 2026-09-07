@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useId } from 'react';
 import { InfoButton } from './InfoButton';
 
 export interface RadioOption {
@@ -21,10 +21,14 @@ export interface RadioGroupProps {
   className?: string;
 }
 
-/** Mutually-exclusive options rendered as square checkboxes (only one true) —
- *  same visual language as the settings checkboxes, and each option carries a
- *  data-shortcut so it can be bound to a hotkey. */
+/** Mutually-exclusive options as native radio buttons — the round indicator
+ *  people expect for an exclusive choice, next to the square settings
+ *  checkboxes. The options share one generated `name`, so the keyboard
+ *  behaves like a real radio group (arrows move within it, Tab lands on the
+ *  checked one). Each option carries a data-shortcut so it can be bound to a
+ *  hotkey. */
 export function RadioGroup({ value, options, onChange, disabled = false, className = '' }: RadioGroupProps) {
+  const name = useId();
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {options.map((o) => (
@@ -35,7 +39,13 @@ export function RadioGroup({ value, options, onChange, disabled = false, classNa
             className={`flex items-center gap-2 text-slate-300 text-xs ${disabled ? 'opacity-50' : 'cursor-pointer'}`}
             data-shortcut={o.shortcut}
           >
-            <input type="checkbox" checked={value === o.value} disabled={disabled} onChange={() => onChange(o.value)} />
+            <input
+              type="radio"
+              name={name}
+              checked={value === o.value}
+              disabled={disabled}
+              onChange={() => onChange(o.value)}
+            />
             {o.label}
             {o.info == null && o.hint && <span className="text-slate-500">— {o.hint}</span>}
           </label>

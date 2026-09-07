@@ -5,6 +5,10 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.09.07** (>0.0.98):
+  @treDeSpaceUI RadioGroup renders native radio buttons (round) instead of
+  square checkboxes, and its options share one generated `name`, so arrow keys
+  move within the group and Tab lands on the checked option. Gallery note
+  updated; no API change.
   SQL Reports editor: the "Test/selected" label of a dropdown filter had a
   64px column, narrower than its text, so the select overlapped it; now the
   same 90px label width the report's filter inputs use.

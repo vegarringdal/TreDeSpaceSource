@@ -8,7 +8,7 @@ export function RadioGroupDemo() {
   return (
     <Section
       title="RadioGroup"
-      note="Mutually exclusive options rendered as square checkboxes — the settings-panel visual language. An option can carry a dim hint or a longer info popover."
+      note="Mutually exclusive options as native radio buttons — one shared group, so arrow keys move between them. An option can carry a dim hint or a longer info popover."
       props={['RadioGroupProps', 'RadioOption']}
       code={`function CameraMode() {
   const [mode, setMode] = useState('orbit');
