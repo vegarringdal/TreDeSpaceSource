@@ -8,6 +8,7 @@ import {
   IconRuler,
 } from '@tabler/icons-react';
 import { Collapsible, TextArea } from '@treDeSpaceUI/widgets';
+import { firstLine } from '../../../lib/richText';
 import { measurementsActions as act } from '../../../state/viewer/measurements.actions';
 import {
   displayName,
@@ -15,6 +16,7 @@ import {
   type MeasureToolKind,
   valueLabel,
 } from '../../../state/viewer/measurements.state';
+import { RichText } from '../../shared/RichText';
 import { MeasurementAxisLegs } from './MeasurementAxisLegs';
 import { MeasurementRowButtons } from './MeasurementRowButtons';
 
@@ -28,8 +30,10 @@ const KIND_ICON: Record<MeasureToolKind, typeof IconRuler> = {
   face: IconArrowAutofitHeight,
 };
 
-/** One measurement's list row: the name (multiline, **bold** allowed), the
- *  row toggles, and the ΔX/ΔY/ΔZ leg controls for line/path measurements. */
+/** One measurement's list row: the name (multiline, **bold** allowed — the
+ *  header shows its first line with the bold rendered, the editor the whole
+ *  text), the row toggles, and the ΔX/ΔY/ΔZ leg controls for line/path
+ *  measurements. */
 export function MeasurementRow({ m, precision }: { m: Measurement; precision: number }) {
   const Icon = KIND_ICON[m.kind];
   const staircase = m.kind === 'line' || m.kind === 'path';
@@ -38,7 +42,7 @@ export function MeasurementRow({ m, precision }: { m: Measurement; precision: nu
     // native shapes_panel-style section bar: name + live value aside
     <Collapsible
       key={m.id}
-      title={displayName(m)}
+      title={<RichText text={firstLine(displayName(m))} className="min-w-0 truncate" />}
       aside={<span className="font-mono text-amber-300">{valueLabel(m, precision)}</span>}
     >
       <div className="flex flex-col gap-1">

@@ -726,6 +726,31 @@ const unsub = ui.subscribe(() => { /* plain DOM / three.js / timers */ });
 equality per key). `Store<T>` is the exported handle type for code
 parameterized over a store instance.
 
+### `useVirtualRows(scroller, count, rowH, overscan?)`
+
+Fixed-height row virtualization for long lists (a log, a grid): rows must all
+be `rowH` tall, so the visible window is pure arithmetic — no measuring. You
+render the scrolling element yourself and mount only `[first, last)`, each row
+absolutely positioned inside a `position: relative` spacer of `totalH`:
+
+```tsx
+const scroller = useRef<HTMLDivElement>(null);
+const v = useVirtualRows(scroller, rows.length, 20);
+
+<div ref={scroller} className="min-h-0 flex-1 overflow-auto" onScroll={v.onScroll}>
+  <div style={{ height: v.totalH, position: 'relative' }}>
+    {rows.slice(v.first, v.last).map((row, k) => (
+      <div key={row.id} className="absolute left-0" style={{ top: (v.first + k) * 20, height: 20 }}>
+        {row.text}
+      </div>
+    ))}
+  </div>
+</div>
+```
+
+Call `v.onScroll()` yourself after setting `scrollTop` from code (a "follow
+the end" jump) so the window updates in the same render.
+
 ### The state architecture — how apps on this library are designed
 
 `createStore` is not just a utility; it is the intended state design. Shared

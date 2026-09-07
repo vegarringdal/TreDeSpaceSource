@@ -13,7 +13,7 @@ import { openSqlReportsPanel } from '../../components/panels/sql-reports/sqlRepo
 import { openSqlTablePanel } from '../../components/panels/sql-table/sqlTablePanel';
 import { killSqliteWorker, sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements } from '../../lib/sqlite/sqlAttach';
-import { filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
+import { detailScopedSql, filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
 import {
   addReportFilter,
   removeReportFilter,
@@ -329,10 +329,13 @@ export const sqlEditorActions = {
   },
 
   /** Bind the current SQL to the SQL Detail panel — clicks run it against the
-   *  clicked hierarchy (write `… WHERE fullname IN (SELECT FULLNAME FROM TREE_VIEW_ARGS)`).
-   *  `debug` (ALT+click) prints the SQL just bound, so you can verify it was set. */
+   *  clicked hierarchy. SQL that reads TREE_VIEW_ARGS itself is bound as
+   *  written; anything else is wrapped to the clicked item's fullname first
+   *  (detailScopedSql). The editor's draft stays as typed. `debug`
+   *  (ALT+click) prints the SQL actually bound, so you can verify it was set. */
   asDetail(debug = false) {
-    const r = editorReport();
+    const draft = editorReport();
+    const r = { ...draft, sql: detailScopedSql(draft.sql) };
     bindDetailReport(r);
     if (debug) {
       sqlReportsActions.logDetailSql(r);

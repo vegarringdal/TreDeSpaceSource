@@ -336,7 +336,9 @@ export interface ColorRuleInput {
   comment?: string;
   enabled?: boolean;
   filters: FilterRowInput[];
-  /** hex color, or null = restore default */
+  /** `'#rrggbb'` or a CSS colour name ({@link TredespaceClient.colorsNames}
+   *  lists them — stored as hex); null or `'default'` = restore the original
+   *  colour. Anything else is rejected with `bad-payload`. */
   color: string | null;
   /** 0-1, 1 = default */
   opacity?: number;
@@ -395,6 +397,15 @@ export interface ModelResetOptions {
   hidden?: boolean;
   /** put every moved item back on its cooked placement */
   transform?: boolean;
+}
+
+export type ConsoleLevel = 'info' | 'warn' | 'error';
+
+/** One Console panel line, from {@link TredespaceClient.consoleGet}. */
+export interface ConsoleLine {
+  id: number;
+  level: ConsoleLevel;
+  text: string;
 }
 
 /** Which kinds `model.reset` actually reset (an empty request resets all). */
@@ -2229,6 +2240,26 @@ export class TredespaceClient {
   /** Show an error dialog. `title` is the message, `header` the bold title. */
   uiError(opts: { title: string; header?: string }): Promise<Result<Record<string, never>>> {
     return this.send('ui.error', { ...opts });
+  }
+
+  /** The Console panel's lines — the pinned startup block (welcome, version,
+   *  GPU checks) and up to the last 1500 messages after it, oldest first.
+   *  `levels` keeps only those kinds, `limit` the most recent N of what is
+   *  left; `rotated` is how many lines the panel has already dropped. */
+  consoleGet(opts?: {
+    levels?: ConsoleLevel[];
+    limit?: number;
+  }): Promise<Result<{ lines: ConsoleLine[]; rotated: number }>> {
+    return this.send('console.get', { ...opts });
+  }
+  /** Clear the Console — everything after the startup block goes, the block
+   *  itself stays (the panel's own Clear). Returns how many lines went. */
+  consoleClear(): Promise<Result<{ cleared: number }>> {
+    return this.send('console.clear', {});
+  }
+  /** Append a line to the Console; `level` defaults to `'info'`. */
+  consoleAdd(text: string, level?: ConsoleLevel): Promise<Result<{ id: number }>> {
+    return this.send('console.add', { text, ...(level ? { level } : {}) });
   }
 
   /** Replace (default) or merge the viewer's shared instance data — one JSON

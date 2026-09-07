@@ -248,6 +248,10 @@ A rule's optional `store` scopes it to the models loaded from that store
 (a known store name, see `assets.stores`; omitted/'' = every store) — keeps a
 rule set safe when two stores hold same-named models. An unknown name is
 rejected with `not-found` rather than silently matching nothing.
+A rule's `color` is `'#rrggbb'` or one of the CSS colour names
+`colors.names` lists (a name is stored as its hex, so the panel's picker shows
+it); `null` or `'default'` = the original colour, and anything else is
+rejected with `bad-payload`.
 A `multi` line may carry its own colour after a TAB/space/comma —
 `name<TAB>#ff0000:50` (colour[:opacity 0-100], `default` = original colour) —
 which is how a per-row colour list is fed in.
@@ -301,7 +305,8 @@ response: { mode: 'custom-color', names: 240000 }
 
 ### colors.names
 Every colour NAME the viewer accepts wherever a colour token is read — a
-query's `fullname_color`, a Multi rule row, a `mode`'s `color` — as
+query's `fullname_color`, a rule's `color`, a Multi rule row, a `mode`'s
+`color` — as
 `{ name: '#rrggbb' }` (the CSS/SVG set, ~147 entries). Hex codes always work
 too; this is the list for validating names or offering them in a host UI.
 
@@ -965,7 +970,9 @@ Read the **SQL Editor**'s draft — the report fields the user filled in: `title
 (the report name), `description`, `mainDb`, `types`, `sql` and `filters` (the
 saved-report shape: `kind`, `key`, `label`, then `value` for an INPUT or
 `dropdownSql` / `searchValue` / `selected` for a DROPDOWN) — plus `databases`,
-the files a run would lock. It is exactly what `sql.editor` takes back, so a
+the files a run would lock. A `dropdownSql` runs with FILTER_ARGS (the
+report's current filter values) and TREE_VIEW_ARGS seeded exactly like a
+report run, so a dropdown can cascade on the other filters. It is exactly what `sql.editor` takes back, so a
 host can store the draft (the editor has no Save of its own) and later restore
 it unchanged.
 
@@ -1398,6 +1405,34 @@ Show an error dialog. `title` is the message, `header` the bold title (optional)
 ```js
 payload:  { title: 'Import failed — see console.', header: 'Error' }
 response: {}
+```
+
+### console.get
+The Console panel's lines: the pinned startup block (welcome, license,
+version, GPU checks) and up to the last 1500 messages after it, oldest first.
+`levels` keeps only those kinds, `limit` the most recent N of what is left.
+`rotated` is how many lines the panel has already dropped.
+
+```js
+payload:  { levels: ['warn', 'error'], limit: 100 }
+response: { lines: [{ id: 6, level: 'warn', text: 'no chromium-experimental-multi-draw-indirect — using vertex-pull culling' }], rotated: 0 }
+```
+
+### console.clear
+Drop everything after the startup block — the panel's own Clear; the startup
+lines stay.
+
+```js
+payload:  {}
+response: { cleared: 212 }
+```
+
+### console.add
+Append a line to the Console. `level` is `info` (default), `warn` or `error`.
+
+```js
+payload:  { text: 'Host: sync finished', level: 'info' }
+response: { id: 391 }
 ```
 
 ## Transports

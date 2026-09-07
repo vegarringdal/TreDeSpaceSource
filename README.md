@@ -51,11 +51,6 @@ After branch is merged, I will create a docker build (hosted at github) & update
 
 Full terms and third-party notices under [License](#license).
 
-## AI
-
-Since I let AI run wild while experimenting, development is done on temp repos and when stable update main.
-Will most likely have a beta, preview branch later, that links to preview.tredespace.com and beta.tredespace.com
-
 
 ## How to get started with dev/how to build
 

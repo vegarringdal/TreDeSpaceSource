@@ -1,11 +1,11 @@
 // The colour MODE a packed result is painted with — shared by `sql.color` and
 // `colorRules.applyList`. See EVENTS.md; the modes themselves live with the
 // coloring pipeline in sqlReports.actions.
-import { normalizeRules } from '../../components/panels/multi-color/multiColor.state';
+import { type ColorRule, normalizeRules } from '../../components/panels/multi-color/multiColor.state';
 import type { PackedColorMode } from '../../state/sqlReports/sqlReports.actions';
 import { storesState, TEMP_STORE } from '../../state/stores/stores.state';
 import { CSS_COLOR_NAMES } from '../color/colorNames';
-import { parseColor } from '../color/hexColor';
+import { colorToHex, parseColor } from '../color/hexColor';
 import { ApiError, isRecord } from './protocol';
 
 const BASES = ['white', 'transparent', 'hidden', 'none'] as const;
@@ -43,20 +43,50 @@ function colorToken(v: unknown, what: string): string {
   return v;
 }
 
+/** A rule's `color` as stored in the panel: canonical '#rrggbb', or null for
+ *  "restore the original colour". Accepts a hex code or a CSS colour name
+ *  (names are converted, so the panel's picker shows the right swatch) and
+ *  the `default` sentinel; anything else is rejected — feeding a name into
+ *  the hex packer used to paint the items black without a word. */
+function ruleColor(v: unknown, what: string): string | null {
+  if (v === undefined || v === null) {
+    return null;
+  }
+  if (typeof v !== 'string') {
+    throw new ApiError('bad-payload', `${what} must be null, '#rrggbb' or a colour name (see colors.names)`);
+  }
+  const t = v.trim();
+  if (!t || t.toLowerCase() === 'default') {
+    return null;
+  }
+  const hex = colorToHex(t);
+  if (!hex) {
+    throw new ApiError('bad-payload', `${what}: "${v}" is not a hex colour or a known colour name (see colors.names)`);
+  }
+  return hex;
+}
+
+/** A host's `rules` array in the Set Color shape, validated for the API:
+ *  every rule's colour normalised to hex (see {@link ruleColor}) and its
+ *  `store` scope checked — a typo there would silently match nothing. Shared
+ *  by `colorRules.set/add/apply` and a `mode.setConfig`. */
+export function apiRules(v: unknown, what: string): ColorRule[] {
+  const known = new Set([...storesState.get().stores.map((s) => s.name), TEMP_STORE]);
+  return normalizeRules(v).map((r, i) => {
+    if (r.store && !known.has(r.store)) {
+      throw new ApiError('not-found', `${what}[${i}].store "${r.store}" is not a known store — see assets.stores`);
+    }
+    return { ...r, color: ruleColor(r.color, `${what}[${i}].color`) };
+  });
+}
+
 /** A host's Set Color config: the same `rules` shape `colorRules.set` takes,
- *  plus the run mode. Store scopes are checked here — a typo would silently
- *  match nothing. */
-function setConfig(v: unknown): { rules: ReturnType<typeof normalizeRules>; mode?: 'reset' | 'append' | 'hide' } {
+ *  plus the run mode. */
+function setConfig(v: unknown): { rules: ColorRule[]; mode?: 'reset' | 'append' | 'hide' } {
   if (!isRecord(v)) {
     throw new ApiError('bad-payload', 'setConfig must be an object { rules, mode? }');
   }
-  const rules = normalizeRules(v.rules);
-  const known = new Set([...storesState.get().stores.map((s) => s.name), TEMP_STORE]);
-  for (const r of rules) {
-    if (r.store && !known.has(r.store)) {
-      throw new ApiError('not-found', `setConfig rule store "${r.store}" is not a known store — see assets.stores`);
-    }
-  }
+  const rules = apiRules(v.rules, 'setConfig.rules');
   const mode = v.mode;
   if (mode !== undefined && mode !== 'reset' && mode !== 'append' && mode !== 'hide') {
     throw new ApiError('bad-payload', "setConfig.mode must be 'reset', 'append' or 'hide'");
@@ -108,7 +138,7 @@ export function parseColorMode(v: unknown): PackedColorMode {
 }
 
 /** The colour names the viewer understands anywhere a colour token is read
- *  (`fullname_color`, Multi rows, `mode.color`). */
+ *  (`fullname_color`, Multi rows, a rule's `color`, `mode.color`). */
 export function colorNameTable(): Record<string, string> {
   return { ...CSS_COLOR_NAMES };
 }

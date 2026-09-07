@@ -3272,6 +3272,38 @@ export const HOTKEYS: HotkeyDef[] = [
     description: 'Walk the selection back down toward the picked item',
     run: () => void viewerActions.navDown(),
   },
+  {
+    id: 'console.clear',
+    category: 'View',
+    label: 'Console: clear',
+    defaultKeys: 'ALT + 1222',
+    description: 'Clear the Console — the startup lines (welcome, version, GPU checks) stay',
+    run: () => consoleActions.clear(),
+  },
+  {
+    id: 'console.toggleInfo',
+    category: 'View',
+    label: 'Console: show / hide info',
+    defaultKeys: 'ALT + 1223',
+    description: 'Toggle info lines in the Console (a view filter — nothing is dropped)',
+    run: () => consoleActions.toggleLevel('info'),
+  },
+  {
+    id: 'console.toggleWarn',
+    category: 'View',
+    label: 'Console: show / hide warnings',
+    defaultKeys: 'ALT + 1224',
+    description: 'Toggle warning lines in the Console (a view filter — nothing is dropped)',
+    run: () => consoleActions.toggleLevel('warn'),
+  },
+  {
+    id: 'console.toggleError',
+    category: 'View',
+    label: 'Console: show / hide errors',
+    defaultKeys: 'ALT + 1225',
+    description: 'Toggle error lines in the Console (a view filter — nothing is dropped)',
+    run: () => consoleActions.toggleLevel('error'),
+  },
 ];
 
 /** Register the table and start the engine. Called once at app boot.

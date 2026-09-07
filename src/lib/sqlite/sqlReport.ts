@@ -4,7 +4,7 @@
 // connection temp schema; unqualified `FILTER_ARGS` / `TREE_VIEW_ARGS` still
 // resolve, and the user's data file is never written).
 import type { ReportFilter, ReportType } from '../../state/sqlReports/sqlReports.state';
-import { splitSqlStatements } from './sqlAttach';
+import { splitSqlStatements, stripSqlComments } from './sqlAttach';
 import type { Statement } from './types';
 
 /** FILTER_ARGS rows for one filter: INPUT → one (k,v); DROPDOWN → one per
@@ -95,6 +95,27 @@ export function filterArgsStatements(filters: ReportFilter[]): Statement[] {
     out.push({ sql: 'INSERT INTO FILTER_ARGS(k, v) VALUES (?, ?)', binding: rows, useStatementInLog: false });
   }
   return out;
+}
+
+/** The SQL the editor's As Detail binds. A script that already reads
+ *  TREE_VIEW_ARGS (a mention in a comment does not count) is bound as
+ *  written; anything else gets its final statement wrapped to the clicked
+ *  item — `select * from (…) where fullname in (select fullname from
+ *  TREE_VIEW_ARGS) limit 1` — so a plain `select … from t` answers for the
+ *  selection instead of handing back its first row on every click. Needs a
+ *  `fullname` column. Setup statements ahead of the final select are kept;
+ *  comments are dropped on the way (the bound SQL is never shown for editing). */
+export function detailScopedSql(sql: string): string {
+  if (/\bTREE_VIEW_ARGS\b/i.test(stripSqlComments(sql))) {
+    return sql;
+  }
+  const parts = splitSqlStatements(sql);
+  if (parts.length === 0) {
+    return sql;
+  }
+  const last = parts[parts.length - 1];
+  const wrapped = `select * from (${last}) where fullname in (select fullname from TREE_VIEW_ARGS) limit 1`;
+  return [...parts.slice(0, -1), wrapped].join(';\n');
 }
 
 /** The full Statement[] for a run: scratch-table setup, the report's own setup

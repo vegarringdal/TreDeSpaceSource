@@ -59,7 +59,7 @@ export function SqlEditorReportRow() {
         <Button
           disabled={!can('DETAIL')}
           shortcut="sql.editor.asDetail"
-          tooltip="Bind this SQL to the SQL Detail panel — clicks run it against the clicked hierarchy (use TREE_VIEW_ARGS). ALT+click logs each sent payload to the Console."
+          tooltip="Bind this SQL to the SQL Detail panel — clicks run it against the clicked hierarchy. SQL that reads TREE_VIEW_ARGS is bound as written; otherwise it is wrapped as select * from (…) where fullname in (select fullname from TREE_VIEW_ARGS) limit 1, so it needs a fullname column. ALT+click logs the SQL actually bound to the Console."
           onClick={(e) => act.asDetail(e.altKey)}
         >
           As Detail

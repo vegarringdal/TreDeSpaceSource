@@ -14,6 +14,7 @@ import { apiSecurityState } from '../../state/apiSecurity.state';
 import { assetsActions } from '../../state/assets/assets.actions';
 import { storesActions } from '../../state/stores/stores.actions';
 import { assetHandlers } from './handlersAssets';
+import { consoleHandlers } from './handlersConsole';
 import { externalAppsHandlers } from './handlersExternalApps';
 import { sceneHandlers } from './handlersScene';
 import { sqlHandlers } from './handlersSql';
@@ -32,6 +33,7 @@ const handlers: Record<string, ApiHandler> = {
   ...uiHandlers,
   ...sqlHandlers,
   ...externalAppsHandlers,
+  ...consoleHandlers,
 };
 
 let installed = false;

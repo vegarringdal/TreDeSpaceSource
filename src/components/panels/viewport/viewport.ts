@@ -517,6 +517,7 @@ export const viewport: PanelDefinition = {
       } catch (e) {
         setError(String(e));
         consoleActions.log('error', String(e));
+        consoleActions.markStartupDone();
         return;
       }
       if (disposed) {
@@ -535,6 +536,8 @@ export const viewport: PanelDefinition = {
           ? 'multi-draw indirect + GPU culling active'
           : 'no chromium-experimental-multi-draw-indirect — using vertex-pull culling',
       );
+      // the GPU checks close the startup block: from here the console rotates
+      consoleActions.markStartupDone();
 
       clipGizmo = new ClipGizmo(host, renderer, gizmoTargets);
       measureOverlay = new MeasureOverlay(host, renderer);

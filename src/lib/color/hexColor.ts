@@ -42,6 +42,23 @@ export function parseColor(token: string): number | null {
   return packHex(hex);
 }
 
+/** A hex code or a CSS colour name → canonical lowercase '#rrggbb', or null
+ *  when it is neither. `default` is NOT a colour here — callers decide what
+ *  that sentinel means for them. Used to store a host-supplied rule colour in
+ *  the form the Set Color panel's picker expects. */
+export function colorToHex(token: string): string | null {
+  const t = token.trim();
+  if (!t) {
+    return null;
+  }
+  const hex = t.startsWith('#') ? t : CSS_COLOR_NAMES[t.toLowerCase()];
+  if (!hex || !/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(hex)) {
+    return null;
+  }
+  const h = hex.slice(1).toLowerCase();
+  return h.length === 3 ? `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}` : `#${h}`;
+}
+
 /** `color[:opacity]` token as the two-column Multi filter and a COLORING
  *  report's `fullname_color` cell write it: `yellow`, `#ff0000:50`,
  *  `default:` — opacity 0-100, omitted/blank = 100 (reported as undefined).

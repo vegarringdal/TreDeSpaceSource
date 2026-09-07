@@ -15,7 +15,8 @@ export interface ColorRule {
   /** disabled rules are skipped by Run */
   enabled: boolean;
   filters: FilterRow[];
-  /** hex color override, or null = DEFAULT (no color change) */
+  /** '#rrggbb' color override, or null = DEFAULT (no color change). The API
+   *  converts colour names to hex before a rule lands here. */
   color: string | null;
   /** 0-1, 1 = default (no opacity change) */
   opacity: number;

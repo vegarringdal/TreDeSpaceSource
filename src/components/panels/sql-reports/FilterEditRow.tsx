@@ -44,7 +44,8 @@ export function FilterEditRow({ report, filter: f, onChange, onRemove }: FilterE
             onChange={(v) => onChange({ searchValue: v })}
           />
           <span className="text-[11px] text-slate-500">
-            Dropdown SQL — returns (id, value); ? binds the search term
+            Dropdown SQL — returns (id, value); ? binds the search term; FILTER_ARGS / TREE_VIEW_ARGS are seeded as in a
+            run
           </span>
           <SqlCodeEditor
             resizable

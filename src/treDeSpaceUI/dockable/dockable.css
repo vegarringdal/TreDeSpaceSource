@@ -204,6 +204,11 @@ body.kiosk .dock-slot:has(> [data-node='top']) + .dock-splitter {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* The tab's line-height: 1 makes a 12px line box, shorter than the font's
+     descenders — with overflow hidden that clipped the tails of g/j/p/q/y
+     (worst with Segoe UI on Windows). The font's own line box keeps them
+     inside; the 22px tab centres it with room to spare. */
+  line-height: normal;
 }
 /* Tabs with a minimum width centre their label, so a strip of them lines up. */
 .dock-tab.is-sized {

@@ -4,6 +4,48 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.07** (>0.0.98):
+  Console: virtual scrolling (fixed 20px single-line rows, long lines scroll
+  sideways) so the buffer can grow — it now keeps the last 1500 lines after
+  the startup block instead of 100 — and a header row with INFO / WARN / ERROR
+  toggles (with counts, hotkeys `console.toggleInfo/Warn/Error`) that filter
+  the view, plus the Clear button. New `useVirtualRows` hook in
+  `@treDeSpaceUI/lib` (README §4). postMessage API: `console.get` (lines,
+  optional `levels` / `limit`), `console.clear` and `console.add` — SDK
+  `consoleGet` / `consoleClear` / `consoleAdd`.
+  Console: the pinned block is now exactly the startup lines — welcome,
+  license, version and the GPU checks — frozen the moment the viewport has
+  printed them, instead of a flat first-10-lines rule that swept early asset
+  loads in with them; everything after rotates as before (last 100). New
+  Clear button (hotkey `console.clear`) drops the rotated messages and keeps
+  that startup block.
+  SQL Editor "As Detail": SQL that does not read TREE_VIEW_ARGS itself is now
+  bound wrapped as `select * from (…) where fullname in (select fullname from
+  TREE_VIEW_ARGS) limit 1` (setup statements kept), so a plain select answers
+  for the clicked item instead of returning its first row on every click; SQL
+  that mentions the table is bound as written. The draft in the editor is
+  untouched, ALT+click logs the SQL actually bound. Tooltip updated.
+  SQL Reports: a DROPDOWN filter's `dropdownSql` now runs with FILTER_ARGS
+  (the report's current filter values) and TREE_VIEW_ARGS seeded like a report
+  run — in the editor's Test/selected box and in the live report alike — so a
+  dropdown can cascade on the other filters. It used to fail with "no such
+  table: FILTER_ARGS", since the temp tables only existed for the report run's
+  own batch.
+  Measurements panel: a measurement's row header shows only the first line of
+  its name, with `**bold**` rendered instead of the raw markers — a multi-line
+  label used to appear joined, asterisks and all. The editor below still holds
+  the full text.
+  Dockable tab labels no longer clip the descenders of g/j/p/q/y — the label
+  span inherited the tab's `line-height: 1`, a 12px box shorter than the
+  glyphs, and its `overflow: hidden` cut the tails (visible on Windows and
+  Linux). The label now uses the font's natural line box.
+  postMessage `colorRules.set/add/apply` (and a `mode.setConfig`) now accept a
+  CSS colour name for a rule's `color` — `yellow`, `orange` — converting it to
+  hex on the way in, and `'default'` as a synonym for null. A name used to
+  fall into the hex packer and silently paint the matches opaque black;
+  an unknown colour is now rejected with `bad-payload` naming the rule.
+  The rule→spec step tolerates a name or `default` in a rules JSON or an old
+  viewpoint too.
 - **2026.09.06** (>0.0.97):
   Dependency refresh: sqlite-wasm 3.53, Tabler icons 3.46, React 19.2.8,
   Biome 2.5.12, vitest 5.0, plugin-react 6.1.1, puppeteer-core 25.10,

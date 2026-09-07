@@ -17,7 +17,7 @@ import type { ColorRuleSpec } from '../../lib/modeldb/modeldbWorker';
 import { readJson, sqlStoreDir, writeJson } from '../../lib/opfs/opfs';
 import { sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements, stripSqlComments } from '../../lib/sqlite/sqlAttach';
-import { buildReportStatements } from '../../lib/sqlite/sqlReport';
+import { buildReportStatements, filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
 import type { Statement } from '../../lib/sqlite/types';
 import { killHint } from '../sqlAssets/sqlKillHint';
 import { viewerActions } from '../viewer/viewer.actions';
@@ -363,6 +363,13 @@ export const sqlReportsActions = {
   /** Run the DROPDOWN filter's SQL to fill its async Select (≤25 rows). The
    *  report's ATTACH statements run first, so the dropdown works whether the
    *  report has a main db or None. The first two columns are id + value. */
+  /** Options for a DROPDOWN filter: its `dropdownSql` with `?` bound to the
+   *  search term. Runs with the same scratch tables a report run gets —
+   *  FILTER_ARGS from the report's current filter values (the editor's draft
+   *  or the live inputs) and TREE_VIEW_ARGS from the last selection — so a
+   *  dropdown can cascade on the other filters, in the Test/selected box as
+   *  much as in the report. TEMP tables live per batch, so they are created
+   *  here, not left over from an earlier run. */
   async dropdownOptions(
     report: ReportDef,
     sql: string,
@@ -377,6 +384,8 @@ export const sqlReportsActions = {
         additionalDbPaths,
         lockmode: 'shared',
         statements: [
+          ...filterArgsStatements(report.filters),
+          ...treeViewArgsStatements(await lastSelectedTree()),
           ...attachSetup(report.sql),
           { sql: `SELECT * FROM (${sql.replace(/;\s*$/, '')}) LIMIT 25`, binding: [[bind]], collect: true },
         ],

@@ -1,5 +1,5 @@
 import type { Store } from '@treDeSpaceUI/lib/createStore';
-import { packHex } from '../../../lib/color/hexColor';
+import { parseColor } from '../../../lib/color/hexColor';
 import { parseMultiColumn } from '../../../lib/color/multiColorParse';
 import type { ColorRuleSpec } from '../../../lib/modeldb/modeldbWorker';
 import { loadedIndicesForStore } from '../../../state/viewer/storeScope';
@@ -16,6 +16,18 @@ import {
   multiColorState,
   normalizeRules,
 } from './multiColor.state';
+
+/** A rule's stored colour → packed RGBA8 override, or null = restore the
+ *  original. The panel stores hex, but a rules JSON or an old viewpoint may
+ *  carry a colour name or `default`; neither must fall into the hex packer,
+ *  which turns unknown text into opaque black. */
+function ruleColorRGBA8(color: string | null): number | null {
+  if (color == null) {
+    return null;
+  }
+  const packed = parseColor(color);
+  return packed == null || packed < 0 ? null : packed;
+}
 
 /** A ColorRule → worker spec. `multi` filters may carry a per-line color in a
  *  2nd column (TAB/comma); those colors override the rule color per fullname
@@ -37,7 +49,7 @@ export function ruleToSpec(r: ColorRule): ColorRuleSpec {
     });
   return {
     filters,
-    colorRGBA8: r.color == null ? null : packHex(r.color),
+    colorRGBA8: ruleColorRGBA8(r.color),
     opacityPct: r.opacity === 1 ? null : Math.round(r.opacity * 100),
     ...(Object.keys(perNameColor).length ? { perNameColor } : {}),
     ...(Object.keys(perNameOpacity).length ? { perNameOpacity } : {}),
