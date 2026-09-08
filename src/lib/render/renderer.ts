@@ -1016,7 +1016,11 @@ export class Renderer {
     const renderModule = dev.createShaderModule({ label: 'renderModule', code: renderWgsl(true) });
     // blend variant: unsorted transparency pass — alpha blend on the color
     // target, G-buffer masked (transparent items don't get edges/ids, matching
-    // native), depth-tested but not written
+    // native), depth-tested but not written. The destination alpha is KEPT:
+    // scene alpha is the unlit luma of the opaque surface underneath, which the
+    // edge pass reads for white-on-dark — replacing it with the fragment's
+    // opacity turned every edge seen through a faint (< dark threshold) item
+    // white, whatever the surface's own colour.
     // backdrop: the same pass but solid — no blending, G-buffer still masked
     const blendTargets = (blend: boolean, backdrop = false): GPUColorTargetState[] => [
       blend && !backdrop
@@ -1024,7 +1028,7 @@ export class Renderer {
             format: this.format,
             blend: {
               color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-              alpha: { srcFactor: 'one', dstFactor: 'zero' },
+              alpha: { srcFactor: 'zero', dstFactor: 'one' },
             },
           }
         : { format: this.format },

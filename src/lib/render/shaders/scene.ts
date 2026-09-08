@@ -256,9 +256,12 @@ fn fs(in: VsOut) -> FsOut {
   var o: FsOut;
   let blend_pass = (frame.flags.z & 2u) != 0u;
   let backdrop = (frame.flags.z & 4u) != 0u;
-  // blend pass: alpha is the blend factor; otherwise it carries unlit luma.
-  // Background mode renders that pass solid instead, the colour faded toward
-  // the canvas by the frame's backdrop amount — a receding context layer
+  // blend pass: alpha is the colour blend factor only — the pipeline keeps the
+  // destination alpha, so the scene alpha stays the unlit luma of the opaque
+  // surface underneath (the edge pass's white-on-dark test); otherwise it
+  // carries this fragment's unlit luma. Background mode renders that pass
+  // solid instead, the colour faded toward the canvas by the frame's backdrop
+  // amount — a receding context layer
   let alpha = select(unlit_luma, in.opacity, blend_pass && !backdrop);
   var rgb = in.color.rgb * shade;
   if (backdrop) { rgb = mix(rgb, frame.backdrop.rgb, frame.backdrop.a); }

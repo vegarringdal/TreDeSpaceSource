@@ -4,6 +4,14 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.08** (>0.0.102):
+  Edges: "White edges on dark items" no longer fires under transparent items.
+  The blend transparency pass wrote each transparent fragment's opacity into
+  the scene alpha — the channel the edge pass reads as the surface's unlit
+  luma — so every edge of an opaque surface seen through an item fainter
+  than the darkness threshold (opacity below 7 % by default) turned white
+  regardless of the surface's own colour. The pass now keeps the destination
+  alpha, like the marker spheres already did.
 - **2026.09.08** (>0.0.101):
   @treDeSpaceUI Ribbon: section titles sit on a full-width slate-800 band
   (the same gray as the section dividers) in the semibold slate-200 text the
