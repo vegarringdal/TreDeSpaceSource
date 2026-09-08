@@ -2,9 +2,9 @@ import { Button, Collapsible, ColorSelect, NumberInput } from '@treDeSpaceUI/wid
 import { measurementsActions as act } from '../../../state/viewer/measurements.actions';
 import { measurementsState } from '../../../state/viewer/measurements.state';
 
-/** Config: value precision, line/marker color, mute-all and clear-all. */
+/** Config: value precision, line/marker color and spheres. */
 export function MeasurementsConfigSection() {
-  const { items, muted, precision, lineColor, sphere } = measurementsState.use();
+  const { items, precision, lineColor, sphere } = measurementsState.use();
   const allSpheres = items.length > 0 && items.every((m) => m.sphere);
 
   return (
@@ -77,28 +77,12 @@ export function MeasurementsConfigSection() {
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <Button
-          active={muted}
-          onClick={() => act.toggleMuted()}
-          tooltip="Hide/show all measurements in the viewport"
-          shortcut="measure.muteAll"
-        >
-          {muted ? 'Show all' : 'Mute all'}
-        </Button>
-        <Button
           disabled={items.length === 0}
           onClick={() => act.toggleAllSpheres()}
           tooltip="Spheres at every point of every measurement — all on with the Config sphere, or all off"
           shortcut="measure.spheresAll"
         >
           {allSpheres ? 'Spheres off' : 'Spheres on'}
-        </Button>
-        <Button
-          disabled={items.length === 0}
-          onClick={() => act.clear()}
-          tooltip="Delete every measurement"
-          shortcut="measure.clearAll"
-        >
-          Clear
         </Button>
       </div>
     </Collapsible>

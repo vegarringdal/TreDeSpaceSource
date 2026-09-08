@@ -1,6 +1,6 @@
 // Viewpoints panel: capture, edit and activate named scene viewpoints
 // (camera + clipping + labels + measurements + color rules + selection).
-import { IconBookmark, IconCameraPlus, IconDownload, IconUpload } from '@tabler/icons-react';
+import { IconBookmark, IconCameraPlus, IconDownload, IconTrash, IconUpload } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
 import { Button, InfoBox, readFileText, useFilePicker } from '@treDeSpaceUI/widgets';
 import { viewpointsActions as act } from '../../../state/viewer/viewpoints.actions';
@@ -49,6 +49,15 @@ export function Viewpoints() {
           onClick={picker.open}
         >
           Load
+        </Button>
+        <Button
+          icon={<IconTrash size={14} />}
+          disabled={s.list.length === 0}
+          tooltip="Delete every viewpoint — a live viewpoint's content goes back to the scene first"
+          shortcut="viewpoints.deleteAll"
+          onClick={() => void act.removeAll()}
+        >
+          Delete all
         </Button>
         {picker.element}
       </div>

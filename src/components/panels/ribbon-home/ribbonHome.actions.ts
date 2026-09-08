@@ -8,11 +8,9 @@ import { measurementsState } from '../../../state/viewer/measurements.state';
 import { residency } from '../../../state/viewer/residency';
 import { getRenderer, viewerActions } from '../../../state/viewer/viewer.actions';
 import { viewerState } from '../../../state/viewer/viewer.state';
-import { viewpointsActions } from '../../../state/viewer/viewpoints.actions';
 import { viewpointsState } from '../../../state/viewer/viewpoints.state';
 import { dialogs } from '../../dialogs/dialogs.actions';
 import { consoleActions } from '../console/console.actions';
-import { emptyMultiColorState, multiColorState } from '../multi-color/multiColor.state';
 import { type RibbonHomeState, ribbonHomeState } from './ribbonHome.state';
 
 const log = (label: string) => consoleActions.log('info', `Home → ${label}`);
@@ -212,10 +210,10 @@ export const ribbonHomeActions = {
   /** Reset → Clear all: wipe EVERY local save — localStorage (settings,
    *  layout, hotkeys, viewpoints, color rules…) AND the whole OPFS store
    *  (imported assets) — then reload into a factory-fresh app. */
-  async clearAllLocal() {
+  async wipeAllLocal() {
     const ok = await dialogs.confirm(
-      'Delete ALL locally saved data? Settings, layout, hotkeys, viewpoints, color rules AND every imported asset (browser storage) are erased. The app reloads afterwards.',
-      { title: 'Clear all local data', okLabel: 'Delete everything' },
+      'Wipe ALL locally saved data? Settings, layout, hotkeys, viewpoints, color rules AND every imported asset (browser storage) are erased. The app reloads afterwards.',
+      { title: 'Wipe all local data', okLabel: 'Wipe everything' },
     );
     if (!ok) {
       return;
@@ -227,62 +225,58 @@ export const ribbonHomeActions = {
     location.reload();
   },
 
-  /** Reset → Clear labels/measurements: MUTE everything shown — scene or
-   *  viewpoint side alike — nothing is deleted. Press again to unmute. */
-  muteLabelsMeasurements() {
-    const allMuted = labelsState.get().muted && measurementsState.get().muted;
-    labelsState.set({ muted: !allMuted });
-    measurementsState.set({ muted: !allMuted });
-    log(allMuted ? 'Labels & measurements shown' : 'Labels & measurements muted');
+  /** Reset → Mute labels: hide every label shown — scene or viewpoint side
+   *  alike — nothing is deleted. Press again to show them. */
+  muteLabels() {
+    const muted = !labelsState.get().muted;
+    labelsState.set({ muted });
+    log(muted ? 'Labels muted' : 'Labels shown');
   },
 
-  /** Reset → Delete labels/measurements: deletes the SCENE sets only. A live
-   *  viewpoint's content is never deleted — it is muted instead (the parked
-   *  scene sets are what gets cleared). */
-  async deleteLabelsMeasurements() {
+  /** Reset → Mute measurements: the measurement twin of muteLabels. */
+  muteMeasurements() {
+    const muted = !measurementsState.get().muted;
+    measurementsState.set({ muted });
+    log(muted ? 'Measurements muted' : 'Measurements shown');
+  },
+
+  /** Reset → Clear labels: deletes the SCENE labels only. A live viewpoint's
+   *  labels are never deleted — they are muted instead (the parked scene set
+   *  is what gets cleared). */
+  async deleteLabels() {
+    const ok = await dialogs.confirm('Delete every scene label? Viewpoint labels are kept (muted, not deleted).', {
+      okLabel: 'Delete',
+    });
+    if (!ok) {
+      return;
+    }
+    if (viewpointsState.get().liveSide === 'viewpoint') {
+      labelsState.set({ muted: true });
+      viewpointsState.set((s) => ({ stash: { labels: [], measurements: s.stash?.measurements ?? [] } }));
+      log('Scene labels deleted; viewpoint labels muted (kept)');
+      return;
+    }
+    labelsActions.clearAll();
+    log('Labels deleted');
+  },
+
+  /** Reset → Clear measurements: the measurement twin of deleteLabels. */
+  async deleteMeasurements() {
     const ok = await dialogs.confirm(
-      'Delete every scene label and measurement? Viewpoint labels/measurements are kept (muted, not deleted).',
+      'Delete every scene measurement? Viewpoint measurements are kept (muted, not deleted).',
       { okLabel: 'Delete' },
     );
     if (!ok) {
       return;
     }
     if (viewpointsState.get().liveSide === 'viewpoint') {
-      // viewpoint content stays — mute it; the scene sets live in the stash
-      labelsState.set({ muted: true });
       measurementsState.set({ muted: true });
-      viewpointsState.set({ stash: { labels: [], measurements: [] } });
-      log('Scene labels/measurements deleted; viewpoint content muted (kept)');
+      viewpointsState.set((s) => ({ stash: { labels: s.stash?.labels ?? [], measurements: [] } }));
+      log('Scene measurements deleted; viewpoint measurements muted (kept)');
       return;
     }
-    labelsActions.clearAll();
     measurementsActions.clear();
-    log('Labels & measurements deleted');
-  },
-
-  /** Reset → Clear viewpoints: delete every viewpoint (the scene's own
-   *  labels/measurements come back first if a viewpoint was live). */
-  async clearViewpoints() {
-    const n = viewpointsState.get().list.length;
-    if (n === 0) {
-      return;
-    }
-    const ok = await dialogs.confirm(`Delete all ${n} viewpoint(s)?`, { okLabel: 'Delete' });
-    if (!ok) {
-      return;
-    }
-    if (viewpointsState.get().liveSide === 'viewpoint') {
-      viewpointsActions.unmuteScene();
-    }
-    viewpointsState.set({ list: [], activeId: null, selectedId: null });
-    log('Viewpoints cleared');
-  },
-
-  /** Reset → Clear the Set Color editor: remove EVERY rule (empty list, not
-   *  the one-blank-rule default). */
-  clearSetColor() {
-    multiColorState.set({ ...emptyMultiColorState(), rules: [] });
-    log('Set Color editor cleared');
+    log('Measurements deleted');
   },
 
   resetPanels: () => log('Reset panels'),

@@ -392,7 +392,7 @@ every embedded external-app frame.
   copies the pre-0.0.85 bare-name values under the prefix once, guarded by a
   `tds:migrated` marker so a later reset is not undone by re-copying, and
   leaves the bare keys alone (on a path-proxied viewer they may be the
-  host's). Clear all local data removes only `tds:` keys and the viewer's
+  host's). Wipe all (Home → Wipe) removes only `tds:` keys and the viewer's
   own OPFS entries (`VIEWER_OPFS_ENTRIES`), never the origin's whole storage
   — the fix for a host page losing its keys to the viewer. The hotkeys
   library keeps its own default key and is pointed at `tds:hotkeys` by

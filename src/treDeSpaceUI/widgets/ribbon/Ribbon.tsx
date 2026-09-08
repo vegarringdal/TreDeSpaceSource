@@ -16,7 +16,8 @@ export function Ribbon({ children, className = '' }: { children: ReactNode; clas
 }
 
 /**
- * A titled group: the item area on top, a full-width title bar underneath.
+ * A titled group: the item area on top, a tinted full-width title band
+ * underneath that reads as the group's footer in both themes.
  * Children declare a `size` (big = 1 per column, medium = 2, mini = 3); the
  * section packs them into equal-width columns in order, and a column that is
  * not completely full centres its content vertically.
@@ -59,7 +60,9 @@ export function RibbonSection({
           </div>
         ))}
       </div>
-      <div className="w-full px-3 py-0.5 text-center text-slate-400 text-xs leading-tight">{title}</div>
+      <div className="w-full bg-slate-800 px-3 py-0.5 text-center font-semibold text-slate-200 text-xs leading-tight">
+        {title}
+      </div>
     </div>
   );
 }

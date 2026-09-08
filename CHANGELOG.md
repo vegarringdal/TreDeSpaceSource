@@ -4,6 +4,30 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.08** (>0.0.101):
+  @treDeSpaceUI Ribbon: section titles sit on a full-width slate-800 band
+  (the same gray as the section dividers) in the semibold slate-200 text the
+  collapsible panel headers use, so the groups read as groups in both themes
+  instead of loose gray captions under the buttons. No API change.
+  Dark theme lifted half a step: slate-950/900/800 now sit at the midpoints
+  of the stock Tailwind values (#080f21 / #172033 / #283548), so ground, bars
+  and borders read as layers instead of one near-black; light theme unchanged.
+  Home ribbon: the Reset group is now two sections — "Mute and Clear" (Mute
+  Label / Clear Label in one column, Mute Measurement / Clear Measurement in
+  the next, so one kind can be hidden or deleted without the other) and Wipe,
+  whose single "Wipe all" button is the old "Clear all" local-data reset. "Clear Viewpoints" and "Clear Set Color" are
+  gone from the ribbon: Viewpoints gets a "Delete all" button in its top row
+  (`viewpoints.deleteAll`, confirms, parks a live viewpoint back to the scene
+  first) and the Set Color reset has no replacement. Measurements' "Mute all"
+  and "Clear" move from Config to the Load & save row (Clear as "Delete all"). Hotkey ids:
+  `home.reset.*` become `home.label.mute`/`clear`, `home.measurement.mute`/
+  `clear` and `home.wipe.all`; `home.reset.viewpoints` and
+  `home.reset.setColor` are removed. The "View" section (the Light/Dark
+  button) is now titled "Theme", and the Measurements panel's Load & save
+  section starts open. Set Color's Common section gets a "Delete all" button
+  next to Save/Load (`multiColor.clear`), replacing the removed ribbon reset,
+  and a "Reset all" button beside it that runs the model-wide clear-overrides
+  action (unhide all + reset colors and opacity, the same as ALT+R).
 - **2026.09.07** (>0.0.98):
   @treDeSpaceUI RadioGroup renders native radio buttons (round) instead of
   square checkboxes, and its options share one generated `name`, so arrow keys

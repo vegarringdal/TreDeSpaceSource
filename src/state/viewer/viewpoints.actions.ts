@@ -446,6 +446,23 @@ export const viewpointsActions = {
     }));
   },
 
+  /** Delete every viewpoint after a confirm. A live viewpoint's content is
+   *  parked back to the scene first (no save prompt — it is being deleted). */
+  async removeAll() {
+    const n = viewpointsState.get().list.length;
+    if (n === 0) {
+      return;
+    }
+    const ok = await dialogs.confirm(`Delete all ${n} viewpoint(s)?`, { okLabel: 'Delete' });
+    if (!ok) {
+      return;
+    }
+    if (viewpointsState.get().liveSide === 'viewpoint') {
+      viewpointsActions.unmuteSceneNow();
+    }
+    viewpointsState.set({ list: [], activeId: null, selectedId: null });
+  },
+
   /** Save every viewpoint to a JSON file. */
   saveToFile() {
     downloadText('viewpoints.json', JSON.stringify(viewpointsActions.configJson(), null, 2));

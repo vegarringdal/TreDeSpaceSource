@@ -1,7 +1,7 @@
 import { Ribbon } from '@treDeSpaceUI/widgets';
 import { HomeAssetsGroups } from './HomeAssetsGroups';
 import { HomeExternalGroup } from './HomeExternalGroup';
-import { HomeResetGroup } from './HomeResetGroup';
+import { HomeResetGroups } from './HomeResetGroups';
 import { HomeViewGroups } from './HomeViewGroups';
 
 /** Home ribbon: external apps promoted here, asset panel openers, canvas
@@ -12,7 +12,7 @@ export function RibbonHome() {
       <HomeExternalGroup at="start" />
       <HomeAssetsGroups />
       <HomeViewGroups />
-      <HomeResetGroup />
+      <HomeResetGroups />
       <HomeExternalGroup at="end" />
     </Ribbon>
   );

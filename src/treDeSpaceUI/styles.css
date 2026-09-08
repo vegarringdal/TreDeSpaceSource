@@ -12,6 +12,12 @@
 
 :root {
   color-scheme: dark;
+  /* Dark theme = Tailwind's stock slate, with the three darkest surfaces
+     lifted half a step so ground / bars / borders read as layers instead of
+     one near-black (slate-950 → 900 → 800 midpoints; 700 stays stock). */
+  --color-slate-950: #080f21;
+  --color-slate-900: #172033;
+  --color-slate-800: #283548;
 }
 
 [data-theme="light"] {

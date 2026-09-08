@@ -44,7 +44,7 @@ export function HomeViewGroups() {
 
   return (
     <>
-      <RibbonSection title="View">
+      <RibbonSection title="Theme">
         <RibbonButton
           icon={dark ? <IconSun /> : <IconMoon />}
           label={dark ? 'Light' : 'Dark'}

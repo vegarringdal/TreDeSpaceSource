@@ -124,6 +124,11 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       }));
     },
 
+    /** Delete every rule (the run mode is kept). */
+    clearRules() {
+      store.set({ rules: [], counts: [] });
+    },
+
     updateRule: patchRule,
 
     addFilter(i: number) {

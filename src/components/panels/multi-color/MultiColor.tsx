@@ -1,7 +1,8 @@
-import { IconDownload, IconPlayerPlay, IconPlus, IconUpload } from '@tabler/icons-react';
+import { IconDownload, IconEraser, IconPlayerPlay, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
 import { Button, Collapsible, readFileText, Select, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
+import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { MultiColorCtx, MultiColorProvider } from './multiColorContext';
 import { RuleEditor } from './RuleEditor';
 import { Tip } from './Tip';
@@ -81,6 +82,23 @@ export function MultiColor() {
               onClick={picker.open}
             >
               Load
+            </Button>
+            <Button
+              icon={<IconTrash size={14} />}
+              disabled={s.rules.length === 0}
+              tooltip="Delete every rule (the run mode is kept)"
+              shortcut="multiColor.clear"
+              onClick={act.clearRules}
+            >
+              Delete all
+            </Button>
+            <Button
+              icon={<IconEraser size={14} />}
+              tooltip="Unhide all + reset every color and opacity override on the model (the rules are kept)"
+              shortcut="selection.clearOverrides"
+              onClick={() => void viewerActions.clearAllOverrides()}
+            >
+              Reset all
             </Button>
             {picker.element}
           </div>
