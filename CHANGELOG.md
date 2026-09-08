@@ -4,6 +4,11 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.08** (>0.0.103):
+  Tests: refreshed the shader text pin snapshot after the blend-pass comment
+  in `shaders/scene.ts` changed — the pin hashes the WGSL source, comments
+  included, so the three render-shader hashes moved without any shader code
+  changing.
 - **2026.09.08** (>0.0.102):
   Edges: "White edges on dark items" no longer fires under transparent items.
   The blend transparency pass wrote each transparent fragment's opacity into
