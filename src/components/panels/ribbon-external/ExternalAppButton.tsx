@@ -4,6 +4,7 @@
 import { IconWorld } from '@tabler/icons-react';
 import { usePanelContext } from '@treDeSpaceUI/dockable';
 import { RibbonButton, type RibbonSize } from '@treDeSpaceUI/widgets';
+import { registerOpenedWindow } from '../../../lib/messageApi/transport';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
 import { openExternalModal } from './externalModals.state';
 import { makeExternalPanel, newExternalPanelId } from './externalPanels';
@@ -26,8 +27,14 @@ export function ExternalAppButton({ app }: { app: ExternalApp }) {
   const { manager } = usePanelContext();
 
   const handleClick = () => {
+    // WITH an opener: the tab drives this viewer through window.opener (its
+    // origin is allowlisted like every configured app's), and gets events
+    // through the opened-window registry
     if (app.newWindow) {
-      window.open(externalAppUrl(app), '_blank', 'noopener');
+      const win = window.open(externalAppUrl(app), '_blank');
+      if (win) {
+        registerOpenedWindow(win);
+      }
       return;
     }
     if (app.modal) {

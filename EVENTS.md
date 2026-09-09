@@ -8,8 +8,8 @@ reference; the implementation is a thin validated adapter
 iframe and drives every command through the SDK with a request/response log.
 `/demo/?dialog=1` is the same page for hosting INSIDE the viewer (add it as an
 External app panel): no iframe, just the controls + console, and the SDK
-targets `window.parent`. Since `app.ready` was announced before such a panel
-existed, it pings with `settings.get` instead of waiting for the handshake.
+targets `window.parent`; `app.ready` was announced before such a panel
+existed, so the app answers the client's hello with it and `ready()` resolves.
 
 **Host SDK:** hosts don't have to hand-write envelopes —
 [`api/tredespace-client.ts`](api/tredespace-client.ts) is a dependency-free,
@@ -106,12 +106,13 @@ assets index read):
 Hosts should queue commands until `app.ready` (commands before it get
 `{ code: 'not-ready' }`).
 
-**Client-to-relay notes.** The SDK also posts two `id: null` messages of its
-own, `client.hello` (on construction, and again when a page returns from the
-back-forward cache) and `client.bye` (on `dispose()` and on `pagehide`). They
-exist for the relay described under "Windows you open" — a relaying opener
-answers hello with the `app.ready` it holds and tracks bye. The app itself
-only handles string ids, so it ignores both when a client targets it directly.
+**Client notes.** The SDK also posts two `id: null` messages of its own:
+`client.hello` on construction (and again when a page returns from the
+back-forward cache) and `client.bye` on `dispose()` and on `pagehide`. The
+app answers hello with `app.ready` once it is ready — so a page that arrives
+AFTER boot (an External-app panel or dialog, a tab the viewer opened) resolves
+`ready()` without pinging a command — and ignores bye. A relaying opener
+("Windows you open") answers hello the same way and tracks bye.
 
 ## Command catalog (v1)
 
@@ -1588,7 +1589,8 @@ Home** (the button sits on the HOME ribbon instead of External — for a tool th
 user should see right away, like a project selector; it appears in one place,
 not both) with a placement picker for which END of the Home ribbon its group
 sits at (before the viewer's own groups, or after them), **Multiple instances**, **New window** (browser tab instead of a
-panel),
+panel — the tab keeps the viewer as `window.opener` and can drive it
+directly, see "Windows you open"),
 **Modal dialog** (centered overlay, movable by its title bar and resizable
 from the bottom-right handle; the viewer's own loading/error/confirm dialogs
 always layer above it), **Open on start** (e.g. a project selector), and a
@@ -1791,8 +1793,17 @@ not, since the host owns that DOM and disposes the client itself. The chain
 propagates: a viewer window closing under the host closes the host's client
 (`target`), which tells every relayed window (`relay`).
 
+Not needed for a tab the **viewer** opened (an External app with
+`newWindow`): that tab keeps the viewer as its `window.opener` and drives it
+directly — `new TredespaceClient(window.opener, { targetOrigin: viewerOrigin })`
+with the origin from `document.referrer` — and receives events like any
+host. It is a top-level page with first-party storage. The viewer only holds
+such tabs in memory: after a viewer reload, reload the tab to reconnect.
+
 Try it: the `/demo/` page's Relay section opens itself as a relayed tab
-(`?popup=1`), from iframe mode or from a panel inside the viewer.
+(`?popup=1`), from iframe mode or from a panel inside the viewer; the same
+`/demo/?popup=1` URL configured as a tab-mode External app is a viewer-opened
+tab.
 
 The partitioning above is one symptom of a general rule: when the viewer is a
 **cross-site** frame, everything the host opens *inside* it (External-app

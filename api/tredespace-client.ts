@@ -84,6 +84,15 @@
 //       subdomain is same-SITE) removes the cross-site ancestor entirely, and
 //       all of the above just works.
 //
+// A TAB THE VIEWER OPENED (External app with newWindow): its window.opener
+//   IS the viewer — drive it directly, like a panel drives window.parent:
+//     const viewerOrigin = new URL(document.referrer).origin;
+//     const client = new TredespaceClient(window.opener, { targetOrigin: viewerOrigin });
+//     await client.ready();          // the viewer answers the client's hello
+//   Events reach it too. It is a top-level page: first-party storage, no
+//   partitioning. Reloading the viewer drops its handle on such tabs — reload
+//   the tab to reconnect.
+//
 // WINDOWS YOU OPEN (relay):
 //   A tab or popup opened by your host page — or by a page of YOURS inside
 //   the viewer (give that app the 'popups' sandbox option) — holds no handle
@@ -671,7 +680,9 @@ export interface HostExternalApp {
   /** allow several instances of this app open at once */
   multiple?: boolean;
   /** open in a new browser tab instead of an in-app panel (never auto-opened —
-   *  window.open without a user gesture is popup-blocked) */
+   *  window.open without a user gesture is popup-blocked). The tab keeps the
+   *  viewer as `window.opener` and can drive it directly (see the file
+   *  header, "A TAB THE VIEWER OPENED"). */
   newWindow?: boolean;
   /** open as a centered modal dialog over the app */
   modal?: boolean;

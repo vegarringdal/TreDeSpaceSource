@@ -68,9 +68,10 @@ export function DemoProvider({ children }: Readonly<{ children: ReactNode }>) {
     [line, subscribe],
   );
 
-  // popup mode: another demo page opened this window and relays for it — the
+  // popup mode: this window was OPENED by another page — a demo page relaying
+  // for it, or the viewer itself (an External app in tab mode). Either way the
   // client drives window.opener exactly like it would drive the viewer, and
-  // the relay answers ready() with the app.ready it already holds
+  // the opener answers ready() with app.ready
   useEffect(() => {
     if (!IS_POPUP) {
       return;
@@ -78,19 +79,23 @@ export function DemoProvider({ children }: Readonly<{ children: ReactNode }>) {
 
     const opener: Window | null = window.opener;
     if (!opener) {
-      line('err', 'popup mode expects to be OPENED by a demo page — use "open relayed window" in its Relay section');
+      line(
+        'err',
+        'popup mode expects to be OPENED — by a demo page ("open relayed window") or by the viewer (tab-mode app)',
+      );
       return;
     }
 
-    const cl = new TredespaceClient(opener, { targetOrigin: location.origin });
+    const openerOrigin = document.referrer ? new URL(document.referrer).origin : location.origin;
+    const cl = new TredespaceClient(opener, { targetOrigin: openerOrigin });
     clientRef.current = cl;
     subscribe(cl);
-    void cl.ready().then((r) => line('ok', `app.ready via relay — version ${r.version}, api v${r.api}`));
+    void cl.ready().then((r) => line('ok', `app.ready via opener — version ${r.version}, api v${r.api}`));
   }, [line, subscribe]);
 
   // dialog mode: this page IS inside the viewer — the viewer is window.parent,
-  // nothing to embed. The app announced app.ready before this panel existed,
-  // so ping with settings.get instead.
+  // nothing to embed. The app announced app.ready before this panel existed;
+  // it answers the client's hello with it, so ready() still resolves.
   useEffect(() => {
     if (CONFIG_PARAM != null) {
       line('out', `host config (?config=): ${CONFIG_PARAM}`);
@@ -112,14 +117,7 @@ export function DemoProvider({ children }: Readonly<{ children: ReactNode }>) {
     const cl = new TredespaceClient(window.parent, { targetOrigin: parentOrigin });
     clientRef.current = cl;
     subscribe(cl);
-    void cl
-      .settingsGet()
-      .then((r) =>
-        r.error
-          ? line('err', `host viewer ping failed: ${r.error.msg}`)
-          : line('ok', `connected to host viewer — version ${r.data?.version}`),
-      )
-      .catch((e) => line('err', `host viewer not responding: ${(e as Error).message}`));
+    void cl.ready().then((r) => line('ok', `app.ready from host viewer — version ${r.version}, api v${r.api}`));
   }, [line, subscribe]);
 
   return (

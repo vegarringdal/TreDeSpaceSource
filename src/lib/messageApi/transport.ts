@@ -45,6 +45,26 @@ export function isApiReady(): boolean {
   return apiReady;
 }
 
+// -----------------------------------------------------------------------------
+// windows this viewer opened (External apps in tab mode): they hold us as
+// window.opener and drive us directly, so events go to them as well. Pruned
+// as they close; lost on a viewer reload (the tab reloads to reconnect).
+// -----------------------------------------------------------------------------
+const openedWindows = new Set<Window>();
+
+export function registerOpenedWindow(win: Window) {
+  openedWindows.add(win);
+}
+
+function liveOpenedWindows(): Window[] {
+  for (const w of openedWindows) {
+    if (w.closed) {
+      openedWindows.delete(w);
+    }
+  }
+  return [...openedWindows];
+}
+
 /** Every allowed-origin candidate (for outbound messages, `*` excluded).
  *  DEDUPED — the same origin often appears via several sources (same-origin +
  *  ?apiOrigins= + an external-app url), and posting to one window once per
@@ -76,6 +96,9 @@ export function emitApiEvent(type: string, payload: unknown) {
   if (window.opener) {
     targets.add(window.opener as Window);
   }
+  for (const w of liveOpenedWindows()) {
+    targets.add(w);
+  }
   for (const f of document.querySelectorAll('iframe')) {
     try {
       if (f.contentWindow && origins.includes(new URL(f.src, location.href).origin)) {
@@ -105,6 +128,16 @@ export function markApiReady(version: string) {
   announceReady();
 }
 
+function readyEnvelope() {
+  return {
+    tredespace: PROTOCOL,
+    id: null,
+    type: 'app.ready',
+    ok: true,
+    payload: { version: readyVersion, api: PROTOCOL },
+  };
+}
+
 /** Post app.ready to the parent/opener for every allowed origin. Also re-run
  *  when the allowlist grows AFTER boot (a `?apiOrigins=` popup host the user
  *  just allowed) so a host waiting on the handshake gets it. */
@@ -112,14 +145,12 @@ export function announceReady() {
   if (!apiReady) {
     return;
   }
-  const ready = {
-    tredespace: PROTOCOL,
-    id: null,
-    type: 'app.ready',
-    ok: true,
-    payload: { version: readyVersion, api: PROTOCOL },
-  };
-  const targets: (Window | null)[] = [window.parent !== window ? window.parent : null, window.opener as Window | null];
+  const ready = readyEnvelope();
+  const targets: (Window | null)[] = [
+    window.parent !== window ? window.parent : null,
+    window.opener as Window | null,
+    ...liveOpenedWindows(),
+  ];
   const origins = allowedOriginCandidates();
   for (const t of targets) {
     if (!t) {
@@ -132,5 +163,20 @@ export function announceReady() {
         // cross-origin target that doesn't match this origin — expected
       }
     }
+  }
+}
+
+/** Answer one client's `client.hello` with app.ready — a page that arrived
+ *  after boot (an External-app panel, a tab we opened) resolves its
+ *  `ready()` this way instead of pinging a command. Silent until ready: the
+ *  boot announce reaches it then, if it is a parent/opener/opened window. */
+export function announceReadyTo(win: Window, origin: string) {
+  if (!apiReady) {
+    return;
+  }
+  try {
+    win.postMessage(readyEnvelope(), origin === 'null' ? '*' : origin);
+  } catch {
+    // window gone — nothing to answer
   }
 }

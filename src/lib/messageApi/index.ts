@@ -21,7 +21,15 @@ import { sqlHandlers } from './handlersSql';
 import { installDialogEvents, uiHandlers } from './handlersUi';
 import { viewerHandlers } from './handlersViewer';
 import { ApiError, type ApiHandler, isRecord, PROTOCOL } from './protocol';
-import { allowApiOrigins, announceReady, emitApiEvent, isApiReady, markApiReady, originAllowed } from './transport';
+import {
+  allowApiOrigins,
+  announceReady,
+  announceReadyTo,
+  emitApiEvent,
+  isApiReady,
+  markApiReady,
+  originAllowed,
+} from './transport';
 
 export { registerKiosk, registerPanelControl } from './registry';
 export { allowApiOrigins, emitApiEvent, markApiReady };
@@ -112,15 +120,25 @@ async function onMessage(e: MessageEvent) {
     payload?: unknown;
     bytes?: unknown;
   };
-  if (d?.tredespace !== PROTOCOL || typeof d.type !== 'string' || typeof d.id !== 'string') {
+  if (d?.tredespace !== PROTOCOL || typeof d.type !== 'string') {
     return;
-  }
-  if (d.type.endsWith(':result') || d.type === 'app.ready') {
-    return; // our own traffic
   }
   const source = e.source as Window | null;
   if (!source) {
     return;
+  }
+  // the SDK's id-less notes: hello gets app.ready (a late-arriving page —
+  // panel, dialog, a tab we opened — resolves ready() on it); bye exists for
+  // a relaying opener and falls through the string-id gate below
+  if (d.id === null && d.type === 'client.hello') {
+    announceReadyTo(source, e.origin);
+    return;
+  }
+  if (typeof d.id !== 'string') {
+    return;
+  }
+  if (d.type.endsWith(':result') || d.type === 'app.ready') {
+    return; // our own traffic
   }
   const reply = (ok: boolean, body: unknown) =>
     source.postMessage(

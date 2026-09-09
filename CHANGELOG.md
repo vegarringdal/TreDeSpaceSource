@@ -4,6 +4,14 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.09** (>0.0.106):
+  External apps in tab mode (`newWindow`) now open WITH an opener (was
+  `noopener`), so the tab can drive the viewer directly through
+  `window.opener`; the viewer keeps the tabs it opened and posts events and
+  `app.ready` to them, and answers the SDK's `client.hello` with `app.ready`
+  — a page arriving after boot (panel, dialog, tab) resolves `ready()`
+  instead of pinging `settings.get`.
+
 - **2026.09.09** (>0.0.105):
   Host SDK: `client.relay(win, { origin })` forwards the postMessage API
   for a tab or popup the host (or a page of the host's inside the viewer)
