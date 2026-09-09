@@ -4,6 +4,13 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.10** (>0.0.107):
+  SDK: `targetOrigin` and `relay()`'s `origin` now accept a full URL and keep
+  only its origin. `postMessage` already did that for sending, but replies
+  arrive with the bare `event.origin`, so a path-proxied viewer given as
+  `https://portal.example.com/tredespace` (or a trailing slash) sent fine and
+  then silently dropped every response. A value that is not a URL throws a
+  clear TypeError at construction instead of a SyntaxError on the first send.
 - **2026.09.09** (>0.0.106):
   External apps in tab mode (`newWindow`) now open WITH an opener (was
   `noopener`), so the tab can drive the viewer directly through

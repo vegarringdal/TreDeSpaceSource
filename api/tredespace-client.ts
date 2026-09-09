@@ -1140,7 +1140,10 @@ export function decodeNameList(bytes: ArrayBuffer | Uint8Array): NameListEntry[]
 }
 
 export interface TredespaceClientOptions {
-  /** The viewer's origin, e.g. 'https://viewer.example.com'. Required. */
+  /** The viewer's origin, e.g. 'https://viewer.example.com'. Required. A full
+   *  URL is fine — only its origin is kept (`'https://portal.example.com/tredespace'`
+   *  for a path-proxied viewer becomes `'https://portal.example.com'`), since
+   *  replies arrive with the bare origin and are matched against it. */
   targetOrigin: string;
   /** Aborting this signal calls `dispose()` — one AbortController can own the
    *  client AND every subscription made with `{ signal }`. */
@@ -1168,6 +1171,7 @@ export interface ClientClosedEvent {
 export interface RelayChangedEvent {
   /** the relayed window, as passed to `relay()` */
   window: Window;
+  /** the relayed window's origin (`relay()`'s `origin` reduced to a bare origin) */
   origin: string;
   /** `connected`: the page in that window constructed its client — again
    *  after every navigation, so an SSO round trip reconnects by itself.
@@ -1181,7 +1185,8 @@ export interface RelayChangedEvent {
 export interface RelayOptions {
   /** The relayed window's origin — mandatory and concrete, never `'*'`: it
    *  filters what the relay accepts from the window and is the targetOrigin
-   *  of everything posted back to it. */
+   *  of everything posted back to it. A full URL is reduced to its origin,
+   *  like `targetOrigin`. */
   origin: string;
   /** Aborting the signal ends the relay, like the returned function. */
   signal?: AbortSignal;
@@ -1262,6 +1267,22 @@ const CHUNKED_UPLOAD_THRESHOLD = 500 * 1024 * 1024;
 /** Per-chunk transfer size for large uploads. */
 const UPLOAD_CHUNK_SIZE = 64 * 1024 * 1024;
 
+/** `postMessage` accepts a full URL as targetOrigin and uses only its origin,
+ *  but `event.origin` on everything coming back is always the bare origin — so
+ *  a viewer proxied under a path (`https://portal.example.com/tredespace`) or
+ *  a trailing slash must not silently drop every reply. `*` passes through;
+ *  anything that is not a URL throws, as postMessage itself would. */
+function normalizeOrigin(value: string, what: string): string {
+  if (value === '*') {
+    return '*';
+  }
+  try {
+    return new URL(value).origin;
+  } catch {
+    throw new TypeError(`${what} must be an origin or URL, got ${JSON.stringify(value)}`);
+  }
+}
+
 export class TredespaceClient {
   private target: Window | null;
   private readonly origin: string;
@@ -1297,7 +1318,7 @@ export class TredespaceClient {
   constructor(target: Window | HTMLIFrameElement, opts: TredespaceClientOptions) {
     this.target = target instanceof HTMLIFrameElement ? target.contentWindow : target;
     this.watchTarget = !(target instanceof HTMLIFrameElement);
-    this.origin = opts.targetOrigin;
+    this.origin = normalizeOrigin(opts.targetOrigin, 'targetOrigin');
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.importTimeoutMs = opts.importTimeoutMs ?? 600_000;
     window.addEventListener('message', this.onMessage);
@@ -1348,13 +1369,14 @@ export class TredespaceClient {
     if (!opts.origin || opts.origin === '*') {
       throw new TypeError('relay(): origin must be the relayed window\'s concrete origin, never "*"');
     }
+    const origin = normalizeOrigin(opts.origin, 'relay(): origin');
     if (this.isClosed || opts.signal?.aborted) {
       return () => undefined;
     }
-    this.relays.set(win, { win, origin: opts.origin });
+    this.relays.set(win, { win, origin });
     this.startWatch();
     if (this.readyPayload) {
-      this.post(win, opts.origin, this.readyEnvelope());
+      this.post(win, origin, this.readyEnvelope());
     }
     const off = () => this.endRelay(win, null);
     opts.signal?.addEventListener('abort', off, { once: true });

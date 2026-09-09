@@ -30,6 +30,9 @@ await client.colorRulesSet(
 const { fullnames } = await client.selectionGet();
 ```
 
+`targetOrigin` may be a full URL — only its origin is kept, so a viewer proxied
+under a path (`https://portal.example.com/tredespace`) works as written.
+
 ## Principles
 
 - **Request/response, always.** Every inbound command gets exactly one
