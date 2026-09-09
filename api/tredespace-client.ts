@@ -84,6 +84,30 @@
 //       subdomain is same-SITE) removes the cross-site ancestor entirely, and
 //       all of the above just works.
 //
+// WINDOWS YOU OPEN (relay):
+//   A tab or popup opened by your host page — or by a page of YOURS inside
+//   the viewer (give that app the 'popups' sandbox option) — holds no handle
+//   on the viewer, and is storage-partitioned away from an embedded page
+//   anyway. Let the opener RELAY: the new window
+//   drives its opener with an unchanged client, the opener forwards to the
+//   viewer.
+//     // in the new window
+//     const client = new TredespaceClient(window.opener, { targetOrigin: openerOrigin });
+//     await client.ready();                       // answered by the relay
+//     // in the opener (your top page, or a panel/dialog inside the viewer)
+//     const win = window.open('https://your-portal.example.com/tool.html');
+//     const off = client.relay(win, { origin: 'https://your-portal.example.com' });
+//   Commands, responses, progress ticks, events and app.ready all pass
+//   through. ArrayBuffer bytes are re-transferred (zero-copy); everything
+//   else is structured-cloned once more per hop (~50 ms per 100k sqlExecute
+//   rows — sqlSelect/sqlColor move no rows and cost nothing extra). A relayed
+//   window's client can relay again to windows IT opens. The window gets
+//   exactly the opener's API rights, so `origin` is mandatory and never '*'.
+//   Lifecycle: onRelayChanged on the opener (connected / disconnected /
+//   closed per window), onClosed on ANY client (its link ended: reason
+//   'disposed' | 'relay' | 'target'); ending a relay closes the window's
+//   client, and a closed window drops its relay by itself.
+//
 // HOSTING — proxy the viewer under your own site (recommended):
 //   Framing tredespace.com directly makes the viewer a cross-site frame, so
 //   the panels/dialogs of YOURS that open inside it are third-party: storage
@@ -148,6 +172,11 @@
 //   'sql.color:progress'         — rows collected so far while a colouring
 //   'sql.select:progress'          query runs (sqlColor / sqlSelect
 //                                  onProgress)
+//   LOCAL (raised by the client itself, never posted):
+//   'client.closed'              — this client's link ended (onClosed;
+//                                  reason 'disposed' | 'relay' | 'target')
+//   'relay.changed'              — a window this client relays for connected /
+//                                  disconnected / closed (onRelayChanged)
 //
 // COMMON FLOWS (each step is one method below — see its JSDoc):
 //   Sync hosted models:   assetsList → compare each asset's md5 against a hash
@@ -1111,6 +1140,42 @@ export interface TredespaceClientOptions {
   importTimeoutMs?: number;
 }
 
+/** Payload of the local `client.closed` event — this client's link ended and
+ *  it now behaves as disposed (pending requests settled with a `transport`
+ *  error, nothing fires after it). */
+export interface ClientClosedEvent {
+  /** `disposed`: `dispose()` was called or the constructor signal aborted.
+   *  `relay`: the opener relaying for this client ended the relay, disposed
+   *  its client or unloaded its page. `target`: the target window was found
+   *  closed — Window targets are watched; an iframe element is not (its host
+   *  owns that DOM and disposes). */
+  reason: 'disposed' | 'relay' | 'target';
+}
+
+/** Payload of the local `relay.changed` event (opener side, one per window
+ *  passed to `relay()`). */
+export interface RelayChangedEvent {
+  /** the relayed window, as passed to `relay()` */
+  window: Window;
+  origin: string;
+  /** `connected`: the page in that window constructed its client — again
+   *  after every navigation, so an SSO round trip reconnects by itself.
+   *  `disconnected`: that client disposed or its page is unloading
+   *  (navigating or closing); the relay stays. `closed`: the window is gone
+   *  and the relay was dropped. */
+  state: 'connected' | 'disconnected' | 'closed';
+}
+
+/** Options for `relay()`. */
+export interface RelayOptions {
+  /** The relayed window's origin — mandatory and concrete, never `'*'`: it
+   *  filters what the relay accepts from the window and is the targetOrigin
+   *  of everything posted back to it. */
+  origin: string;
+  /** Aborting the signal ends the relay, like the returned function. */
+  signal?: AbortSignal;
+}
+
 /** Options for `on()` and the typed `on*` helpers. */
 export interface SubscribeOptions {
   /** Aborting the signal unsubscribes — the `addEventListener` idiom, so one
@@ -1138,6 +1203,48 @@ interface Pending {
   timer: ReturnType<typeof setTimeout>;
 }
 
+interface RelayEntry {
+  win: Window;
+  origin: string;
+}
+
+/** A request forwarded for a relayed window, awaiting the viewer's result. */
+interface RelayedRequest extends RelayEntry {
+  timer: ReturnType<typeof setTimeout>;
+}
+
+/** The wire shape shared by commands, results, events and the client-to-relay
+ *  `client.hello` / `client.bye` notes. */
+interface Envelope {
+  tredespace?: number;
+  id?: string | null;
+  type?: string;
+  ok?: boolean;
+  payload?: unknown;
+  error?: { code: TredespaceErrorCode; message: string };
+  bytes?: unknown;
+}
+
+/** Bytes to transfer with an envelope — its `bytes` when they are an
+ *  ArrayBuffer (a Blob rides by reference). */
+function transferablesOf(data: unknown): ArrayBuffer[] {
+  if (typeof data !== 'object' || data === null || !('bytes' in data)) {
+    return [];
+  }
+  const bytes: unknown = data.bytes;
+  return bytes instanceof ArrayBuffer ? [bytes] : [];
+}
+
+/** Window targets and relayed windows are checked for `closed` this often. */
+const CLOSED_POLL_MS = 1000;
+
+/** `transport` error text for requests pending when the client closes. */
+const CLOSE_MESSAGES: Record<ClientClosedEvent['reason'], string> = {
+  disposed: 'client disposed',
+  relay: 'relay ended by the opener',
+  target: 'target window closed',
+};
+
 /** Blob/File payloads at or above this size are streamed in chunks rather than
  *  sent as one message, so a multi-GB import never allocates one huge buffer. */
 const CHUNKED_UPLOAD_THRESHOLD = 500 * 1024 * 1024;
@@ -1159,19 +1266,41 @@ export class TredespaceClient {
   private readyWaiters: ((r: AppReady) => void)[] = [];
   private readonly closingHandlers = new Set<(e: DialogChangedEvent) => unknown>();
   private closingOff: (() => void) | null = null;
+  // windows this client relays for, keyed by the window so an incoming
+  // message's `source` finds its entry directly
+  private readonly relays = new Map<MessageEventSource, RelayEntry>();
+  private readonly relayed = new Map<string, RelayedRequest>();
+  // a Window target (opener, popup viewer, parent) is watched for `closed`;
+  // an iframe element is the host's DOM, which it disposes itself
+  private readonly watchTarget: boolean;
+  private watchTimer: ReturnType<typeof setInterval> | null = null;
+  private isClosed = false;
   private readonly onMessage = (e: MessageEvent) => this.handle(e);
+  private readonly onPageHide = () => this.sayBye();
+  private readonly onPageShow = (e: PageTransitionEvent) => {
+    if (e.persisted) {
+      this.sayHello();
+    }
+  };
 
   constructor(target: Window | HTMLIFrameElement, opts: TredespaceClientOptions) {
     this.target = target instanceof HTMLIFrameElement ? target.contentWindow : target;
+    this.watchTarget = !(target instanceof HTMLIFrameElement);
     this.origin = opts.targetOrigin;
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.importTimeoutMs = opts.importTimeoutMs ?? 600_000;
     window.addEventListener('message', this.onMessage);
+    window.addEventListener('pagehide', this.onPageHide);
+    window.addEventListener('pageshow', this.onPageShow);
     if (opts.signal?.aborted) {
       this.dispose();
-    } else {
-      opts.signal?.addEventListener('abort', () => this.dispose(), { once: true });
+      return;
     }
+    opts.signal?.addEventListener('abort', () => this.dispose(), { once: true });
+    if (this.watchTarget) {
+      this.startWatch();
+    }
+    this.sayHello();
   }
 
   /** Resolves once the viewer has announced app.ready (queues until then). */
@@ -1183,15 +1312,42 @@ export class TredespaceClient {
   }
 
   /** Detach the message listener and settle every in-flight request with a
-   *  `transport` error. Call when the host tears down the iframe. */
+   *  `transport` error. Call when the host tears down the iframe. Ends every
+   *  relay this client runs (their windows' clients close with reason
+   *  `relay`) and raises the local `client.closed` event with reason
+   *  `disposed`. */
   dispose() {
-    window.removeEventListener('message', this.onMessage);
-    for (const [, p] of this.pending) {
-      clearTimeout(p.timer);
-      p.settle({ error: { code: 'transport', msg: 'client disposed' } });
+    this.close('disposed');
+  }
+
+  /** Forward the postMessage API for a window this page opened (`window.open`)
+   *  — its page drives THIS page with an unchanged client
+   *  (`new TredespaceClient(window.opener, { targetOrigin })`) and every
+   *  command, result, event and `app.ready` passes through here to the
+   *  viewer and back. Bytes are re-transferred, everything else is
+   *  structured-cloned once more per hop. The window gets exactly this
+   *  client's API rights, so `origin` is mandatory and never `'*'`. Works
+   *  the same from a page inside the viewer (its client targets
+   *  `window.parent`), and a relayed window's client can relay again to
+   *  windows it opens. Returns a function that ends the relay (so does
+   *  `{ signal }` and `dispose()`), which closes the window's client; a
+   *  window that closes drops its relay by itself. Watch it with
+   *  `onRelayChanged`. */
+  relay(win: Window, opts: RelayOptions): () => void {
+    if (!opts.origin || opts.origin === '*') {
+      throw new TypeError('relay(): origin must be the relayed window\'s concrete origin, never "*"');
     }
-    this.pending.clear();
-    this.target = null;
+    if (this.isClosed || opts.signal?.aborted) {
+      return () => undefined;
+    }
+    this.relays.set(win, { win, origin: opts.origin });
+    this.startWatch();
+    if (this.readyPayload) {
+      this.post(win, opts.origin, this.readyEnvelope());
+    }
+    const off = () => this.endRelay(win, null);
+    opts.signal?.addEventListener('abort', off, { once: true });
+    return off;
   }
 
   // ── commands (one method per EVENTS.md entry) ─────────────────────────────
@@ -2314,6 +2470,24 @@ export class TredespaceClient {
     return this.on('instance.changed', (p) => handler(p as { data: Record<string, unknown> }), opts);
   }
 
+  /** Typed convenience for the local `client.closed` event: this client's link
+   *  ended — `dispose()` / the constructor signal (`disposed`), the opener
+   *  relaying for it went away (`relay`), or its target window was found
+   *  closed (`target`). Fires once, after pending requests were settled with
+   *  a `transport` error; nothing follows it. */
+  onClosed(handler: (e: ClientClosedEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('client.closed', (p) => handler(p as ClientClosedEvent), opts);
+  }
+
+  /** Typed convenience for the local `relay.changed` event — per window passed
+   *  to `relay()`: `connected` when its page's client says hello (again after
+   *  each navigation), `disconnected` when that client disposes or the page
+   *  unloads (the relay stays — it may be navigating), `closed` when the
+   *  window is gone and the relay was dropped. */
+  onRelayChanged(handler: (e: RelayChangedEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('relay.changed', (p) => handler(p as RelayChangedEvent), opts);
+  }
+
   /** Typed convenience for external-dialog lifecycle changes — opened, hidden,
    *  shown, renamed, closed — whichever route caused them (the ✕, `uiClose`,
    *  the `uiDialog*` methods, `externalAppsSet`, a layout swap dropping a
@@ -2391,6 +2565,10 @@ export class TredespaceClient {
     if (!target) {
       return Promise.resolve({ error: { code: 'transport', msg: 'client disposed (no viewer window)' } });
     }
+    if (target.closed) {
+      this.close('target');
+      return Promise.resolve({ error: { code: 'transport', msg: 'target window closed' } });
+    }
     const id = `${this.idPrefix}-${this.nextId++}`;
     const timeoutMs = extra?.timeoutMs ?? this.timeoutMs;
     return new Promise<Result<T>>((resolve) => {
@@ -2418,18 +2596,27 @@ export class TredespaceClient {
   }
 
   private handle(e: MessageEvent) {
+    const d: Envelope | null = typeof e.data === 'object' ? e.data : null;
+    if (d?.tredespace !== TREDESPACE_PROTOCOL || typeof d.type !== 'string') {
+      return;
+    }
+    const relay = e.source ? this.relays.get(e.source) : undefined;
+    if (relay) {
+      if (e.origin === relay.origin) {
+        this.fromRelayed(relay, d);
+      }
+      return;
+    }
     if (this.origin !== '*' && e.origin !== this.origin) {
       return;
     }
-    const d = e.data as {
-      tredespace?: number;
-      id?: string | null;
-      type?: string;
-      ok?: boolean;
-      payload?: unknown;
-      error?: { code: TredespaceErrorCode; message: string };
-    };
-    if (d?.tredespace !== TREDESPACE_PROTOCOL || typeof d.type !== 'string') {
+    if (d.type === 'client.hello') {
+      return; // a client that targets this page — relayed only once passed to relay()
+    }
+    if (d.type === 'client.bye') {
+      if (e.source === this.target) {
+        this.close('relay');
+      }
       return;
     }
     if (d.type === 'app.ready') {
@@ -2438,16 +2625,20 @@ export class TredespaceClient {
         w(this.readyPayload);
       }
       this.readyWaiters = [];
+      this.fanOut(d);
       return;
     }
     if (!d.id) {
       // unsolicited app → host event (id: null), e.g. tree.select
-      const handlers = this.eventHandlers.get(d.type);
-      if (handlers) {
-        for (const h of [...handlers]) {
-          h(d.payload);
-        }
-      }
+      this.emit(d.type, d.payload);
+      this.fanOut(d);
+      return;
+    }
+    const relayed = this.relayed.get(d.id);
+    if (relayed) {
+      clearTimeout(relayed.timer);
+      this.relayed.delete(d.id);
+      this.post(relayed.win, relayed.origin, d, true);
       return;
     }
     const p = this.pending.get(d.id);
@@ -2461,6 +2652,163 @@ export class TredespaceClient {
     } else {
       const wire = d.error ?? { code: 'internal' as const, message: 'unknown error' };
       p.settle({ error: { code: wire.code, msg: wire.message, err: wire } });
+    }
+  }
+
+  /** A message from a relayed window: its client's hello / bye notes are
+   *  answered here; a command is forwarded to the viewer under its own id,
+   *  remembered so the result finds its way back. */
+  private fromRelayed(relay: RelayEntry, d: Envelope) {
+    if (d.type === 'client.hello') {
+      this.emit('relay.changed', { window: relay.win, origin: relay.origin, state: 'connected' });
+      if (this.readyPayload) {
+        this.post(relay.win, relay.origin, this.readyEnvelope());
+      }
+      return;
+    }
+    if (d.type === 'client.bye') {
+      this.emit('relay.changed', { window: relay.win, origin: relay.origin, state: 'disconnected' });
+      return;
+    }
+    const id = d.id;
+    if (typeof id !== 'string' || d.type?.endsWith(':result') || d.type === 'app.ready' || !this.target) {
+      return;
+    }
+    const timer = setTimeout(() => this.relayed.delete(id), this.importTimeoutMs);
+    this.relayed.set(id, { win: relay.win, origin: relay.origin, timer });
+    this.post(this.target, this.origin, d, true);
+  }
+
+  private endRelay(win: Window, state: 'closed' | null) {
+    const relay = this.relays.get(win);
+    if (!relay) {
+      return;
+    }
+    this.relays.delete(win);
+    for (const [id, r] of this.relayed) {
+      if (r.win === win) {
+        clearTimeout(r.timer);
+        this.relayed.delete(id);
+      }
+    }
+    if (state) {
+      this.emit('relay.changed', { window: win, origin: relay.origin, state });
+    } else {
+      this.post(win, relay.origin, this.note('client.bye'));
+    }
+    if (!this.relays.size && !this.watchTarget) {
+      this.stopWatch();
+    }
+  }
+
+  /** End this client: settle what is pending, tell relayed windows (their
+   *  clients close with reason `relay`), tell an upstream relay when disposing
+   *  (it marks this window `disconnected`), then raise `client.closed`. */
+  private close(reason: ClientClosedEvent['reason']) {
+    if (this.isClosed) {
+      return;
+    }
+    this.isClosed = true;
+    window.removeEventListener('message', this.onMessage);
+    window.removeEventListener('pagehide', this.onPageHide);
+    window.removeEventListener('pageshow', this.onPageShow);
+    this.stopWatch();
+    const msg = CLOSE_MESSAGES[reason];
+    for (const [, p] of this.pending) {
+      clearTimeout(p.timer);
+      p.settle({ error: { code: 'transport', msg } });
+    }
+    this.pending.clear();
+    for (const r of this.relayed.values()) {
+      clearTimeout(r.timer);
+    }
+    this.relayed.clear();
+    for (const r of this.relays.values()) {
+      this.post(r.win, r.origin, this.note('client.bye'));
+    }
+    this.relays.clear();
+    if (reason === 'disposed') {
+      this.post(this.target, this.origin, this.note('client.bye'));
+    }
+    this.target = null;
+    this.emit('client.closed', { reason });
+  }
+
+  private sayHello() {
+    this.post(this.target, this.origin, this.note('client.hello'));
+  }
+
+  /** Page unloading (navigation or close): an upstream relay marks this
+   *  window `disconnected`; relayed windows lose their link. */
+  private sayBye() {
+    this.post(this.target, this.origin, this.note('client.bye'));
+    for (const r of this.relays.values()) {
+      this.post(r.win, r.origin, this.note('client.bye'));
+    }
+  }
+
+  /** A client-to-relay note: `id: null` like an event, so the viewer — which
+   *  only answers string ids — ignores it when a client targets it directly. */
+  private note(type: 'client.hello' | 'client.bye'): Envelope {
+    return { tredespace: TREDESPACE_PROTOCOL, id: null, type, payload: {} };
+  }
+
+  private readyEnvelope(): Envelope {
+    return { tredespace: TREDESPACE_PROTOCOL, id: null, type: 'app.ready', ok: true, payload: this.readyPayload };
+  }
+
+  /** Every unsolicited message from the viewer goes to every relayed window
+   *  as well — cloned, never transferred, since there may be several. */
+  private fanOut(d: Envelope) {
+    for (const r of this.relays.values()) {
+      this.post(r.win, r.origin, d);
+    }
+  }
+
+  private post(win: Window | null, origin: string, d: Envelope, transfer = false) {
+    if (!win) {
+      return;
+    }
+    try {
+      win.postMessage(d, origin, transfer ? transferablesOf(d) : []);
+    } catch {
+      // closed window or an already-detached buffer — the sender's timeout reports it
+    }
+  }
+
+  private emit(type: string, payload: unknown) {
+    const handlers = this.eventHandlers.get(type);
+    if (!handlers) {
+      return;
+    }
+    for (const h of [...handlers]) {
+      h(payload);
+    }
+  }
+
+  private startWatch() {
+    if (this.watchTimer) {
+      return;
+    }
+    this.watchTimer = setInterval(() => this.checkClosed(), CLOSED_POLL_MS);
+  }
+
+  private stopWatch() {
+    if (!this.watchTimer) {
+      return;
+    }
+    clearInterval(this.watchTimer);
+    this.watchTimer = null;
+  }
+
+  private checkClosed() {
+    for (const r of [...this.relays.values()]) {
+      if (r.win.closed) {
+        this.endRelay(r.win, 'closed');
+      }
+    }
+    if (this.watchTarget && this.target?.closed) {
+      this.close('target');
     }
   }
 }

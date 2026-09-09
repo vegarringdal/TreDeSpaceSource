@@ -1,7 +1,7 @@
 import { Button } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { useDemo } from '../DemoContext';
-import { IS_DIALOG } from '../hostEnv';
+import { IS_DIALOG, IS_POPUP } from '../hostEnv';
 import { AppSection } from '../sections/AppSection';
 import { ClipSection } from '../sections/ClipSection';
 import { ColorRulesSection } from '../sections/ColorRulesSection';
@@ -12,6 +12,7 @@ import { LabelsSection } from '../sections/LabelsSection';
 import { MeasurementsSection } from '../sections/MeasurementsSection';
 import { ModelStoresSection } from '../sections/ModelStoresSection';
 import { NavigationSection } from '../sections/NavigationSection';
+import { RelaySection } from '../sections/RelaySection';
 import { SelectionSection } from '../sections/SelectionSection';
 import { SqlSection } from '../sections/SqlSection';
 import { ViewpointsSection } from '../sections/ViewpointsSection';
@@ -19,6 +20,10 @@ import { Hint } from './Hint';
 import { Row } from './Row';
 
 function ModeLine() {
+  if (IS_POPUP) {
+    return <Hint>Popup mode — driving the page that opened this window; its client relays to the viewer.</Hint>;
+  }
+
   if (IS_DIALOG) {
     return (
       <Hint>
@@ -48,7 +53,7 @@ export function ControlsColumn() {
   return (
     <div
       className={`flex flex-col gap-2 overflow-y-auto p-2.5 ${
-        IS_DIALOG ? 'min-h-0 w-full flex-1' : 'w-[340px] flex-none border-slate-800 border-r'
+        IS_DIALOG || IS_POPUP ? 'min-h-0 w-full flex-1' : 'w-[340px] flex-none border-slate-800 border-r'
       }`}
     >
       <h1 className="m-0 font-semibold text-[13px]">TreDeSpace postMessage API demo</h1>
@@ -65,6 +70,7 @@ export function ControlsColumn() {
       {/* sections mount collapsed; bumping the key remounts them all closed */}
       <div key={collapseNonce} className="flex flex-col gap-2">
         <EventsSection />
+        <RelaySection />
         <SelectionSection />
         <LabelsSection />
         <ColorRulesSection />

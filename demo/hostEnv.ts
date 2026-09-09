@@ -24,5 +24,9 @@ export const APP_ORIGIN = new URL(APP_URL).origin;
  *  dialog): no iframe, just actions + console, driving window.parent. */
 export const IS_DIALOG = new URLSearchParams(location.search).has('dialog');
 
+/** ?popup=1 — this page was OPENED by another demo page (Relay section): no
+ *  iframe, driving window.opener, whose client relays to the viewer. */
+export const IS_POPUP = new URLSearchParams(location.search).has('popup');
+
 /** Host-provided config (?config=<stringified json> from Settings → External). */
 export const CONFIG_PARAM = new URLSearchParams(location.search).get('config');

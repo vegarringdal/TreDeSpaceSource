@@ -5,6 +5,18 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.09.09** (>0.0.105):
+  Host SDK: `client.relay(win, { origin })` forwards the postMessage API
+  for a tab or popup the host (or a page of the host's inside the viewer)
+  opened — the new window drives `window.opener` with an unchanged client
+  and gets commands, results, progress, events and `app.ready` through the
+  opener, bytes re-transferred. Clients now say `client.hello` / `client.bye`
+  (ignored by the viewer) so a late-loading window still gets `app.ready`
+  and a relay tracks its windows; two local events report link lifecycle:
+  `relay.changed` (opener side: connected / disconnected / closed per
+  window) and `client.closed` (any client: disposed / relay / target), the
+  latter also on Window targets found closed, so a dead link no longer shows
+  up only as 30 s timeouts. EVENTS.md "Windows you open: relaying the
+  client"; the demo gains a Relay section and a `?popup=1` mode.
   Home ribbon: the "Mute and Clear" section is now "Quick Clear" and keeps
   only Clear Label / Clear Measurement. The two Mute buttons (and their
   hotkeys `home.label.mute` / `home.measurement.mute`) are gone — the Labels

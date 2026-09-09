@@ -34,6 +34,9 @@ export function useDemoEvents(
         cl.onViewpointsBookmark((e) =>
           line('out', `⚡ viewpoints.bookmark "${e.label}" — ${e.config.viewpoints.length} viewpoint(s) attached`),
         ),
+        // local lifecycle: windows this client relays for, and this client's own end
+        cl.onRelayChanged((e) => line('out', `⚡ relay.changed ${e.state} (${e.origin})`)),
+        cl.onClosed((e) => line('err', `⚡ client.closed — reason: ${e.reason}`)),
       ];
       unsubRef.current = () => {
         for (const off of offs) {
@@ -43,7 +46,7 @@ export function useDemoEvents(
       setListening(true);
       line(
         'ok',
-        '← listening for tree.select + instance.changed + theme.changed + viewpoints.bookmark + dialog.changed',
+        '← listening for tree.select + instance.changed + theme.changed + viewpoints.bookmark + dialog.changed + relay.changed + client.closed',
       );
     },
     [line],

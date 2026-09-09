@@ -106,6 +106,13 @@ assets index read):
 Hosts should queue commands until `app.ready` (commands before it get
 `{ code: 'not-ready' }`).
 
+**Client-to-relay notes.** The SDK also posts two `id: null` messages of its
+own, `client.hello` (on construction, and again when a page returns from the
+back-forward cache) and `client.bye` (on `dispose()` and on `pagehide`). They
+exist for the relay described under "Windows you open" — a relaying opener
+answers hello with the `app.ready` it holds and tracks bye. The app itself
+only handles string ids, so it ignores both when a client targets it directly.
+
 ## Command catalog (v1)
 
 > Each `### command` heading below MUST carry a fenced ` ```js ` block with a
@@ -1478,6 +1485,10 @@ opener, AND every embedded iframe on an allowed origin (external-app panels /
 dialogs) — so hosts work whether they host the viewer or are hosted by it.
 SDK: `client.on(type, handler)` or the typed helpers; handlers get the payload.
 
+Two more types are raised by the SDK client itself and never cross
+postMessage: `client.closed` (`onClosed`) and `relay.changed`
+(`onRelayChanged`) — see "Windows you open: relaying the client".
+
 ### tree.select
 The user selected a node — a row in the tree view (Hierarchy panel or its
 search results) or an item picked by clicking the model in the viewport
@@ -1716,8 +1727,72 @@ What to do instead:
 - **Serve the viewer from the host's own site** (a path, or a subdomain — a
   subdomain is same-*site*): no cross-site ancestor, so every same-origin
   mechanism works normally.
+- **A tab or popup the host (or a nested page) opened**: it has no handle on
+  the viewer at all — let its opener relay the API for it, next section.
 
-## Hosting: reverse-proxy the viewer under your own site
+## Windows you open: relaying the client
+
+A host page — or a page of the host's running inside the viewer as a panel or
+dialog — often opens a new tab or popup (`window.open`) that wants the viewer
+too: a report in its own tab, a tool window next to the model. That window
+holds no reference to the viewer, and it sits in a different storage partition
+from a nested page anyway. The SDK's **relay** closes the gap: the new window
+drives its *opener* with an unchanged client, and the opener forwards
+everything to the viewer.
+
+```js
+// in the new window — same client, targeting the opener
+const client = new TredespaceClient(window.opener, { targetOrigin: openerOrigin });
+await client.ready();                          // answered by the relay
+const r = await client.selectionSet(['/SITE/ZONE-1/PIPE-401']);
+client.onTreeSelect((e) => …);                 // events arrive as well
+
+// in the opener — the host's top page, or its panel inside the viewer
+const win = window.open('https://portal.example.com/report.html');
+const off = client.relay(win, { origin: 'https://portal.example.com' });
+```
+
+What passes through: every command with its result (the id the window chose
+is kept, so several windows never collide — ids carry a random per-client
+prefix), progress ticks, unsolicited events and `app.ready`. ArrayBuffer bytes
+are re-transferred, so a large import is still zero-copy; everything else is
+structured-cloned once more per hop. Measured on 8-column rows, that extra
+copy is about 4 ms per 10 000 `sqlExecute` rows and 0.6 s per million —
+`sqlSelect` / `sqlColor` move no rows and cost nothing extra. The relay works
+the same from a page inside the viewer (its client targets `window.parent`;
+give that External app the `popups` sandbox option, which lets the window
+escape the sandbox), and a relayed window's client can relay again to windows
+*it* opens.
+
+**Trust.** The relayed window gets exactly the opener's API rights — the
+viewer sees the opener's origin, not the window's — so `origin` is mandatory
+and must be the window's concrete origin, never `'*'`: it filters what the
+relay accepts from that window and is the targetOrigin of everything posted
+back. Relay only to pages you would let use your own client.
+
+**Lifecycle.** Both sides learn when a link ends instead of waiting on
+timeouts:
+
+- `relay.changed` (`onRelayChanged`, opener side, per relayed window):
+  `connected` when the window's page constructed its client — again after
+  every navigation, so an SSO round trip inside the window reconnects on its
+  own; `disconnected` when that client disposed or its page is unloading
+  (navigating or closing — the relay stays); `closed` when the window is gone,
+  which drops the relay by itself.
+- `client.closed` (`onClosed`, any client): its link ended — `disposed`
+  (`dispose()` or the constructor signal), `relay` (the opener ended the relay
+  with the returned function or `{ signal }`, disposed its client, or its page
+  unloaded), `target` (the target window was found closed). Pending requests
+  settle with a `transport` error first; nothing fires after it.
+
+Window targets — an opener, a `window.open`ed viewer, a parent — and relayed
+windows are checked for `closed` once a second; an iframe element target is
+not, since the host owns that DOM and disposes the client itself. The chain
+propagates: a viewer window closing under the host closes the host's client
+(`target`), which tells every relayed window (`relay`).
+
+Try it: the `/demo/` page's Relay section opens itself as a relayed tab
+(`?popup=1`), from iframe mode or from a panel inside the viewer.
 
 The partitioning above is one symptom of a general rule: when the viewer is a
 **cross-site** frame, everything the host opens *inside* it (External-app

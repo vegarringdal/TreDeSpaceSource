@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { TredespaceClient } from '../api/tredespace-client';
-import { APP_ORIGIN, CONFIG_PARAM, IS_DIALOG } from './hostEnv';
+import { APP_ORIGIN, CONFIG_PARAM, IS_DIALOG, IS_POPUP } from './hostEnv';
 import { makeRun, type RunFn } from './runCommand';
 import { useDemoEvents } from './useDemoEvents';
 import { type LogCls, type LogLine, useDemoLog } from './useDemoLog';
@@ -44,7 +44,7 @@ export function DemoProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   const c = useCallback((): TredespaceClient => {
     if (!clientRef.current) {
-      throw new Error('no viewer connection — dialog mode must run inside the viewer (External app panel)');
+      throw new Error('no viewer connection — dialog mode runs inside the viewer, popup mode is opened by a demo page');
     }
 
     return clientRef.current;
@@ -67,6 +67,26 @@ export function DemoProvider({ children }: Readonly<{ children: ReactNode }>) {
     },
     [line, subscribe],
   );
+
+  // popup mode: another demo page opened this window and relays for it — the
+  // client drives window.opener exactly like it would drive the viewer, and
+  // the relay answers ready() with the app.ready it already holds
+  useEffect(() => {
+    if (!IS_POPUP) {
+      return;
+    }
+
+    const opener: Window | null = window.opener;
+    if (!opener) {
+      line('err', 'popup mode expects to be OPENED by a demo page — use "open relayed window" in its Relay section');
+      return;
+    }
+
+    const cl = new TredespaceClient(opener, { targetOrigin: location.origin });
+    clientRef.current = cl;
+    subscribe(cl);
+    void cl.ready().then((r) => line('ok', `app.ready via relay — version ${r.version}, api v${r.api}`));
+  }, [line, subscribe]);
 
   // dialog mode: this page IS inside the viewer — the viewer is window.parent,
   // nothing to embed. The app announced app.ready before this panel existed,
