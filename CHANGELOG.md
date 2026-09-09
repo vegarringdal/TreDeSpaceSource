@@ -4,6 +4,22 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.09** (>0.0.105):
+  Home ribbon: the "Mute and Clear" section is now "Quick Clear" and keeps
+  only Clear Label / Clear Measurement. The two Mute buttons (and their
+  hotkeys `home.label.mute` / `home.measurement.mute`) are gone — the Labels
+  and Measurements panels already own the scene-wide mute via Show all.
+  Home ribbon: the Theme section moved to the end of the tab (after Wipe;
+  host-promoted external apps still take the very last slot).
+
+- **2026.09.09** (>0.0.104):
+  Hierarchy search no longer finds items of unloaded models. Unload
+  tombstones a model slot (its hierarchy stays in the worker so a reload or
+  residency swap can revive the slot in place), and the name-search scan was
+  the one model loop that did not skip tombstoned slots — so a removed
+  model's names kept matching, and picking one selected nothing. Regression
+  test in `tests/searchSkipsUnloaded.test.ts`.
+
 - **2026.09.08** (>0.0.103):
   Tests: refreshed the shader text pin snapshot after the blend-pass comment
   in `shaders/scene.ts` changed — the pin hashes the WGSL source, comments

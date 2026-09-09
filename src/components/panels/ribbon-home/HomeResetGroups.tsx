@@ -1,21 +1,13 @@
-import { IconEraser, IconEyeOff, IconTrashX } from '@tabler/icons-react';
+import { IconEraser, IconTrashX } from '@tabler/icons-react';
 import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { ribbonHomeActions as act } from './ribbonHome.actions';
 
-/** Mute and Clear — a label column and a measurement column, mute over
- *  clear — then Wipe: the nuke-everything local reset. */
+/** Quick Clear — delete the scene's labels / measurements — then Wipe: the
+ *  nuke-everything local reset. */
 export function HomeResetGroups() {
   return (
     <>
-      <RibbonSection title="Mute and Clear">
-        <RibbonButton
-          size="medium"
-          icon={<IconEyeOff />}
-          label="Mute Label"
-          tooltip="Mute every label in the viewport (scene AND viewpoint) — press again to unmute; nothing is deleted"
-          shortcut="home.label.mute"
-          onClick={act.muteLabels}
-        />
+      <RibbonSection title="Quick Clear">
         <RibbonButton
           size="medium"
           icon={<IconEraser />}
@@ -23,14 +15,6 @@ export function HomeResetGroups() {
           tooltip="Delete the scene's labels — a live viewpoint's labels are muted instead, never deleted"
           shortcut="home.label.clear"
           onClick={() => void act.deleteLabels()}
-        />
-        <RibbonButton
-          size="medium"
-          icon={<IconEyeOff />}
-          label="Mute Measurement"
-          tooltip="Mute every measurement in the viewport (scene AND viewpoint) — press again to unmute; nothing is deleted"
-          shortcut="home.measurement.mute"
-          onClick={act.muteMeasurements}
         />
         <RibbonButton
           size="medium"

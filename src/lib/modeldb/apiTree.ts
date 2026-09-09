@@ -211,6 +211,11 @@ export const treeApi = {
     const SCAN_CAP = 5000; // enough candidates to pick the 10 shallowest from
     for (let mi = 0; mi < models.length && found.length < SCAN_CAP; mi++) {
       const m = models[mi];
+      // tombstoned (unloaded) slots keep their hierarchy for a possible revive
+      // but must not surface in search
+      if (m.removed) {
+        continue;
+      }
       const namesLower = ensureNames(m);
       for (let e = 0; e < namesLower.length && found.length < SCAN_CAP; e++) {
         if (!matches(namesLower[e])) {

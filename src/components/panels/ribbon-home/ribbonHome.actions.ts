@@ -225,21 +225,6 @@ export const ribbonHomeActions = {
     location.reload();
   },
 
-  /** Reset → Mute labels: hide every label shown — scene or viewpoint side
-   *  alike — nothing is deleted. Press again to show them. */
-  muteLabels() {
-    const muted = !labelsState.get().muted;
-    labelsState.set({ muted });
-    log(muted ? 'Labels muted' : 'Labels shown');
-  },
-
-  /** Reset → Mute measurements: the measurement twin of muteLabels. */
-  muteMeasurements() {
-    const muted = !measurementsState.get().muted;
-    measurementsState.set({ muted });
-    log(muted ? 'Measurements muted' : 'Measurements shown');
-  },
-
   /** Reset → Clear labels: deletes the SCENE labels only. A live viewpoint's
    *  labels are never deleted — they are muted instead (the parked scene set
    *  is what gets cleared). */

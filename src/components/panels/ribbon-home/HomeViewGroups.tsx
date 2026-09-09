@@ -1,8 +1,6 @@
-import { IconCube, IconMoon, IconPencil, IconPerspective, IconSun } from '@tabler/icons-react';
+import { IconCube, IconPencil, IconPerspective } from '@tabler/icons-react';
 import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { type SketchColorMode, viewerState } from '../../../state/viewer/viewer.state';
-import { settingsActions } from '../settings/settings.actions';
-import { settingsState } from '../settings/settings.state';
 import { ribbonHomeActions as act } from './ribbonHome.actions';
 import { ribbonHomeState } from './ribbonHome.state';
 
@@ -35,25 +33,14 @@ const SKETCH_COLOR_MODES: readonly { mode: SketchColorMode; label: string; toolt
 // Render
 // -----------------------------------------------------------------------------
 
-/** Theme toggle, the Sketch group (mode + its three colour modes) and the
- *  perspective/ortho camera mode switch. */
+/** The Sketch group (mode + its three colour modes) and the perspective/ortho
+ *  camera mode switch. */
 export function HomeViewGroups() {
   const s = ribbonHomeState.use();
-  const dark = settingsState.use().theme === 'dark';
   const { sketch, sketchColorMode } = viewerState.use();
 
   return (
     <>
-      <RibbonSection title="Theme">
-        <RibbonButton
-          icon={dark ? <IconSun /> : <IconMoon />}
-          label={dark ? 'Light' : 'Dark'}
-          tooltip={`Switch to the ${dark ? 'light' : 'dark'} theme`}
-          shortcut="view.theme.toggle"
-          onClick={settingsActions.toggleTheme}
-        />
-      </RibbonSection>
-
       <RibbonSection title="Sketch">
         <RibbonButton
           icon={<IconPencil />}

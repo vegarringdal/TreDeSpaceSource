@@ -1074,22 +1074,6 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => labelsActions.muteOutsideClip(),
   },
   {
-    id: 'home.label.mute',
-    category: 'Home',
-    label: 'Label: mute all',
-    defaultKeys: 'ALT + 1140',
-    description: 'Mute every label (scene and viewpoint) — press again to unmute',
-    run: () => home.muteLabels(),
-  },
-  {
-    id: 'home.measurement.mute',
-    category: 'Home',
-    label: 'Measurement: mute all',
-    defaultKeys: 'ALT + 1226',
-    description: 'Mute every measurement (scene and viewpoint) — press again to unmute',
-    run: () => home.muteMeasurements(),
-  },
-  {
     id: 'home.label.clear',
     category: 'Home',
     label: 'Label: clear',
