@@ -4,6 +4,14 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.10** (>0.0.110):
+  Fit visible (`nav.fitVisible`, the Fit-visible button) no longer frames
+  items an opacity-0 override has made invisible. Set Color's hidden toggle
+  and `sql.color`'s `default-hidden` base coat hide through opacity 0, not the
+  hide flag, so the fit box still spanned everything they had isolated away
+  and the camera flew to the whole model (a clip box was the only
+  workaround). The fit now uses the tree badge's notion of hidden: hide flag
+  OR opacity-0 override.
 - **2026.09.10** (>0.0.109):
   Sketch mode keeps the clipping helpers: the clip box / sphere / cylinder
   outlines, the clipping-plane helper rectangles and the label / measurement

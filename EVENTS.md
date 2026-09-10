@@ -1294,7 +1294,9 @@ response: { matched: true }
 ```
 
 ### nav.fitVisible
-Frame everything currently VISIBLE — every item that is not hidden, moved
+Frame everything currently VISIBLE — every item that is not hidden (an
+opacity-0 override — Set Color's hidden toggle, `sql.color`'s `default-hidden`
+base coat — counts as hidden, exactly as the tree's hidden badge does), moved
 geometry included — as tightly as the viewport allows (the same framing as
 "fly to selection", applied to the visible set), under the clipping in force:
 with the default clip box or extra clip shapes on, the frame is the visible

@@ -713,7 +713,8 @@ export const viewerActions = {
   },
 
   /** Frame everything that is NOT hidden (the host API `nav.fitVisible` and
-   *  the Fit-visible button): the union box of every visible item, moved
+   *  the Fit-visible button): the union box of every visible item (no hide
+   *  flag and no opacity-0 override — the tree's notion of hidden), moved
    *  geometry included, under the clipping in force — with the default box
    *  or extra shapes on, the frame is the visible box cut down to their
    *  envelope (holes ignored; `bounds: 'bbox'` frames the envelope itself),

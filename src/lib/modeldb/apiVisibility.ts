@@ -5,7 +5,7 @@ import { quatAxes } from '../math/quat';
 import { type ColorUndoRecord, captureColorRuns, pushColorUndo } from './colorUndo';
 import { type DbModel, IS_HIDDEN, models, NO_ITEM_EDGES, type StateUpdate } from './dbState';
 import { DenseBoxAccumulator } from './denseBox';
-import { packStates } from './hierarchyIndex';
+import { isEffectivelyHidden, packStates } from './hierarchyIndex';
 import { itemWorldBounds, transforms } from './transformPool';
 
 export const visibilityApi = {
@@ -62,9 +62,12 @@ export const visibilityApi = {
     });
   },
 
-  /** World AABB of every NON-hidden item that has geometry, across all live
-   * models — what "fit visible" frames. Transformed items contribute their
-   * moved box. null when nothing visible is left. */
+  /** World AABB of every item that is visible AS THE USER SEES IT — no hide
+   * flag and no opacity-0 override (Set Color's hidden toggle, sql.color's
+   * `default-hidden` base coat), the tree badge's isEffectivelyHidden — and
+   * has geometry, across all live models: what "fit visible" frames.
+   * Transformed items contribute their moved box. null when nothing visible
+   * is left. */
   visibleWorldBounds(): { min: [number, number, number]; max: [number, number, number] } | null {
     const wb = new Float32Array(6);
     const min: [number, number, number] = [Infinity, Infinity, Infinity];
@@ -75,7 +78,7 @@ export const visibilityApi = {
         continue;
       }
       for (let i = 0; i < m.itemCount; i++) {
-        if (m.states[i * 2] & IS_HIDDEN) {
+        if (isEffectivelyHidden(m.states[i * 2])) {
           continue;
         }
         if (!itemWorldBounds(m.itemBounds, m.tidx, i, wb)) {

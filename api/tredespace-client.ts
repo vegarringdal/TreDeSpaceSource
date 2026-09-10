@@ -1592,8 +1592,10 @@ export class TredespaceClient {
   navOrbit(fullname: string, opts?: { select?: boolean; wait?: boolean }): Promise<Result<{ matched: boolean }>> {
     return this.send('nav.orbit', { fullname, select: opts?.select ?? false, wait: opts?.wait ?? false });
   }
-  /** Frame everything currently VISIBLE — every item that is not hidden,
-   *  moved geometry included — as tightly as the viewport allows, under the
+  /** Frame everything currently VISIBLE — every item that is not hidden (an
+   *  opacity-0 override, Set Color's hidden toggle or `sql.color`'s
+   *  `default-hidden` base coat, counts as hidden), moved geometry included —
+   *  as tightly as the viewport allows, under the
    *  clipping in force: with the clip box / shapes on, the frame is the
    *  visible box cut down to their envelope (holes ignored), and every
    *  enabled clipping plane trims it. `bounds: 'bbox'` frames the clip
