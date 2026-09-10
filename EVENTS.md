@@ -259,9 +259,15 @@ response: {}
 
 ### colorRules.add / colorRules.set
 Append to / replace the Set Color editor's rules (same shape as the rules
-JSON file). `run: true` also runs them immediately. The top-level `mode` is
-`reset` (clear existing overrides first), `append` (layer on top) or `hide`
-(hide everything — the rules unhide and colour only what they match).
+JSON file). `colorRules.set` takes `replaceRules` (default `true`): `false`
+appends instead, exactly like `colorRules.add`. An append onto the panel's
+untouched starter rule drops that blank placeholder. `run: true` also runs
+them immediately. The top-level `mode` is `reset` (clear existing overrides
+first), `append` (layer on top), `hide` (hide everything — the rules unhide
+and colour only what they match) or `keep` (leave the run mode the panel
+already has; a fresh panel's is `reset`). `colorRules.set` defaults to
+`reset`, `colorRules.add` to `keep` — so `{ replaceRules: false, mode:
+'keep' }` adds rules without disturbing a user's own set-up.
 Filter `mode` is one of
 `contains`, `single` (equals; `*` wildcard at start/end), `starts`, `ends`,
 `wildcard` (equals with `*` wildcards anywhere, e.g. `/85*pump*01`) or
@@ -284,7 +290,8 @@ A `multi` line may carry its own colour after a TAB/space/comma —
 which is how a per-row colour list is fed in.
 
 ```js
-payload: { mode: 'append', run: true, rules: [
+payload: { mode: 'append', run: true, replaceRules: true, // false = add to the rules already there
+  rules: [
   { comment: 'inspection', enabled: true, color: '#ff8800', opacity: 1, store: 'main',
     filters: [{ op: 'append', mode: 'contains', value: 'PIPE', comment: '', level: 3 }] },
   { comment: 'per-row colours', color: null,

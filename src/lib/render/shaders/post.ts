@@ -1,3 +1,5 @@
+import { HELPER_TAG_BIT } from './scene';
+
 // VBAO compute — port of the native vbao.slang (Visibility Bitmask AO,
 // Therrien/Levesque/Gilet 2023). Screen-space horizon bitmask per slice;
 // view-space positions reconstructed from reversed-Z infinite depth.
@@ -221,6 +223,7 @@ const SAMPLES = ${msaa ? 4 : 1};
 @group(0) @binding(4) var normal_tex: ${gtex};
 @group(0) @binding(5) var id_tex: ${gtex};
 @group(0) @binding(6) var ao_tex: texture_2d<f32>; // VBAO output (always single-sample)
+${msaa ? '@group(0) @binding(7) var scene_ms: texture_multisampled_2d<f32>; // unresolved colour' : ''}
 
 // The third textureLoad arg is the sample index for multisampled textures and
 // the mip level otherwise; with SAMPLES = 1 the loop only ever passes 0, so
@@ -234,6 +237,11 @@ fn ld_normal(xy: vec2i, o: vec2i, dims: vec2i, s: i32) -> vec3f {
 // edge tag bits of a G-buffer sample (normal alpha, quantized 8-bit)
 fn ld_tag(xy: vec2i, o: vec2i, dims: vec2i, s: i32) -> u32 {
   return u32(round(textureLoad(normal_tex, clamp(xy + o, vec2i(0), dims - 1), s).w * 255.0));
+}
+// scene colour of ONE sample: the unresolved MSAA target, or the only colour
+// texture when single-sampled (the sample index is then meaningless)
+fn ld_scene(xy: vec2i, s: i32) -> vec3f {
+  return textureLoad(${msaa ? 'scene_ms' : 'scene'}, xy, ${msaa ? 's' : '0'}).rgb;
 }
 // an id boundary draws on the HIGHER-id side (1px lines); a side whose item
 // has item edges OFF never draws, and if the higher side is off the lower
@@ -340,8 +348,9 @@ fn fs(@builtin(position) fpos: vec4f) -> PostOut {
 
   // edge tag bits from the G-buffer normal alpha (see RENDER_FS): 1 = authored
   // normals (own thresholds), 2 = edges off (asset option), 4 = ITEM edges off
-  // for this item. Five bits stay free for a per-model edge STRENGTH
-  // (DESIGN.md "Per-model edge tag / edge strength").
+  // for this item, 8 = helper overlay sample (clip helper lines / marker
+  // spheres — sketch keeps their colour). Four bits stay free for a per-model
+  // edge STRENGTH (DESIGN.md "Per-model edge tag / edge strength").
   let gtag = ld_tag(xy, vec2i(0, 0), dims, 0);
   let smooth_mesh = (gtag & 1u) != 0u;
   let use_depth_thr = select(pp.depth_thr, pp.sm_depth_thr, smooth_mesh);
@@ -455,6 +464,22 @@ fn fs(@builtin(position) fpos: vec4f) -> PostOut {
       }
     }
     col = mix(paper, ink, sketch_edge);
+    // helper overlays (clip box / sphere / cylinder outlines, clipping-plane
+    // helpers, marker spheres) tag their samples: they keep their own colour
+    // on top of the paper. Read per sample from the unresolved colour so a
+    // half-covered 1px line stays antialiased without the shaded scene under
+    // it bleeding through (the resolved pixel would carry both).
+    var helper_cov = 0.0;
+    var helper_col = vec3f(0.0);
+    for (var s = 0; s < SAMPLES; s++) {
+      if ((ld_tag(xy, vec2i(0, 0), dims, s) & ${HELPER_TAG_BIT}u) != 0u) {
+        helper_cov += 1.0;
+        helper_col += ld_scene(xy, s);
+      }
+    }
+    if (helper_cov > 0.0) {
+      col = mix(col, helper_col / helper_cov, helper_cov / f32(SAMPLES));
+    }
   } else {
     var active_edge_color = pp.edge_color.rgb;
     if ((pp.flags & 8u) != 0u && scene_px.a < pp.dark_thr) {

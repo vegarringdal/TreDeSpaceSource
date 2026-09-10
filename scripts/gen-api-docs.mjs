@@ -40,13 +40,22 @@ function parseExamples() {
 }
 
 /** Flatten a JSDoc comment (string | NodeArray) to plain text. */
+/** Plain text of a `{@link X}` target (an identifier, a qualified name or a
+ *  JSDoc member name like `Client.method`). */
+function linkName(n) {
+  if (!n) return '';
+  return ts.isIdentifier(n) ? n.text : `${linkName(n.left)}.${n.right.text}`;
+}
+
+/** A node's JSDoc comment as plain text; `{@link X}` renders as its target
+ *  name (the parts array carries the target separately from the text). */
 function jsdocText(node) {
   const docs = ts.getJSDocCommentsAndTags?.(node) ?? [];
   for (const d of docs) {
     if (ts.isJSDoc(d) && d.comment) {
       return typeof d.comment === 'string'
         ? d.comment.trim()
-        : d.comment.map((c) => c.text ?? '').join('').trim();
+        : d.comment.map((c) => `${linkName(c.name)}${c.text ?? ''}`).join('').trim();
     }
   }
   return '';

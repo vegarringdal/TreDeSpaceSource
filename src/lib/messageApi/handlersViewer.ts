@@ -1,7 +1,11 @@
 // Viewer-control commands: MultiColor rules, view state (sketch/screenshot),
 // clipping and navigation. See EVENTS.md for the payload contracts.
 import { multiColorActions, specsForRules } from '../../components/panels/multi-color/multiColor.actions';
-import { multiColorState } from '../../components/panels/multi-color/multiColor.state';
+import {
+  type ColorRulesMode,
+  isPristineRuleSet,
+  multiColorState,
+} from '../../components/panels/multi-color/multiColor.state';
 import { ribbonClippingBoxActions } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.actions';
 import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonHomeActions } from '../../components/panels/ribbon-home/ribbonHome.actions';
@@ -14,15 +18,34 @@ import { obbWorldBounds } from '../math/obb';
 import { apiRules, colorNameTable, parseColorMode } from './colorMode';
 import { ApiError, type ApiHandler, nameListBytes, records } from './protocol';
 
-// colours are normalised to hex and store scopes checked by apiRules
+/** Run mode from a set/add payload: an explicit 'reset' | 'append' | 'hide'
+ *  wins, 'keep' returns the panel's current mode, anything else the
+ *  command's default. */
+function runMode(v: unknown, current: ColorRulesMode, fallback: ColorRulesMode): ColorRulesMode {
+  if (v === 'keep') {
+    return current;
+  }
+  if (v === 'reset' || v === 'append' || v === 'hide') {
+    return v;
+  }
+  return fallback;
+}
+
+// colours are normalised to hex and store scopes checked by apiRules.
+// colorRules.set swaps the panel's rule list unless `replaceRules: false`,
+// which appends like colorRules.add; an append onto the panel's untouched
+// starter rule drops that blank placeholder (as a viewpoint restore does).
+// `mode: 'keep'` leaves the run mode as the user has it.
 const setOrAddColorRules: ApiHandler = async ({ type, p }) => {
   const incoming = apiRules(p.rules, 'rules');
   if (!incoming.length) {
     throw new ApiError('bad-payload', 'rules must be a non-empty rule[]');
   }
   const cur = multiColorState.get();
-  const rules = type === 'colorRules.add' ? [...cur.rules, ...incoming] : incoming;
-  const mode = p.mode === 'append' || p.mode === 'hide' ? p.mode : type === 'colorRules.add' ? cur.mode : 'reset';
+  const replace = type === 'colorRules.set' && p.replaceRules !== false;
+  const base = isPristineRuleSet(cur.rules) ? [] : cur.rules;
+  const rules = replace ? incoming : [...base, ...incoming];
+  const mode = runMode(p.mode, cur.mode, type === 'colorRules.add' ? cur.mode : 'reset');
   multiColorState.set({ mode, rules, counts: [] });
   let ran = false;
   if (p.run === true) {

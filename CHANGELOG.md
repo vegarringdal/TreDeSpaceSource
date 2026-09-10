@@ -4,6 +4,23 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.10** (>0.0.109):
+  Sketch mode keeps the clipping helpers: the clip box / sphere / cylinder
+  outlines, the clipping-plane helper rectangles and the label / measurement
+  marker spheres draw in their own colours on the paper instead of being
+  wiped by the paper + ink composite. The helper pipelines stamp a tag bit
+  into the G-buffer (normal alpha, alpha-only `max` blend) and the post pass
+  reads those samples' colour from the unresolved MSAA target, so the lines
+  stay antialiased and the shaded scene never bleeds into a half-covered line.
+  API: `colorRules.set` (SDK `colorRulesSet`) takes `replaceRules` — default
+  `true`, the replace-all behaviour as before; `false` appends like
+  `colorRules.add` — and `mode: 'keep'`, which leaves the panel's run mode as
+  the user has it, so a host can add rules to someone's Set Color config
+  without disturbing it. An append onto the panel's untouched starter rule
+  now drops that blank placeholder instead of keeping it above the new rules.
+  Docs generator: a `{@link X}` in an SDK method's JSDoc now renders as the
+  target's name in the `/docs/` command reference (it used to vanish, leaving
+  "same shape as )").
 - **2026.09.10** (>0.0.108):
   Fit visible (button, hotkey, `nav.fitVisible`) now honours the clipping in
   force: with the default clip box or extra clip shapes on, the frame is the

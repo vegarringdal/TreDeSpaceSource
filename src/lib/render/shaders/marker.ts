@@ -2,9 +2,13 @@
 // markers: one unit sphere, instanced (centre, radius, rgba), shaded by the
 // scene's headlight and alpha-blended when translucent. Drawn with the helper
 // lines at the end of the last scene pass, depth tested against the model
-// (reversed-Z); the G-buffer targets are masked, so no edges or ids.
+// (reversed-Z); the G-buffer targets are masked (no edges or ids) except the
+// helper tag in the normal alpha, which keeps the markers visible in sketch.
+import { HELPER_FS_OUT } from './scene';
+
 export function markerWgsl(): string {
   return /* wgsl */ `
+${HELPER_FS_OUT}
 struct Frame {
   // the shared Frame's leading members (camera-relative rendering): instance
   // centres are ABSOLUTE world and rebase here; eye is already rebased
@@ -41,7 +45,7 @@ fn vs(
 }
 
 @fragment
-fn fs(in: VsOut) -> @location(0) vec4f {
+fn fs(in: VsOut) -> HelperOut {
   // headlight like the scene: from the eye (perspective) or along the view
   // axis (ortho); half-Lambert over an ambient floor so the far side stays legible
   var l: vec3f;
@@ -52,7 +56,10 @@ fn fs(in: VsOut) -> @location(0) vec4f {
   }
   let t = dot(normalize(in.normal), l) * 0.5 + 0.5;
   let shade = 0.3 + 0.7 * t;
-  return vec4f(in.color.rgb * shade, in.color.a);
+  var o: HelperOut;
+  o.color = vec4f(in.color.rgb * shade, in.color.a);
+  o.tag = vec4f(0.0, 0.0, 0.0, HELPER_TAG);
+  return o;
 }
 `;
 }

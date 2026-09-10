@@ -1132,6 +1132,19 @@ export class Renderer {
       entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }],
     });
     const lineModule = dev.createShaderModule({ label: 'lineModule', code: lineWgsl() });
+    // Helper overlays (lines, marker spheres) stamp the G-buffer normal's
+    // ALPHA with the helper tag bit — `max` blend, rgb masked — so sketch mode
+    // can keep their colour; the normal itself and the id target stay untouched
+    // and edge detection never sees them. At an overlay sample the scene's own
+    // tag bits are replaced (the helper owns that sample).
+    const helperTagTarget: GPUColorTargetState = {
+      format: 'rgba8unorm',
+      writeMask: GPUColorWrite.ALPHA,
+      blend: {
+        color: { operation: 'add', srcFactor: 'zero', dstFactor: 'one' },
+        alpha: { operation: 'max', srcFactor: 'one', dstFactor: 'one' },
+      },
+    };
     const makeLine = (sampleCount: number) =>
       dev.createRenderPipeline({
         label: 'linePipeline',
@@ -1149,11 +1162,7 @@ export class Renderer {
         fragment: {
           module: lineModule,
           entryPoint: 'fs',
-          targets: [
-            { format: this.format },
-            { format: 'rgba8unorm', writeMask: 0 },
-            { format: 'rgba8unorm', writeMask: 0 },
-          ],
+          targets: [{ format: this.format }, helperTagTarget, { format: 'rgba8unorm', writeMask: 0 }],
         },
         primitive: { topology: 'line-list' },
         depthStencil: {
@@ -1239,7 +1248,7 @@ export class Renderer {
                   },
                 }
               : { format: this.format },
-            { format: 'rgba8unorm', writeMask: 0 },
+            helperTagTarget,
             { format: 'rgba8unorm', writeMask: 0 },
           ],
         },
@@ -2052,7 +2061,8 @@ export class Renderer {
         size: [w, h],
         format: this.format,
         sampleCount: 4,
-        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        // TEXTURE_BINDING: the post pass reads helper-overlay samples from it
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       });
     }
     // G-buffer matches the scene sample count; the edge pass reads it
@@ -2122,6 +2132,8 @@ export class Renderer {
           { binding: 4, resource: this.normalTex!.createView() },
           { binding: 5, resource: this.idTex!.createView() },
           { binding: 6, resource: this.aoTex!.createView() },
+          // MSAA: the unresolved colour, read per sample for the helper overlays
+          ...(msaa ? [{ binding: 7, resource: this.msColor!.createView() }] : []),
         ],
       });
     };

@@ -1488,15 +1488,23 @@ export class TredespaceClient {
   ): Promise<Result<{ ran: boolean; matches: number[] }>> {
     return this.send('colorRules.apply', { rules, mode: opts?.mode ?? 'reset' });
   }
-  /** Replace the Set-Color rules. `mode:'append'` keeps existing rules
-   *  (default 'reset' replaces); `mode:'hide'` runs hide-model style — hide
-   *  everything, the rules unhide and colour their matches; `run:true`
-   *  applies them immediately. */
+  /** Replace the Set-Color rules — or, with `replaceRules:false`, append to
+   *  the ones already there (like {@link colorRulesAdd}). `mode` is the run
+   *  mode the panel keeps: 'reset' (default) clears existing overrides before
+   *  painting, 'append' layers on top, 'hide' hides everything the rules do
+   *  not match, and 'keep' leaves whatever the panel has (a fresh panel's is
+   *  'reset') — so `{ replaceRules: false, mode: 'keep' }` adds rules without
+   *  disturbing a user's own set-up. `run:true` applies them immediately. */
   colorRulesSet(
     rules: ColorRuleInput[],
-    opts?: { mode?: 'reset' | 'append' | 'hide'; run?: boolean },
+    opts?: { mode?: 'reset' | 'append' | 'hide' | 'keep'; run?: boolean; replaceRules?: boolean },
   ): Promise<Result<ColorRulesResult>> {
-    return this.send('colorRules.set', { rules, mode: opts?.mode ?? 'reset', run: opts?.run ?? false });
+    return this.send('colorRules.set', {
+      rules,
+      mode: opts?.mode ?? 'reset',
+      run: opts?.run ?? false,
+      replaceRules: opts?.replaceRules ?? true,
+    });
   }
   /** Append Set-Color rules; `run:true` applies them immediately. */
   colorRulesAdd(rules: ColorRuleInput[], opts?: { run?: boolean }): Promise<Result<ColorRulesResult>> {

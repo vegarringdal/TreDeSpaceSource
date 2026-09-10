@@ -268,7 +268,8 @@ fn fs(in: VsOut) -> FsOut {
   o.color = vec4f(rgb, alpha);
   // normal alpha = edge tag BITS for the post pass (quantized to 8 bits):
   //   1 = authored normals (own edge thresholds), 2 = edge lines OFF (asset
-  //   import option), 4 = item edges OFF for this item (item state)
+  //   import option), 4 = item edges OFF for this item (item state); 8 is
+  //   stamped later by the helper overlays (lineWgsl / markerWgsl)
   let gtag = select(0u, 1u, model_uni.info.z == 1u) | select(0u, 2u, model_uni.info.w == 1u) | in.edge_bits;
   o.normal = vec4f(n * 0.5 + 0.5, f32(gtag) / 255.0);
   o.id = vec4f(
@@ -530,11 +531,28 @@ fn vs(
 ${RENDER_FS}`;
 }
 
+/** G-buffer edge-tag bit stamped by the helper overlays (clip helper lines,
+ * marker spheres): the post pass keeps those samples' own colour in sketch
+ * mode instead of paper + ink. The overlay pipelines write ONLY the normal
+ * target's alpha with a `max` blend, so the normal itself is untouched. */
+export const HELPER_TAG_BIT = 8;
+
+/** Fragment output shared by the helper overlays: colour + the G-buffer tag
+ * (normal target — its rgb is masked off by the pipeline). */
+export const HELPER_FS_OUT = /* wgsl */ `
+struct HelperOut {
+  @location(0) color: vec4f,
+  @location(1) tag: vec4f,
+};
+const HELPER_TAG = ${HELPER_TAG_BIT}.0 / 255.0;
+`;
+
 // Clip helper lines (plane rectangles, box edges): world-space line list,
 // color packed in the w component (RGBA8 bitcast). Drawn after the scene
 // with depth testing but no depth writes.
 export function lineWgsl(): string {
   return /* wgsl */ `
+${HELPER_FS_OUT}
 struct Frame {
   // first two members of the shared Frame (camera-relative rendering): the
   // line vertices below are ABSOLUTE world, so they rebase here too
@@ -561,8 +579,11 @@ fn vs(@location(0) a: vec4f) -> VsOut {
 }
 
 @fragment
-fn fs(in: VsOut) -> @location(0) vec4f {
-  return vec4f(in.color.rgb, 1.0);
+fn fs(in: VsOut) -> HelperOut {
+  var o: HelperOut;
+  o.color = vec4f(in.color.rgb, 1.0);
+  o.tag = vec4f(0.0, 0.0, 0.0, HELPER_TAG);
+  return o;
 }
 `;
 }
