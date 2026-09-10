@@ -252,6 +252,11 @@ export interface AppReady {
   api: number;
 }
 
+/** What `nav.fitVisible` frames while clip volumes are on: `visible`
+ *  (default) = the visible box cut down to the volumes' envelope; `bbox` =
+ *  the volumes' envelope itself. */
+export type FitVisibleBounds = 'visible' | 'bbox';
+
 export interface SelectionSetResult {
   matched: number;
   missed: string[];
@@ -274,6 +279,13 @@ export interface SelectionGetResult {
   itemCount?: number;
   /** with { items: true }: `items` was cut at maxItems */
   truncated?: boolean;
+  /** with { parents: true }: every ancestor of a selected node — the rows
+   *  above the selection up to each model root, partially and fully selected
+   *  alike, then the model's import folders as cumulative `folder` paths
+   *  (`'plant'`, `'plant/area-1'`, no leading slash) — each once (a Set),
+   *  minus `skip` prefixes, uncapped. Independent of `items`; a fully
+   *  selected assembly appears in both. */
+  parents?: string[];
 }
 
 export interface SelectionGetOptions {
@@ -286,6 +298,10 @@ export interface SelectionGetOptions {
   /** cap for `items` (default 10 000) — a whole-model selection can be
    *  hundreds of thousands of names */
   maxItems?: number;
+  /** also return every ancestor of the selection (each once), import
+   *  folders included — the levels above what was selected, where a tag is
+   *  often carried */
+  parents?: boolean;
 }
 
 /** A wireframe sphere drawn IN the scene at an annotation's point (a label's
@@ -1410,7 +1426,9 @@ export class TredespaceClient {
    *  fullnames, and with `{ items: true }` every selected node — grouping
    *  entries and leaves, children included, minus `skip` prefixes, capped at
    *  `maxItems` — the form to use after invert / API / SQL selections, which
-   *  have no tree roots. */
+   *  have no tree roots. `{ parents: true }` adds every ancestor of the
+   *  selection, each fullname once, so a host can resolve tags carried by a
+   *  level above what was selected. */
   selectionGet(opts: SelectionGetOptions = {}): Promise<Result<SelectionGetResult>> {
     return this.send('selection.get', { ...opts });
   }
@@ -1567,11 +1585,17 @@ export class TredespaceClient {
     return this.send('nav.orbit', { fullname, select: opts?.select ?? false, wait: opts?.wait ?? false });
   }
   /** Frame everything currently VISIBLE — every item that is not hidden,
-   *  moved geometry included — as tightly as the viewport allows. `wait`
-   *  responds only once the camera has arrived. `fitted` is false when
-   *  nothing visible is left to frame. */
-  navFitVisible(opts?: { wait?: boolean }): Promise<Result<{ fitted: boolean }>> {
-    return this.send('nav.fitVisible', { wait: opts?.wait ?? false });
+   *  moved geometry included — as tightly as the viewport allows, under the
+   *  clipping in force: with the clip box / shapes on, the frame is the
+   *  visible box cut down to their envelope (holes ignored), and every
+   *  enabled clipping plane trims it. `bounds: 'bbox'` frames the clip
+   *  volumes' envelope itself instead. `wait` responds only once the camera
+   *  has arrived. `fitted` is false when nothing visible is left to frame. */
+  navFitVisible(opts?: { wait?: boolean; bounds?: FitVisibleBounds }): Promise<Result<{ fitted: boolean }>> {
+    return this.send('nav.fitVisible', {
+      wait: opts?.wait ?? false,
+      ...(opts?.bounds ? { bounds: opts.bounds } : {}),
+    });
   }
 
   /** Read-only snapshot of the persisted viewer settings, plus the app version. */

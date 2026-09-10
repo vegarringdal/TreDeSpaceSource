@@ -1,6 +1,6 @@
+import { sph } from '../../../lib/math/clipPlane';
 import { getRenderer } from '../../../state/viewer/viewer.actions';
 import { consoleActions } from '../console/console.actions';
-import { sph } from '../viewport/clipPack';
 import { type PlaneAxis, type PlaneState, ribbonClippingPlaneState } from './ribbonClippingPlane.state';
 
 const log = (label: string) => consoleActions.log('info', `ClippingPlane → ${label}`);

@@ -1,10 +1,10 @@
 import type { SelectShapeMode } from '../../../lib/math/shapeBounds';
 import { clipShapesState } from '../../../state/viewer/clipShapes.state';
+import { activeSelectShapes } from '../../../state/viewer/clipVolumes';
 import { db } from '../../../state/viewer/db';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { consoleActions } from '../console/console.actions';
 import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
-import { activeSelectShapes } from './clipSelectShapes';
 import { ribbonSelectionColorState } from './ribbonSelectionColor.state';
 
 const clamp = (v: number) => Math.min(100, Math.max(0, v));

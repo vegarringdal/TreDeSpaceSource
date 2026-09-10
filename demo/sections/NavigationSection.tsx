@@ -1,16 +1,22 @@
-import { Button, Checkbox, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Select, TextInput } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
-import type { CameraState } from '../../api/tredespace-client';
+import type { CameraState, FitVisibleBounds } from '../../api/tredespace-client';
 import { DemoSection } from '../components/DemoSection';
 import { Hint } from '../components/Hint';
 import { Row } from '../components/Row';
 import { useDemo } from '../DemoContext';
+
+const FIT_BOUNDS_OPTIONS = [
+  { value: 'visible', label: 'bounds: visible (cut to clipping)' },
+  { value: 'bbox', label: 'bounds: bbox (the clip volumes)' },
+];
 
 export function NavigationSection() {
   const { run, c, line } = useDemo();
   const [name, setName] = useState('');
   const [select, setSelect] = useState(false);
   const [wait, setWait] = useState(false);
+  const [bounds, setBounds] = useState<FitVisibleBounds>('visible');
   const [saved, setSaved] = useState<CameraState | null>(null);
 
   const handleFly = () => {
@@ -54,11 +60,17 @@ export function NavigationSection() {
         <Button onClick={handleFly}>nav.flyTo</Button>
         <Button onClick={handleOrbit}>nav.orbit</Button>
         <Button
-          tooltip="Frame everything that is not hidden — hide or isolate first, then fit"
-          onClick={() => void run('nav.fitVisible', { wait }, () => c().navFitVisible({ wait }))}
+          tooltip="Frame everything that is not hidden, cut to the clipping in force — hide, isolate or clip first, then fit"
+          onClick={() => void run('nav.fitVisible', { wait, bounds }, () => c().navFitVisible({ wait, bounds }))}
         >
           nav.fitVisible
         </Button>
+        <Select
+          value={bounds}
+          onChange={(v: string | null) => setBounds(v === 'bbox' ? 'bbox' : 'visible')}
+          options={FIT_BOUNDS_OPTIONS}
+          className="min-w-48"
+        />
       </Row>
       <Hint>
         Camera: get the current pose, move the view around by hand, then restore it. The same object works as the{' '}

@@ -4,6 +4,36 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.10** (>0.0.108):
+  Fit visible (button, hotkey, `nav.fitVisible`) now honours the clipping in
+  force: with the default clip box or extra clip shapes on, the frame is the
+  visible box cut down to the volumes' envelope (inverted shapes are holes and
+  are ignored; a volume that misses the model is framed on its own), and every
+  enabled clipping plane trims it exactly. The API takes `bounds: 'bbox'` to
+  frame the clip volumes' envelope itself instead. The plane maths and the
+  active-shape builder moved into shared modules (`lib/math/clipPlane.ts`,
+  `state/viewer/clipVolumes.ts`) so the uniform packer, shape-select and the
+  fit share one definition of what clipping keeps. The API demo's
+  nav.fitVisible button gained a bounds selector.
+  Home ribbon regrouped: "Wipe all" now sits in the Assets section next to
+  the library openers, and the perspective/ortho camera switch plus the
+  light/dark theme toggle moved into the Canvas section. The separate
+  Camera Mode, Wipe and Theme sections are gone (the theme group file was
+  deleted); no hotkeys or actions changed.
+  Home ribbon: the Sketch section is now "Draw Mode". Its colour modes read
+  Wire / Colour fill / Colour wire (were Off / Fill / Edges; the settings
+  radio and hotkey labels follow, ids unchanged), and a second mini column
+  picks the selection style — Selection tint / outline / both — bound to the
+  existing selection-style hotkeys.
+  API: `selection.get` takes `parents: true` and answers with `parents`, every
+  ancestor of the selection as a fullname — the rows above each selected node
+  up to the model root, partially and fully selected alike, each once (a set,
+  so a hundred pipes under one line yield that line once). Independent of
+  `items`, works for root-less selections, honours `skip`, no cap — for hosts
+  whose tags sit on a level above what was clicked. The model's import
+  folders are part of the chain, one cumulative `folder`-form path per level
+  (`'plant'`, `'plant/area-1'`). The API demo's Selection section gained a
+  parents checkbox and a `selection.get (parents)` button.
 - **2026.09.10** (>0.0.107):
   SDK: `targetOrigin` and `relay()`'s `origin` now accept a full URL and keep
   only its origin. `postMessage` already did that for sending, but replies

@@ -1,3 +1,4 @@
+import { sph } from '../../../lib/math/clipPlane';
 import { projectToScreen } from '../../../lib/math/project';
 import { ClipGizmo, type GizmoTargets } from '../../../lib/overlay/ClipGizmo';
 import { LabelOverlay } from '../../../lib/overlay/LabelOverlay';
@@ -8,7 +9,7 @@ import type { MeasureProbe } from '../../../lib/render/renderer';
 import { measurementsActions } from '../../../state/viewer/measurements.actions';
 import { type MeasureHit, measurementsState } from '../../../state/viewer/measurements.state';
 import { setClipShapeSeed } from '../clip-shapes/ribbonClipShapes.actions';
-import { buildClip, sph } from './clipPack';
+import { buildClip } from './clipPack';
 import { shapeGizmoTarget } from './shapeGizmo';
 
 /** Adapt the renderer's probe (null fields) to the state's MeasureHit (optional). */

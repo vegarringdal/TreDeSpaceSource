@@ -1,12 +1,31 @@
-import { IconCamera, IconDatabase, IconPackageImport, IconStack2, IconTrash } from '@tabler/icons-react';
+import {
+  IconCamera,
+  IconCube,
+  IconDatabase,
+  IconMoon,
+  IconPackageImport,
+  IconPerspective,
+  IconStack2,
+  IconSun,
+  IconTrash,
+  IconTrashX,
+} from '@tabler/icons-react';
 import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { openImportManagerPanel } from '../import-manager/importManagerPanel';
 import { openModelAssetsPanel } from '../model-assets/modelAssetsPanel';
+import { settingsActions } from '../settings/settings.actions';
+import { settingsState } from '../settings/settings.state';
 import { openSqlAssetsPanel } from '../sql-assets/sqlAssetsPanel';
 import { ribbonHomeActions as act } from './ribbonHome.actions';
+import { ribbonHomeState } from './ribbonHome.state';
 
-/** Asset library/import panel openers and the canvas clear/screenshot pair. */
+/** Assets: the library/import panel openers plus the wipe-everything local
+ *  reset. Canvas: clear/screenshot, the perspective/ortho camera switch and
+ *  the light/dark theme toggle. */
 export function HomeAssetsGroups() {
+  const { camera } = ribbonHomeState.use();
+  const dark = settingsState.use().theme === 'dark';
+
   return (
     <>
       <RibbonSection title="Assets">
@@ -31,6 +50,13 @@ export function HomeAssetsGroups() {
           shortcut="sql.assets"
           onClick={() => openSqlAssetsPanel()}
         />
+        <RibbonButton
+          icon={<IconTrashX />}
+          label="Wipe all"
+          tooltip="Wipe ALL locally saved data — settings, layout, hotkeys, viewpoints, rules AND every imported asset — then reload"
+          shortcut="home.wipe.all"
+          onClick={() => void act.wipeAllLocal()}
+        />
       </RibbonSection>
 
       <RibbonSection title="Canvas">
@@ -47,6 +73,27 @@ export function HomeAssetsGroups() {
           tooltip="Download the current viewport as a PNG (includes the view cube)"
           shortcut="home.screenshot"
           onClick={() => void act.screenshot()}
+        />
+        <RibbonButton
+          icon={<IconPerspective />}
+          label="Persp."
+          selected={camera === 'persp'}
+          shortcut="camera.persp"
+          onClick={() => act.setCamera('persp')}
+        />
+        <RibbonButton
+          icon={<IconCube />}
+          label="Ortho"
+          selected={camera === 'ortho'}
+          shortcut="camera.ortho"
+          onClick={() => act.setCamera('ortho')}
+        />
+        <RibbonButton
+          icon={dark ? <IconSun /> : <IconMoon />}
+          label={dark ? 'Light' : 'Dark'}
+          tooltip={`Switch to the ${dark ? 'light' : 'dark'} theme`}
+          shortcut="view.theme.toggle"
+          onClick={settingsActions.toggleTheme}
         />
       </RibbonSection>
     </>

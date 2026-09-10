@@ -13,25 +13,38 @@ export function SelectionSection() {
   const [append, setAppend] = useState(false);
   const [skip, setSkip] = useState('FRAME, BRACKET*');
   const [maxItems, setMaxItems] = useState('200');
+  const [parents, setParents] = useState(false);
+
+  /** Comma separated skip prefixes (a trailing * is fine), blank = no skipping. */
+  const skipPrefixes = () =>
+    skip
+      .split(',')
+      .map((x) => x.trim())
+      .filter((x) => x.length > 0);
 
   const handleSet = () => {
     const fullnames = splitLines(names);
     void run('selection.set', { fullnames, append }, () => c().selectionSet(fullnames, { append }));
   };
 
-  /** selection.get with every selected node: skip prefixes are comma
-   *  separated (a trailing * is fine), blank = no skipping. */
+  /** selection.get with every selected node (+ parents when ticked). */
   const handleGetItems = () => {
-    const prefixes = skip
-      .split(',')
-      .map((x) => x.trim())
-      .filter((x) => x.length > 0);
+    const prefixes = skipPrefixes();
     const cap = Number.parseInt(maxItems, 10);
     const opts = {
       items: true as const,
       ...(prefixes.length ? { skip: prefixes } : {}),
       ...(cap > 0 ? { maxItems: cap } : {}),
+      ...(parents ? { parents: true as const } : {}),
     };
+    void run('selection.get', opts, () => c().selectionGet(opts));
+  };
+
+  /** selection.get with only the ancestors — the levels above the
+   *  selection, each once — no items list. */
+  const handleGetParents = () => {
+    const prefixes = skipPrefixes();
+    const opts = { parents: true as const, ...(prefixes.length ? { skip: prefixes } : {}) };
     void run('selection.get', opts, () => c().selectionGet(opts));
   };
 
@@ -52,9 +65,14 @@ export function SelectionSection() {
         <TextInput value={maxItems} onChange={setMaxItems} />
         <Button onClick={handleGetItems}>selection.get (items)</Button>
       </Row>
+      <Row>
+        <Checkbox checked={parents} onChange={setParents} label="parents (with items)" />
+        <Button onClick={handleGetParents}>selection.get (parents)</Button>
+      </Row>
       <Hint>
-        items = every selected node (grouping rows and leaves); skip drops names starting with any comma-separated
-        prefix, case-insensitive.
+        items = every selected node (grouping rows and leaves); parents = every ancestor above the selection, import
+        folders included, each once, also for root-less selections (invert, rectangle, SQL); skip drops names starting
+        with any comma-separated prefix, case-insensitive.
       </Hint>
       <NameListPanel />
     </DemoSection>

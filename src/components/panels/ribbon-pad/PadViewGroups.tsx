@@ -57,7 +57,7 @@ export function PadViewGroups() {
         <RibbonButton
           icon={<IconArrowsMaximize />}
           label="Fit visible"
-          tooltip="Frame everything that is not hidden — hide or isolate first to zoom onto a set"
+          tooltip="Frame everything that is not hidden, cut to the clipping in force — hide, isolate or clip first to zoom onto a set"
           shortcut="camera.fitVisible"
           onClick={() => void viewerActions.fitVisible()}
         />

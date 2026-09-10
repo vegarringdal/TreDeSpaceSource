@@ -1,8 +1,8 @@
 import { IconLayersIntersect, IconSquareDot } from '@tabler/icons-react';
 import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { clipShapesState } from '../../../state/viewer/clipShapes.state';
+import { activeSelectShapes } from '../../../state/viewer/clipVolumes';
 import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
-import { activeSelectShapes } from './clipSelectShapes';
 import { ribbonSelectionColorActions as colorAct } from './ribbonSelectionColor.actions';
 
 /** Select by the clip volumes: everything inside, or everything touching, the

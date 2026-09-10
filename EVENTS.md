@@ -171,6 +171,17 @@ level and decides itself. `skip` drops names that START WITH any given prefix
 brackets, templates) can be left out. Capped at `maxItems` (default 10 000); `itemCount` is the true total
 after skipping and `truncated` says the cap hit.
 
+`parents: true` adds every **ancestor** of the selection: the rows above each
+selected node up to the model root, partially and fully selected alike, and
+then the model's import folders as the tree shows them — one cumulative path
+per folder level in the `folder` form (`'plant'`, `'plant/area-1'`; no
+leading slash, unlike entry fullnames) — each once (collected in a set — a
+hundred selected pipes under one line yield that line once, models in the
+same folder yield it once). It is independent of `items` and works for
+root-less selections too; a fully selected assembly is both an item and a
+parent of its children, so the two lists may overlap. `skip` applies; there
+is no cap.
+
 ```js
 payload:  {}
 response: { count: 3, fullnames: ['/TP400-BEAM-01'] }            // selection roots
@@ -179,6 +190,11 @@ payload:  { items: true, skip: ['FRAME', 'BRACKET*', 'TEMPLATE'], maxItems: 5000
 response: { count: 3, fullnames: ['/TP400-BEAM-01'],
             items: ['/TP400-BEAM-01', '/TP400-PLATE-01', '/TP400-PLATE-02'],
             itemCount: 3 }                                          // truncated: true when capped
+
+payload:  { parents: true }
+response: { count: 3, fullnames: ['/SITE/AREA-1/LINE-01/PIPE-01'],
+            parents: ['/SITE/AREA-1/LINE-01', '/SITE/AREA-1', '/SITE',   // each once, root-less selections too
+                      'plant', 'plant/area-1'] }                          // the model's import folders, cumulative
 ```
 
 ### labels.set / labels.add
@@ -1273,13 +1289,22 @@ response: { matched: true }
 ### nav.fitVisible
 Frame everything currently VISIBLE — every item that is not hidden, moved
 geometry included — as tightly as the viewport allows (the same framing as
-"fly to selection", applied to the visible set). Hiding or isolating first and
-then calling this is the way to zoom onto an arbitrary set. `wait: true`
-responds only once the camera has arrived. `fitted` is false when the model is
-not up yet or every item with geometry is hidden.
+"fly to selection", applied to the visible set), under the clipping in force:
+with the default clip box or extra clip shapes on, the frame is the visible
+box cut down to the volumes' envelope (inverted shapes are holes and are
+ignored; a volume that misses the model is framed on its own), and every
+enabled clipping plane trims it further. `bounds: 'bbox'` frames the clip
+volumes' envelope itself instead of its overlap with the visible box (no
+volumes on → the visible box either way). Hiding or isolating first and then
+calling this is the way to zoom onto an arbitrary set. `wait: true` responds
+only once the camera has arrived. `fitted` is false when the model is not up
+yet or every item with geometry is hidden.
 
 ```js
 payload:  { wait: true }
+response: { fitted: true }
+
+payload:  { bounds: 'bbox' }      // frame the clip box / shapes themselves
 response: { fitted: true }
 ```
 

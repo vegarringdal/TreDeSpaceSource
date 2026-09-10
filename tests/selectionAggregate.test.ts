@@ -45,4 +45,23 @@ describe('selectedUnder aggregate + selectedItemNames', () => {
     selectionApi.selectSubtree(mi, 1);
     expect([...selectionApi.selectedNodeNames(10, []).names].sort()).toEqual(['/A/B', 'b1', 'b2']);
   });
+
+  it('lists every ancestor of the selection once, partial and full alike, plus the import folder', () => {
+    selectionApi.selectSubtree(mi, 1); // b1, b2 → /A/B full, /A partial; the model sits in folder "test"
+    expect([...selectionApi.selectedNodeParents([])].sort()).toEqual(['/A', '/A/B', 'test']);
+    expect(selectionApi.selectedNodeParents(['/a/', 'te'])).toEqual(['/A']);
+    selectionApi.selectSubtree(mi, 0); // whole model: every grouping row, still once each
+    expect([...selectionApi.selectedNodeParents([])].sort()).toEqual(['/A', '/A/B', '/A/C', 'test']);
+    selectionApi.clearSelection();
+    expect(selectionApi.selectedNodeParents([])).toEqual([]);
+  });
+
+  it('nested import folders become one cumulative path per level', () => {
+    const group = m.group;
+    m.group = 'plant/area 1';
+    selectionApi.selectSubtree(mi, 2); // c1 → /A/C full, /A partial
+    expect([...selectionApi.selectedNodeParents([])].sort()).toEqual(['/A', '/A/C', 'plant', 'plant/area 1']);
+    m.group = group;
+    selectionApi.clearSelection();
+  });
 });

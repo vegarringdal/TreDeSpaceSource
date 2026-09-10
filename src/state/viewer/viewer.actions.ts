@@ -2,11 +2,14 @@ import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
 import { quickColorsState } from '../../components/panels/quick-colors/quickColors.state';
 import type { PackedNames } from '../../lib/color/packedNames';
+import type { FitBoundsMode } from '../../lib/math/clipFit';
+import { sceneCenterOf } from '../../lib/math/clipPlane';
 import type { SelectShape, SelectShapeMode } from '../../lib/math/shapeBounds';
 import type { ColorRuleSpec, StateUpdate } from '../../lib/modeldb/modeldbWorker';
 import type { Renderer } from '../../lib/render/renderer';
 import { startTrace, traceEnabled } from '../../lib/trace';
 import { emitTreeSelect } from '../../lib/treeSelectEvent';
+import { clipAwareFitBounds } from './clipVolumes';
 import { db, transfer } from './db';
 import { getLastPick, recordViewportPick } from './pickListeners';
 import { residency } from './residency';
@@ -711,16 +714,20 @@ export const viewerActions = {
 
   /** Frame everything that is NOT hidden (the host API `nav.fitVisible` and
    *  the Fit-visible button): the union box of every visible item, moved
-   *  geometry included. False when nothing visible is left to frame. */
-  async fitVisible(opts: { wait?: boolean } = {}): Promise<boolean> {
+   *  geometry included, under the clipping in force — with the default box
+   *  or extra shapes on, the frame is the visible box cut down to their
+   *  envelope (holes ignored; `bounds: 'bbox'` frames the envelope itself),
+   *  and every enabled clipping plane trims it. False when nothing visible
+   *  is left to frame. */
+  async fitVisible(opts: { wait?: boolean; bounds?: FitBoundsMode } = {}): Promise<boolean> {
     if (!renderer) {
       return false;
     }
-    const bounds = await db.visibleWorldBounds();
-    if (!bounds) {
+    const visible = await db.visibleWorldBounds();
+    if (!visible) {
       return false;
     }
-    flyToBounds(bounds);
+    flyToBounds(clipAwareFitBounds(visible, opts.bounds ?? 'visible', sceneCenterOf(renderer.sceneBounds)));
     await settleCamera(opts.wait);
     return true;
   },

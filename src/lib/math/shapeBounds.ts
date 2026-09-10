@@ -3,6 +3,8 @@
 // the volumes are the default clipping box and the extra sphere / cylinder /
 // box shapes, in the conventions the clip shader evaluates: a box is centre +
 // half-extents + rotation, a cylinder is base point + unit axis + height.
+import type { Aabb } from './aabb';
+import { obbWorldBounds } from './obb';
 import { type Quat, quatAxes, type V3 } from './quat';
 
 export type SelectShape =
@@ -197,4 +199,30 @@ function segmentDistToOrigin(a: [number, number], b: [number, number]): number {
   const len2 = dx * dx + dy * dy;
   const t = len2 > 0 ? Math.min(1, Math.max(0, -(a[0] * dx + a[1] * dy) / len2)) : 0;
   return Math.hypot(a[0] + t * dx, a[1] + t * dy);
+}
+
+/** World AABB of a clip volume: the OBB envelope for a box, centre ± r for a
+ *  sphere, and for a cylinder the base→top span grown per world axis by
+ *  r·√(1 − axis_k²) — how far the rim reaches along that axis. */
+export function shapeWorldBounds(s: SelectShape): Aabb {
+  if (s.kind === 'box') {
+    return obbWorldBounds(s.center, [s.half[0] * 2, s.half[1] * 2, s.half[2] * 2], s.rotation);
+  }
+  if (s.kind === 'sphere') {
+    const { center: c, radius: r } = s;
+    return { min: [c[0] - r, c[1] - r, c[2] - r], max: [c[0] + r, c[1] + r, c[2] + r] };
+  }
+  const top: V3 = [
+    s.base[0] + s.axis[0] * s.height,
+    s.base[1] + s.axis[1] * s.height,
+    s.base[2] + s.axis[2] * s.height,
+  ];
+  const min: V3 = [0, 0, 0];
+  const max: V3 = [0, 0, 0];
+  for (let k = 0; k < 3; k++) {
+    const reach = s.radius * Math.sqrt(Math.max(0, 1 - s.axis[k] * s.axis[k]));
+    min[k] = Math.min(s.base[k], top[k]) - reach;
+    max[k] = Math.max(s.base[k], top[k]) + reach;
+  }
+  return { min, max };
 }

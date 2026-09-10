@@ -1,8 +1,12 @@
-import { IconCube, IconPencil, IconPerspective } from '@tabler/icons-react';
+import { IconPencil } from '@tabler/icons-react';
 import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { type SketchColorMode, viewerState } from '../../../state/viewer/viewer.state';
-import { ribbonHomeActions as act } from './ribbonHome.actions';
-import { ribbonHomeState } from './ribbonHome.state';
+
+// -----------------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------------
+
+type SelectionStyle = 'tint' | 'outline' | 'both';
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -11,21 +15,42 @@ import { ribbonHomeState } from './ribbonHome.state';
 const SKETCH_COLOR_MODES: readonly { mode: SketchColorMode; label: string; tooltip: string; shortcut: string }[] = [
   {
     mode: 'off',
-    label: 'Off',
-    tooltip: 'Sketch colour off: plain paper and ink',
+    label: 'Wire',
+    tooltip: 'Wire: plain paper and ink edges, no mesh colours',
     shortcut: 'view.sketchColor.off',
   },
   {
     mode: 'fill',
-    label: 'Fill',
-    tooltip: 'Sketch colour fill: wash the mesh colours onto the paper (colourless meshes stay paper)',
+    label: 'Colour fill',
+    tooltip: 'Colour fill: wash the mesh colours onto the paper (colourless meshes stay paper)',
     shortcut: 'view.sketchColor.fill',
   },
   {
     mode: 'edges',
-    label: 'Edges',
-    tooltip: 'Sketch colour edges: the ink takes the mesh colour (colourless meshes keep the sketch ink)',
+    label: 'Colour wire',
+    tooltip: 'Colour wire: the ink takes the mesh colour (colourless meshes keep the sketch ink)',
     shortcut: 'view.sketchColor.edges',
+  },
+];
+
+const SELECTION_STYLES: readonly { style: SelectionStyle; label: string; tooltip: string; shortcut: string }[] = [
+  {
+    style: 'tint',
+    label: 'Selection tint',
+    tooltip: 'Show the selection as a colour tint only',
+    shortcut: 'render.outline.styleTint',
+  },
+  {
+    style: 'outline',
+    label: 'Selection outline',
+    tooltip: 'Show the selection as an outline only (items keep their true colours)',
+    shortcut: 'render.outline.styleOutline',
+  },
+  {
+    style: 'both',
+    label: 'Selection both',
+    tooltip: 'Show the selection as both a colour tint and an outline',
+    shortcut: 'render.outline.styleBoth',
   },
 ];
 
@@ -33,52 +58,43 @@ const SKETCH_COLOR_MODES: readonly { mode: SketchColorMode; label: string; toolt
 // Render
 // -----------------------------------------------------------------------------
 
-/** The Sketch group (mode + its three colour modes) and the perspective/ortho
- *  camera mode switch. */
+/** The Draw Mode group: the sketch toggle, its three colour modes and the
+ *  selection style (tint / outline / both). */
 export function HomeViewGroups() {
-  const s = ribbonHomeState.use();
-  const { sketch, sketchColorMode } = viewerState.use();
+  const { sketch, sketchColorMode, selectionStyle } = viewerState.use();
 
   return (
-    <>
-      <RibbonSection title="Sketch">
+    <RibbonSection title="Draw Mode">
+      <RibbonButton
+        icon={<IconPencil />}
+        label="Sketch"
+        selected={sketch}
+        tooltip="Sketch mode: white background with black edge lines only (labels/measurements stay visible; screenshots capture the sketch look). Transparent items are not included — they produce no edges."
+        shortcut="view.sketch"
+        onClick={() => viewerState.set({ sketch: !sketch })}
+      />
+      {SKETCH_COLOR_MODES.map((m) => (
         <RibbonButton
-          icon={<IconPencil />}
-          label="Sketch"
-          selected={sketch}
-          tooltip="Sketch mode: white background with black edge lines only (labels/measurements stay visible; screenshots capture the sketch look). Transparent items are not included — they produce no edges."
-          shortcut="view.sketch"
-          onClick={() => viewerState.set({ sketch: !sketch })}
+          key={m.mode}
+          size="mini"
+          label={m.label}
+          selected={sketchColorMode === m.mode}
+          tooltip={m.tooltip}
+          shortcut={m.shortcut}
+          onClick={() => viewerState.set({ sketchColorMode: m.mode })}
         />
-        {SKETCH_COLOR_MODES.map((m) => (
-          <RibbonButton
-            key={m.mode}
-            size="mini"
-            label={m.label}
-            selected={sketchColorMode === m.mode}
-            tooltip={m.tooltip}
-            shortcut={m.shortcut}
-            onClick={() => viewerState.set({ sketchColorMode: m.mode })}
-          />
-        ))}
-      </RibbonSection>
-
-      <RibbonSection title="Camera Mode">
+      ))}
+      {SELECTION_STYLES.map((s) => (
         <RibbonButton
-          icon={<IconPerspective />}
-          label="Persp."
-          selected={s.camera === 'persp'}
-          shortcut="camera.persp"
-          onClick={() => act.setCamera('persp')}
+          key={s.style}
+          size="mini"
+          label={s.label}
+          selected={selectionStyle === s.style}
+          tooltip={s.tooltip}
+          shortcut={s.shortcut}
+          onClick={() => viewerState.set({ selectionStyle: s.style })}
         />
-        <RibbonButton
-          icon={<IconCube />}
-          label="Ortho"
-          selected={s.camera === 'ortho'}
-          shortcut="camera.ortho"
-          onClick={() => act.setCamera('ortho')}
-        />
-      </RibbonSection>
-    </>
+      ))}
+    </RibbonSection>
   );
 }

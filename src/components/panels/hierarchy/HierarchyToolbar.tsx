@@ -55,7 +55,7 @@ export function HierarchyToolbar({
       <Button
         iconOnly
         icon={<IconArrowsMaximize />}
-        tooltip={'Fit visible\n(frame everything not hidden)'}
+        tooltip={'Fit visible\n(frame everything not hidden, cut to the clipping in force)'}
         shortcut="camera.fitVisible"
         onClick={() => void viewerActions.fitVisible()}
       />

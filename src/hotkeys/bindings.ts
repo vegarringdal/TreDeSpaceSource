@@ -1133,7 +1133,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'view.sketchColor.off',
     category: 'View',
-    label: 'Sketch colour: off',
+    label: 'Draw mode: wire',
     defaultKeys: 'ALT + 1216',
     description: 'Sketch mode colour off — plain paper and ink',
     run: () => viewerState.set({ sketchColorMode: 'off' }),
@@ -1141,7 +1141,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'view.sketchColor.fill',
     category: 'View',
-    label: 'Sketch colour: fill',
+    label: 'Draw mode: colour fill',
     defaultKeys: 'ALT + 1217',
     description: 'Sketch mode: wash the mesh colours onto the paper',
     run: () => viewerState.set({ sketchColorMode: 'fill' }),
@@ -1149,7 +1149,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'view.sketchColor.edges',
     category: 'View',
-    label: 'Sketch colour: edges',
+    label: 'Draw mode: colour wire',
     defaultKeys: 'ALT + 1218',
     description: 'Sketch mode: the ink takes the mesh colour',
     run: () => viewerState.set({ sketchColorMode: 'edges' }),
@@ -2195,7 +2195,7 @@ export const HOTKEYS: HotkeyDef[] = [
     category: 'Camera',
     label: 'Fit visible',
     defaultKeys: 'ALT + 1219',
-    description: 'Frame everything that is not hidden as tightly as the viewport allows',
+    description: 'Frame everything that is not hidden, cut to the clipping in force, as tightly as the viewport allows',
     run: () => void viewerActions.fitVisible(),
   },
   {
@@ -2821,7 +2821,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'render.sketchColor.off',
     category: 'View',
-    label: 'Sketch colour from mesh: off',
+    label: 'Sketch colour from mesh: wire',
     defaultKeys: 'ALT + 1198',
     description: 'Sketch mode: plain white paper + ink edges (no mesh colours)',
     run: () => viewerState.set({ sketchColorMode: 'off' }),
@@ -2829,7 +2829,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'render.sketchColor.fill',
     category: 'View',
-    label: 'Sketch colour from mesh: fill',
+    label: 'Sketch colour from mesh: colour fill',
     defaultKeys: 'ALT + 1199',
     description: 'Sketch mode: wash coloured meshes onto the paper (colourless meshes stay plain paper)',
     run: () => viewerState.set({ sketchColorMode: 'fill' }),
@@ -2837,7 +2837,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'render.sketchColor.edges',
     category: 'View',
-    label: 'Sketch colour from mesh: edges',
+    label: 'Sketch colour from mesh: colour wire',
     defaultKeys: 'ALT + 1200',
     description: 'Sketch mode: draw the edge ink in each mesh’s colour (colourless meshes keep the sketch ink)',
     run: () => viewerState.set({ sketchColorMode: 'edges' }),

@@ -3,7 +3,7 @@ import { type PackedNames, packedName } from '../color/packedNames';
 import { aabbInsideShape, aabbIntersectsShape, type SelectShape, type SelectShapeMode } from '../math/shapeBounds';
 // Selection domain: subtree/group/item selection, inversion, counts, and the
 // transform-aware world bounds of the current selection.
-import { IS_SELECTED, models, type StateUpdate } from './dbState';
+import { IS_SELECTED, models, NO_PARENT, type StateUpdate } from './dbState';
 import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel } from './globalNameIndex';
 import { entryName, interleaveStates, itemsUnder, packStates, stateAggregates } from './hierarchyIndex';
 import { itemWorldBounds, transforms } from './transformPool';
@@ -478,5 +478,51 @@ export const selectionApi = {
       }
     }
     return { names, total, truncated: total > names.length };
+  },
+
+  /** Every ancestor of a selected node — the rows above the selection up to
+   *  each model root, partially and fully selected alike, then the model's
+   *  import folders as the tree shows them (one cumulative path per folder
+   *  level, no leading slash — the API's `folder` form) — each once
+   *  (collected in a Set, so models sharing a path or a folder collapse). A
+   *  fully selected assembly is therefore both a selected node and a parent
+   *  of its children. `skip` drops names starting with any of the given
+   *  lowercased prefixes. Each chain is climbed once: a marked ancestor ends
+   *  the walk. */
+  selectedNodeParents(skip: string[]): string[] {
+    const out = new Set<string>();
+    const keep = (name: string) => !skip.length || !skip.some((x) => name.toLowerCase().startsWith(x));
+    for (const m of models) {
+      if (m.removed || m.selected.length === 0) {
+        continue;
+      }
+      const { selected } = stateAggregates(m);
+      const itemsUnder = m.itemsUnder;
+      if (!itemsUnder) {
+        continue;
+      }
+      const parent = m.hierarchy.entryParent;
+      const seen = new Uint8Array(selected.length);
+      for (let e = 0; e < selected.length; e++) {
+        if (selected[e] === 0 || selected[e] < itemsUnder[e]) {
+          continue;
+        }
+        for (let a = parent[e]; a !== NO_PARENT && seen[a] === 0; a = parent[a]) {
+          seen[a] = 1;
+          const name = entryName(m, a);
+          if (keep(name)) {
+            out.add(name);
+          }
+        }
+      }
+      let path = '';
+      for (const seg of m.group.split('/').filter((x) => x.length > 0)) {
+        path = path ? `${path}/${seg}` : seg;
+        if (keep(path)) {
+          out.add(path);
+        }
+      }
+    }
+    return [...out];
   },
 };

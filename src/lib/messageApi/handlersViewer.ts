@@ -253,9 +253,14 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     return { matched: await viewerActions.orbitFullname(fullname, opts) };
   },
 
-  // frame everything not hidden — the Fit-visible button over the API
+  // frame everything not hidden under the clipping in force — the Fit-visible
+  // button over the API; `bounds: 'bbox'` frames the clip volumes themselves
   'nav.fitVisible': async ({ p }) => {
-    const fitted = await viewerActions.fitVisible({ wait: p.wait === true });
+    const bounds = p.bounds === 'visible' || p.bounds === 'bbox' ? p.bounds : undefined;
+    if (p.bounds !== undefined && bounds === undefined) {
+      throw new ApiError('bad-payload', "bounds must be 'visible' or 'bbox'");
+    }
+    const fitted = await viewerActions.fitVisible({ wait: p.wait === true, bounds });
     return { fitted };
   },
 

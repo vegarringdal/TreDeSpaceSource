@@ -6,9 +6,14 @@ import { Row } from '../Row';
 import { EdgeTuning } from './EdgeTuning';
 
 const colorModes = [
-  { value: 'off', label: 'Off', shortcut: 'render.sketchColor.off' },
-  { value: 'fill', label: 'Fill', hint: 'wash mesh colours onto the paper', shortcut: 'render.sketchColor.fill' },
-  { value: 'edges', label: 'Edges', hint: 'ink takes the mesh colour', shortcut: 'render.sketchColor.edges' },
+  { value: 'off', label: 'Wire', hint: 'plain paper and ink', shortcut: 'render.sketchColor.off' },
+  {
+    value: 'fill',
+    label: 'Colour fill',
+    hint: 'wash mesh colours onto the paper',
+    shortcut: 'render.sketchColor.fill',
+  },
+  { value: 'edges', label: 'Colour wire', hint: 'ink takes the mesh colour', shortcut: 'render.sketchColor.edges' },
 ];
 
 /** Edges → Sketch: the white-background edge-only mode and its own palette. */

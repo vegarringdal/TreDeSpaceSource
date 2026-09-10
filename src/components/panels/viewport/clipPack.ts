@@ -2,6 +2,7 @@
 // shape slot 0 + user shapes in slots 1..7, native clip.rs layout) and the
 // helper line list, from the clipping ribbon + clip-shapes stores. Pure data
 // assembly; the viewport uploads the result each frame.
+import { planeWorld, sceneCenterOf } from '../../../lib/math/clipPlane';
 import { type Quat, quatAxes } from '../../../lib/math/quat';
 import type { Renderer } from '../../../lib/render/renderer';
 import { type ClipShape, clipShapesState } from '../../../state/viewer/clipShapes.state';
@@ -41,14 +42,6 @@ function boxEdgeLines(
   for (const [a, b] of E) {
     line(a, b, color);
   }
-}
-
-const DEG = Math.PI / 180;
-
-export function sph(elDeg: number, azDeg: number): [number, number, number] {
-  const el = elDeg * DEG,
-    az = azDeg * DEG;
-  return [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)];
 }
 
 /** Outline helper for a sphere/cylinder clip shape, pushed through the GPU line
@@ -112,9 +105,7 @@ function shapeHelperLines(
 export function buildClip(renderer: Renderer): { data: Float32Array; lines: Float32Array } {
   const planes = ribbonClippingPlaneState.get();
   const box = ribbonClippingBoxState.get();
-  const { min, max } = renderer.sceneBounds;
-  const hasScene = Number.isFinite(min[0]);
-  const center = hasScene ? [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2] : [0, 0, 0];
+  const center = sceneCenterOf(renderer.sceneBounds);
   const data = new Float32Array(260); // planes + mask (36) + 8×28 tagged-union shapes
   const du = new Uint32Array(data.buffer);
   const lines: number[] = [];
@@ -136,16 +127,13 @@ export function buildClip(renderer: Renderer): { data: Float32Array; lines: Floa
   let mask = 0;
   AXES.forEach((axis, i) => {
     const pl = planes[axis];
-    const n0 = sph(pl.el, pl.az);
-    const base = pl.anchor ?? (center as [number, number, number]);
-    const point = [base[0] + n0[0] * pl.position, base[1] + n0[1] * pl.position, base[2] + n0[2] * pl.position];
-    const n = pl.flipped ? n0.map((v) => -v) : n0;
+    const { n0, point, n, d } = planeWorld(pl, center);
     if (pl.enabled) {
       mask |= 1 << i;
       data[i * 4 + 0] = n[0];
       data[i * 4 + 1] = n[1];
       data[i * 4 + 2] = n[2];
-      data[i * 4 + 3] = -(n[0] * point[0] + n[1] * point[1] + n[2] * point[2]);
+      data[i * 4 + 3] = d;
     }
     if (pl.helper && pl.enabled) {
       // small 3x3 m marker rectangle at the plane point (the cut itself is
