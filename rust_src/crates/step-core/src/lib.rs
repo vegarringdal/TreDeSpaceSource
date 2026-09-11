@@ -13,6 +13,8 @@ pub mod io;
 pub mod merge;
 pub mod mesh;
 pub mod model;
+pub mod progress;
 pub mod step;
 pub mod styles;
 pub mod tessellate;
+pub mod wire;

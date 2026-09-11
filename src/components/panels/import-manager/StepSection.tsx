@@ -6,6 +6,10 @@ import { assetsState } from '../../../state/assets/assets.state';
 import { ExtLink, FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
 import { OptionCheckRow, OptionNumberRow } from './optionRows';
 
+/** Above this size the section warns that the import may exhaust memory. */
+const LARGE_STEP_BYTES = 200 * 1024 * 1024;
+const MAX_STEP_WORKERS = 5;
+
 /** Import Manager → STEP B-rep (tessellated and cooked in one wasm pass). */
 export function StepSection() {
   const { step } = assetsState.use();
@@ -54,6 +58,13 @@ export function StepSection() {
           </Button>
           {file && <span className="self-center truncate text-slate-400 text-xs">{file.name}</span>}
         </div>
+        {file && file.size >= LARGE_STEP_BYTES && (
+          <p className="text-amber-400 text-xs">
+            Large file ({Math.round(file.size / 1024 / 1024)} MB): a STEP import can need several GB of RAM (every
+            tessellation worker keeps its own copy of the file index) and may crash the tab — save your work first.
+            Fewer workers use less memory.
+          </p>
+        )}
         {file && (
           <>
             <ImportOptionsRows />
@@ -81,6 +92,17 @@ export function StepSection() {
               unit="deg"
               shortcutBase="assets.step.angle"
               onChange={(v) => act.setStepOptions({ maxAngleDeg: v })}
+            />
+            <OptionNumberRow
+              label="Workers"
+              labelWidth="w-16"
+              tooltip="Tessellation sub-workers (0 = in-process). Each keeps its own copy of the file index: more = faster, more memory"
+              value={step.workers}
+              min={0}
+              max={MAX_STEP_WORKERS}
+              step={1}
+              shortcutBase="assets.step.workers"
+              onChange={(v) => act.setStepOptions({ workers: v })}
             />
             <OptionCheckRow
               label="Cleanup (weld positions)"

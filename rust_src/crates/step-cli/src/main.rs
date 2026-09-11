@@ -384,6 +384,7 @@ fn main() {
         tp: &tp,
         colors: &colors,
         threads,
+        faces: None,
     };
 
     // --------------------------------------------- single-entity isolation
@@ -407,6 +408,7 @@ fn main() {
             tp: &rep_tp,
             colors: cx.colors,
             threads: cx.threads,
+            faces: None,
         };
         let mut tm = MeshSet::default();
         tessellate::tessellate_item(&rep_cx, eid, None, &mut tm, &mut stats);
@@ -476,7 +478,14 @@ fn main() {
             simplify: simplify_only(&args),
         };
         let t1 = Instant::now();
-        let (merged, unique) = merge::build(&cx, &asm, opts, &mut stats, &mut |_| {});
+        let (merged, unique) = merge::build(
+            &cx,
+            &asm,
+            opts,
+            &mut stats,
+            &mut |_| {},
+            merge::MergeMode::InRam,
+        );
         if merged.bucket_count() == 0 {
             eprintln!("error: no tessellatable geometry found in this file");
             report_unsupported(&stats);
@@ -578,6 +587,7 @@ fn main() {
                     tp: &rep_tp,
                     colors: cx.colors,
                     threads: cx.threads,
+                    faces: None,
                 };
                 let mut items: Vec<u32> = Vec::new();
                 if let Some(p) = sf.params(sr) {

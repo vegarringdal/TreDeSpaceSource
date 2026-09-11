@@ -18,6 +18,10 @@ type FilterEditRowProps = Readonly<{
   onMove: (dir: -1 | 1) => void;
 }>;
 
+/** Header buttons one notch smaller than the default, so the dense header
+ *  stays a single tight line. */
+const ACTION_BUTTON = 'h-5 w-5';
+
 /** One filter's editor: a collapsible section titled by the filter's label
  *  (or "Filter #N"), with move up / down and remove in its header. Dropdown
  *  filters get a resizable SQL editor AND a live test dropdown driven by that
@@ -39,23 +43,39 @@ export function FilterEditRow({
     <>
       <Button
         iconOnly
-        icon={<IconArrowUp size={14} />}
+        className={ACTION_BUTTON}
+        icon={<IconArrowUp size={13} />}
         disabled={isFirst}
         tooltip="Move this filter up (the inputs are shown in this order)"
         onClick={() => onMove(-1)}
       />
       <Button
         iconOnly
-        icon={<IconArrowDown size={14} />}
+        className={ACTION_BUTTON}
+        icon={<IconArrowDown size={13} />}
         disabled={isLast}
         tooltip="Move this filter down (the inputs are shown in this order)"
         onClick={() => onMove(1)}
       />
-      <Button iconOnly icon={<IconTrash size={14} />} tooltip="Remove this filter" onClick={onRemove} />
+      <Button
+        iconOnly
+        className={ACTION_BUTTON}
+        icon={<IconTrash size={13} />}
+        tooltip="Remove this filter"
+        onClick={onRemove}
+      />
     </>
   );
   return (
-    <InlinePanel title={title} titleUppercase={false} open={!collapsed} onToggle={onToggle} actions={actions}>
+    <InlinePanel
+      dense
+      className="shrink-0"
+      title={title}
+      titleUppercase={false}
+      open={!collapsed}
+      onToggle={onToggle}
+      actions={actions}
+    >
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5">
           <div className="w-28 shrink-0">

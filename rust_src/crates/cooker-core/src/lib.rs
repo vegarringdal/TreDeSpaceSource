@@ -9,10 +9,10 @@ pub mod glb;
 pub mod tdp;
 
 pub use cook::{
-    cook, cook_model, CoarsenOptions, CookOptions, CookOutput, MergedHierarchyEntry, MergedModel,
-    MergedNode, MergedRange,
+    cook, cook_model, cook_model_with_progress, CoarsenOptions, CookOptions, CookOutput,
+    CookProgress, MergedHierarchyEntry, MergedModel, MergedNode, MergedRange,
 };
-pub use tdp::coarsen_tdp;
+pub use tdp::{coarsen_tdp, coarsen_tdp_with_progress};
 
 /// Bumped whenever the cooked output changes — part of the cache key, so stale
 /// cooked files re-cook automatically (same rule as the reference cooker).

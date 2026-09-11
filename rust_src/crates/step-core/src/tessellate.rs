@@ -29,6 +29,7 @@ use tess2_rust::{ElementType, Tessellator, WindingRule};
 use crate::geom::*;
 use crate::mesh::{MeshSet, TriMesh};
 use crate::model::{self, TessParams};
+use crate::progress::FaceProgress;
 use crate::step::StepFile;
 use crate::styles::ColorMap;
 
@@ -95,6 +96,81 @@ impl TessStats {
             self.debug_samples.entry(k.clone()).or_insert(*v);
         }
     }
+
+    /// Text form for handing a tessellation sub-worker's tally back to the
+    /// coordinator (one `kind\tname\tcount[\tids]` line per entry; type names
+    /// never contain tabs). `debug_samples` is CLI-only and not carried.
+    pub fn to_wire(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&format!(
+            "ok\t\t{}\nfailed\t\t{}\ndegenerate\t\t{}\n",
+            self.faces_ok, self.faces_failed, self.degenerate_faces
+        ));
+        let mut counts = |kind: &str, m: &HashMap<String, usize>| {
+            let mut entries: Vec<_> = m.iter().collect();
+            entries.sort();
+            for (k, v) in entries {
+                out.push_str(&format!("{kind}\t{k}\t{v}\n"));
+            }
+        };
+        counts("us", &self.unsupported_surfaces);
+        counts("as", &self.approximated_surfaces);
+        counts("uc", &self.unsupported_curves);
+        counts("ui", &self.unsupported_items);
+        let mut failed: Vec<_> = self.failed_surfaces.iter().collect();
+        failed.sort_by(|a, b| a.0.cmp(b.0));
+        for (k, (n, ids)) in failed {
+            let ids = ids
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            out.push_str(&format!("fs\t{k}\t{n}\t{ids}\n"));
+        }
+        out
+    }
+
+    /// Inverse of [`Self::to_wire`]; unknown or malformed lines are skipped.
+    pub fn from_wire(text: &str) -> TessStats {
+        let mut st = TessStats::default();
+        for line in text.lines() {
+            let mut f = line.split('\t');
+            let (Some(kind), Some(name), Some(count)) = (f.next(), f.next(), f.next()) else {
+                continue;
+            };
+            let Ok(n) = count.parse::<usize>() else {
+                continue;
+            };
+            match kind {
+                "ok" => st.faces_ok = n,
+                "failed" => st.faces_failed = n,
+                "degenerate" => st.degenerate_faces = n,
+                "us" => {
+                    st.unsupported_surfaces.insert(name.to_string(), n);
+                }
+                "as" => {
+                    st.approximated_surfaces.insert(name.to_string(), n);
+                }
+                "uc" => {
+                    st.unsupported_curves.insert(name.to_string(), n);
+                }
+                "ui" => {
+                    st.unsupported_items.insert(name.to_string(), n);
+                }
+                "fs" => {
+                    let ids = f
+                        .next()
+                        .unwrap_or("")
+                        .split(',')
+                        .filter_map(|i| i.parse::<u32>().ok())
+                        .collect();
+                    st.failed_surfaces.insert(name.to_string(), (n, ids));
+                }
+                _ => {}
+            }
+        }
+        st
+    }
 }
 
 /// Shared, read-only context for a tessellation run.
@@ -104,11 +180,31 @@ pub struct Ctx<'a> {
     pub colors: &'a ColorMap,
     /// worker threads for per-face fan-out (1 = serial)
     pub threads: usize,
+    /// per-face progress ticks (None = silent)
+    pub faces: Option<&'a FaceProgress<'a>>,
 }
 
 impl<'a> Ctx<'a> {
     pub fn color_of(&self, id: u32, inherited: Option<[f32; 4]>) -> Option<[f32; 4]> {
         self.colors.get(&id).copied().or(inherited)
+    }
+
+    /// The same context with other tessellation parameters (a representation
+    /// declaring its own length unit gets a rescaled deflection).
+    pub fn with_params(&self, tp: &'a TessParams) -> Ctx<'a> {
+        Ctx {
+            sf: self.sf,
+            tp,
+            colors: self.colors,
+            threads: self.threads,
+            faces: self.faces,
+        }
+    }
+
+    fn face_done(&self) {
+        if let Some(f) = self.faces {
+            f.tick();
+        }
     }
 }
 
@@ -237,6 +333,7 @@ pub fn tessellate_item(
         }
         "ADVANCED_FACE" | "FACE_SURFACE" => {
             tessellate_face(cx, id, color, out, stats);
+            cx.face_done();
             true
         }
         // wireframe (datum / reference curves) -> glTF line geometry
@@ -777,6 +874,7 @@ fn tessellate_faces(
     if cx.threads <= 1 || faces.len() < 2 {
         for &fid in faces {
             tessellate_face(cx, fid, color, out, stats);
+            cx.face_done();
         }
         return;
     }
@@ -794,6 +892,7 @@ fn tessellate_faces(
                 let mut m = MeshSet::default();
                 let mut st = TessStats::default();
                 tessellate_face(cx, faces[i], color, &mut m, &mut st);
+                cx.face_done();
                 if tx.send((i, m, st)).is_err() {
                     break;
                 }

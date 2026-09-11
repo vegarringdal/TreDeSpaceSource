@@ -10,7 +10,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use crate::io::InputHandle;
+use crate::io::{InputHandle, MemSink, OutputHandle};
+use crate::progress::{NoProgress, Phase, ProgressSink};
 
 /// One indexed entity instance. 16 bytes.
 #[derive(Clone, Copy)]
@@ -26,6 +27,129 @@ pub struct EntityRec {
 }
 
 pub const TYPE_COMPLEX: &str = "<COMPLEX>";
+
+/// Type id of an unused slot in a dense [`EntityTable`].
+const EMPTY_TYPE: u32 = u32::MAX;
+/// A dense table may run ahead of the entities seen so far by this factor
+/// (plus [`DENSE_SLACK_MIN`]) before the file counts as sparse-id.
+const DENSE_SLACK_FACTOR: usize = 4;
+const DENSE_SLACK_MIN: usize = 1 << 20;
+
+/// The entity index, `#id -> EntityRec`. Dense — a `Vec` indexed by id, 12
+/// bytes per slot, no hashing, no rehash spikes — while ids stay reasonably
+/// contiguous, which is how every exporter writes them; a file whose ids are
+/// sparse enough that the dense table would waste more than it saves flips to
+/// a hash map. This is the one structure that scales with a huge file, so its
+/// bytes decide how many tessellation workers fit in RAM.
+pub enum EntityTable {
+    Dense { recs: Vec<EntityRec>, count: usize },
+    Sparse(HashMap<u32, EntityRec>),
+}
+
+const EMPTY_REC: EntityRec = EntityRec {
+    ty: EMPTY_TYPE,
+    start: 0,
+    end: 0,
+};
+
+impl Default for EntityTable {
+    fn default() -> Self {
+        EntityTable::Dense {
+            recs: Vec::new(),
+            count: 0,
+        }
+    }
+}
+
+impl EntityTable {
+    pub fn with_capacity(n: usize) -> Self {
+        EntityTable::Dense {
+            recs: Vec::with_capacity(n),
+            count: 0,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            EntityTable::Dense { count, .. } => *count,
+            EntityTable::Sparse(m) => m.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get(&self, id: u32) -> Option<&EntityRec> {
+        match self {
+            EntityTable::Dense { recs, .. } => recs.get(id as usize).filter(|r| r.ty != EMPTY_TYPE),
+            EntityTable::Sparse(m) => m.get(&id),
+        }
+    }
+
+    pub fn insert(&mut self, id: u32, rec: EntityRec) {
+        match self {
+            EntityTable::Dense { recs, count } => {
+                let idx = id as usize;
+                if idx >= recs.len() {
+                    if idx > *count * DENSE_SLACK_FACTOR + DENSE_SLACK_MIN {
+                        let mut map: HashMap<u32, EntityRec> = HashMap::with_capacity(*count + 1);
+                        for (i, r) in recs.iter().enumerate() {
+                            if r.ty != EMPTY_TYPE {
+                                map.insert(i as u32, *r);
+                            }
+                        }
+                        map.insert(id, rec);
+                        *self = EntityTable::Sparse(map);
+                        return;
+                    }
+                    recs.resize(idx + 1, EMPTY_REC);
+                }
+                if recs[idx].ty == EMPTY_TYPE {
+                    *count += 1;
+                }
+                recs[idx] = rec;
+            }
+            EntityTable::Sparse(m) => {
+                m.insert(id, rec);
+            }
+        }
+    }
+
+    /// Hand back the growth slack once the scan is done.
+    pub fn shrink_to_fit(&mut self) {
+        match self {
+            EntityTable::Dense { recs, .. } => recs.shrink_to_fit(),
+            EntityTable::Sparse(m) => m.shrink_to_fit(),
+        }
+    }
+
+    /// `(id, rec)` pairs in ascending id order.
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (u32, &EntityRec)> + '_> {
+        match self {
+            EntityTable::Dense { recs, .. } => Box::new(
+                recs.iter()
+                    .enumerate()
+                    .filter(|(_, r)| r.ty != EMPTY_TYPE)
+                    .map(|(i, r)| (i as u32, r)),
+            ),
+            EntityTable::Sparse(m) => {
+                let mut v: Vec<(u32, &EntityRec)> = m.iter().map(|(k, r)| (*k, r)).collect();
+                v.sort_unstable_by_key(|(k, _)| *k);
+                Box::new(v.into_iter())
+            }
+        }
+    }
+}
+
+/// Rough average record size used to pre-size the entity index of a streamed
+/// file (a typical CARTESIAN_POINT line is ~50 bytes; long records only make
+/// the estimate conservative).
+const BYTES_PER_ENTITY_ESTIMATE: u64 = 64;
+
+/// `"SIDX"` — the index blob's magic, followed by its version.
+const INDEX_BLOB_MAGIC: u32 = 0x5844_4953;
+const INDEX_BLOB_VERSION: u32 = 1;
 
 /// Lazily-parsed parameter value.
 #[derive(Clone, Debug, PartialEq)]
@@ -127,7 +251,7 @@ impl Source {
 
 pub struct StepFile {
     source: Source,
-    pub entities: HashMap<u32, EntityRec>,
+    pub entities: EntityTable,
     /// type id -> entity ids, for fast "find all NAUO" style queries.
     pub by_type: HashMap<u32, Vec<u32>>,
     pub type_names: Vec<String>,
@@ -147,7 +271,29 @@ impl StepFile {
     /// with a sliding window over the handle and entity parameters are read by
     /// range on demand. The path the wasm / C-ABI shells use.
     pub fn from_input(input: Box<dyn InputHandle>) -> Result<StepFile, String> {
-        Self::from_source(Source::Reader(input))
+        Self::from_input_with_progress(input, &NoProgress)
+    }
+
+    /// [`Self::from_input`] reporting [`Phase::Index`] as bytes scanned / file
+    /// size (about every 1 %).
+    pub fn from_input_with_progress(
+        input: Box<dyn InputHandle>,
+        progress: &dyn ProgressSink,
+    ) -> Result<StepFile, String> {
+        // Pre-size the index from the file size so a huge file doesn't pay
+        // for a chain of rehashes (each one transiently doubles the table).
+        let est = (input.size() / BYTES_PER_ENTITY_ESTIMATE) as usize;
+        let mut sf = StepFile {
+            source: Source::Reader(input),
+            entities: EntityTable::with_capacity(est),
+            by_type: HashMap::new(),
+            type_names: Vec::new(),
+            type_lookup: HashMap::new(),
+            header_range: (0, 0),
+            warnings: Vec::new(),
+        };
+        sf.index_streaming(progress)?;
+        Ok(sf)
     }
 
     /// Memory-map a STEP file from disk and parse it — only touched pages are
@@ -170,7 +316,7 @@ impl StepFile {
     fn from_source(source: Source) -> Result<StepFile, String> {
         let mut sf = StepFile {
             source,
-            entities: HashMap::new(),
+            entities: EntityTable::default(),
             by_type: HashMap::new(),
             type_names: Vec::new(),
             type_lookup: HashMap::new(),
@@ -228,7 +374,7 @@ impl StepFile {
     }
 
     pub fn entity_type(&self, id: u32) -> Option<&str> {
-        self.entities.get(&id).map(|e| self.type_name(e.ty))
+        self.entities.get(id).map(|e| self.type_name(e.ty))
     }
 
     pub fn is_complex(&self, id: u32) -> bool {
@@ -251,13 +397,14 @@ impl StepFile {
         // A Reader source has no contiguous buffer: index it with a sliding
         // window over the handle (never holds the whole file).
         if self.source.is_reader() {
-            return self.index_streaming();
+            return self.index_streaming(&NoProgress);
         }
         // In-memory: take the source out so the scan can borrow its bytes while
         // the index maps are filled (`intern` mutates `self`); restored at end.
         let src = std::mem::take(&mut self.source);
         let res = self.index_slice(src.as_slice());
         self.source = src;
+        self.finish_index();
         res
     }
 
@@ -345,7 +492,7 @@ impl StepFile {
     /// handle, scan entities with the same lexer, grow the window when a record
     /// spans the buffer end, and drop the consumed prefix after each entity so
     /// peak memory is ~one entity + a chunk — never the whole file.
-    fn index_streaming(&mut self) -> Result<(), String> {
+    fn index_streaming(&mut self, progress: &dyn ProgressSink) -> Result<(), String> {
         let input = match std::mem::take(&mut self.source) {
             Source::Reader(r) => r,
             other => {
@@ -367,11 +514,18 @@ impl StepFile {
         self.header_range = (header_start, data_start);
         let mut i = data_start + 5;
         let total = w.total;
+        let tick = (total / 100).max(1);
+        let mut next_tick = 0usize;
+        progress.report(Phase::Index, 0, total as u64);
 
         while i < total {
             i = w.skip_ws_comments(i);
             if i >= total {
                 break;
+            }
+            if i >= next_tick {
+                progress.report(Phase::Index, i as u64, total as u64);
+                next_tick = i + tick;
             }
             if w.byte(i) != Some(b'#') {
                 if w.starts_with_ci(i, b"ENDSEC") {
@@ -423,16 +577,175 @@ impl StepFile {
             // free everything before the next record
             w.advance_base(i);
         }
+        progress.report(Phase::Index, total as u64, total as u64);
+        self.finish_index();
 
         self.source = Source::Reader(input);
         Ok(())
+    }
+
+    /// Give back the growth slack of the index and the per-type lists — a big
+    /// file's tables grew by doubling, so up to half of each is empty.
+    fn finish_index(&mut self) {
+        self.entities.shrink_to_fit();
+        for ids in self.by_type.values_mut() {
+            ids.shrink_to_fit();
+        }
+    }
+
+    // ------------------------------------------------------------- index file
+
+    /// Serialise the index (entity table, type names, per-type lists, header
+    /// range) to `out` in [`INDEX_CHUNK`]-sized pieces — never as one buffer,
+    /// which for a huge file would be a second copy of the index the wasm heap
+    /// never gives back. Another worker rebuilds the same file from it with
+    /// [`Self::read_index`] without scanning. Warnings are not carried (the
+    /// coordinator reports them).
+    pub fn write_index(&self, out: &mut dyn OutputHandle) -> std::io::Result<()> {
+        let mut buf: Vec<u8> = Vec::with_capacity(INDEX_CHUNK + 64);
+        {
+            let mut w = crate::wire::Writer(&mut buf);
+            w.u32(INDEX_BLOB_MAGIC);
+            w.u32(INDEX_BLOB_VERSION);
+            w.u32(self.header_range.0 as u32);
+            w.u32(self.header_range.1 as u32);
+            w.u32(self.type_names.len() as u32);
+            for name in &self.type_names {
+                w.u32(name.len() as u32);
+                w.0.extend_from_slice(name.as_bytes());
+            }
+        }
+        let mut flush = |buf: &mut Vec<u8>, force: bool| -> std::io::Result<()> {
+            if force || buf.len() >= INDEX_CHUNK {
+                out.write(buf)?;
+                buf.clear();
+            }
+            Ok(())
+        };
+        match &self.entities {
+            EntityTable::Dense { recs, count } => {
+                buf.push(0);
+                buf.extend_from_slice(&(*count as u32).to_le_bytes());
+                buf.extend_from_slice(&(recs.len() as u32).to_le_bytes());
+                for r in recs {
+                    buf.extend_from_slice(&r.ty.to_le_bytes());
+                    buf.extend_from_slice(&r.start.to_le_bytes());
+                    buf.extend_from_slice(&r.end.to_le_bytes());
+                    flush(&mut buf, false)?;
+                }
+            }
+            EntityTable::Sparse(m) => {
+                buf.push(1);
+                buf.extend_from_slice(&(m.len() as u32).to_le_bytes());
+                for (id, r) in m {
+                    buf.extend_from_slice(&id.to_le_bytes());
+                    buf.extend_from_slice(&r.ty.to_le_bytes());
+                    buf.extend_from_slice(&r.start.to_le_bytes());
+                    buf.extend_from_slice(&r.end.to_le_bytes());
+                    flush(&mut buf, false)?;
+                }
+            }
+        }
+        for ty in 0..self.type_names.len() as u32 {
+            let ids: &[u32] = self.by_type.get(&ty).map_or(&[], |v| v.as_slice());
+            buf.extend_from_slice(&(ids.len() as u32).to_le_bytes());
+            for id in ids {
+                buf.extend_from_slice(&id.to_le_bytes());
+                flush(&mut buf, false)?;
+            }
+        }
+        flush(&mut buf, true)
+    }
+
+    /// [`Self::write_index`] into memory — tests and small files.
+    pub fn index_blob(&self) -> Vec<u8> {
+        let mut sink = MemSink::default();
+        self.write_index(&mut sink)
+            .expect("an in-memory index write cannot fail");
+        sink.0
+    }
+
+    /// Rebuild a file from an index another session wrote
+    /// ([`Self::write_index`]) plus a handle on the same STEP bytes — no scan,
+    /// and the index is parsed straight from `index` in bounded pieces, so the
+    /// only full-size structure that exists is the table itself. Entity
+    /// parameters are still read by range on demand.
+    pub fn read_index(
+        input: Box<dyn InputHandle>,
+        index: &dyn InputHandle,
+    ) -> Result<StepFile, String> {
+        let bad = || "malformed index".to_string();
+        let mut r = IndexReader::new(index);
+        if r.u32().ok_or_else(bad)? != INDEX_BLOB_MAGIC
+            || r.u32().ok_or_else(bad)? != INDEX_BLOB_VERSION
+        {
+            return Err("index: wrong magic/version".into());
+        }
+        let header_range = (
+            r.u32().ok_or_else(bad)? as usize,
+            r.u32().ok_or_else(bad)? as usize,
+        );
+        let ntypes = r.u32().ok_or_else(bad)? as usize;
+        let mut type_names = Vec::with_capacity(ntypes);
+        let mut type_lookup = HashMap::with_capacity(ntypes);
+        for i in 0..ntypes {
+            let len = r.u32().ok_or_else(bad)? as usize;
+            let bytes = r.bytes(len).ok_or_else(bad)?;
+            let name = String::from_utf8(bytes).map_err(|_| bad())?;
+            type_lookup.insert(name.clone(), i as u32);
+            type_names.push(name);
+        }
+        let entities = match r.u8().ok_or_else(bad)? {
+            0 => {
+                let count = r.u32().ok_or_else(bad)? as usize;
+                let n = r.u32().ok_or_else(bad)? as usize;
+                let mut recs = Vec::with_capacity(n);
+                r.recs_into(n, false, &mut recs).ok_or_else(bad)?;
+                EntityTable::Dense { recs, count }
+            }
+            _ => {
+                let n = r.u32().ok_or_else(bad)? as usize;
+                let mut pairs = Vec::with_capacity(n);
+                r.recs_into(n, true, &mut pairs).ok_or_else(bad)?;
+                let mut m = HashMap::with_capacity(n);
+                for (i, rec) in pairs.into_iter().enumerate() {
+                    m.insert(r.ids[i], rec);
+                }
+                EntityTable::Sparse(m)
+            }
+        };
+        let mut by_type = HashMap::with_capacity(ntypes);
+        for ty in 0..ntypes as u32 {
+            let n = r.u32().ok_or_else(bad)? as usize;
+            if n == 0 {
+                continue;
+            }
+            let mut ids = Vec::with_capacity(n);
+            r.u32s_into(n, &mut ids).ok_or_else(bad)?;
+            by_type.insert(ty, ids);
+        }
+        Ok(StepFile {
+            source: Source::Reader(input),
+            entities,
+            by_type,
+            type_names,
+            type_lookup,
+            header_range,
+            warnings: Vec::new(),
+        })
+    }
+
+    /// [`Self::read_index`] from an in-memory index — tests and small files.
+    pub fn from_index_blob(input: Box<dyn InputHandle>, blob: &[u8]) -> Result<StepFile, String> {
+        let handle: &[u8] = blob;
+        Self::read_index(input, &handle)
     }
 
     // ------------------------------------------------------------ accessors
 
     /// Lazily parse the parameter list of a simple entity.
     pub fn params(&self, id: u32) -> Option<Vec<P>> {
-        let rec = *self.entities.get(&id)?;
+        let rec = *self.entities.get(id)?;
         let bytes = self.entity_bytes(rec.start as usize, rec.end as usize);
         Some(parse_param_list(&bytes))
     }
@@ -441,7 +754,7 @@ impl StepFile {
     /// the given name, e.g. `B_SPLINE_SURFACE` inside a rational surface combo.
     /// `name_contains`: leaf type must contain this substring.
     pub fn complex_leaf(&self, id: u32, name_contains: &str) -> Option<Vec<P>> {
-        let rec = *self.entities.get(&id)?;
+        let rec = *self.entities.get(id)?;
         if self.type_name(rec.ty) != TYPE_COMPLEX {
             return None;
         }
@@ -482,7 +795,7 @@ impl StepFile {
     /// Leaf type names of a complex instance (empty for simple entities).
     pub fn complex_leaf_names(&self, id: u32) -> Vec<String> {
         let mut out = Vec::new();
-        let rec = match self.entities.get(&id) {
+        let rec = match self.entities.get(id) {
             Some(r) if self.type_name(r.ty) == TYPE_COMPLEX => *r,
             _ => return out,
         };
@@ -520,7 +833,7 @@ impl StepFile {
 
     #[allow(dead_code)]
     pub fn has_type(&self, id: u32, name: &str) -> bool {
-        match self.entities.get(&id) {
+        match self.entities.get(id) {
             None => false,
             Some(rec) => {
                 let tn = self.type_name(rec.ty);
@@ -546,7 +859,7 @@ impl StepFile {
     /// byte range: `#id=TYPE(params);`, or `#id=(LEAF1(..) LEAF2(..));` for a
     /// complex instance. Used by `--debug-print` to re-emit failing faces.
     pub fn entity_source(&self, id: u32) -> Option<String> {
-        let rec = *self.entities.get(&id)?;
+        let rec = *self.entities.get(id)?;
         let bytes = self.entity_bytes(rec.start as usize, rec.end as usize);
         let body = std::str::from_utf8(&bytes).ok()?.trim();
         let ty = self.entity_type(id)?;
@@ -561,7 +874,7 @@ impl StepFile {
     /// `#<digits>` token, so it is robust across simple, typed and complex
     /// records without re-parsing the value tree.
     pub fn entity_refs(&self, id: u32) -> Vec<u32> {
-        let rec = match self.entities.get(&id) {
+        let rec = match self.entities.get(id) {
             Some(r) => *r,
             None => return Vec::new(),
         };
@@ -721,6 +1034,128 @@ fn match_paren(data: &[u8], open: usize) -> Result<usize, String> {
 }
 
 // ----------------------------------------------------- streaming index window
+
+/// Piece size for writing and reading the index file.
+const INDEX_CHUNK: usize = 1024 * 1024;
+
+/// Sequential reader over an [`InputHandle`] with a bounded buffer: parses an
+/// index file in [`INDEX_CHUNK`] pieces, so a sub-worker never holds the
+/// serialised index next to the table it is building from it.
+struct IndexReader<'a> {
+    input: &'a dyn InputHandle,
+    /// absolute offset of the next byte to fetch from `input`
+    pos: u64,
+    buf: Vec<u8>,
+    /// consumed prefix of `buf`
+    off: usize,
+    /// ids of the sparse pairs read by `recs_into(.., true, ..)`
+    ids: Vec<u32>,
+}
+
+impl<'a> IndexReader<'a> {
+    fn new(input: &'a dyn InputHandle) -> Self {
+        IndexReader {
+            input,
+            pos: 0,
+            buf: Vec::with_capacity(INDEX_CHUNK),
+            off: 0,
+            ids: Vec::new(),
+        }
+    }
+
+    /// Make at least `need` unread bytes available (or all that is left).
+    fn ensure(&mut self, need: usize) -> bool {
+        if self.buf.len() - self.off >= need {
+            return true;
+        }
+        self.buf.drain(..self.off);
+        self.off = 0;
+        let have = self.buf.len();
+        let want = need.max(INDEX_CHUNK) - have;
+        self.buf.resize(have + want, 0);
+        let mut got = 0usize;
+        while got < want {
+            match self
+                .input
+                .read_at(self.pos + got as u64, &mut self.buf[have + got..])
+            {
+                Ok(0) | Err(_) => break,
+                Ok(n) => got += n,
+            }
+        }
+        self.buf.truncate(have + got);
+        self.pos += got as u64;
+        self.buf.len() >= need
+    }
+
+    fn take(&mut self, n: usize) -> Option<&[u8]> {
+        if !self.ensure(n) {
+            return None;
+        }
+        let s = &self.buf[self.off..self.off + n];
+        self.off += n;
+        Some(s)
+    }
+
+    fn u8(&mut self) -> Option<u8> {
+        self.take(1).map(|s| s[0])
+    }
+
+    fn u32(&mut self) -> Option<u32> {
+        self.take(4)
+            .map(|s| u32::from_le_bytes(s.try_into().unwrap()))
+    }
+
+    fn bytes(&mut self, n: usize) -> Option<Vec<u8>> {
+        self.take(n).map(|s| s.to_vec())
+    }
+
+    /// Append `n` entity records (16-byte `(id, rec)` pairs when `with_ids`,
+    /// else 12-byte records), a bounded piece at a time.
+    fn recs_into(&mut self, n: usize, with_ids: bool, out: &mut Vec<EntityRec>) -> Option<()> {
+        let rec_len = if with_ids { 16 } else { 12 };
+        let per_piece = (INDEX_CHUNK / rec_len).max(1);
+        let mut left = n;
+        while left > 0 {
+            let k = left.min(per_piece);
+            let raw = self.take(k * rec_len)?;
+            let mut ids = Vec::new();
+            for c in raw.chunks_exact(rec_len) {
+                let f = |i: usize| u32::from_le_bytes(c[i..i + 4].try_into().unwrap());
+                let b = if with_ids {
+                    ids.push(f(0));
+                    4
+                } else {
+                    0
+                };
+                out.push(EntityRec {
+                    ty: f(b),
+                    start: f(b + 4),
+                    end: f(b + 8),
+                });
+            }
+            self.ids.extend(ids);
+            left -= k;
+        }
+        Some(())
+    }
+
+    /// Append `n` little-endian u32s, a bounded piece at a time.
+    fn u32s_into(&mut self, n: usize, out: &mut Vec<u32>) -> Option<()> {
+        let per_piece = (INDEX_CHUNK / 4).max(1);
+        let mut left = n;
+        while left > 0 {
+            let k = left.min(per_piece);
+            let raw = self.take(k * 4)?;
+            out.extend(
+                raw.chunks_exact(4)
+                    .map(|c| u32::from_le_bytes(c.try_into().unwrap())),
+            );
+            left -= k;
+        }
+        Some(())
+    }
+}
 
 /// A sliding read window over an [`InputHandle`], used to index a `Reader`
 /// source without ever holding the whole file. It buffers bytes
@@ -1027,6 +1462,78 @@ DATA;
 ENDSEC;
 END-ISO-10303-21;
 ";
+
+    #[test]
+    fn entity_table_stays_dense_for_contiguous_ids_and_flips_for_sparse() {
+        let rec = |ty: u32| EntityRec {
+            ty,
+            start: 1,
+            end: 2,
+        };
+        let mut t = EntityTable::default();
+        for id in (1..1000u32).rev() {
+            t.insert(id, rec(id));
+        }
+        assert!(matches!(t, EntityTable::Dense { .. }));
+        assert_eq!(t.len(), 999);
+        assert_eq!(t.get(500).map(|r| r.ty), Some(500));
+        assert!(t.get(0).is_none(), "unused slot reads as absent");
+        assert!(t.get(5000).is_none());
+        t.insert(500, rec(7));
+        assert_eq!(t.len(), 999, "overwriting an id does not change the count");
+        assert_eq!(t.iter().count(), 999);
+        // an id far beyond the entities seen flips the table to sparse
+        t.insert(900_000_000, rec(1));
+        assert!(matches!(t, EntityTable::Sparse(_)));
+        assert_eq!(t.len(), 1000);
+        assert_eq!(t.get(500).map(|r| r.ty), Some(7));
+        assert_eq!(t.get(900_000_000).map(|r| r.ty), Some(1));
+        assert_eq!(t.iter().last().map(|(id, _)| id), Some(900_000_000));
+    }
+
+    #[test]
+    fn index_blob_round_trips_without_a_scan() {
+        let bytes = include_bytes!("../tests/fixtures/as1_pe_203.stp").to_vec();
+        let scanned = StepFile::from_input(Box::new(bytes.clone())).expect("scan");
+        let blob = scanned.index_blob();
+        let rebuilt = StepFile::from_index_blob(Box::new(bytes), &blob).expect("from blob");
+        assert_eq!(rebuilt.entities.len(), scanned.entities.len());
+        assert_eq!(rebuilt.type_names, scanned.type_names);
+        assert_eq!(rebuilt.header_range, scanned.header_range);
+        for ty in ["PRODUCT_DEFINITION", "ADVANCED_FACE", "CARTESIAN_POINT"] {
+            assert_eq!(
+                rebuilt.of_type(ty),
+                scanned.of_type(ty),
+                "{ty} list identical"
+            );
+        }
+        for (id, rec) in scanned.entities.iter() {
+            let r2 = rebuilt.entities.get(id).expect("every entity present");
+            assert_eq!((r2.ty, r2.start, r2.end), (rec.ty, rec.start, rec.end));
+        }
+        let probe = scanned.of_type("ADVANCED_FACE")[0];
+        assert_eq!(
+            rebuilt.params(probe),
+            scanned.params(probe),
+            "params read by range"
+        );
+        assert_eq!(rebuilt.entity_type(probe), Some("ADVANCED_FACE"));
+
+        // the same index read through a handle that returns short pieces —
+        // the sub-worker's path — must come out identical
+        let chunky = ChunkedHandle {
+            data: blob.clone(),
+            chunk: 1000,
+        };
+        let bytes = include_bytes!("../tests/fixtures/as1_pe_203.stp").to_vec();
+        let streamed = StepFile::read_index(Box::new(bytes), &chunky).expect("streamed index");
+        assert_eq!(streamed.entities.len(), scanned.entities.len());
+        assert_eq!(
+            streamed.index_blob(),
+            blob,
+            "re-serialising reproduces the index byte for byte"
+        );
+    }
 
     #[test]
     fn indexes_entities_and_types() {

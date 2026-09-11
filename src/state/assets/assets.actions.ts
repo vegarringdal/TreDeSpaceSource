@@ -26,11 +26,12 @@ import {
   readFile,
   readJson,
   rvmTempDir,
+  stepTempDir,
   writeFile,
   writeJson,
 } from '../../lib/opfs/opfs';
 import type { Rvm2GlbApi } from '../../lib/rvm2glb/rvm2glbWorker';
-import type { Step2GlbApi } from '../../lib/step2glb/step2glbWorker';
+import type { Step2GlbApi, StepProgress } from '../../lib/step2glb/step2glbWorker';
 import { MAIN_STORE, type StoreDef, storesState, TEMP_STORE } from '../stores/stores.state';
 import { db } from '../viewer/db';
 import { residency } from '../viewer/residency';
@@ -166,6 +167,28 @@ let heldLocally = 0;
 function phaseLoading(opts: ImportBehaviour, msg: string, title: string) {
   if (!opts.quiet) {
     dialogs.loading(msg, title);
+  }
+}
+
+/** One line for the loading overlay per STEP phase (bytes, faces, products…). */
+function describeStepProgress(p: StepProgress): string {
+  const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
+  switch (p.phase) {
+    case 'index':
+      return `Indexing ${pct}%`;
+    case 'faces': {
+      if (p.workers === 0) {
+        return `Tessellating ${pct}%`;
+      }
+      const idle = p.busy < p.workers ? `, ${p.busy} busy` : '';
+      return `Tessellating ${pct}% on ${p.workers} workers${idle}`;
+    }
+    case 'products':
+      return `Merging instances ${pct}%`;
+    case 'cook':
+      return p.total > 1 ? `Cooking ${pct}%` : 'Cooking…';
+    default:
+      return 'Writing…';
   }
 }
 
@@ -962,34 +985,37 @@ export const assetsActions = {
     });
   },
 
-  /** STEP import: the step wasm tessellates the B-rep in RAM and cooks the
-   *  merged model itself, yielding one `.tdp` plus its coarse variant — no GLB
-   *  is built. */
+  /** STEP import, two phases under one lock: (1) the file is staged into OPFS
+   *  temp/step-import/ and the step worker streams it — indexing by range,
+   *  tessellating over sub-workers, spilling geometry to disk — into one
+   *  cooked `.tdp` plus its coarse variant in the same dir (no GLB is ever
+   *  built), and (2) those land in the store like any cooked file. Temp is
+   *  cleared before and after. */
   async importStep(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
     const store = resolveStore(opts.store);
     await withImportLock(async () => {
       const t0 = performance.now();
-      // overlay first — before the worker spin-up — so the UI blocks on click
-      phaseLoading(opts, `Converting ${file.name}…`, 'Importing STEP — phase 1 of 2');
+      const title = 'Importing STEP — phase 1 of 2';
+      // overlay first — before OPFS staging + worker spin-up — so the UI
+      // blocks on click
+      phaseLoading(opts, `Staging ${file.name}…`, title);
       const stepOpts = assetsState.get().step;
+      const temp = await stepTempDir();
+      await clearDir(temp);
       const worker = new Worker(new URL('../../lib/step2glb/step2glbWorker.ts', import.meta.url), { type: 'module' });
       try {
+        await writeFile(temp, 'input.step', file);
         const step = Comlink.wrap<Step2GlbApi>(worker);
+        // if the wasm traps, the worker dies WITHOUT rejecting the Comlink
+        // call — race against the worker's error event so we don't hang
         const workerDied = new Promise<never>((_, reject) => {
           worker.addEventListener('error', (e) => reject(new Error(e.message || 'step2glb worker crashed')));
         });
-        const bytes = await file.arrayBuffer();
-        const { tdp, coarse, info } = await Promise.race([
+        const { files, info } = await Promise.race([
           step.convert(
-            Comlink.transfer(bytes, [bytes]),
+            file.name,
             { ...stepOpts },
-            Comlink.proxy((done: number, total: number) =>
-              phaseLoading(
-                opts,
-                `${total > 0 ? Math.round((done / total) * 100) : 0}% tessellated`,
-                'Importing STEP — phase 1 of 2',
-              ),
-            ),
+            Comlink.proxy((p: StepProgress) => phaseLoading(opts, describeStepProgress(p), title)),
           ),
           workerDied,
         ]);
@@ -1001,14 +1027,22 @@ export const assetsActions = {
         } catch {
           /* non-fatal */
         }
-        const name = `${file.name.replace(/\.(step|stp)$/i, '')}.tdp`;
-        const source: ImportSource = {
-          name,
-          bytes: () => Promise.resolve(tdp),
-          folder: opts.folder,
-          ...(coarse ? { coarseBytes: () => Promise.resolve(coarse) } : {}),
-        };
-        await this.importSourcesLocked([source], {
+        const cooked = files.filter((f) => !/\.coarse\.tdp$/i.test(f.name));
+        if (cooked.length === 0) {
+          consoleActions.log('error', `Assets: ${file.name} produced no geometry — nothing imported`);
+          return;
+        }
+        const names = new Set(files.map((f) => f.name));
+        const sources: ImportSource[] = cooked.map((f) => {
+          const coarseName = f.name.replace(/\.tdp$/i, '.coarse.tdp');
+          return {
+            name: f.name,
+            bytes: () => readFile(temp, f.name),
+            folder: opts.folder,
+            ...(names.has(coarseName) ? { coarseBytes: () => readFile(temp, coarseName) } : {}),
+          };
+        });
+        await this.importSourcesLocked(sources, {
           folder: opts.folder,
           store,
           title: 'Importing STEP — final phase',
@@ -1026,6 +1060,7 @@ export const assetsActions = {
         );
       } finally {
         worker.terminate();
+        await clearDir(temp).catch(() => undefined);
         phaseHideLoading(opts);
       }
     });

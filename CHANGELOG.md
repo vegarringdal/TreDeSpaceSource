@@ -4,6 +4,62 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.11** (>0.0.112):
+  SQL Editor / report editor: the per-filter sections are dense now — a new
+  `dense` option on `InlinePanel` (tight header and body padding, in the
+  widget gallery and README) with smaller move-up / move-down / remove
+  buttons, so a filter's header is one short line instead of a box — and the
+  list of filters scrolls on its own: capped at 18 rem in the report editor,
+  filling the spare height of the SQL Editor panel, with the Filters header
+  (expand / collapse / add) staying put above it.
+  STEP import no longer holds the file — or the model — in wasm memory, and
+  reports every phase. The picked file is staged into OPFS `temp/step-import/`
+  and the converter reads it by range through a sync access handle (with a
+  small page cache in front), instead of copying the whole thing into wasm
+  twice; the entity index is pre-sized from the file size, so a huge file no
+  longer pays for a chain of rehashes. Tessellation fans out over 2–5
+  sub-workers (each indexes the same staged file through a shared read-only
+  handle and appends its results to its own cache file; the coordinator hands
+  out product batches dynamically), falling back to in-process tessellation
+  when a sub-worker cannot start. The merge walk then reads those records back
+  per instance and spills every world-baked bucket to a spill file, so the
+  coordinator's heap holds one product at a time; a product placed more than
+  once is tessellated once and re-read from disk, single-use products skip the
+  cache entirely. The index is dropped before cooking, the cooked `.tdp` is
+  written straight to OPFS, and the coarse variant is derived from the cooked
+  bytes (`coarsen_tdp`) instead of cloning the whole model for a second cook.
+  Output is byte-identical to the old path (the direct-cook parity test now
+  runs through the spill path, and new core tests pin spill-vs-RAM and
+  fanned-out-vs-in-process buckets). Progress: the loading overlay now shows
+  indexing (bytes), tessellation (faces, with the worker count), instance
+  merging, cooking and writing — the cooked path used to report nothing at
+  all, and product-level ticks stalled for minutes on one big solid.
+  Cooking now has a percentage too: the cooker ticks once per draw range
+  through its heavy passes (simplify for the coarse variant, meshletize for
+  both), throttled to 1 % steps, so the cost is unmeasurable and the bytes are
+  unchanged (golden test). The Import STEP section gains a **Workers** option
+  (0–5, default 2; hotkeys) for the tessellation sub-workers — each holds its
+  own copy of the file index, so a 1 GB file with five workers was seen at
+  6–8 GB of RAM — and warns on files over 200 MB that the import can exhaust
+  memory and to save work first.
+  Then the index itself went on a diet: the STEP entity index is a dense
+  table (12 bytes per id, no hashing, no rehash spikes) that only falls back
+  to a hash map for files with wildly sparse ids, and it is built ONCE — the
+  coordinator scans the file and streams the finished index to a temp file
+  in 1 MB pieces, and each tessellation sub-worker reads that file by range
+  straight into its own table. (A first cut handed the index over as one
+  in-memory blob, which cost two extra copies of it per worker at the peak —
+  more than the old per-worker scan; measured worse with five workers and
+  replaced the same day.) The sub-workers no longer re-read the STEP and
+  their footprint is the table itself (≈0.3 GB per worker on a 1 GB file,
+  versus ≈0.6 GB for the old hash map). The overlay also says how many
+  workers are still busy, so a run stalling on one giant product is visible
+  ("Tessellating 91% on 5 workers, 1 busy"). Two smaller ones on the same path: the merge
+  walk keeps a 64 MB hot cache of decoded instance meshes, so a part placed
+  ten thousand times is read and decoded from disk once per eviction rather
+  than once per placement; and the position buffer handed to the cooker is
+  flipped to Z-up in place instead of being copied, which for a single-colour
+  model was a second full-size copy at the peak.
 - **2026.09.11** (>0.0.111):
   An item nobody can see now costs nothing to render: an explicit opacity
   override of 0 (Set Color's hidden toggle, `sql.color`'s `default-hidden`

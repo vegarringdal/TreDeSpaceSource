@@ -418,6 +418,11 @@ pub struct MergedBuilder {
     /// global bbox centre removed from all buckets by [`Self::recenter`];
     /// emitted as each bucket node's `translation`
     translation: Option<V3>,
+    /// spill mode: geometry went to the temp handle (see
+    /// [`Self::add_bucket_spill`]); `bounds` is the running bbox of everything
+    /// spilled, so `recenter` can find the centre without reading it back
+    spilled: bool,
+    bounds: Option<([f64; 3], [f64; 3])>,
 }
 
 struct MergedBucket {
@@ -425,11 +430,134 @@ struct MergedBucket {
     mesh: TriMesh,
     /// (part id, first index, index count) in emission order
     ranges: Vec<(u32, u32, u32)>,
+    /// spill mode: this bucket's geometry, chunk by chunk, in the temp handle
+    chunks: Vec<SpillChunk>,
+    nverts: u64,
+    nidx: u64,
+}
+
+/// One `add_bucket_spill` call's geometry in the temp handle: `nverts * 3`
+/// little-endian f64 positions followed by `nidx` u32 indices (bucket-local,
+/// not yet rebased).
+struct SpillChunk {
+    offset: u64,
+    nverts: u32,
+    nidx: u32,
 }
 
 impl MergedBuilder {
     pub fn add_hierarchy(&mut self, id: u32, name: &str, parent: u32) {
         self.hierarchy.push((id, name.to_string(), parent));
+    }
+
+    /// Index of the bucket for `color`, creating it on first sight.
+    fn bucket_index(&mut self, color: Option<[f32; 4]>) -> usize {
+        let key = color.map(quantize_color);
+        self.buckets
+            .iter()
+            .position(|b| b.color.map(quantize_color) == key)
+            .unwrap_or_else(|| {
+                self.buckets.push(MergedBucket {
+                    color,
+                    mesh: TriMesh::default(),
+                    ranges: Vec::new(),
+                    chunks: Vec::new(),
+                    nverts: 0,
+                    nidx: 0,
+                });
+                self.buckets.len() - 1
+            })
+    }
+
+    /// [`Self::add_bucket`] for the low-memory path: the world-baked geometry
+    /// is appended to `tmp` instead of the heap, so the builder holds only the
+    /// draw-range table and a bounding box until [`Self::into_merged_spill`]
+    /// reads it back. Byte-identical to the in-RAM path: positions are stored
+    /// as the exact f64s and the f32 cast happens at read-back, after the same
+    /// recentre subtraction.
+    pub fn add_bucket_spill(
+        &mut self,
+        id: u32,
+        color: Option<[f32; 4]>,
+        m: &TriMesh,
+        tmp: &mut dyn TempHandle,
+    ) -> std::io::Result<()> {
+        if m.is_empty() || m.lines {
+            return Ok(());
+        }
+        self.spilled = true;
+        let (lo, hi) = m.bounds();
+        let (bl, bh) = self.bounds.get_or_insert(([f64::MAX; 3], [f64::MIN; 3]));
+        for k in 0..3 {
+            bl[k] = bl[k].min(lo[k]);
+            bh[k] = bh[k].max(hi[k]);
+        }
+        let bi = self.bucket_index(color);
+        let b = &mut self.buckets[bi];
+        let mut bytes = Vec::with_capacity(m.positions.len() * 8 + m.indices.len() * 4);
+        for v in &m.positions {
+            bytes.extend_from_slice(&v.to_le_bytes());
+        }
+        for i in &m.indices {
+            bytes.extend_from_slice(&i.to_le_bytes());
+        }
+        let offset = tmp.len();
+        tmp.write_at(offset, &bytes)?;
+        b.chunks.push(SpillChunk {
+            offset,
+            nverts: m.vertex_count() as u32,
+            nidx: m.indices.len() as u32,
+        });
+        b.ranges.push((id, b.nidx as u32, m.indices.len() as u32));
+        b.nverts += m.vertex_count() as u64;
+        b.nidx += m.indices.len() as u64;
+        Ok(())
+    }
+
+    /// Read the spilled buckets back as the cooker's input: chunk by chunk,
+    /// recentred in f64, cast to f32, indices rebased onto the bucket —
+    /// exactly what [`Self::into_merged`] yields for the same geometry in RAM.
+    pub fn into_merged_spill(self, tmp: &dyn TempHandle) -> std::io::Result<MergedData> {
+        let c = self.translation.unwrap_or(V3::ZERO);
+        let c = [c.x, c.y, c.z];
+        let mut nodes = Vec::with_capacity(self.buckets.len());
+        for b in self.buckets {
+            let mut positions: Vec<f32> = Vec::with_capacity(b.nverts as usize * 3);
+            let mut indices: Vec<u32> = Vec::with_capacity(b.nidx as usize);
+            for ch in &b.chunks {
+                let pos_len = ch.nverts as usize * 3 * 8;
+                let idx_len = ch.nidx as usize * 4;
+                let bytes = crate::io::read_all_at(
+                    |o, buf| tmp.read_at(o, buf),
+                    ch.offset,
+                    pos_len + idx_len,
+                );
+                if bytes.len() != pos_len + idx_len {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        "spilled geometry chunk is truncated",
+                    ));
+                }
+                let base = (positions.len() / 3) as u32;
+                for (k, p) in bytes[..pos_len].chunks_exact(8).enumerate() {
+                    let v = f64::from_le_bytes(p.try_into().unwrap());
+                    positions.push((v - c[k % 3]) as f32);
+                }
+                for i in bytes[pos_len..].chunks_exact(4) {
+                    indices.push(u32::from_le_bytes(i.try_into().unwrap()) + base);
+                }
+            }
+            nodes.push(MergedNodeData {
+                base_color: b.color.unwrap_or([0.72, 0.72, 0.75, 1.0]),
+                positions,
+                indices,
+                draw_ranges: b.ranges,
+            });
+        }
+        Ok(MergedData {
+            nodes,
+            hierarchy: self.hierarchy,
+        })
     }
 
     /// Append one draw call: a single color slice of a part, merged into its
@@ -441,19 +569,7 @@ impl MergedBuilder {
         if m.is_empty() || m.lines {
             return;
         }
-        let key = color.map(quantize_color);
-        let bi = self
-            .buckets
-            .iter()
-            .position(|b| b.color.map(quantize_color) == key)
-            .unwrap_or_else(|| {
-                self.buckets.push(MergedBucket {
-                    color,
-                    mesh: TriMesh::default(),
-                    ranges: Vec::new(),
-                });
-                self.buckets.len() - 1
-            });
+        let bi = self.bucket_index(color);
         let b = &mut self.buckets[bi];
         let start = b.mesh.indices.len() as u32;
         b.mesh.append(m);
@@ -473,6 +589,14 @@ impl MergedBuilder {
     pub fn recenter(&mut self) {
         let mut mn = [f64::MAX; 3];
         let mut mx = [f64::MIN; 3];
+        if self.spilled {
+            // the bbox was accumulated chunk by chunk as the geometry went out
+            // (min/max is order-independent, so it matches the in-RAM scan)
+            match self.bounds {
+                Some((lo, hi)) => (mn, mx) = (lo, hi),
+                None => return,
+            }
+        }
         for b in &self.buckets {
             if b.mesh.positions.is_empty() {
                 continue;
@@ -512,11 +636,17 @@ impl MergedBuilder {
     }
 
     pub fn total_vertices(&self) -> usize {
-        self.buckets.iter().map(|b| b.mesh.vertex_count()).sum()
+        self.buckets
+            .iter()
+            .map(|b| b.mesh.vertex_count() + b.nverts as usize)
+            .sum()
     }
 
     pub fn total_triangles(&self) -> usize {
-        self.buckets.iter().map(|b| b.mesh.triangle_count()).sum()
+        self.buckets
+            .iter()
+            .map(|b| b.mesh.triangle_count() + b.nidx as usize / 3)
+            .sum()
     }
 
     /// Hand the merged buckets over for a direct cook — no GLB is built.
@@ -555,6 +685,11 @@ impl MergedBuilder {
         out: &mut dyn OutputHandle,
         tmp: &mut dyn TempHandle,
     ) -> std::io::Result<()> {
+        if self.spilled {
+            return Err(std::io::Error::other(
+                "a spilled merged build has no in-RAM geometry to write as GLB",
+            ));
+        }
         let mut bin = Bin { tmp, off: 0 };
         let mut views = String::new();
         let mut accessors = String::new();

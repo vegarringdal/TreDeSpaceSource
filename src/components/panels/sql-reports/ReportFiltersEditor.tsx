@@ -1,4 +1,5 @@
 import { IconChevronsDown, IconChevronsUp, IconPlus } from '@tabler/icons-react';
+import { cn } from '@treDeSpaceUI/lib/cn';
 import { Button } from '@treDeSpaceUI/widgets';
 import { type FilterCollapseControls, isFilterCollapsed } from '../../../state/sqlReports/filterCollapse';
 import type { ReportDef, ReportFilter } from '../../../state/sqlReports/sqlReports.state';
@@ -18,6 +19,11 @@ type ReportFiltersEditorProps = Readonly<{
   collapse: FilterCollapseControls;
   /** Hotkey ids for the header buttons (the SQL Editor binds them). */
   shortcuts?: Readonly<{ add?: string; expandAll?: string; collapseAll?: string }>;
+  /** Classes for the scrolling list of filter rows — by default it caps at
+   *  `max-h-72` and scrolls; a host with its own height (the SQL Editor
+   *  panel) passes `max-h-none min-h-40 flex-1` so the list fills the spare
+   *  height instead. */
+  listClassName?: string;
 }>;
 
 /** The Filters block of a report draft: a header with Expand all / Collapse
@@ -32,11 +38,12 @@ export function ReportFiltersEditor({
   onMove,
   collapse,
   shortcuts,
+  listClassName,
 }: ReportFiltersEditorProps) {
   const isEmpty = filters.length === 0;
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <span className="flex-1 text-slate-400 text-xs">Filters</span>
         <Button
           iconOnly
@@ -58,22 +65,26 @@ export function ReportFiltersEditor({
           Add filter
         </Button>
       </div>
-      {filters.map((f, i) => (
-        <FilterEditRow
-          // biome-ignore lint/suspicious/noArrayIndexKey: filters are edited positionally (add/remove/move by index)
-          key={i}
-          report={report}
-          filter={f}
-          index={i}
-          isFirst={i === 0}
-          isLast={i === filters.length - 1}
-          collapsed={isFilterCollapsed(collapse.collapsed, i)}
-          onToggle={() => collapse.toggle(i)}
-          onChange={(p) => onChange(i, p)}
-          onRemove={() => onRemove(i)}
-          onMove={(dir) => onMove(i, dir)}
-        />
-      ))}
+      {!isEmpty && (
+        <div className={cn('flex max-h-72 min-h-0 flex-col gap-1.5 overflow-y-auto', listClassName)}>
+          {filters.map((f, i) => (
+            <FilterEditRow
+              // biome-ignore lint/suspicious/noArrayIndexKey: filters are edited positionally (add/remove/move by index)
+              key={i}
+              report={report}
+              filter={f}
+              index={i}
+              isFirst={i === 0}
+              isLast={i === filters.length - 1}
+              collapsed={isFilterCollapsed(collapse.collapsed, i)}
+              onToggle={() => collapse.toggle(i)}
+              onChange={(p) => onChange(i, p)}
+              onRemove={() => onRemove(i)}
+              onMove={(dir) => onMove(i, dir)}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }

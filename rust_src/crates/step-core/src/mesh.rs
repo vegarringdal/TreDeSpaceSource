@@ -606,6 +606,56 @@ impl MeshSet {
     /// Flatten into one TriMesh (used by tests/measurements).
     /// Flatten the triangle buckets into one mesh. Line (wireframe) buckets are
     /// skipped — a single `TriMesh` is triangle topology and can't carry both.
+    /// Serialise for the spill / cache files (see [`crate::wire`]): every part
+    /// with its colour, topology flag, f64 positions, normals and indices —
+    /// exact, so a round trip is byte-identical to keeping the set in RAM.
+    pub fn encode(&self, out: &mut Vec<u8>) {
+        let mut w = crate::wire::Writer(out);
+        w.u32(self.parts.len() as u32);
+        for (color, m) in &self.parts {
+            match color {
+                Some(c) => {
+                    w.u8(1);
+                    for v in c {
+                        w.f32(*v);
+                    }
+                }
+                None => w.u8(0),
+            }
+            w.u8(m.lines as u8);
+            w.f64s(&m.positions);
+            w.f32s(&m.normals);
+            w.u32s(&m.indices);
+        }
+    }
+
+    /// Inverse of [`Self::encode`]; `None` on a truncated record.
+    pub fn decode(bytes: &[u8]) -> Option<MeshSet> {
+        let mut r = crate::wire::Reader::new(bytes);
+        let n = r.u32()? as usize;
+        let mut parts = Vec::with_capacity(n);
+        for _ in 0..n {
+            let color = match r.u8()? {
+                0 => None,
+                _ => Some([r.f32()?, r.f32()?, r.f32()?, r.f32()?]),
+            };
+            let lines = r.u8()? != 0;
+            let positions = r.f64s()?;
+            let normals = r.f32s()?;
+            let indices = r.u32s()?;
+            parts.push((
+                color,
+                TriMesh {
+                    positions,
+                    normals,
+                    indices,
+                    lines,
+                },
+            ));
+        }
+        Some(MeshSet { parts })
+    }
+
     pub fn merged(&self) -> TriMesh {
         let mut out = TriMesh::default();
         for (_, m) in &self.parts {

@@ -106,6 +106,12 @@ export async function rvmTempDir(): Promise<FileSystemDirectoryHandle> {
   return (await tempDir()).getDirectoryHandle('rvm-import', { create: true });
 }
 
+/** temp/step-import — staging area for STEP imports (input copy, the
+ *  workers' cache/spill files, the cooked outputs). */
+export async function stepTempDir(): Promise<FileSystemDirectoryHandle> {
+  return (await tempDir()).getDirectoryHandle('step-import', { create: true });
+}
+
 /** Scratch dir for Export-panel output: workers stream results here, the main
  *  thread downloads the finished file, then deletes it. */
 export async function exportTempDir(): Promise<FileSystemDirectoryHandle> {

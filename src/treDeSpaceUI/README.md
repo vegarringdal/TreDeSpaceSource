@@ -432,6 +432,7 @@ type InlinePanelProps = {
   actions?: ReactNode;        // extra controls at the right end of the header
   titleUppercase?: boolean;   // default true — the dock-panel look
   titleClassName?: string;    // classes merged over the header text styling
+  dense?: boolean;            // tight header/body padding for long stacks
   children: ReactNode;
   className?: string;
 };
@@ -444,6 +445,17 @@ a `title` node takes over the rendering entirely:
 ```tsx
 <InlinePanel title="Pump P-101" titleUppercase={false}>…</InlinePanel>
 <InlinePanel title={<TagBadge tag="P-101" />}>…</InlinePanel>
+```
+
+`dense` shrinks the header to a single tight line and trims the body padding —
+for a list of many small sections (one editor per filter). Pair it with
+`h-5 w-5` icon buttons in `actions` so the header stays that height:
+
+```tsx
+<InlinePanel dense title="Filter #1" titleUppercase={false}
+  actions={<Button iconOnly className="h-5 w-5" icon={<IconTrash />} tooltip="Remove" />}>
+  …
+</InlinePanel>
 ```
 
 ### InfoBox / InfoButton

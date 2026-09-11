@@ -5,7 +5,11 @@ at [`rust_src/crates/step-wasm`](../../../../rust_src/crates/step-wasm)
 (kernel in `step-core`). Only the built output is committed here; rebuild from
 the source when it changes.
 
-It tessellates a `.step`/`.stp` (bytes in RAM) and returns one cooked `.tdp` plus its coarse variant and a JSON diagnostics report.
+It converts a `.step`/`.stp` into one cooked `.tdp` plus its coarse variant
+and a JSON diagnostics report. The app drives the streaming `StepSession`
+(input read by range through OPFS sync handles, tessellation fanned out over
+sub-workers, geometry spilled to disk — see `step2glbWorker.ts`); the one-shot
+`convert_step_to_tdp` (whole file in RAM) is kept for tests and small inputs.
 
 **It cooks the `.tdp` itself** — the merged model goes straight into
 `cooker-core`, so no GLB is built, serialised or parsed on the import path. The

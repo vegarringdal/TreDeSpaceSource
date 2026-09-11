@@ -24,6 +24,7 @@ use cad_format::{
 
 use crate::cook::{
     build_quantized_streams, coarsen_cg, meshletize_cg, pack_binary, CoarsenOptions, ColorGroup,
+    CookProgress, RangeTicker,
 };
 
 /// Weld grid pitch in world units (meters). Coarser than the per-meshlet
@@ -38,7 +39,19 @@ const WELD_GRID: f32 = 1e-3;
 /// the input's format version (v7 in → v7 out, etc.). Fails on wrong
 /// magic/version or a structurally truncated file.
 pub fn coarsen_tdp(tdp: &[u8], opts: CoarsenOptions) -> Result<Vec<u8>> {
+    coarsen_tdp_with_progress(tdp, opts, &mut |_, _| {})
+}
+
+/// [`coarsen_tdp`] reporting `(done, total)` per draw range over the two
+/// heavy passes (simplify, then meshletize).
+pub fn coarsen_tdp_with_progress(
+    tdp: &[u8],
+    opts: CoarsenOptions,
+    progress: CookProgress,
+) -> Result<Vec<u8>> {
     let f = TdpFile::parse(tdp)?;
+    let ranges: u64 = f.color_groups.iter().map(|cg| cg.dr_ids.len() as u64).sum();
+    let mut ticker = RangeTicker::new(ranges * 2, progress);
 
     // Tiny-item cut threshold: the full cook derives it from the DENSE
     // diagonal of the original geometry — the header carries exactly that
@@ -51,10 +64,10 @@ pub fn coarsen_tdp(tdp: &[u8], opts: CoarsenOptions) -> Result<Vec<u8>> {
 
     let mut color_groups = f.color_groups;
     for cg in &mut color_groups {
-        coarsen_cg(cg, model_diag, opts);
+        coarsen_cg(cg, model_diag, opts, &mut |_| ticker.tick());
     }
     for cg in &mut color_groups {
-        meshletize_cg(cg)?;
+        meshletize_cg(cg, &mut |_| ticker.tick())?;
         build_quantized_streams(cg);
     }
 

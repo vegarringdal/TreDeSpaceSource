@@ -3,6 +3,7 @@
 //! GLB output validity.
 
 use step_core::geom::{v3, V3};
+use step_core::merge::MergeMode;
 use step_core::mesh::{MeshSet, TriMesh};
 use step_core::model::TessParams;
 use step_core::step::StepFile;
@@ -39,6 +40,7 @@ fn tessellate_with(
         tp,
         colors,
         threads: 1,
+        faces: None,
     };
     let mut set = MeshSet::default();
     let mut stats = TessStats::default();
@@ -1031,6 +1033,7 @@ fn as1_tessellation_and_dedup() {
             tp: &tp,
             colors: &colors,
             threads: 1,
+            faces: None,
         };
         let mut m = MeshSet::default();
         for &sr in &node.shape_reps {
@@ -1349,6 +1352,7 @@ fn parallel_tessellation_is_byte_identical_to_serial() {
             tp: &tp,
             colors: &colors,
             threads,
+            faces: None,
         };
         let mut set = MeshSet::default();
         let mut stats = TessStats::default();
@@ -1430,6 +1434,7 @@ fn build_merged_with(
         tp: &tp,
         colors: &colors,
         threads: 1,
+        faces: None,
     };
     let mut stats = TessStats::default();
     let opts = merge::MergeOptions {
@@ -1441,7 +1446,8 @@ fn build_merged_with(
         cleanup,
         simplify: None,
     };
-    let (merged, _unique) = merge::build(&cx, &asm, opts, &mut stats, &mut |_| {});
+    let (merged, _unique) =
+        merge::build(&cx, &asm, opts, &mut stats, &mut |_| {}, MergeMode::InRam);
     assert!(merged.bucket_count() > 0);
     (glb_json(&merged.write("test")), asm)
 }
@@ -1577,6 +1583,7 @@ fn merged_without_rotation_keeps_z_up() {
         tp: &tp,
         colors: &colors,
         threads: 1,
+        faces: None,
     };
     let mut stats = TessStats::default();
     let opts = merge::MergeOptions {
@@ -1588,7 +1595,7 @@ fn merged_without_rotation_keeps_z_up() {
         cleanup: None,
         simplify: None,
     };
-    let (merged, _) = merge::build(&cx, &asm, opts, &mut stats, &mut |_| {});
+    let (merged, _) = merge::build(&cx, &asm, opts, &mut stats, &mut |_| {}, MergeMode::InRam);
     let json = glb_json(&merged.write("test"));
     let pos_acc = json["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
         .as_u64()

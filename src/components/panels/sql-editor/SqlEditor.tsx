@@ -75,6 +75,7 @@ export function SqlEditor() {
           expandAll: 'sql.editor.expandFilters',
           collapseAll: 'sql.editor.collapseFilters',
         }}
+        listClassName="max-h-none min-h-40 flex-1"
       />
 
       <SqlEditorStatus />

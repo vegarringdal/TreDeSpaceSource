@@ -58,6 +58,138 @@ pub trait TempHandle {
     }
 }
 
+/// Read-only access to the tessellation records other workers wrote: one
+/// `slot` per cache file (the browser opens each sub-worker's file as its own
+/// sync handle; tests back the slots with `Vec<MemTemp>`).
+pub trait SlotReader {
+    fn read_at(&self, slot: u32, offset: u64, buf: &mut [u8]) -> io::Result<usize>;
+}
+
+/// Read exactly `len` bytes at `offset` through a ranged reader, looping over
+/// short reads; a short final result means the source ended early.
+pub fn read_all_at(
+    mut read: impl FnMut(u64, &mut [u8]) -> io::Result<usize>,
+    offset: u64,
+    len: usize,
+) -> Vec<u8> {
+    let mut buf = vec![0u8; len];
+    let mut off = 0usize;
+    while off < len {
+        match read(offset + off as u64, &mut buf[off..]) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => off += n,
+        }
+    }
+    buf.truncate(off);
+    buf
+}
+
+// ------------------------------------------------------------- page cache
+
+const PAGE_SIZE: usize = 256 * 1024;
+const PAGE_SLOTS: usize = 16;
+
+struct Page {
+    index: u64,
+    used: u64,
+    data: Vec<u8>,
+}
+
+struct PageCache {
+    pages: Vec<Page>,
+    clock: u64,
+}
+
+/// A small LRU page cache in front of an [`InputHandle`] whose reads are
+/// expensive per call (an OPFS sync handle behind a JS callback): the parser
+/// reads entity parameters by range, millions of small reads that are mostly
+/// local, so a few pages absorb nearly all of them. Reads larger than a page
+/// bypass the cache. Interior mutability is a `Mutex` so the handle stays
+/// `Sync` (uncontended: wasm32 has no threads; native never shares it).
+pub struct CachedInput {
+    inner: Box<dyn InputHandle>,
+    size: u64,
+    cache: std::sync::Mutex<PageCache>,
+}
+
+impl CachedInput {
+    pub fn new(inner: Box<dyn InputHandle>) -> CachedInput {
+        let size = inner.size();
+        CachedInput {
+            inner,
+            size,
+            cache: std::sync::Mutex::new(PageCache {
+                pages: Vec::with_capacity(PAGE_SLOTS),
+                clock: 0,
+            }),
+        }
+    }
+
+    /// Copy `[offset, offset + buf.len())` out of the page cache, loading
+    /// missing pages from the inner handle.
+    fn read_cached(&self, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+        let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
+        let mut done = 0usize;
+        while done < buf.len() {
+            let abs = offset + done as u64;
+            if abs >= self.size {
+                break;
+            }
+            let index = abs / PAGE_SIZE as u64;
+            cache.clock += 1;
+            let clock = cache.clock;
+            let slot = match cache.pages.iter().position(|p| p.index == index) {
+                Some(i) => i,
+                None => {
+                    let start = index * PAGE_SIZE as u64;
+                    let len = (self.size - start).min(PAGE_SIZE as u64) as usize;
+                    let data = read_all_at(|o, b| self.inner.read_at(o, b), start, len);
+                    if cache.pages.len() < PAGE_SLOTS {
+                        cache.pages.push(Page {
+                            index,
+                            used: clock,
+                            data,
+                        });
+                        cache.pages.len() - 1
+                    } else {
+                        let victim = (0..cache.pages.len())
+                            .min_by_key(|&i| cache.pages[i].used)
+                            .unwrap_or(0);
+                        cache.pages[victim] = Page {
+                            index,
+                            used: clock,
+                            data,
+                        };
+                        victim
+                    }
+                }
+            };
+            let page = &mut cache.pages[slot];
+            page.used = clock;
+            let in_page = (abs - index * PAGE_SIZE as u64) as usize;
+            if in_page >= page.data.len() {
+                break;
+            }
+            let n = (page.data.len() - in_page).min(buf.len() - done);
+            buf[done..done + n].copy_from_slice(&page.data[in_page..in_page + n]);
+            done += n;
+        }
+        Ok(done)
+    }
+}
+
+impl InputHandle for CachedInput {
+    fn size(&self) -> u64 {
+        self.size
+    }
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.len() >= PAGE_SIZE {
+            return self.inner.read_at(offset, buf);
+        }
+        self.read_cached(offset, buf)
+    }
+}
+
 // --------------------------------------------------------- in-memory backings
 
 /// Copy `[offset, offset+buf.len())` of `data` into `buf`, returning the count.
@@ -119,6 +251,15 @@ impl TempHandle for MemTemp {
     }
 }
 
+impl SlotReader for Vec<MemTemp> {
+    fn read_at(&self, slot: u32, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+        match self.get(slot as usize) {
+            Some(t) => TempHandle::read_at(t, offset, buf),
+            None => Ok(0),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,5 +297,53 @@ mod tests {
         s.write(b"ab").unwrap();
         s.write(b"cd").unwrap();
         assert_eq!(s.0, b"abcd");
+    }
+
+    /// Counts the inner reads so a test can prove the cache absorbs them.
+    struct Counting(Vec<u8>, std::sync::Mutex<usize>);
+    impl InputHandle for Counting {
+        fn size(&self) -> u64 {
+            self.0.len() as u64
+        }
+        fn read_at(&self, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+            *self.1.lock().unwrap() += 1;
+            Ok(read_slice(&self.0, offset, buf))
+        }
+    }
+
+    #[test]
+    fn cached_input_serves_repeated_small_reads_from_one_page() {
+        let data: Vec<u8> = (0..100_000u32).map(|i| (i % 251) as u8).collect();
+        let c = CachedInput::new(Box::new(Counting(data.clone(), std::sync::Mutex::new(0))));
+        let mut buf = [0u8; 16];
+        for off in (0..99_000u64).step_by(997) {
+            assert_eq!(c.read_at(off, &mut buf).unwrap(), 16);
+            assert_eq!(&buf[..], &data[off as usize..off as usize + 16]);
+        }
+        // the whole file is one page: exactly one inner read
+        let mut tail = [0u8; 16];
+        assert_eq!(
+            c.read_at(99_990, &mut tail).unwrap(),
+            10,
+            "clamps at the end"
+        );
+        assert_eq!(c.read_at(100_000, &mut tail).unwrap(), 0);
+    }
+
+    #[test]
+    fn read_all_at_loops_over_short_reads() {
+        let data: Vec<u8> = (0..50u8).collect();
+        // a reader that returns at most 7 bytes per call
+        let got = read_all_at(
+            |o, b| {
+                let n = b.len().min(7);
+                Ok(read_slice(&data, o, &mut b[..n]))
+            },
+            3,
+            20,
+        );
+        assert_eq!(got, data[3..23].to_vec());
+        let short = read_all_at(|o, b| Ok(read_slice(&data, o, b)), 45, 20);
+        assert_eq!(short, data[45..].to_vec(), "truncates at EOF");
     }
 }

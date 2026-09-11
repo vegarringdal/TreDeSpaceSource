@@ -2087,6 +2087,22 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => assetsActions.setStepOptions({ maxAngleDeg: Math.max(1, assetsState.get().step.maxAngleDeg - 1) }),
   },
   {
+    id: 'assets.step.workers.inc',
+    category: 'Home',
+    label: 'STEP workers +',
+    defaultKeys: 'ALT + 1232',
+    description: 'One more STEP tessellation sub-worker (faster, more memory; max 5)',
+    run: () => assetsActions.setStepOptions({ workers: Math.min(5, assetsState.get().step.workers + 1) }),
+  },
+  {
+    id: 'assets.step.workers.dec',
+    category: 'Home',
+    label: 'STEP workers −',
+    defaultKeys: 'ALT + 1233',
+    description: 'One fewer STEP tessellation sub-worker (0 = tessellate in-process)',
+    run: () => assetsActions.setStepOptions({ workers: Math.max(0, assetsState.get().step.workers - 1) }),
+  },
+  {
     id: 'assets.step.cleanup',
     category: 'Home',
     label: 'STEP import: cleanup',

@@ -264,6 +264,74 @@ Sample models for the converter tests live in `convertSamples/{rvm,ifc}`
 | `ifc` | **IFC** 2X3 / 4 / 4X3 → GLB | yes — `src/lib/ifc2glb/ifc2glbWorker.ts` + `src/lib/ifc2glb/wasm` |
 | `step` | **STEP** B-rep → GLB (proof-of-concept parser) | yes — `src/lib/step2glb/step2glbWorker.ts` + `src/lib/step2glb/wasm` |
 
+**STEP: streamed, spilled, fanned out (2026-09-11).** A 1 GB STEP used to
+blow the wasm32 heap: the input was copied into wasm twice, the entity index
+rehashed its way up, every unique product's f64 mesh sat in a cache next to the
+world-baked buckets, and the coarse cook cloned the whole cooker model. The
+step path now runs as a *session* (`step_core::convert::prepare` →
+`Prepared::tessellate_jobs` → `Prepared::finish`, wrapped by the wasm
+`StepSession`):
+
+- **Input by range.** The main thread stages the file into OPFS
+  `temp/step-import/input.step`; the worker reads it through a sync access
+  handle behind a 16×256 KB page cache (`io::CachedInput`). The entity index
+  is a dense table (`step::EntityTable`, a `Vec<EntityRec>` indexed by id, 12
+  B/slot, pre-sized from the file size at ~64 B per entity) that flips to a
+  hash map only when ids are sparse enough to waste more than they save.
+- **Index once.** The coordinator scans the file and streams its index
+  (table + type names + per-type id lists, ~16 B/entity) to
+  `temp/step-import/index.bin` in 1 MB pieces (`StepFile::write_index`);
+  sub-workers read that file by range straight into their own table
+  (`read_index` / `prepare_from_index_file`) — no second scan, no in-memory
+  copy of the index on either side (the first cut passed it as a blob, which
+  doubled the per-worker peak: wasm heaps never shrink, so a transient copy
+  is a permanent one), and identical `of_type` order, so an index-built
+  session tessellates the same bytes (pinned by the convert.rs fan-out test,
+  which builds its "workers" from the serialised index). Sub-workers open
+  `index.bin` and the STEP with *shared read-only* sync handles (Chrome
+  121+, far older than the WebGPU flags this app needs). Designated fallback
+  if that mode ever fails: write one index copy per worker (the streaming
+  writer can fan out to k handles) and stage per-worker input copies, so the
+  parallelism survives instead of dropping to in-process — not built.
+- **Tessellation fan-out.** The coordinator worker spawns the number of
+  `stepTessWorker.ts` sub-workers the Import STEP section's **Workers**
+  option asks for (0–5, default 2; 0 = in-process). Each holds its own copy
+  of the entity index, which is what the option trades: a 1 GB file measured
+  6–8 GB of RAM with five workers when every worker scanned its own hash-map
+  index; the dense shared index roughly halves that. Each opens the staged
+  file with a *read-only* sync handle
+  (Chrome 121+ allows several), indexes it in its own wasm instance, and
+  tessellates the product batches it is handed (dynamic sizing: `remaining /
+  (workers × 8)`, ≤32) — appending each product's prepared, local-space mesh as
+  a `MeshSet::encode` record to `cache-<k>.bin` and returning `(key, offset,
+  len)` triples. Any sub-worker failure discards the partial table and the
+  coordinator tessellates in-process (`MergeMode::Spill`).
+- **Spilled merge walk.** `MergeMode::External` reads each instance's mesh
+  back from the cache files, bakes it to world space, and appends the bucket
+  chunk (exact f64 + u32) to `spill.bin`; only the draw-range table and a
+  running bbox stay on the heap. Products placed more than once are counted
+  by a pre-walk that mirrors the walk's depth/budget cut-offs; single-use
+  products are never cached. `into_merged_spill` reads the chunks back
+  recentred in f64 and cast to f32 — byte-identical to the in-RAM path
+  (`direct_cook.rs` now exercises spill; `convert.rs` tests pin spill vs RAM
+  and external vs in-process). A 64 MB FIFO hot cache of decoded meshes sits
+  in front of the record reads, so a part placed thousands of times is
+  decoded once per eviction. The cooker bridge flips positions to Z-up in
+  place (reusing the exactly-sized read-back allocation) rather than copying.
+- **Cook.** The index and assembly are dropped before the cooker runs; the
+  `.tdp` is written straight to a pre-opened OPFS handle and the coarse
+  variant is `coarsen_tdp(full)`, never a model clone.
+- **Progress** is phase-tagged (`progress::Phase`: index bytes, faces —
+  ticked per face and summed across workers — products, cook, write). The
+  cook phase has its own percentage: `cooker_core::cook_model_with_progress`
+  / `coarsen_tdp_with_progress` tick per draw range through the simplify and
+  meshletize passes (1 % throttle), the shell maps full + coarse onto one bar.
+
+Not done: item-level splitting inside one giant product (a single solid with
+a million faces still runs on one worker), the undeclared-duplicate detection
+(hash the B-rep subgraph before tessellating) and the off-by-default
+"split output per assembly subtree" option — both planned as follow-ups.
+
 ## Data / SQL subsystem
 
 A shipped feature that predates this doc: an in-browser SQLite workbench over

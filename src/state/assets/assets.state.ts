@@ -134,6 +134,9 @@ export interface StepImportOptions {
   maxAngleDeg: number;
   /** Weld positions (drops normals) — matches flatshaded rendering. */
   cleanup: boolean;
+  /** Tessellation sub-workers (0–5; 0 = in-process). Each holds its own copy
+   *  of the file index: more = faster, but more memory. */
+  workers: number;
 }
 
 export const assetsState = createStore<AssetsState>({
@@ -151,6 +154,6 @@ export const assetsState = createStore<AssetsState>({
   extraFolders: {},
   rvm: { level: 0, tolerance: 0.01, includeLines: false, lineWidth: 0.005, alignElements: false },
   ifc: { split: 'none', quality: 'medium', spaces: 'skip', openings: 'skip', recenter: true },
-  step: { deflectionMm: 1.0, maxAngleDeg: 25.0, cleanup: true },
+  step: { deflectionMm: 1.0, maxAngleDeg: 25.0, cleanup: true, workers: 2 },
   stdGlb: { normals: true, edges: true },
 });

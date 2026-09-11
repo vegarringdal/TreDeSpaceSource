@@ -6,14 +6,22 @@
 //!
 //! The CLI keeps its own richer driver (hierarchical mode, filters, `--split`,
 //! cleanup passes); this is the small, dependency-light API for embedding.
+//!
+//! Two shapes of the same pipeline: the one-call [`convert`] family, and the
+//! split [`prepare`] → [`Prepared::tessellate_jobs`] → [`Prepared::finish`]
+//! session the browser uses to fan tessellation out over several workers and
+//! keep the coordinator's heap small (see [`crate::merge::MergeMode`]).
 
 use std::collections::HashMap;
 
 use crate::geom::{M4, V3};
 use crate::hierarchy::Assembly;
 use crate::io::{InputHandle, OutputHandle, TempHandle};
+use crate::merge::{ExternalMeshes, MergeMode, MergeOptions};
 use crate::mesh::MeshSet;
 use crate::model::TessParams;
+use crate::progress::{FaceProgress, NoProgress, Phase, ProductsOnly, ProgressSink};
+use crate::styles::ColorMap;
 use crate::tessellate::{Ctx, TessStats};
 use crate::{glb, hierarchy, merge, model, step::StepFile, styles, tessellate};
 
@@ -160,7 +168,8 @@ pub fn convert(
     tmp: &mut dyn TempHandle,
     opts: &ConvertOptions,
 ) -> Result<ConvertReport, String> {
-    convert_with_progress(input, out, tmp, opts, &mut |_, _| {})
+    let p = prepare(input, opts, &NoProgress)?;
+    p.finish(out, tmp, None, TessStats::default(), None, &NoProgress)
 }
 
 /// Cook hook: turns the merged export (in memory, no GLB) into the bytes to
@@ -170,7 +179,8 @@ pub type CookHook<'a> = &'a dyn Fn(glb::MergedData) -> Result<Vec<u8>, String>;
 /// Like [`convert`], but writes a cooked `.tdp`: the merged export is handed to
 /// `cook` in memory, so no GLB is built or parsed. Only the merged (non
 /// hierarchical) path can cook — it is the one carrying draw ranges; a
-/// hierarchical build falls back to writing its GLB.
+/// hierarchical build falls back to writing its GLB. The world-baked buckets
+/// spill through `tmp` while the walk runs ([`MergeMode::Spill`]).
 pub fn convert_cooked(
     input: Box<dyn InputHandle>,
     out: &mut dyn OutputHandle,
@@ -178,34 +188,127 @@ pub fn convert_cooked(
     opts: &ConvertOptions,
     cook: CookHook,
 ) -> Result<ConvertReport, String> {
-    convert_inner(input, out, tmp, opts, &mut |_, _| {}, Some(cook))
+    convert_cooked_with(input, out, tmp, opts, cook, &NoProgress)
 }
 
-/// [`convert`] with a progress callback. `progress(done, total)` fires as
-/// product nodes are processed, throttled to ~5% steps (plus a 0/total at the
-/// start and a total/total at the end). `total` is the product count — a
-/// single-solid file simply reports one step.
+/// [`convert_cooked`] with a phase-aware progress sink.
+pub fn convert_cooked_with(
+    input: Box<dyn InputHandle>,
+    out: &mut dyn OutputHandle,
+    tmp: &mut dyn TempHandle,
+    opts: &ConvertOptions,
+    cook: CookHook,
+    progress: &(dyn ProgressSink + Sync),
+) -> Result<ConvertReport, String> {
+    let p = prepare(input, opts, progress)?;
+    p.finish(out, tmp, None, TessStats::default(), Some(cook), progress)
+}
+
+/// [`convert`] with a product-progress callback. `progress(done, total)` fires
+/// as product nodes are processed, throttled to ~5% steps (plus a 0/total at
+/// the start and a total/total at the end). `total` is the product count — a
+/// single-solid file simply reports one step. For the phase-aware form use
+/// [`prepare`] + [`Prepared::finish`] with a [`ProgressSink`].
 pub fn convert_with_progress(
     input: Box<dyn InputHandle>,
     out: &mut dyn OutputHandle,
     tmp: &mut dyn TempHandle,
     opts: &ConvertOptions,
-    progress: &mut dyn FnMut(u32, u32),
+    progress: &mut (dyn FnMut(u32, u32) + Send),
 ) -> Result<ConvertReport, String> {
-    convert_inner(input, out, tmp, opts, progress, None)
+    let sink = ProductsOnly(std::sync::Mutex::new(progress));
+    let p = prepare(input, opts, &sink)?;
+    p.finish(out, tmp, None, TessStats::default(), None, &sink)
 }
 
-#[allow(clippy::too_many_arguments)]
-fn convert_inner(
-    input: Box<dyn InputHandle>,
-    out: &mut dyn OutputHandle,
-    tmp: &mut dyn TempHandle,
-    opts: &ConvertOptions,
-    progress: &mut dyn FnMut(u32, u32),
-    cook: Option<CookHook>,
-) -> Result<ConvertReport, String> {
-    let sf = StepFile::from_input(input)?;
+// ------------------------------------------------------------------ session
 
+/// Entity types counted as "faces" for the tessellation progress bar (an upper
+/// bound: faces of products that are never placed are never tessellated).
+const FACE_TYPES: &[&str] = &["ADVANCED_FACE", "FACE_SURFACE"];
+
+/// What tessellation jobs are keyed by.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum JobKind {
+    /// keys are PRODUCT_DEFINITION ids ([`merge::tessellate_product`])
+    Products = 0,
+    /// no product structure: keys are standalone solid ids
+    /// ([`merge::tessellate_solid`], in [`merge::fallback_solids`] order)
+    Solids = 1,
+}
+
+impl JobKind {
+    pub fn code(self) -> u8 {
+        self as u8
+    }
+    pub fn from_code(c: u8) -> JobKind {
+        if c == 1 {
+            JobKind::Solids
+        } else {
+            JobKind::Products
+        }
+    }
+}
+
+/// The independent units of tessellation work in a file: every key can be
+/// tessellated on its own (by any worker, in any order) and the merge walk
+/// only needs the results.
+pub struct Jobs {
+    pub kind: JobKind,
+    pub keys: Vec<u32>,
+}
+
+/// A parsed, indexed file with its colour map and assembly — everything the
+/// walk needs, held between the session's calls.
+pub struct Prepared {
+    sf: StepFile,
+    colors: ColorMap,
+    asm: Assembly,
+    tp: TessParams,
+    opts: ConvertOptions,
+    file_unit_scale: f64,
+    unit_assumed_mm: bool,
+    /// faces tessellated so far by [`Self::tessellate_jobs`] (so a worker's
+    /// face ticks keep counting up across batches)
+    faces_done: u64,
+}
+
+/// Index the input (reporting [`Phase::Index`]), resolve the length unit, and
+/// build the colour map and assembly. Nothing is tessellated yet.
+pub fn prepare(
+    input: Box<dyn InputHandle>,
+    opts: &ConvertOptions,
+    progress: &(dyn ProgressSink + Sync),
+) -> Result<Prepared, String> {
+    let sf = StepFile::from_input_with_progress(input, progress)?;
+    prepare_file(sf, opts)
+}
+
+/// [`prepare`] from an index another session already built
+/// ([`Prepared::index_blob`]) and a handle on the same bytes — a tessellation
+/// sub-worker's entry: no scan, no [`Phase::Index`].
+pub fn prepare_from_index(
+    input: Box<dyn InputHandle>,
+    blob: &[u8],
+    opts: &ConvertOptions,
+) -> Result<Prepared, String> {
+    let sf = StepFile::from_index_blob(input, blob)?;
+    prepare_file(sf, opts)
+}
+
+/// [`prepare_from_index`] with the index read by range from a handle — the
+/// temp file the coordinator streamed with [`Prepared::write_index`].
+pub fn prepare_from_index_file(
+    input: Box<dyn InputHandle>,
+    index: &dyn InputHandle,
+    opts: &ConvertOptions,
+) -> Result<Prepared, String> {
+    let sf = StepFile::read_index(input, index)?;
+    prepare_file(sf, opts)
+}
+
+fn prepare_file(sf: StepFile, opts: &ConvertOptions) -> Result<Prepared, String> {
     // length unit: deflection is given in mm and converted into the file's unit
     // so the physical tolerance is unit-independent; the same scale takes the
     // output to metres. A missing unit is a *default* worth reporting.
@@ -225,22 +328,154 @@ fn convert_inner(
         deflection: deflection_file,
         max_angle: opts.max_angle_deg.to_radians(),
     };
-    let cx = Ctx {
-        sf: &sf,
-        tp: &tp,
-        colors: &colors,
-        threads: 1,
-    };
-    let output_scale = if opts.unit_scale_to_meters {
-        file_unit_scale
-    } else {
-        1.0
-    };
-    let mut stats = TessStats::default();
-    let total = asm.products.len().max(1) as u32;
-    progress(0, total);
+    Ok(Prepared {
+        sf,
+        colors,
+        asm,
+        tp,
+        opts: opts.clone(),
+        file_unit_scale,
+        unit_assumed_mm,
+        faces_done: 0,
+    })
+}
 
-    let color_meshes = {
+impl Prepared {
+    /// The file's index, serialised for [`prepare_from_index`].
+    pub fn index_blob(&self) -> Vec<u8> {
+        self.sf.index_blob()
+    }
+
+    /// Stream the file's index to `out` in bounded pieces, for
+    /// [`prepare_from_index_file`] on the sub-workers.
+    pub fn write_index(&self, out: &mut dyn OutputHandle) -> std::io::Result<()> {
+        self.sf.write_index(out)
+    }
+
+    /// The tessellation work units (see [`Jobs`]).
+    pub fn jobs(&self) -> Jobs {
+        if self.asm.roots.is_empty() {
+            return Jobs {
+                kind: JobKind::Solids,
+                keys: merge::fallback_solids(&self.sf),
+            };
+        }
+        let mut keys: Vec<u32> = self.asm.products.keys().copied().collect();
+        keys.sort_unstable();
+        Jobs {
+            kind: JobKind::Products,
+            keys,
+        }
+    }
+
+    /// Faces in the file — the denominator of [`Phase::Faces`].
+    pub fn face_count(&self) -> u64 {
+        FACE_TYPES
+            .iter()
+            .map(|t| self.sf.of_type(t).len() as u64)
+            .sum()
+    }
+
+    pub fn product_count(&self) -> u64 {
+        self.asm.products.len() as u64
+    }
+
+    pub fn warnings(&self) -> &[String] {
+        &self.sf.warnings
+    }
+
+    fn output_scale(&self) -> f64 {
+        if self.opts.unit_scale_to_meters {
+            self.file_unit_scale
+        } else {
+            1.0
+        }
+    }
+
+    fn merge_options(&self) -> MergeOptions {
+        MergeOptions {
+            unit_scale: self.output_scale(),
+            file_unit_scale: self.file_unit_scale,
+            rotate_z_up: self.opts.rotate_z_up,
+            optimize: self.opts.optimize,
+            drop_normals: self.opts.drop_normals,
+            cleanup: self.opts.cleanup.then_some(merge::Cleanup {
+                precision: 3,
+                threshold: 0.75,
+                target_error: 0.0,
+            }),
+            simplify: None,
+        }
+    }
+
+    /// Tessellate a batch of jobs and hand each result to `sink` as a
+    /// [`MeshSet::encode`] record (`key`, bytes) — what a sub-worker appends to
+    /// its cache file. Face ticks go to `progress`; `stats` accumulates.
+    pub fn tessellate_jobs(
+        &mut self,
+        kind: JobKind,
+        keys: &[u32],
+        stats: &mut TessStats,
+        progress: &(dyn ProgressSink + Sync),
+        sink: &mut dyn FnMut(u32, &[u8]) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let fp = FaceProgress::new(self.face_count(), progress).starting_at(self.faces_done);
+        let cx = Ctx {
+            sf: &self.sf,
+            tp: &self.tp,
+            colors: &self.colors,
+            threads: 1,
+            faces: Some(&fp),
+        };
+        let mopts = self.merge_options();
+        let mut bytes = Vec::new();
+        for &key in keys {
+            let set = match kind {
+                JobKind::Products => merge::tessellate_product(&cx, &self.asm, key, &mopts, stats),
+                JobKind::Solids => merge::tessellate_solid(&cx, key, stats),
+            };
+            bytes.clear();
+            set.encode(&mut bytes);
+            sink(key, &bytes)?;
+        }
+        self.faces_done = fp.done();
+        Ok(())
+    }
+
+    /// Run the merge walk and write the output. With `cook`, the merged
+    /// buckets spill through `tmp` and the cooked bytes go to `out`; the
+    /// entity index is dropped before cooking so the cooker gets the heap.
+    /// `external` supplies tessellated products from a fanned-out run (their
+    /// tallies in `external_stats`); without it the walk tessellates here.
+    /// Without `cook`, a merged build streams its GLB (in RAM) and a
+    /// hierarchical build writes its per-part GLB.
+    pub fn finish(
+        self,
+        out: &mut dyn OutputHandle,
+        tmp: &mut dyn TempHandle,
+        external: Option<&ExternalMeshes>,
+        external_stats: TessStats,
+        cook: Option<CookHook>,
+        progress: &(dyn ProgressSink + Sync),
+    ) -> Result<ConvertReport, String> {
+        let output_scale = self.output_scale();
+        let mopts = self.merge_options();
+        let Prepared {
+            sf,
+            colors,
+            asm,
+            tp,
+            opts,
+            file_unit_scale,
+            unit_assumed_mm,
+            ..
+        } = self;
+        let warnings: Vec<String> = sf.warnings.iter().take(10).cloned().collect();
+        let face_total = FACE_TYPES.iter().map(|t| sf.of_type(t).len() as u64).sum();
+        let fp = FaceProgress::new(face_total, progress);
+        let mut stats = external_stats;
+        let total = asm.products.len().max(1) as u32;
+        progress.report(Phase::Products, 0, total as u64);
         // throttle the per-node ticks to ~5% so a huge assembly doesn't spend
         // its time in the callback
         let step = (total / 20).max(1);
@@ -248,30 +483,48 @@ fn convert_inner(
         let mut on_node = |done: u32| {
             if done >= last + step || done >= total {
                 last = done;
-                progress(done, total);
+                progress.report(Phase::Products, done as u64, total as u64);
             }
         };
-        if opts.merged {
-            let mopts = merge::MergeOptions {
-                unit_scale: output_scale,
-                file_unit_scale,
-                rotate_z_up: opts.rotate_z_up,
-                optimize: opts.optimize,
-                drop_normals: opts.drop_normals,
-                cleanup: opts.cleanup.then_some(merge::Cleanup {
-                    precision: 3,
-                    threshold: 0.75,
-                    target_error: 0.0,
-                }),
-                simplify: None,
+
+        let color_meshes = if opts.merged {
+            let merged = {
+                let cx = Ctx {
+                    sf: &sf,
+                    tp: &tp,
+                    colors: &colors,
+                    threads: 1,
+                    faces: Some(&fp),
+                };
+                let mode = match (cook.is_some(), external) {
+                    (false, _) => MergeMode::InRam,
+                    (true, None) => MergeMode::Spill { tmp: &mut *tmp },
+                    (true, Some(meshes)) => MergeMode::External {
+                        meshes,
+                        tmp: &mut *tmp,
+                    },
+                };
+                let (merged, _unique) =
+                    merge::build(&cx, &asm, mopts, &mut stats, &mut on_node, mode);
+                merged
             };
-            let (merged, _unique) = merge::build(&cx, &asm, mopts, &mut stats, &mut on_node);
+            if external.is_none() {
+                fp.finish();
+            }
+            // the index and assembly are dead weight from here on: free them
+            // before the cooker allocates
+            drop(sf);
+            drop(colors);
+            drop(asm);
             let n = merged.bucket_count();
             match cook {
                 // Direct cook: hand the buckets over and write the .tdp — no
                 // GLB is assembled or streamed.
                 Some(cook) => {
-                    let bytes = cook(merged.into_merged())?;
+                    progress.report(Phase::Cook, 0, 1);
+                    let data = merged.into_merged_spill(&*tmp).map_err(|e| e.to_string())?;
+                    let bytes = cook(data)?;
+                    progress.report(Phase::Write, 0, 1);
                     out.write(&bytes).map_err(|e| e.to_string())?;
                 }
                 None => merged
@@ -282,33 +535,41 @@ fn convert_inner(
         } else {
             // geometry spills into `tmp` as meshes are tessellated, so peak RAM
             // is one mesh — not the whole model; `finish` reads it back.
+            let cx = Ctx {
+                sf: &sf,
+                tp: &tp,
+                colors: &colors,
+                threads: 1,
+                faces: Some(&fp),
+            };
             let builder = build_hierarchical(
                 &cx,
                 &asm,
-                opts,
+                &opts,
                 file_unit_scale,
                 output_scale,
                 &mut stats,
                 &mut on_node,
                 tmp,
             );
+            fp.finish();
             let n = builder.mesh_count();
             builder
                 .finish(&opts.generator, out, tmp)
                 .map_err(|e| e.to_string())?;
             n
-        }
-    };
-    progress(total, total);
+        };
+        progress.report(Phase::Products, total as u64, total as u64);
 
-    Ok(ConvertReport {
-        stats,
-        color_meshes,
-        unit_assumed_mm,
-        unit_scale_to_meters: file_unit_scale,
-        deflection_mm: opts.deflection_mm,
-        warnings: sf.warnings.iter().take(10).cloned().collect(),
-    })
+        Ok(ConvertReport {
+            stats,
+            color_meshes,
+            unit_assumed_mm,
+            unit_scale_to_meters: file_unit_scale,
+            deflection_mm: opts.deflection_mm,
+            warnings,
+        })
+    }
 }
 
 /// Per-mesh finishing for the hierarchical path (mirrors the merged `prepare`):
@@ -373,12 +634,7 @@ fn build_hierarchical(
                     deflection: cx.tp.deflection / factor,
                     max_angle: cx.tp.max_angle,
                 };
-                let rep_cx = Ctx {
-                    sf: cx.sf,
-                    tp: &rep_tp,
-                    colors: cx.colors,
-                    threads: cx.threads,
-                };
+                let rep_cx = cx.with_params(&rep_tp);
                 let mut sub = MeshSet::default();
                 if let Some(p) = cx.sf.params(sr) {
                     if let Some(list) = p.get(1).and_then(|v| v.as_list()) {
@@ -543,6 +799,218 @@ fn expand(
 mod tests {
     use super::*;
     use crate::io::{MemSink, MemTemp};
+    use std::sync::Mutex;
+
+    struct Rec(Mutex<Vec<(Phase, u64, u64)>>);
+    impl ProgressSink for Rec {
+        fn report(&self, phase: Phase, done: u64, total: u64) {
+            self.0.lock().unwrap().push((phase, done, total));
+        }
+    }
+
+    /// Everything the cooker would see, flattened, for equality checks.
+    fn fingerprint(m: &glb::MergedData) -> Vec<u8> {
+        let mut out = Vec::new();
+        for n in &m.nodes {
+            for c in n.base_color {
+                out.extend_from_slice(&c.to_le_bytes());
+            }
+            for p in &n.positions {
+                out.extend_from_slice(&p.to_le_bytes());
+            }
+            for i in &n.indices {
+                out.extend_from_slice(&i.to_le_bytes());
+            }
+            for (a, b, c) in &n.draw_ranges {
+                out.extend_from_slice(&a.to_le_bytes());
+                out.extend_from_slice(&b.to_le_bytes());
+                out.extend_from_slice(&c.to_le_bytes());
+            }
+        }
+        for (id, name, parent) in &m.hierarchy {
+            out.extend_from_slice(&id.to_le_bytes());
+            out.extend_from_slice(name.as_bytes());
+            out.extend_from_slice(&parent.to_le_bytes());
+        }
+        out
+    }
+
+    fn fixture(name: &str) -> Vec<u8> {
+        std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures")
+                .join(name),
+        )
+        .expect("fixture")
+    }
+
+    /// In-RAM merged buckets vs the spilled walk, for one file.
+    fn in_ram_vs_spill(bytes: Vec<u8>) {
+        let opts = ConvertOptions::default();
+        let p = prepare(Box::new(bytes.clone()), &opts, &NoProgress).expect("prepare");
+        let mopts = p.merge_options();
+        let cx = Ctx {
+            sf: &p.sf,
+            tp: &p.tp,
+            colors: &p.colors,
+            threads: 1,
+            faces: None,
+        };
+        let mut st = TessStats::default();
+        let (ram, _) = merge::build(&cx, &p.asm, mopts, &mut st, &mut |_| {}, MergeMode::InRam);
+        let mut tmp = MemTemp::default();
+        let mut st2 = TessStats::default();
+        let (spilled, _) = merge::build(
+            &cx,
+            &p.asm,
+            mopts,
+            &mut st2,
+            &mut |_| {},
+            MergeMode::Spill { tmp: &mut tmp },
+        );
+        assert_eq!(st.faces_ok, st2.faces_ok);
+        let a = fingerprint(&ram.into_merged());
+        let b = fingerprint(&spilled.into_merged_spill(&tmp).expect("read back"));
+        assert!(!a.is_empty());
+        assert!(a == b, "spilled buckets must match the in-RAM buckets");
+    }
+
+    #[test]
+    fn spill_mode_matches_in_ram_buckets() {
+        in_ram_vs_spill(fixture("as1_pe_203.stp"));
+        in_ram_vs_spill(fixture("csg_block_minus_cylinder.step"));
+    }
+
+    /// Two "workers" tessellate alternating jobs into their own slots; the
+    /// coordinator's walk must produce what the in-process walk produces.
+    fn external_vs_in_process(bytes: Vec<u8>) {
+        let opts = ConvertOptions::default();
+        let sink_cook = |m: glb::MergedData| -> Result<Vec<u8>, String> { Ok(fingerprint(&m)) };
+
+        // in-process (spill) reference
+        let mut out_a = MemSink::default();
+        let mut tmp_a = MemTemp::default();
+        let rep_a = convert_cooked(
+            Box::new(bytes.clone()),
+            &mut out_a,
+            &mut tmp_a,
+            &opts,
+            &sink_cook,
+        )
+        .expect("in-process");
+
+        // fanned out: the coordinator indexes, the two "workers" are built
+        // from its index blob (as the browser does) and tessellate alternate jobs
+        let p = prepare(Box::new(bytes.clone()), &opts, &NoProgress).expect("prepare");
+        let blob = p.index_blob();
+        let jobs = p.jobs();
+        let mut workers: Vec<Prepared> = (0..2)
+            .map(|_| prepare_from_index(Box::new(bytes.clone()), &blob, &opts).expect("from blob"))
+            .collect();
+        assert_eq!(
+            workers[0].jobs().keys,
+            jobs.keys,
+            "a blob-built session sees the same jobs"
+        );
+        assert_eq!(workers[0].face_count(), p.face_count());
+        let mut slots: Vec<MemTemp> = vec![MemTemp::default(), MemTemp::default()];
+        let mut records = HashMap::new();
+        let mut stats = TessStats::default();
+        for (i, chunk) in jobs.keys.chunks(1).enumerate() {
+            let slot = (i % 2) as u32;
+            let mut st = TessStats::default();
+            let mut sink = |key: u32, rec: &[u8]| -> Result<(), String> {
+                let t = &mut slots[slot as usize];
+                let offset = t.len();
+                t.write_at(offset, rec).map_err(|e| e.to_string())?;
+                records.insert(
+                    key,
+                    merge::ExternalRecord {
+                        slot,
+                        offset,
+                        len: rec.len() as u32,
+                    },
+                );
+                Ok(())
+            };
+            workers[slot as usize]
+                .tessellate_jobs(jobs.kind, chunk, &mut st, &NoProgress, &mut sink)
+                .expect("tessellate batch");
+            stats.merge(&st);
+        }
+        let external = ExternalMeshes {
+            records,
+            reader: &slots,
+        };
+        let mut out_b = MemSink::default();
+        let mut tmp_b = MemTemp::default();
+        let rep_b = p
+            .finish(
+                &mut out_b,
+                &mut tmp_b,
+                Some(&external),
+                stats,
+                Some(&sink_cook),
+                &NoProgress,
+            )
+            .expect("external finish");
+        assert!(!out_a.0.is_empty());
+        assert!(
+            out_a.0 == out_b.0,
+            "external tessellation must merge identically"
+        );
+        assert_eq!(
+            rep_a.stats.faces_ok, rep_b.stats.faces_ok,
+            "worker tallies fold in"
+        );
+        assert_eq!(rep_a.color_meshes, rep_b.color_meshes);
+    }
+
+    #[test]
+    fn external_meshes_match_in_process_walk() {
+        external_vs_in_process(fixture("as1_pe_203.stp"));
+        // no product structure → solid jobs
+        external_vs_in_process(fixture("csg_block_minus_cylinder.step"));
+    }
+
+    #[test]
+    fn phase_progress_covers_index_faces_products_cook_write() {
+        let rec = Rec(Mutex::new(Vec::new()));
+        let mut out = MemSink::default();
+        let mut tmp = MemTemp::default();
+        convert_cooked_with(
+            Box::new(fixture("as1_pe_203.stp")),
+            &mut out,
+            &mut tmp,
+            &ConvertOptions::default(),
+            &|m| Ok(fingerprint(&m)),
+            &rec,
+        )
+        .expect("convert");
+        let ticks = rec.0.lock().unwrap();
+        for phase in [
+            Phase::Index,
+            Phase::Faces,
+            Phase::Products,
+            Phase::Cook,
+            Phase::Write,
+        ] {
+            assert!(ticks.iter().any(|t| t.0 == phase), "{phase:?} reported");
+        }
+        let faces: Vec<_> = ticks.iter().filter(|t| t.0 == Phase::Faces).collect();
+        assert!(
+            faces.windows(2).all(|w| w[1].1 >= w[0].1),
+            "faces non-decreasing"
+        );
+        assert_eq!(
+            faces.last().unwrap().1,
+            faces.last().unwrap().2,
+            "faces end full"
+        );
+        let idx: Vec<_> = ticks.iter().filter(|t| t.0 == Phase::Index).collect();
+        assert_eq!(idx.first().unwrap().1, 0);
+        assert_eq!(idx.last().unwrap().1, idx.last().unwrap().2);
+    }
 
     #[test]
     fn convert_step_bytes_to_a_valid_glb_with_report() {

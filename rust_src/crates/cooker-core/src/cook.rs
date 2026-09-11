@@ -277,10 +277,32 @@ fn model_from_merged_glb(glb_bytes: &[u8]) -> Result<MergedModel> {
 
 /// Cook an in-memory [`MergedModel`] into packed `.model` bytes.
 pub fn cook_model(model: MergedModel, opts: CookOptions) -> Result<CookOutput> {
+    cook_model_with_progress(model, opts, &mut |_, _| {})
+}
+
+/// Progress callback for the cook: `(done, total)` in draw ranges processed
+/// by the heavy passes (simplify when coarsening, then meshletize), throttled
+/// to ~1 % steps so it costs nothing measurable.
+pub type CookProgress<'a> = &'a mut dyn FnMut(u64, u64);
+
+/// Number of progress reports over a whole cook.
+const COOK_PROGRESS_STEPS: u64 = 100;
+
+/// [`cook_model`] reporting progress per draw range.
+pub fn cook_model_with_progress(
+    model: MergedModel,
+    opts: CookOptions,
+    progress: CookProgress,
+) -> Result<CookOutput> {
     let MergedModel {
         nodes,
         mut hierarchy,
     } = model;
+    let ranges: u64 = nodes.iter().map(|n| n.draw_ranges.len() as u64).sum();
+    let mut ticker = RangeTicker::new(
+        ranges * if opts.coarsen.is_some() { 2 } else { 1 },
+        progress,
+    );
     anyhow::ensure!(
         nodes.iter().any(|n| !n.draw_ranges.is_empty()),
         "merged model has no draw ranges"
@@ -378,13 +400,13 @@ pub fn cook_model(model: MergedModel, opts: CookOptions) -> Result<CookOutput> {
             + (bmax[2] - bmin[2]).powi(2))
         .sqrt();
         for cg in &mut color_groups {
-            coarsen_cg(cg, model_diag, c);
+            coarsen_cg(cg, model_diag, c, &mut |_| ticker.tick());
         }
     }
 
     // 3.5 Meshletize + (optional) normals + quantize.
     for cg in &mut color_groups {
-        meshletize_cg(cg)?;
+        meshletize_cg(cg, &mut |_| ticker.tick())?;
         if opts.compute_normals {
             cg.normals = compute_vertex_normals(&cg.positions, &cg.indices);
         }
@@ -510,7 +532,40 @@ pub fn cook_model(model: MergedModel, opts: CookOptions) -> Result<CookOutput> {
 /// are left untouched — the packed file only
 /// stores per-meshlet vertex data, and model/dense bounds must match the full
 /// variant so framing and residency priorities agree.
-pub(crate) fn coarsen_cg(cg: &mut ColorGroup, model_diag: f32, c: CoarsenOptions) {
+/// Counts per-range ticks from the heavy passes and forwards every ~1 % (and
+/// the last one) to the caller's progress callback.
+pub(crate) struct RangeTicker<'a> {
+    done: u64,
+    total: u64,
+    step: u64,
+    progress: CookProgress<'a>,
+}
+
+impl<'a> RangeTicker<'a> {
+    pub(crate) fn new(total: u64, progress: CookProgress<'a>) -> Self {
+        RangeTicker {
+            done: 0,
+            total: total.max(1),
+            step: (total / COOK_PROGRESS_STEPS).max(1),
+            progress,
+        }
+    }
+
+    pub(crate) fn tick(&mut self) {
+        self.done += 1;
+        if self.done % self.step == 0 || self.done == self.total {
+            (self.progress)(self.done.min(self.total), self.total);
+        }
+    }
+}
+
+/// `on_range(index)` fires after each draw range is simplified.
+pub(crate) fn coarsen_cg(
+    cg: &mut ColorGroup,
+    model_diag: f32,
+    c: CoarsenOptions,
+    on_range: &mut dyn FnMut(usize),
+) {
     let vertex_bytes: &[u8] = bytemuck::cast_slice::<[f32; 3], u8>(&cg.positions);
     let adapter = match meshopt::VertexDataAdapter::new(vertex_bytes, 12, 0) {
         Ok(a) => a,
@@ -526,6 +581,7 @@ pub(crate) fn coarsen_cg(cg: &mut ColorGroup, model_diag: f32, c: CoarsenOptions
         new_starts.push(new_indices.len() as u32);
         if count == 0 {
             new_counts.push(0);
+            on_range(di);
             continue;
         }
         let dr_indices = &cg.indices[start..start + count];
@@ -561,6 +617,7 @@ pub(crate) fn coarsen_cg(cg: &mut ColorGroup, model_diag: f32, c: CoarsenOptions
         );
         new_counts.push(simplified.len() as u32);
         new_indices.extend_from_slice(&simplified);
+        on_range(di);
     }
 
     cg.indices = new_indices;
@@ -578,9 +635,14 @@ struct DrMeshletData {
     bounds: Vec<MeshletBounds>,
 }
 
-pub(crate) fn meshletize_cg(cg: &mut ColorGroup) -> Result<()> {
+/// `on_range(index)` fires after each draw range is meshletized.
+pub(crate) fn meshletize_cg(cg: &mut ColorGroup, on_range: &mut dyn FnMut(usize)) -> Result<()> {
     let per_dr: Vec<DrMeshletData> = (0..cg.dr_ids.len())
-        .map(|di| build_dr_meshlets(cg, di))
+        .map(|di| {
+            let d = build_dr_meshlets(cg, di);
+            on_range(di);
+            d
+        })
         .collect();
 
     for dr in per_dr {

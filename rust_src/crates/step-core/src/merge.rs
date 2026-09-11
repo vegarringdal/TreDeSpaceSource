@@ -2,12 +2,22 @@
 //! to world space (meters, Y-up) and merge all geometry sharing a color into
 //! one mesh, recording per-part draw ranges and the instance tree for the
 //! scene `extras`. See [`crate::glb::MergedBuilder`] for the output layout.
+//!
+//! Three [`MergeMode`]s feed the walk. [`MergeMode::InRam`] is the original
+//! all-on-the-heap build (the GLB writer and CLI). [`MergeMode::Spill`] keeps
+//! the same tessellation but parks every world-baked bucket — and the local
+//! mesh of any product used more than once — in a temp handle, so the heap
+//! holds one product at a time. [`MergeMode::External`] additionally takes the
+//! tessellated products from records other workers produced (see
+//! [`crate::convert::Prepared::tessellate_jobs`]), so the walk itself never
+//! tessellates. All three produce byte-identical buckets.
 
 use std::collections::HashMap;
 
 use crate::geom::M4;
 use crate::glb::MergedBuilder;
 use crate::hierarchy::Assembly;
+use crate::io::{read_all_at, SlotReader, TempHandle};
 use crate::mesh::MeshSet;
 use crate::tessellate::{self, Ctx, TessStats};
 
@@ -56,6 +66,52 @@ pub struct Cleanup {
     pub target_error: f32,
 }
 
+/// One tessellated product (or standalone solid) another worker produced:
+/// where its [`MeshSet::encode`] record sits in that worker's cache slot.
+#[derive(Clone, Copy, Debug)]
+pub struct ExternalRecord {
+    pub slot: u32,
+    pub offset: u64,
+    pub len: u32,
+}
+
+/// The tessellation results of a fanned-out run, keyed by product definition
+/// id (or standalone solid id in the no-structure fallback).
+pub struct ExternalMeshes<'r> {
+    pub records: HashMap<u32, ExternalRecord>,
+    pub reader: &'r dyn SlotReader,
+}
+
+impl ExternalMeshes<'_> {
+    /// Decode one record; `None` when the key is unknown or the record is
+    /// unreadable (both mean "no geometry").
+    pub fn read(&self, key: u32) -> Option<MeshSet> {
+        let rec = *self.records.get(&key)?;
+        let bytes = read_all_at(
+            |o, b| self.reader.read_at(rec.slot, o, b),
+            rec.offset,
+            rec.len as usize,
+        );
+        if bytes.len() != rec.len as usize {
+            return None;
+        }
+        MeshSet::decode(&bytes)
+    }
+}
+
+/// Where the walk gets product meshes from and where the buckets go.
+pub enum MergeMode<'m> {
+    /// tessellate here; buckets and the instance cache live on the heap
+    InRam,
+    /// tessellate here; buckets and multi-instance meshes spill to `tmp`
+    Spill { tmp: &'m mut dyn TempHandle },
+    /// products were tessellated elsewhere; buckets spill to `tmp`
+    External {
+        meshes: &'m ExternalMeshes<'m>,
+        tmp: &'m mut dyn TempHandle,
+    },
+}
+
 /// Returns the merged model plus the number of unique tessellated meshes
 /// behind it — `part_count() / unique` is the instance-expansion factor that
 /// baking world space costs compared to the hierarchical (instanced) output.
@@ -65,6 +121,7 @@ pub fn build(
     opts: MergeOptions,
     stats: &mut TessStats,
     progress: &mut dyn FnMut(u32),
+    mode: MergeMode,
 ) -> (MergedBuilder, usize) {
     let mut base = M4::scale_uniform(opts.unit_scale);
     if opts.rotate_z_up {
@@ -78,9 +135,12 @@ pub fn build(
         progress,
         processed: 0,
         cache: HashMap::new(),
+        refs: instance_counts(asm),
         out: MergedBuilder::default(),
         next_id: 1,
-        budget: 2_000_000, // instance explosion guard
+        budget: INSTANCE_BUDGET,
+        mode,
+        hot: HotMeshes::default(),
     };
 
     for &root in &asm.roots {
@@ -95,9 +155,18 @@ pub fn build(
     // Fallback: no product structure -> every standalone solid as one part
     if asm.roots.is_empty() {
         let mut tm = MeshSet::default();
-        for ty in FALLBACK_TYPES {
-            for &id in cx.sf.of_type(ty) {
-                tessellate::tessellate_item(cx, id, None, &mut tm, w.stats);
+        match &w.mode {
+            MergeMode::External { meshes, .. } => {
+                for &id in &fallback_solids(cx.sf) {
+                    if let Some(sub) = meshes.read(id) {
+                        tm.append(&sub);
+                    }
+                }
+            }
+            _ => {
+                for &id in &fallback_solids(cx.sf) {
+                    tessellate::tessellate_item(cx, id, None, &mut tm, w.stats);
+                }
             }
         }
         prepare(&mut tm, &opts);
@@ -112,13 +181,58 @@ pub fn build(
             return (out, 1);
         }
     }
-    let unique = w.cache.values().filter(|m| m.is_some()).count();
+    let unique = w
+        .cache
+        .values()
+        .filter(|m| !matches!(m, Cached::Empty))
+        .count();
     let mut out = w.out;
     // world-baked buffers: pull the scene's bbox centre out of the f32
     // positions and onto the bucket nodes (f32 precision + viewer stability
     // for models sited far from the origin)
     out.recenter();
     (out, unique)
+}
+
+/// Standalone solids of every [`FALLBACK_TYPES`] type, in the order the
+/// no-structure fallback tessellates them.
+pub fn fallback_solids(sf: &crate::step::StepFile) -> Vec<u32> {
+    let mut ids = Vec::new();
+    for ty in FALLBACK_TYPES {
+        ids.extend_from_slice(sf.of_type(ty));
+    }
+    ids
+}
+
+/// Instance-explosion guard: the walk places at most this many nodes.
+const INSTANCE_BUDGET: i64 = 2_000_000;
+/// Deepest assembly nesting the walk follows.
+const MAX_DEPTH: usize = 64;
+
+/// How many times the walk will visit each product definition — the number of
+/// placement *paths*, not tree edges (a part placed twice under a sub-assembly
+/// that is itself placed twice is visited four times). Mirrors [`Walk::rec`]'s
+/// depth and budget cut-offs exactly, so a product counted once is never
+/// asked for a second time and needs no cache entry.
+fn instance_counts(asm: &Assembly) -> HashMap<u32, u32> {
+    fn rec(asm: &Assembly, pd: u32, depth: usize, budget: &mut i64, refs: &mut HashMap<u32, u32>) {
+        if depth > MAX_DEPTH || *budget <= 0 {
+            return;
+        }
+        *budget -= 1;
+        *refs.entry(pd).or_insert(0) += 1;
+        if let Some(kids) = asm.children.get(&pd) {
+            for k in kids {
+                rec(asm, k.child_pd, depth + 1, budget, refs);
+            }
+        }
+    }
+    let mut refs: HashMap<u32, u32> = HashMap::new();
+    let mut budget = INSTANCE_BUDGET;
+    for &root in &asm.roots {
+        rec(asm, root, 0, &mut budget, &mut refs);
+    }
+    refs
 }
 
 /// Per-part pipeline: meshopt weld/cache pass, then the optional rvm-style
@@ -140,7 +254,119 @@ fn prepare(tm: &mut MeshSet, opts: &MergeOptions) {
     }
 }
 
-struct Walk<'a, 'b> {
+/// Tessellate one product definition into its local-space, prepared mesh:
+/// every shape representation in its own length unit (deflection rescaled to
+/// match), scaled into the global unit, then the per-part cleanup pipeline.
+/// The unit of work a tessellation sub-worker performs; the walk's cache
+/// holds exactly this.
+pub fn tessellate_product(
+    cx: &Ctx,
+    asm: &Assembly,
+    pd: u32,
+    opts: &MergeOptions,
+    stats: &mut TessStats,
+) -> MeshSet {
+    let mut tm = MeshSet::default();
+    if let Some(node) = asm.products.get(&pd) {
+        for &sr in &node.shape_reps {
+            // SHAPE_REPRESENTATION('', (items), context). Tessellate in
+            // this representation's own unit (deflection scaled to match),
+            // then scale the geometry into the global unit — so a
+            // metre-context part in an otherwise-mm file is neither shrunk
+            // away nor under-tessellated.
+            let factor = crate::model::rep_unit_factor(cx.sf, sr, opts.file_unit_scale);
+            let rep_tp = crate::model::TessParams {
+                deflection: cx.tp.deflection / factor,
+                max_angle: cx.tp.max_angle,
+            };
+            let rep_cx = cx.with_params(&rep_tp);
+            let mut sub = MeshSet::default();
+            if let Some(p) = cx.sf.params(sr) {
+                if let Some(items) = p.get(1).and_then(|v| v.as_list()) {
+                    for it in items {
+                        if let Some(r) = it.as_ref_id() {
+                            tessellate::tessellate_item(&rep_cx, r, None, &mut sub, stats);
+                        }
+                    }
+                }
+            }
+            if (factor - 1.0).abs() > 1e-9 {
+                sub.transform(&M4::scale_uniform(factor));
+            }
+            tm.append(&sub);
+        }
+    }
+    prepare(&mut tm, opts);
+    tm
+}
+
+/// Tessellate one standalone solid (the no-structure fallback's unit of
+/// work). Raw — the fallback runs `prepare` once over all solids together.
+pub fn tessellate_solid(cx: &Ctx, id: u32, stats: &mut TessStats) -> MeshSet {
+    let mut sub = MeshSet::default();
+    tessellate::tessellate_item(cx, id, None, &mut sub, stats);
+    sub
+}
+
+/// Byte budget of the hot cache of decoded instance meshes (see
+/// [`HotMeshes`]); the working set of a bolt placed ten thousand times.
+const HOT_CACHE_BYTES: usize = 64 * 1024 * 1024;
+
+/// A small, byte-bounded cache of decoded meshes in front of the spill/cache
+/// files: a product placed many times is read from disk and decoded once per
+/// eviction, not once per placement. Evicts oldest-inserted first (FIFO is
+/// enough — placements of one product cluster in the walk).
+#[derive(Default)]
+struct HotMeshes {
+    meshes: HashMap<u32, MeshSet>,
+    order: std::collections::VecDeque<u32>,
+    bytes: usize,
+}
+
+impl HotMeshes {
+    fn get(&self, key: u32) -> Option<&MeshSet> {
+        self.meshes.get(&key)
+    }
+
+    fn insert(&mut self, key: u32, set: &MeshSet) {
+        let size = mesh_bytes(set);
+        if size > HOT_CACHE_BYTES / 4 {
+            return;
+        }
+        while self.bytes + size > HOT_CACHE_BYTES {
+            let Some(old) = self.order.pop_front() else {
+                break;
+            };
+            if let Some(m) = self.meshes.remove(&old) {
+                self.bytes -= mesh_bytes(&m);
+            }
+        }
+        self.bytes += size;
+        self.order.push_back(key);
+        self.meshes.insert(key, set.clone());
+    }
+}
+
+fn mesh_bytes(set: &MeshSet) -> usize {
+    set.parts
+        .iter()
+        .map(|(_, m)| m.positions.len() * 8 + m.normals.len() * 4 + m.indices.len() * 4)
+        .sum()
+}
+
+/// What the walk remembers about a product it has already met.
+enum Cached {
+    /// tessellated to nothing
+    Empty,
+    /// kept on the heap (in-RAM mode)
+    Ram(MeshSet),
+    /// parked in the temp handle (spill mode; multi-instance products only)
+    Spilled { offset: u64, len: u32 },
+    /// external mode: already read once (progress bookkeeping only)
+    Seen,
+}
+
+struct Walk<'a, 'b, 'm> {
     cx: &'a Ctx<'a>,
     asm: &'a Assembly,
     opts: MergeOptions,
@@ -149,15 +375,20 @@ struct Walk<'a, 'b> {
     progress: &'b mut dyn FnMut(u32),
     processed: u32,
     /// tessellated once per PRODUCT_DEFINITION; instances clone + transform
-    cache: HashMap<u32, Option<MeshSet>>,
+    cache: HashMap<u32, Cached>,
+    /// placements per product definition (see [`instance_counts`])
+    refs: HashMap<u32, u32>,
     out: MergedBuilder,
     next_id: u32,
     budget: i64,
+    mode: MergeMode<'m>,
+    /// decoded meshes of recently placed multi-instance products
+    hot: HotMeshes,
 }
 
-impl Walk<'_, '_> {
+impl Walk<'_, '_, '_> {
     fn rec(&mut self, pd: u32, name: &str, parent: u32, world: M4, depth: usize) {
-        if depth > 64 || self.budget <= 0 {
+        if depth > MAX_DEPTH || self.budget <= 0 {
             return;
         }
         self.budget -= 1;
@@ -196,58 +427,88 @@ impl Walk<'_, '_> {
                 self.out.add_hierarchy(c, name, id);
                 c
             };
-            self.out.add_bucket(did, *color, mesh);
+            let Walk { out, mode, .. } = self;
+            match mode {
+                MergeMode::InRam => out.add_bucket(did, *color, mesh),
+                MergeMode::Spill { tmp } | MergeMode::External { tmp, .. } => {
+                    // a temp write failure is unrecoverable for the run; the
+                    // truncated chunk surfaces as an error at read-back
+                    let _ = out.add_bucket_spill(did, *color, mesh, *tmp);
+                }
+            }
         }
     }
 
+    /// One product tessellated (or fetched) — the progress unit.
+    fn tick(&mut self) {
+        self.processed += 1;
+        (self.progress)(self.processed);
+    }
+
     fn pd_mesh(&mut self, pd: u32) -> Option<MeshSet> {
-        if let Some(cached) = self.cache.get(&pd) {
-            return cached.clone();
+        if let Some(set) = self.hot.get(pd) {
+            return Some(set.clone());
         }
-        let mut tm = MeshSet::default();
-        if let Some(node) = self.asm.products.get(&pd) {
-            for &sr in &node.shape_reps {
-                // SHAPE_REPRESENTATION('', (items), context). Tessellate in
-                // this representation's own unit (deflection scaled to match),
-                // then scale the geometry into the global unit — so a
-                // metre-context part in an otherwise-mm file is neither shrunk
-                // away nor under-tessellated.
-                let factor =
-                    crate::model::rep_unit_factor(self.cx.sf, sr, self.opts.file_unit_scale);
-                let rep_tp = crate::model::TessParams {
-                    deflection: self.cx.tp.deflection / factor,
-                    max_angle: self.cx.tp.max_angle,
+        match self.cache.get(&pd) {
+            Some(Cached::Empty) => return None,
+            Some(Cached::Ram(set)) => return Some(set.clone()),
+            Some(Cached::Spilled { offset, len }) => {
+                let (offset, len) = (*offset, *len as usize);
+                let tmp: &dyn TempHandle = match &self.mode {
+                    MergeMode::Spill { tmp } | MergeMode::External { tmp, .. } => &**tmp,
+                    MergeMode::InRam => return None,
                 };
-                let rep_cx = Ctx {
-                    sf: self.cx.sf,
-                    tp: &rep_tp,
-                    colors: self.cx.colors,
-                    threads: self.cx.threads,
-                };
-                let mut sub = MeshSet::default();
-                if let Some(p) = self.cx.sf.params(sr) {
-                    if let Some(items) = p.get(1).and_then(|v| v.as_list()) {
-                        for it in items {
-                            if let Some(r) = it.as_ref_id() {
-                                tessellate::tessellate_item(&rep_cx, r, None, &mut sub, self.stats);
-                            }
-                        }
-                    }
-                }
-                if (factor - 1.0).abs() > 1e-9 {
-                    sub.transform(&M4::scale_uniform(factor));
-                }
-                tm.append(&sub);
+                let bytes = read_all_at(|o, b| tmp.read_at(o, b), offset, len);
+                let set = MeshSet::decode(&bytes)?;
+                self.hot.insert(pd, &set);
+                return Some(set);
             }
+            Some(Cached::Seen) | None => {}
         }
-        prepare(&mut tm, &self.opts);
+        if let MergeMode::External { meshes, .. } = &self.mode {
+            let set = meshes.read(pd).filter(|s| !s.is_empty());
+            if !matches!(self.cache.get(&pd), Some(Cached::Seen)) {
+                self.cache.insert(pd, Cached::Seen);
+                self.tick();
+            }
+            if let Some(set) = &set {
+                if self.refs.get(&pd).copied().unwrap_or(1) > 1 {
+                    self.hot.insert(pd, set);
+                }
+            }
+            return set;
+        }
+        let tm = tessellate_product(self.cx, self.asm, pd, &self.opts, self.stats);
         // tick after the product is actually tessellated (a cache miss = one
         // unique product's worth of work just finished), so progress never
         // shows 100% while a product's faces are still being tessellated
-        self.processed += 1;
-        (self.progress)(self.processed);
-        let result = if tm.is_empty() { None } else { Some(tm) };
-        self.cache.insert(pd, result.clone());
-        result
+        self.tick();
+        if tm.is_empty() {
+            self.cache.insert(pd, Cached::Empty);
+            return None;
+        }
+        let multi = self.refs.get(&pd).copied().unwrap_or(1) > 1;
+        match &mut self.mode {
+            MergeMode::InRam => {
+                self.cache.insert(pd, Cached::Ram(tm.clone()));
+            }
+            MergeMode::Spill { tmp } if multi => {
+                let mut bytes = Vec::new();
+                tm.encode(&mut bytes);
+                let offset = tmp.len();
+                if tmp.write_at(offset, &bytes).is_ok() {
+                    self.cache.insert(
+                        pd,
+                        Cached::Spilled {
+                            offset,
+                            len: bytes.len() as u32,
+                        },
+                    );
+                }
+            }
+            // a single-use product is never asked for again
+            _ => {}
+        }
+        Some(tm)
     }
 }

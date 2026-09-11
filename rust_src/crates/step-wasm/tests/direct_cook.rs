@@ -50,20 +50,15 @@ fn direct_cook_matches_glb_cook() {
 
     let mut checked = 0;
     for path in paths {
-        let Ok(bytes) = std::fs::read(&path) else { continue };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
         let name = path.file_name().unwrap().to_string_lossy().to_string();
 
         // Path A: STEP → GLB → cook.
         let mut glb_out = MemSink(Vec::new());
         let mut glb_tmp = MemTemp(Vec::new());
-        if convert(
-            Box::new(bytes.clone()),
-            &mut glb_out,
-            &mut glb_tmp,
-            &opts(),
-        )
-        .is_err()
-        {
+        if convert(Box::new(bytes.clone()), &mut glb_out, &mut glb_tmp, &opts()).is_err() {
             continue;
         }
         if glb_out.0.is_empty() {
