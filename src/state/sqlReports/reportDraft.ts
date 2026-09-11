@@ -29,3 +29,16 @@ export function addReportFilter(d: ReportDef): ReportDef {
 export function removeReportFilter(d: ReportDef, i: number): ReportDef {
   return { ...d, filters: d.filters.filter((_, k) => k !== i) };
 }
+
+/** Swap filter `i` with its neighbour in direction `dir` — the list order is
+ *  the order the inputs are shown in when the report is used. A move off
+ *  either end returns the draft unchanged. */
+export function moveReportFilter(d: ReportDef, i: number, dir: -1 | 1): ReportDef {
+  const j = i + dir;
+  if (i < 0 || i >= d.filters.length || j < 0 || j >= d.filters.length) {
+    return d;
+  }
+  const filters = [...d.filters];
+  [filters[i], filters[j]] = [filters[j], filters[i]];
+  return { ...d, filters };
+}

@@ -79,9 +79,18 @@ fn is_transparent(st: ItemState) -> bool {
   return false;
 }
 
-// hidden items never hit; a seam cast also skips the excluded / transparent ones
-fn skip_item(info: MeshletInfo, st: ItemState) -> bool {
+// Invisible as the user sees it — hide flag, explicit opacity override of 0,
+// or a colour override with alpha 0 (mirrors the cull's item_hidden /
+// isEffectivelyHidden): a surface nobody can see must not catch a snap
+fn is_invisible(st: ItemState) -> bool {
   if ((st.flags & 1u) != 0u) { return true; }
+  if ((st.flags & 64u) != 0u) { return ((st.flags >> 25u) & 127u) == 0u; }
+  return (st.flags & 16u) != 0u && ((st.color >> 24u) & 255u) == 0u;
+}
+
+// invisible items never hit; a seam cast also skips the excluded / transparent ones
+fn skip_item(info: MeshletInfo, st: ItemState) -> bool {
+  if (is_invisible(st)) { return true; }
   if (sp.exclude.x != 0u && info.item + model_info.x + 1u == sp.exclude.x) { return true; }
   if (sp.exclude.y != 0u && is_transparent(st)) { return true; }
   return false;

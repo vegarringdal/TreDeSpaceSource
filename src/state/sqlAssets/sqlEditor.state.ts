@@ -1,6 +1,7 @@
 // SQL Editor panel state. Lives in state/ (not the component) so the draft and
 // the chosen database survive the panel being closed, undocked or re-mounted.
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import type { FilterCollapse } from '../sqlReports/filterCollapse';
 import { ALL_REPORT_TYPES } from '../sqlReports/reportDraft';
 import type { ReportDef } from '../sqlReports/sqlReports.state';
 
@@ -29,6 +30,9 @@ export interface SqlEditorState {
    *  path sql_assets/<store>/<file>, '' = None), `sql` the script, plus the
    *  name / description / types / filters a host can read out and save. */
   draft: ReportDef;
+  /** Which filter sections of the editor are folded shut — UI only, never
+   *  part of the draft a host reads; follows a filter through move / remove. */
+  filtersCollapsed: FilterCollapse;
   /** 'shared' = read-only (several readers at once), 'exclusive' = writes. */
   lockmode: 'shared' | 'exclusive';
   /** A query is in flight. */
@@ -45,6 +49,7 @@ export interface SqlEditorState {
 
 export const sqlEditorState = createStore<SqlEditorState>({
   draft: emptyEditorDraft(),
+  filtersCollapsed: [],
   lockmode: 'shared',
   running: false,
   selStart: 0,

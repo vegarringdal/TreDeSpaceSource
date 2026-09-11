@@ -2,16 +2,7 @@
 // maps, cached name arrays, and the interleaved GPU state upload.
 import * as Comlink from 'comlink';
 import type { Hierarchy } from '../model/format';
-import {
-  type DbModel,
-  HAS_OPACITY_OVERRIDE,
-  IS_HIDDEN,
-  IS_SELECTED,
-  NO_PARENT,
-  OPACITY_MASK,
-  OPACITY_SHIFT,
-  type StateUpdate,
-} from './dbState';
+import { type DbModel, IS_SELECTED, isEffectivelyHidden, NO_PARENT, type StateUpdate } from './dbState';
 
 const decoder = new TextDecoder();
 
@@ -80,7 +71,9 @@ function subtreeCounts(m: DbModel, weight: (item: number) => number): Uint32Arra
 export function stateAggregates(m: DbModel): { hidden: Uint32Array; selected: Uint32Array } {
   const v = m.stateVersion ?? 0;
   if (!m.hiddenUnder || !m.selectedUnder || m.hiddenAggVersion !== v) {
-    m.hiddenUnder = subtreeCounts(m, (item) => (isEffectivelyHidden(m.states[item * 2]) ? 1 : 0));
+    m.hiddenUnder = subtreeCounts(m, (item) =>
+      isEffectivelyHidden(m.states[item * 2], m.states[item * 2 + 1]) ? 1 : 0,
+    );
     m.selectedUnder = subtreeCounts(m, (item) => ((m.states[item * 2] & IS_SELECTED) !== 0 ? 1 : 0));
     m.hiddenAggVersion = v;
   }
@@ -89,16 +82,6 @@ export function stateAggregates(m: DbModel): { hidden: Uint32Array; selected: Ui
 
 export function hiddenAggregate(m: DbModel): Uint32Array {
   return stateAggregates(m).hidden;
-}
-
-/** Hidden as the USER sees it: the hide flag, or an opacity override of 0 —
- *  Set Color's "opacity 0" (its quick "hidden" toggle) makes an item just as
- *  invisible as a hide, so the tree must report both the same way. */
-export function isEffectivelyHidden(flags: number): boolean {
-  if (flags & IS_HIDDEN) {
-    return true;
-  }
-  return (flags & HAS_OPACITY_OVERRIDE) !== 0 && (flags & OPACITY_MASK) >>> OPACITY_SHIFT === 0;
 }
 
 export function buildIndexes(m: DbModel) {

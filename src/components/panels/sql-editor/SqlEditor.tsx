@@ -26,7 +26,7 @@ import { registerSqlRun } from './sqlEditorPanel';
  *  to the Console panel. */
 export function SqlEditor() {
   useMinSize(320, 240);
-  const { draft } = sqlEditorState.use();
+  const { draft, filtersCollapsed } = sqlEditorState.use();
 
   useEffect(() => {
     void storesActions.init().then(() => sqlAssetsActions.refresh());
@@ -63,7 +63,18 @@ export function SqlEditor() {
         onChange={act.setFilter}
         onAdd={act.addFilter}
         onRemove={act.removeFilter}
-        addShortcut="sql.editor.addFilter"
+        onMove={act.moveFilter}
+        collapse={{
+          collapsed: filtersCollapsed,
+          toggle: act.toggleFilterCollapsed,
+          expandAll: act.expandAllFilters,
+          collapseAll: act.collapseAllFilters,
+        }}
+        shortcuts={{
+          add: 'sql.editor.addFilter',
+          expandAll: 'sql.editor.expandFilters',
+          collapseAll: 'sql.editor.collapseFilters',
+        }}
       />
 
       <SqlEditorStatus />

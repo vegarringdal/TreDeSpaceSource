@@ -361,8 +361,10 @@ fn vs(
   let blend_mode = (frame.flags.z & 1u) != 0u;
   let blend_pass = (frame.flags.z & 2u) != 0u;
   let transparent = opacity < 1.0;
-  // hidden, or routed to the other pass in blend mode -> degenerate
-  if ((item_states[info.item].flags & 1u) != 0u ||
+  // hidden or invisible (effective opacity 0 — the cull drops these, this
+  // covers the no-cull path), or routed to the other pass in blend mode ->
+  // degenerate
+  if ((item_states[info.item].flags & 1u) != 0u || opacity <= 0.0 ||
       (blend_mode && transparent != blend_pass)) {
     o.clip = vec4f(0.0);
     o.world = vec3f(0.0);
@@ -479,8 +481,10 @@ fn vs(
   let blend_mode = (frame.flags.z & 1u) != 0u;
   let blend_pass = (frame.flags.z & 2u) != 0u;
   let transparent = opacity < 1.0;
-  // hidden, or routed to the other pass in blend mode -> degenerate
-  if ((item_states[info.item].flags & 1u) != 0u ||
+  // hidden or invisible (effective opacity 0 — the cull drops these, this
+  // covers the no-cull path), or routed to the other pass in blend mode ->
+  // degenerate
+  if ((item_states[info.item].flags & 1u) != 0u || opacity <= 0.0 ||
       (blend_mode && transparent != blend_pass)) {
     o.clip = vec4f(0.0);
     o.world = vec3f(0.0);

@@ -1709,6 +1709,22 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => sqlEditorActions.addFilter(),
   },
   {
+    id: 'sql.editor.expandFilters',
+    category: 'SQL',
+    label: 'SQL Editor: expand all filters',
+    defaultKeys: 'ALT + 1229',
+    description: 'Open every filter section of the editor draft',
+    run: () => sqlEditorActions.expandAllFilters(),
+  },
+  {
+    id: 'sql.editor.collapseFilters',
+    category: 'SQL',
+    label: 'SQL Editor: collapse all filters',
+    defaultKeys: 'ALT + 1230',
+    description: 'Fold every filter section of the editor draft shut',
+    run: () => sqlEditorActions.collapseAllFilters(),
+  },
+  {
     id: 'sql.editor.saveLocal',
     category: 'SQL',
     label: 'SQL Editor: save local',
@@ -2287,6 +2303,15 @@ export const HOTKEYS: HotkeyDef[] = [
         void viewerActions.selectByFullnames(names);
       }
     },
+  },
+  {
+    id: 'labels.selectedToViewpoints',
+    category: 'Labels',
+    label: 'Labels: selected to viewpoints',
+    defaultKeys: 'ALT + 1231',
+    description:
+      'Add one viewpoint per selected label with a linked fullname (label text as name, fullname selected, label copied in, camera on the label framing the item; existing fullname + name pairs are skipped) and open the Viewpoint Viewer',
+    run: () => void viewpointsActions.addFromSelectedLabels(),
   },
   {
     id: 'labels.explode',

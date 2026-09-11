@@ -15,7 +15,14 @@ import { killSqliteWorker, sqliteClient, sqlOptions } from '../../lib/sqlite/cli
 import { parseAttachPaths, splitSqlStatements } from '../../lib/sqlite/sqlAttach';
 import { detailScopedSql, filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
 import {
+  moveFilterCollapsed,
+  removeFilterCollapsed,
+  setAllFiltersCollapsed,
+  toggleFilterCollapsed,
+} from '../sqlReports/filterCollapse';
+import {
   addReportFilter,
+  moveReportFilter,
   removeReportFilter,
   setReportFilter,
   toggleReportType,
@@ -92,7 +99,29 @@ export const sqlEditorActions = {
   },
 
   removeFilter(i: number) {
-    sqlEditorState.set((s) => ({ draft: removeReportFilter(s.draft, i) }));
+    sqlEditorState.set((s) => ({
+      draft: removeReportFilter(s.draft, i),
+      filtersCollapsed: removeFilterCollapsed(s.filtersCollapsed, i),
+    }));
+  },
+
+  moveFilter(i: number, dir: -1 | 1) {
+    sqlEditorState.set((s) => ({
+      draft: moveReportFilter(s.draft, i, dir),
+      filtersCollapsed: moveFilterCollapsed(s.filtersCollapsed, i, dir, s.draft.filters.length),
+    }));
+  },
+
+  toggleFilterCollapsed(i: number) {
+    sqlEditorState.set((s) => ({ filtersCollapsed: toggleFilterCollapsed(s.filtersCollapsed, i) }));
+  },
+
+  expandAllFilters() {
+    sqlEditorState.set((s) => ({ filtersCollapsed: setAllFiltersCollapsed(s.draft.filters.length, false) }));
+  },
+
+  collapseAllFilters() {
+    sqlEditorState.set((s) => ({ filtersCollapsed: setAllFiltersCollapsed(s.draft.filters.length, true) }));
   },
 
   /** Empty the editor — name, description, SQL, filters and types back to a
@@ -107,6 +136,7 @@ export const sqlEditorActions = {
     }
     sqlEditorState.set((s) => ({
       draft: emptyEditorDraft(s.draft.db),
+      filtersCollapsed: [],
       selStart: 0,
       selEnd: 0,
       lastError: '',
@@ -124,6 +154,7 @@ export const sqlEditorActions = {
     const { id, store } = emptyEditorDraft();
     sqlEditorState.set({
       draft: withDatabases({ ...report, id, store, filters: structuredClone(report.filters) }),
+      filtersCollapsed: [],
       selStart: 0,
       selEnd: 0,
       lastError: '',

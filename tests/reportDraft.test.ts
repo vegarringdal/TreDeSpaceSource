@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addReportFilter,
+  moveReportFilter,
   removeReportFilter,
   setReportFilter,
   toggleReportType,
@@ -43,5 +44,16 @@ describe('reportDraft helpers', () => {
     const edited = setReportFilter(two, 1, { kind: 'DROPDOWN', label: 'Area' });
     expect(edited.filters[1]).toEqual({ kind: 'DROPDOWN', key: 'arg2', label: 'Area' });
     expect(removeReportFilter(edited, 0).filters).toEqual([edited.filters[1]]);
+  });
+
+  it('moveReportFilter swaps with the neighbour, no-op off either end, never mutates', () => {
+    const three = addReportFilter(addReportFilter(addReportFilter(base)));
+    const keys = (d: ReportDef): string[] => d.filters.map((f) => f.key);
+    expect(keys(moveReportFilter(three, 2, -1))).toEqual(['arg1', 'arg3', 'arg2']);
+    expect(keys(moveReportFilter(three, 0, 1))).toEqual(['arg2', 'arg1', 'arg3']);
+    expect(moveReportFilter(three, 0, -1)).toBe(three);
+    expect(moveReportFilter(three, 2, 1)).toBe(three);
+    expect(moveReportFilter(three, 7, -1)).toBe(three);
+    expect(keys(three)).toEqual(['arg1', 'arg2', 'arg3']);
   });
 });

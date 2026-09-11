@@ -11,10 +11,13 @@ import {
 } from '../../components/panels/multi-color/multiColor.state';
 import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonClippingPlaneState } from '../../components/panels/ribbon-clipping-plane/ribbonClippingPlane.state';
+import { openViewpointViewerPanel } from '../../components/panels/viewpoints/viewpointsPanel';
 import { downloadText } from '../../lib/download';
+import { framingDistanceFromPoint } from '../../lib/math/frameFromPoint';
 // transport directly (not the messageApi index) — the index imports the
 // handlers, which import this module: going through it would be a cycle
 import { emitApiEvent } from '../../lib/messageApi/transport';
+import { firstLine } from '../../lib/richText';
 import { clipShapesActions } from './clipShapes.actions';
 import { clipShapesState } from './clipShapes.state';
 import { db } from './db';
@@ -33,6 +36,11 @@ import {
 } from './viewpoints.state';
 
 const clone = <T>(v: T): T => structuredClone(v);
+
+/** Closest a label-made viewpoint's camera gets to the label (metres). */
+const LABEL_VIEWPOINT_MIN_DIST_M = 2;
+/** camera.ts default vertical FOV, for the (unreachable in practice) no-renderer case. */
+const FALLBACK_FOV_Y = (55 * Math.PI) / 180;
 
 function uid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -118,6 +126,24 @@ const captureRules = (mode: 'reset' | 'append' | 'hide', rules: ColorRule[]): Vi
 
 const shouldRunRules = (vp: Viewpoint) => vp.colorRules.rules.some((r) => r.enabled);
 
+/** A new viewpoint from the current camera + clipping, otherwise EMPTY: no
+ *  labels, measurements, Set Color rules or fullnames. */
+function captureViewpoint(name: string): Viewpoint {
+  return {
+    id: uid(),
+    name,
+    description: '',
+    camera: captureCamera(),
+    clipBox: captureClipBox(),
+    clipPlanes: clone(ribbonClippingPlaneState.get()),
+    clipShapes: clone(clipShapesState.get().shapes),
+    labels: [],
+    measurements: [],
+    colorRules: { mode: 'reset', rules: [] },
+    fullnames: [],
+  };
+}
+
 export const viewpointsActions = {
   /** Snapshot the camera + clipping into a new viewpoint and ACTIVATE it.
    *  The viewpoint starts EMPTY otherwise: no labels, no measurements, no Set
@@ -127,22 +153,58 @@ export const viewpointsActions = {
    *  leaves the current colors alone while the viewpoint has no rules. */
   async addViewpoint() {
     const s = viewpointsState.get();
-    const vp: Viewpoint = {
-      id: uid(),
-      name: `Viewpoint ${s.list.length + 1}`,
-      description: '',
-      camera: captureCamera(),
-      clipBox: captureClipBox(),
-      clipPlanes: clone(ribbonClippingPlaneState.get()),
-      clipShapes: clone(clipShapesState.get().shapes),
-      labels: [],
-      measurements: [],
-      colorRules: { mode: 'reset', rules: [] },
-      fullnames: [],
-    };
+    const vp = captureViewpoint(`Viewpoint ${s.list.length + 1}`);
     viewpointsState.set({ list: [...s.list, vp], selectedId: vp.id });
     consoleActions.log('info', `Viewpoints: added "${vp.name}"`);
     await viewpointsActions.activate(vp.id);
+  },
+
+  /** One viewpoint per SELECTED label with a linked fullname: the label's
+   *  (first-line) text as the NAME, description blank, the fullname as the
+   *  viewpoint's selection, a copy of the label as the viewpoint's own label,
+   *  and the camera pivoted on the label's anchor at the distance that frames
+   *  the item's box from there — never closer than 2 m, keeping the current
+   *  view direction. A label whose fullname + name a viewpoint already
+   *  carries is skipped, so re-running only adds what is new. Nothing is
+   *  activated; the Viewpoint Viewer panel is opened to show the result. */
+  async addFromSelectedLabels() {
+    const picks = labelsState
+      .get()
+      .items.flatMap((l) => (l.selected && l.fullname?.trim() ? [{ label: l, fullname: l.fullname.trim() }] : []));
+    if (picks.length === 0) {
+      dialogs.error('No selected label has a linked fullname — select labels with a fullname first.', 'Viewpoints');
+      return;
+    }
+    const fovY = getRenderer()?.camera.fovY ?? FALLBACK_FOV_Y;
+    let added = 0;
+    let skipped = 0;
+    for (const { label, fullname } of picks) {
+      const name = firstLine(label.text) || fullname;
+      const exists = viewpointsState.get().list.some((v) => v.name === name && v.fullnames.includes(fullname));
+      if (exists) {
+        skipped++;
+        continue;
+      }
+      const bounds = await db.boundsForNames([fullname]);
+      const base = captureViewpoint(name);
+      const vp: Viewpoint = {
+        ...base,
+        fullnames: [fullname],
+        labels: [{ ...clone(label), selected: false }],
+        camera: {
+          ...base.camera,
+          target: [label.anchor[0], label.anchor[1], label.anchor[2]],
+          orbitDistance: framingDistanceFromPoint(label.anchor, bounds, fovY, LABEL_VIEWPOINT_MIN_DIST_M),
+        },
+      };
+      viewpointsState.set((s) => ({ list: [...s.list, vp] }));
+      added++;
+    }
+    consoleActions.log(
+      'info',
+      `Viewpoints: added ${added} from labels${skipped ? `, skipped ${skipped} already present` : ''}`,
+    );
+    openViewpointViewerPanel();
   },
 
   /** Activate: animated camera + clip + labels/measurements swap + rules run
@@ -403,19 +465,7 @@ export const viewpointsActions = {
     if (at < 0) {
       return;
     }
-    const vp: Viewpoint = {
-      id: uid(),
-      name: `Viewpoint ${s.list.length + 1}`,
-      description: '',
-      camera: captureCamera(),
-      clipBox: captureClipBox(),
-      clipPlanes: clone(ribbonClippingPlaneState.get()),
-      clipShapes: clone(clipShapesState.get().shapes),
-      labels: [],
-      measurements: [],
-      colorRules: { mode: 'reset', rules: [] },
-      fullnames: [],
-    };
+    const vp = captureViewpoint(`Viewpoint ${s.list.length + 1}`);
     viewpointsState.set({ list: [...s.list.slice(0, at), vp, ...s.list.slice(at)], selectedId: vp.id });
     consoleActions.log('info', `Viewpoints: added "${vp.name}"`);
   },

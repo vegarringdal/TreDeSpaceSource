@@ -18,6 +18,24 @@ export const OPACITY_MASK = 0x7f << OPACITY_SHIFT;
 
 export const NO_PARENT = 0xffffffff;
 
+/** Invisible AS THE USER SEES IT: the hide flag, an explicit opacity override
+ *  of 0, or a colour override whose alpha is 0 (the explicit override wins
+ *  when both are set, like the scene shader's item_opacity). Set Color's
+ *  "hidden" toggle and `sql.color`'s default-hidden base coat hide through
+ *  opacity 0, and an item nobody can see must behave like a hidden one
+ *  everywhere: the tree badge, fit-visible, the residency budget and —
+ *  mirrored in WGSL — the cull and snap shaders. The baked material alpha is
+ *  not consulted (the cull cannot see it either). */
+export function isEffectivelyHidden(flags: number, color: number): boolean {
+  if (flags & IS_HIDDEN) {
+    return true;
+  }
+  if (flags & HAS_OPACITY_OVERRIDE) {
+    return (flags & OPACITY_MASK) >>> OPACITY_SHIFT === 0;
+  }
+  return (flags & HAS_COLOR_OVERRIDE) !== 0 && ((color >>> 24) & 255) === 0;
+}
+
 export interface DbModel {
   /** Tombstoned by removeModels — hidden everywhere, slot kept for index stability. */
   removed?: boolean;

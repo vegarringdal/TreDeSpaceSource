@@ -15,7 +15,7 @@ import {
 import { clipCulledSphere } from '../render/clipCull';
 import { resetTransformUndo } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
-import { type DbModel, IS_HIDDEN, models, resetItemStates, type StateUpdate } from './dbState';
+import { type DbModel, isEffectivelyHidden, models, resetItemStates, type StateUpdate } from './dbState';
 import { resetGlobalIndex } from './globalNameIndex';
 import { buildIndexes, packStates } from './hierarchyIndex';
 import { itemWorldBounds, resetTransformPool } from './transformPool';
@@ -142,7 +142,7 @@ function countMissingVisible(m: DbModel, packedBounds: Float32Array, clip: Float
     if (Number.isFinite(packedBounds[i * 6])) {
       continue;
     }
-    if ((m.states[i * 2] & IS_HIDDEN) !== 0) {
+    if (isEffectivelyHidden(m.states[i * 2], m.states[i * 2 + 1])) {
       continue;
     }
     if (wb && clip && isClipped(wb, i, clip) && isClipCut(wb, i)) {
@@ -298,7 +298,7 @@ export const modelsApi = {
     // fill of the full-detail budget over what remains
     const useFull = new Uint8Array(m.itemCount);
     for (let i = 0; i < m.itemCount; i++) {
-      const hidden = (m.states[i * 2] & IS_HIDDEN) !== 0;
+      const hidden = isEffectivelyHidden(m.states[i * 2], m.states[i * 2 + 1]);
       const clipped = isClipped(wb, i, clip);
       if (
         (hidden && cuts.dropHidden) ||
@@ -313,7 +313,12 @@ export const modelsApi = {
     let acc = 0;
     let fullBudgetLimited = false;
     for (const i of order) {
-      if (useFull[i] === ITEM_DROP || inView[i] !== 1 || m.states[i * 2] & IS_HIDDEN || !Number.isFinite(dist[i])) {
+      if (
+        useFull[i] === ITEM_DROP ||
+        inView[i] !== 1 ||
+        isEffectivelyHidden(m.states[i * 2], m.states[i * 2 + 1]) ||
+        !Number.isFinite(dist[i])
+      ) {
         continue;
       }
       if (acc + estBytes[i] > targetBytes) {
@@ -354,7 +359,7 @@ export const modelsApi = {
     const wb = worldBoundsOf(m);
     const keep = new Uint8Array(m.itemCount).fill(1);
     for (let i = 0; i < m.itemCount; i++) {
-      const hidden = (m.states[i * 2] & IS_HIDDEN) !== 0;
+      const hidden = isEffectivelyHidden(m.states[i * 2], m.states[i * 2 + 1]);
       // view-INDEPENDENT cuts: a coarse pack never re-packs on turn, so
       // frustum-dependent content would show as permanent holes. Clipping is
       // different — it is an explicit user action, and re-packs are triggered

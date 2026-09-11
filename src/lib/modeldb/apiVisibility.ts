@@ -3,13 +3,14 @@
 // so the ribbon Undo reverts hides exactly like colorings.
 import { quatAxes } from '../math/quat';
 import { type ColorUndoRecord, captureColorRuns, pushColorUndo } from './colorUndo';
-import { type DbModel, IS_HIDDEN, models, NO_ITEM_EDGES, type StateUpdate } from './dbState';
+import { type DbModel, IS_HIDDEN, isEffectivelyHidden, models, NO_ITEM_EDGES, type StateUpdate } from './dbState';
 import { DenseBoxAccumulator } from './denseBox';
-import { isEffectivelyHidden, packStates } from './hierarchyIndex';
+import { packStates } from './hierarchyIndex';
 import { itemWorldBounds, transforms } from './transformPool';
 
 export const visibilityApi = {
-  /** Union AABB + fraction of the NON-hidden items per model — the residency
+  /** Union AABB + fraction of the NON-hidden (isEffectivelyHidden: hide flag
+   * or effective opacity 0) items per model — the residency
    * manager's hidden-aware priority input. Uses WORLD-space (transformed)
    * item boxes, so a moved model is budgeted where it actually is. bounds is
    * null when every item with geometry is hidden (such a model deserves no
@@ -36,7 +37,7 @@ export const visibilityApi = {
           continue; // item without geometry
         }
         total++;
-        if (m.states[i * 2] & IS_HIDDEN) {
+        if (isEffectivelyHidden(m.states[i * 2], m.states[i * 2 + 1])) {
           continue;
         }
         visible++;
@@ -64,7 +65,7 @@ export const visibilityApi = {
 
   /** World AABB of every item that is visible AS THE USER SEES IT — no hide
    * flag and no opacity-0 override (Set Color's hidden toggle, sql.color's
-   * `default-hidden` base coat), the tree badge's isEffectivelyHidden — and
+   * `default-hidden` base coat), i.e. isEffectivelyHidden — and
    * has geometry, across all live models: what "fit visible" frames.
    * Transformed items contribute their moved box. null when nothing visible
    * is left. */
@@ -78,7 +79,7 @@ export const visibilityApi = {
         continue;
       }
       for (let i = 0; i < m.itemCount; i++) {
-        if (isEffectivelyHidden(m.states[i * 2])) {
+        if (isEffectivelyHidden(m.states[i * 2], m.states[i * 2 + 1])) {
           continue;
         }
         if (!itemWorldBounds(m.itemBounds, m.tidx, i, wb)) {

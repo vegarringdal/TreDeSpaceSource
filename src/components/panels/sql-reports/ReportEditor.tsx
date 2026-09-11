@@ -24,7 +24,8 @@ type ReportEditorProps = Readonly<{
  *  picker); the report can still ATTACH files from other stores in its SQL.
  *  Set editor copies the draft (unsaved edits included) into the SQL Editor. */
 export function ReportEditor({ report, dbs, onClose }: ReportEditorProps) {
-  const { draft, patch, toggleType, setFilter, addFilter, removeFilter, eff } = useReportDraft(report);
+  const { draft, patch, toggleType, setFilter, addFilter, removeFilter, moveFilter, collapse, eff } =
+    useReportDraft(report);
 
   const handleSetEditor = (): void => {
     void dialogs
@@ -66,6 +67,8 @@ export function ReportEditor({ report, dbs, onClose }: ReportEditorProps) {
         onChange={setFilter}
         onAdd={addFilter}
         onRemove={removeFilter}
+        onMove={moveFilter}
+        collapse={collapse}
       />
 
       <div className="flex gap-2">

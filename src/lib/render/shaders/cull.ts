@@ -75,9 +75,18 @@ struct ModelUniCull {
 @group(0) @binding(7) var<uniform> model_uni_cull: ModelUniCull;
 @group(1) @binding(0) var<uniform> params: CullParams;
 
+// Invisible as the user sees it — the hide flag, an explicit opacity override
+// of 0, or a colour override with alpha 0 (the explicit override wins, like
+// the scene shader's item_opacity). Set Color's "hidden" toggle and sql.color's
+// default-hidden base coat hide through opacity 0, and such an item must cost
+// nothing: not rasterized, not blended — and, writing no depth, it would punch
+// a hole in the HZB that un-occludes everything behind it. Mirrors
+// isEffectivelyHidden (dbState.ts) and the snap shader's is_invisible.
 fn item_hidden(i: u32) -> bool {
-  let item = info_words[i * 8u + 7u];
-  return (item_states_cull[item].flags & 1u) != 0u;
+  let st = item_states_cull[info_words[i * 8u + 7u]];
+  if ((st.flags & 1u) != 0u) { return true; }
+  if ((st.flags & 64u) != 0u) { return ((st.flags >> 25u) & 127u) == 0u; }
+  return (st.flags & 16u) != 0u && ((st.color >> 24u) & 255u) == 0u;
 }
 
 fn item_transform(i: u32) -> u32 {

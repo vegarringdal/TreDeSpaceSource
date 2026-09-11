@@ -148,7 +148,10 @@ export const colorApi = {
   applyColorRules,
 
   /** Anything that needs the blend pass: a baked-transparent color group, an
-   *  opacity override, or a color override whose packed alpha is < 255. */
+   *  opacity override strictly between 0 and 100, or a color override whose
+   *  packed alpha is strictly between 0 and 255. Opacity 0 is invisible and
+   *  culled like a hidden item (isEffectivelyHidden), 100 / alpha 255 draws
+   *  opaque — neither may switch the whole-scene blend replay on. */
   hasTransparency(): boolean {
     for (const m of models) {
       if (m.removed) {
@@ -160,10 +163,17 @@ export const colorApi = {
       for (let i = 0; i < m.itemCount; i++) {
         const flags = m.states[i * 2];
         if (flags & HAS_OPACITY_OVERRIDE) {
-          return true;
+          const pct = (flags & OPACITY_MASK) >>> OPACITY_SHIFT;
+          if (pct > 0 && pct < 100) {
+            return true;
+          }
+          continue;
         }
-        if (flags & HAS_COLOR_OVERRIDE && ((m.states[i * 2 + 1] >>> 24) & 255) < 255) {
-          return true;
+        if (flags & HAS_COLOR_OVERRIDE) {
+          const a = (m.states[i * 2 + 1] >>> 24) & 255;
+          if (a > 0 && a < 255) {
+            return true;
+          }
         }
       }
     }

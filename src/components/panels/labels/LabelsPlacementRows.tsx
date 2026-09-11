@@ -1,5 +1,6 @@
 import {
   IconBox,
+  IconCameraPlus,
   IconDeselect,
   IconEye,
   IconEyeOff,
@@ -14,6 +15,7 @@ import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { labelsActions as act } from '../../../state/viewer/labels.actions';
 import { labelsState, MAX_LABELS } from '../../../state/viewer/labels.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
+import { viewpointsActions } from '../../../state/viewer/viewpoints.actions';
 import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
 
 /** Labels → Common, rows 1-3: place/mute, highlight the linked items in the
@@ -88,6 +90,15 @@ export function LabelsPlacementRows() {
           onClick={() => void viewerActions.selectByFullnames(s.items.flatMap((l) => (l.fullname ? [l.fullname] : [])))}
         >
           Highlight all
+        </Button>
+        <Button
+          icon={<IconCameraPlus size={14} />}
+          disabled={!s.items.some((l) => l.selected && l.fullname)}
+          tooltip="Add one viewpoint per selected label with a linked fullname: label text as name, the fullname selected, the label copied in, camera on the label framing the item (never closer than 2 m). A fullname + name some viewpoint already has is skipped. Opens the Viewpoint Viewer"
+          shortcut="labels.selectedToViewpoints"
+          onClick={() => void viewpointsActions.addFromSelectedLabels()}
+        >
+          Selected to viewpoints
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">

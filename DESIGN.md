@@ -95,7 +95,10 @@ own. Key facts, kept here so the port history isn't lost:
   Priority: corner > seam corner > edge > seam edge > face. Ribbon: Snapping →
   Seams. Pure math in `measureSnap.ts` (`seamProbe`, unit-tested).
 - **Transparency**: alpha-hash (converges under TAA) or unsorted blend pass;
-  per-item opacity overrides. A third mode, **background** (2026-09-04),
+  per-item opacity overrides. An effective opacity of 0 is not transparency
+  but invisibility: the cull drops such items exactly like the hide flag
+  (`isEffectivelyHidden`, mirrored in cull / snap WGSL) and they do not enable
+  the blend pass. A third mode, **background** (2026-09-04),
   renders the items set transparent SOLID as a backdrop layer: the same
   transparent-item pass, but unblended and writing depth, with the pass
   viewport squeezing its depths into (0, 1e-9] so every foreground fragment
@@ -604,8 +607,11 @@ headroom.
   camera moves or turns far enough.
 - **Cut rules**: items smaller than "Cut size" (default 0.5 m) beyond "Cut
   distance" (default 200 m) are dropped from budget packs; "Drop hidden"
-  (default on) drops hidden items — unhide triggers a re-pack. Cuts apply to
-  mixed and coarse packs only, never to plain full loads.
+  (default on) drops hidden items — unhide triggers a re-pack. "Hidden" is
+  `isEffectivelyHidden` (dbState.ts): the hide flag OR an effective opacity
+  of 0 (opacity override 0, colour override alpha 0) — the rule the cull and
+  snap shaders mirror, so an invisible item costs no VRAM and no draw. Cuts
+  apply to mixed and coarse packs only, never to plain full loads.
 - **UI/debug**: swap-speed radio (relaxed/normal/fast idle pacing), activity
   chip (blue swapping / green settled / grey waiting), residency-box overlay
   (`ResidencyBoxOverlay.ts` — green full, purple mixed, orange coarse, red

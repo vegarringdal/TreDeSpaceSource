@@ -4,6 +4,36 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.11** (>0.0.111):
+  An item nobody can see now costs nothing to render: an explicit opacity
+  override of 0 (Set Color's hidden toggle, `sql.color`'s `default-hidden`
+  base coat) or a colour override with alpha 0 is culled exactly like the
+  hide flag, in both cull passes, and no longer switches the whole-scene
+  blend replay on. Before, such items still passed the cull, rasterized every
+  fragment for nothing and — writing no depth — punched holes in the
+  occlusion pyramid, so everything behind them was drawn as well; hiding most
+  of a model through SQL made frames slower, not faster. The one rule
+  (`isEffectivelyHidden`, dbState.ts) now also drives the residency budget
+  (opacity-0 items spend no VRAM and "Drop hidden" drops them) and
+  measurement snapping, which could land on invisible geometry. Consequence:
+  opacity-0 items are no longer Shift-clickable through the pick band invert,
+  the same as hidden ones.
+  SQL Editor and the report editor: each filter is now a collapsible section
+  titled by its label (or "Filter #N" while unlabelled), with Move up / Move
+  down (disabled at the ends) and Remove in the section header; the list
+  order is the order the inputs are shown in when the report is used. The
+  Filters header gains Expand all / Collapse all beside Add filter (SQL
+  Editor hotkeys Alt 1229 / 1230). The collapsed state follows a filter
+  through moves and removes and is never saved with the report.
+  Labels: "Selected to viewpoints" (Common → row 2, Alt 1231) turns every
+  SELECTED label with a linked fullname into a viewpoint — the label text as
+  the viewpoint's name (description left blank), the fullname as its
+  selection, a copy of the label as the viewpoint's own label, and the
+  camera pivoted on the label's anchor at the distance that frames the
+  item's box from there, never closer than 2 m, keeping the current view
+  direction. A label whose fullname + name a viewpoint already carries is
+  skipped, so re-running after adding labels only adds the new ones. The
+  Viewpoint Viewer panel opens to show the result.
 - **2026.09.10** (>0.0.110):
   Fit visible (`nav.fitVisible`, the Fit-visible button) no longer frames
   items an opacity-0 override has made invisible. Set Color's hidden toggle
