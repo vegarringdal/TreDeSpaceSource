@@ -168,8 +168,6 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     return {};
   },
 
-  'settings.get': () => ({ version: __APP_VERSION__, viewer: viewerState.get() }),
-
   // Toggle when `on` is omitted; set explicitly when a boolean is given.
   'view.sketch': ({ p }) => {
     const on = typeof p.on === 'boolean' ? p.on : !viewerState.get().sketch;

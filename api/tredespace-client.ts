@@ -252,6 +252,12 @@ export interface AppReady {
   api: number;
 }
 
+/** Payload of `app.bye`: the viewer page is unloading (reload, navigation,
+ *  tab close) or entering the back-forward cache. */
+export interface AppByeEvent {
+  reason: 'unload';
+}
+
 /** What `nav.fitVisible` frames while clip volumes are on: `visible`
  *  (default) = the visible box cut down to the volumes' envelope; `bbox` =
  *  the volumes' envelope itself. */
@@ -474,6 +480,201 @@ export interface SettingsGetResult {
   version: string;
   /** the persisted viewer-settings snapshot (read-only) */
   viewer: Record<string, unknown>;
+}
+
+/** Settings → Rendering, key for key: antialiasing, culling, picking, the
+ *  VRAM budget, background & selection, outline, transparency, dark colours
+ *  and the debug views. Colours are '#rrggbb'. */
+export interface RenderingSettings {
+  /** accumulation TAA (off = MSAA only, converges instantly) */
+  fastAA: boolean;
+  /** TAA/AO accumulation target (frames) */
+  aaSamples: number;
+  /** 4× MSAA */
+  msaa4x: boolean;
+  /** render scale, canvas px per CSS px — ignored while a DPR mode below is on */
+  pixelRatio: number;
+  /** follow window.devicePixelRatio instead of pixelRatio */
+  useDevicePixelRatio: boolean;
+  /** smart render scale: 1 on mobile, native DPR on desktop (overrides both above) */
+  smartPixelRatio: boolean;
+  /** render-loop cap, frames per second */
+  fpsLimit: number;
+  /** debug: stop updating the cull result */
+  freezeCull: boolean;
+  /** metres around the camera never pixel-culled */
+  protectDist: number;
+  /** pixel-size cut while the camera moves (px) */
+  pxCut: number;
+  pxCutEnabled: boolean;
+  /** cull + draw via vertex pulling (core WebGPU) instead of multi-draw indirect */
+  vertexPull: boolean;
+  /** pick threshold %: items at/above are clickable, below pass through */
+  pickOpacityPct: number;
+  /** the VRAM budget switch */
+  vramBudgetOn: boolean;
+  /** the budget's ceiling in MB while on */
+  maxVramMb: number;
+  /** how aggressively the budget swaps */
+  vramSwapSpeed: 'relaxed' | 'normal' | 'fast';
+  /** debug: colour each zone by residency */
+  vramDebugBoxes: boolean;
+  /** budget cut: items smaller than this (m) and farther than vramCutDistM are dropped; 0 = off */
+  vramCutSizeM: number;
+  /** budget cut: distance (m) beyond which tiny items are dropped */
+  vramCutDistM: number;
+  /** budget cut: drop hidden items from budget packs */
+  vramDropHidden: boolean;
+  /** the small viewport chip showing what the budget is doing */
+  vramActivityHud: boolean;
+  /** single-sample frames while a swap burst lands, converge once at the end */
+  vramHoldAccum: boolean;
+  /** canvas background */
+  bgColor: string;
+  /** selection tint */
+  selectionColor: string;
+  /** how a selection is shown */
+  selectionStyle: 'tint' | 'outline' | 'both';
+  /** outline the item under the cursor */
+  outlineHover: boolean;
+  /** outline edge intensity 0-10 */
+  outlineStrength: number;
+  /** wide soft glow 0-1 */
+  outlineGlow: number;
+  /** blur radius 1-4 px */
+  outlineThickness: number;
+  /** pulse period in seconds, 0 = off */
+  outlinePulse: number;
+  outlineVisibleColor: string;
+  /** the occluded part of the silhouette */
+  outlineHiddenColor: string;
+  /** true = unsorted blend pass, false = alpha hash (converges under TAA) */
+  transparencyBlend: boolean;
+  /** blend variant: transparent items render solid as a backdrop behind everything opaque */
+  transparencyBackdrop: boolean;
+  /** how far (%) a backdrop item's colour moves toward the background */
+  backdropFadePct: number;
+  /** render pure-black materials as grey so they show shading */
+  darkLift: boolean;
+  /** the grey level (% luma) black is rendered at */
+  darkLiftPct: number;
+  /** debug: colour by meshlet */
+  meshletVis: boolean;
+  /** debug buffer view: off / normal / depth / item id / edge / ao */
+  debugBuf: 0 | 1 | 2 | 3 | 4 | 5;
+}
+
+/** Settings → Lighting: the shaded scene's ambient + headlight and the
+ *  sketch mode's own pair. Colours are '#rrggbb'. */
+export interface LightingSettings {
+  ambientColor: string;
+  ambientIntensity: number;
+  headlightColor: string;
+  headlightIntensity: number;
+  sketchAmbientColor: string;
+  sketchAmbientIntensity: number;
+  sketchHeadlightColor: string;
+  sketchHeadlightIntensity: number;
+}
+
+/** Settings → Edges: the common switches, the flat-shaded and the
+ *  authored-normal tuning, and sketch mode's own edge + cube look.
+ *  Colours are '#rrggbb'. */
+export interface EdgesSettings {
+  /** edge lines at geometric creases */
+  geoEdges: boolean;
+  /** edge lines at item boundaries */
+  itemEdges: boolean;
+  edgeColor: string;
+  /** draw white edges on dark surfaces */
+  whiteOnDark: boolean;
+  /** luma below which a surface counts as dark (0-1) */
+  darkThr: number;
+  /** edge lines on flat-shaded meshes */
+  flatMeshEdges: boolean;
+  fadeExp: number;
+  depthThr: number;
+  normalThr: number;
+  /** edge lines on meshes with authored normals */
+  smoothMeshEdges: boolean;
+  smoothFadeExp: number;
+  smoothDepthThr: number;
+  smoothNormalThr: number;
+  sketchEdgeColor: string;
+  sketchFadeExp: number;
+  sketchDepthThr: number;
+  sketchNormalThr: number;
+  /** sketch mode honours the edges-off switches (default: sketch always draws) */
+  sketchRespectsEdgesOff: boolean;
+  /** sketch colour-from-mesh: off = paper + ink, fill = washed surfaces, edges = coloured ink */
+  sketchColorMode: 'off' | 'fill' | 'edges';
+  sketchCubeFaceColor: string;
+  sketchCubeLineColor: string;
+  sketchCubeTextColor: string;
+  sketchCubeHoverColor: string;
+}
+
+/** Settings → Ambient Occlusion. */
+export interface AoSettings {
+  /** 0 off, 1 while moving too, 2 at rest only */
+  aoMode: 0 | 1 | 2;
+  /** world-space radius (m) */
+  aoRadius: number;
+  aoStrength: number;
+  aoSlices: number;
+  aoSamples: number;
+}
+
+/** The six view-cube faces and their names (at most 5 characters each). */
+export type GizmoLabels = Record<'front' | 'back' | 'left' | 'right' | 'top' | 'bottom', string>;
+
+/** Settings → Gizmo: the view cube's colours ('#rrggbb') and face names. */
+export interface GizmoSettings {
+  cubeFaceColor: string;
+  cubeLineColor: string;
+  cubeTextColor: string;
+  cubeHoverColor: string;
+  labels: GizmoLabels;
+}
+
+/** A settings setter's payload: any subset of the tab's keys, plus `reset`
+ *  to return the whole tab to defaults before the subset applies. */
+export type SettingsPatch<T> = Partial<T> & { reset?: boolean };
+
+/** What `GPUAdapter.info` says about one physical adapter. Chrome fills in
+ *  `device` and `description` only with "WebGPU Developer Features" on;
+ *  vendor + architecture are always there (e.g. nvidia/ampere). */
+export interface GpuAdapterInfo {
+  vendor: string;
+  architecture: string;
+  device: string;
+  description: string;
+  /** a software rasterizer (SwiftShader), not a GPU */
+  isFallback: boolean;
+}
+
+export interface GpuInfo {
+  /** the adapter the viewer is rendering on */
+  active: GpuAdapterInfo;
+  /** what each adapter hint resolves to on this machine (null = none) */
+  adapters: {
+    'high-performance': GpuAdapterInfo | null;
+    'low-power': GpuAdapterInfo | null;
+    fallback: GpuAdapterInfo | null;
+  };
+  /** the high-performance and low-power hints resolved to different adapters */
+  hasMultipleGpus: boolean;
+  /** optional WebGPU features the viewer got */
+  features: { multiDrawIndirect: boolean; timestampQuery: boolean };
+  /** the draw path in use: multi-draw indirect, vertex pull, or full */
+  cullMode: 'mdi' | 'vp' | 'full';
+  /** what the adapter offers (bytes) */
+  limits: { maxBufferSize: number; maxStorageBufferBindingSize: number };
+  /** system RAM in GB as the browser reports it (Chromium caps at 8), 0 when unknown */
+  deviceMemoryGb: number;
+  isMobile: boolean;
+  /** the VRAM budget the viewer would suggest for this adapter, null when it has no opinion */
+  suggestedVramBudgetMb: number | null;
 }
 
 export interface AssetInfo {
@@ -1215,6 +1416,70 @@ export interface SubscribeOptions {
   signal?: AbortSignal;
 }
 
+// ── custom-event bus ─────────────────────────────────────────────────────────
+
+/** Where a connected page sits relative to the viewer: the page hosting it
+ *  (`parent`), the page that opened it (`opener`), an external-app panel or
+ *  modal inside it (`panel`), or a tab the viewer opened (`window`). */
+export type ClientKind = 'parent' | 'opener' | 'panel' | 'window';
+
+/** A page connected to the viewer's postMessage API, as the viewer sees it.
+ *  The viewer assigns `id` (per window lifetime — a reloaded page is a new
+ *  client) and stamps `origin`, so neither can be spoofed. */
+export interface ClientInfo {
+  id: string;
+  origin: string;
+  kind: ClientKind;
+  /** the `uiDialogs` id of the panel / modal hosting a `panel` client */
+  dialog?: string;
+  /** chosen by that client in {@link TredespaceClient.customSubscribe} */
+  name?: string;
+  /** free-form label chosen by that client — a role, a version, anything
+   *  other pages pick recipients by */
+  tag?: string;
+  /** on the bus (receives custom events and presence changes) */
+  subscribed: boolean;
+}
+
+/** A custom event as it arrives at a subscriber. */
+export interface CustomEventPayload<T = unknown> {
+  event: string;
+  /** JSON — exactly what the sender's `data` gives after a JSON round trip */
+  data: T;
+  from: ClientInfo;
+  /** the ids the sender addressed, or null for a broadcast */
+  to: string[] | null;
+}
+
+export interface CustomSubscribeOptions extends SubscribeOptions {
+  /** a display name other pages see in {@link ClientInfo} */
+  name?: string;
+  /** a free-form tag other pages see in {@link ClientInfo} and can pick
+   *  recipients by — a role ('report-viewer'), a version, a project */
+  tag?: string;
+  /** only these event names reach this client; omit for every event; an
+   *  empty list = presence only (`onClientsChanged` without the traffic) */
+  events?: string[];
+}
+
+export interface CustomPostResult {
+  /** subscribers the event was posted to */
+  delivered: number;
+  /** ids from `to` that did not receive it: unknown, not subscribed,
+   *  filtered it out, or your own id (a sender never gets its own event) */
+  missed: string[];
+}
+
+export interface CustomClientsResult {
+  /** this client's own id */
+  self: string;
+  clients: ClientInfo[];
+}
+
+export interface ClientsChangedEvent {
+  clients: ClientInfo[];
+}
+
 /** Options for `onDialogChanged`. */
 export interface DialogSubscribeOptions extends SubscribeOptions {
   /** Deliver only events about the dialog or panel hosting THIS page — the one whose
@@ -1611,6 +1876,60 @@ export class TredespaceClient {
   /** Read-only snapshot of the persisted viewer settings, plus the app version. */
   settingsGet(): Promise<Result<SettingsGetResult>> {
     return this.send('settings.get', {});
+  }
+
+  /** Set Settings → Rendering (antialiasing, culling, picking, VRAM budget,
+   *  background & selection, outline, transparency, dark colours, debug).
+   *  Any subset of {@link RenderingSettings}; unknown keys and wrong types
+   *  are rejected as `bad-payload`. Persists exactly like an edit in the
+   *  panel — so send company defaults once (after `ready()`), not on every
+   *  load, or the user's own tweaks are overwritten each time. `reset: true`
+   *  returns the tab to defaults before the subset applies; an empty call
+   *  only reads. Resolves to the tab's values after the change. */
+  settingsRenderingSet(patch: SettingsPatch<RenderingSettings> = {}): Promise<Result<RenderingSettings>> {
+    return this.send('settings.rendering.set', { ...patch });
+  }
+
+  /** Set Settings → Lighting (ambient + headlight, and sketch mode's own
+   *  pair) — any subset of {@link LightingSettings}, same rules as
+   *  {@link TredespaceClient.settingsRenderingSet}. */
+  settingsLightingSet(patch: SettingsPatch<LightingSettings> = {}): Promise<Result<LightingSettings>> {
+    return this.send('settings.lighting.set', { ...patch });
+  }
+
+  /** Set Settings → Edges (common switches, flat and authored-normal tuning,
+   *  sketch edges + sketch cube colours) — any subset of
+   *  {@link EdgesSettings}, same rules as
+   *  {@link TredespaceClient.settingsRenderingSet}. */
+  settingsEdgesSet(patch: SettingsPatch<EdgesSettings> = {}): Promise<Result<EdgesSettings>> {
+    return this.send('settings.edges.set', { ...patch });
+  }
+
+  /** Set Settings → Ambient Occlusion — any subset of {@link AoSettings},
+   *  same rules as {@link TredespaceClient.settingsRenderingSet}. */
+  settingsAoSet(patch: SettingsPatch<AoSettings> = {}): Promise<Result<AoSettings>> {
+    return this.send('settings.ao.set', { ...patch });
+  }
+
+  /** Set Settings → Gizmo: the view cube's colours and/or its face names
+   *  (`labels` takes any subset of the six faces; an empty name restores
+   *  that face's default, names are cut to 5 characters). Same rules as
+   *  {@link TredespaceClient.settingsRenderingSet}. */
+  settingsGizmoSet(
+    patch: Partial<Omit<GizmoSettings, 'labels'>> & { labels?: Partial<GizmoLabels>; reset?: boolean } = {},
+  ): Promise<Result<GizmoSettings>> {
+    return this.send('settings.gizmo.set', { ...patch });
+  }
+
+  /** What the viewer is rendering on: the active adapter, what the three
+   *  adapter hints resolve to (WebGPU cannot list GPUs, but a machine whose
+   *  high-performance and low-power hints resolve to different adapters has
+   *  two — `hasMultipleGpus`), the optional features it got, the draw path,
+   *  the adapter's limits and the VRAM budget it would suggest. On Linux
+   *  Chrome usually exposes only the GPU its GPU process runs on, so both
+   *  hints resolve to the same adapter there even on dual-GPU laptops. */
+  gpuInfoGet(): Promise<Result<GpuInfo>> {
+    return this.send('gpu.info.get', {});
   }
 
   /** Toggle sketch mode (white background + edge lines), or set it explicitly
@@ -2542,6 +2861,86 @@ export class TredespaceClient {
     return this.on('tree.select', (p) => handler(p as TreeSelectEvent), opts);
   }
 
+  // ── custom-event bus ───────────────────────────────────────────────────────
+
+  /** Join the custom-event bus: whatever other connected pages post with
+   *  {@link customPost} arrives at `handler` (a host page, its panels inside
+   *  the viewer and tabs the viewer opened can all talk to each other this
+   *  way, through the viewer, without sharing an origin). Resolves to the id
+   *  the viewer gave this page. `name` and `tag` are what other pages see;
+   *  `events` narrows what reaches you (an empty list = presence only).
+   *  Call it again to change any of them — the latest call is the subscription; every handler
+   *  given so far stays attached. Aborting `signal` drops that handler and
+   *  leaves the bus when none remain. JSON only, about 1 MB per event.
+   *  Not for secrets: everything passes through the viewer and reaches every
+   *  addressed subscriber — for sensitive data talk to the other window
+   *  directly with `postMessage` (`window.parent.parent`, `window.opener`,
+   *  answer on `event.source` after checking `event.origin`) — unless you
+   *  host the viewer yourself and have validated its origin allowlist and
+   *  registered apps, in which case the bus is as private as that list. */
+  customSubscribe(
+    handler: (e: CustomEventPayload) => void,
+    opts: CustomSubscribeOptions = {},
+  ): Promise<Result<{ clientId: string }>> {
+    if (opts.signal?.aborted) {
+      return Promise.resolve({ error: { code: 'transport', msg: 'customSubscribe: signal already aborted' } });
+    }
+    const joined = this.send<{ clientId: string }>('custom.subscribe', {
+      ...(opts.name !== undefined ? { name: opts.name } : {}),
+      ...(opts.tag !== undefined ? { tag: opts.tag } : {}),
+      ...(opts.events !== undefined ? { events: opts.events } : {}),
+    });
+    this.on('custom.event', (p) => handler(p as CustomEventPayload), { signal: opts.signal });
+    opts.signal?.addEventListener('abort', () => this.leaveBusIfIdle(), { once: true });
+    return joined;
+  }
+
+  /** An aborted subscribe signal dropped its handler; with none left the
+   *  page leaves the bus. */
+  private leaveBusIfIdle(): void {
+    if (!this.eventHandlers.get('custom.event')?.size) {
+      void this.send('custom.unsubscribe', {});
+    }
+  }
+
+  /** Leave the bus: every handler given to {@link customSubscribe} is
+   *  dropped and the viewer stops delivering to this page. Disposing the
+   *  client (or the page going away) does the same. */
+  customUnsubscribe(): Promise<Result<Record<string, never>>> {
+    this.eventHandlers.delete('custom.event');
+    return this.send('custom.unsubscribe', {});
+  }
+
+  /** Post a custom event to the other subscribers — every one of them, or
+   *  just the ids in `to` (from {@link customClients} or an earlier event's
+   *  `from.id`). You never receive your own event. `data` must be JSON
+   *  (about 1 MB at most); it arrives exactly as a JSON round trip leaves it.
+   *  Posting does not require being subscribed. `missed` lists addressed ids
+   *  that did not get it. Not for secrets — coordination only; see
+   *  {@link customSubscribe}. */
+  customPost(event: string, data?: unknown, opts?: { to?: string | string[] }): Promise<Result<CustomPostResult>> {
+    return this.send('custom.post', {
+      event,
+      ...(data !== undefined ? { data } : {}),
+      ...(opts?.to !== undefined ? { to: opts.to } : {}),
+    });
+  }
+
+  /** Every page connected to this viewer — yours included, as `self` — with
+   *  its kind, origin, chosen name and whether it is on the bus. Pages that
+   *  never subscribed are listed too, so a host can see its panels; only
+   *  subscribed ones can be posted to. */
+  customClients(): Promise<Result<CustomClientsResult>> {
+    return this.send('custom.clients', {});
+  }
+
+  /** Presence on the bus: fires for subscribers whenever a client joins,
+   *  leaves, renames or disconnects, with the full list. Subscribe with
+   *  `events: []` to get only this. */
+  onClientsChanged(handler: (e: ClientsChangedEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('custom.clients.changed', (p) => handler(p as ClientsChangedEvent), opts);
+  }
+
   /** Typed convenience for viewer theme changes — fired whichever way the
    *  theme switched (Settings tab, hotkey, `uiTheme`, or another tab syncing
    *  its settings over), so a host page and every embedded app can restyle in
@@ -2562,6 +2961,26 @@ export class TredespaceClient {
    *  a `transport` error; nothing follows it. */
   onClosed(handler: (e: ClientClosedEvent) => void, opts?: SubscribeOptions): () => void {
     return this.on('client.closed', (p) => handler(p as ClientClosedEvent), opts);
+  }
+
+  /** The viewer is going away — reload, navigation, its tab closing, or
+   *  into the back-forward cache. Opt-in: only pages that subscribe hear it.
+   *  Before it fires, every in-flight request has been settled with a
+   *  `transport` error and `ready()` is armed again, so `await ready()` waits
+   *  for the next `app.ready` (a reloaded iframe comes back on the same
+   *  client — this is NOT `client.closed`). Show "not connected" here and
+   *  put things back in {@link onAppReady}. */
+  onAppBye(handler: (e: AppByeEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('app.bye', (p) => handler(p as AppByeEvent), opts);
+  }
+
+  /** Every `app.ready` — the first boot and each one after an `app.bye`
+   *  (reload, back from the back-forward cache). The place to (re)do what a
+   *  fresh viewer has forgotten: subscribe to the bus again (every page gets
+   *  a new client id), set instance data, register host apps. `ready()`
+   *  resolves the same payload for code that only needs the first one. */
+  onAppReady(handler: (e: AppReady) => void, opts?: SubscribeOptions): () => void {
+    return this.on('app.ready', (p) => handler(p as AppReady), opts);
   }
 
   /** Typed convenience for the local `relay.changed` event — per window passed
@@ -2710,6 +3129,20 @@ export class TredespaceClient {
         w(this.readyPayload);
       }
       this.readyWaiters = [];
+      this.emit('app.ready', d.payload);
+      this.fanOut(d);
+      return;
+    }
+    if (d.type === 'app.bye') {
+      // the viewer is unloading: nothing in flight will be answered, and the
+      // next app.ready (reload / bfcache return) must be waited for again
+      this.readyPayload = null;
+      for (const [, p] of this.pending) {
+        clearTimeout(p.timer);
+        p.settle({ error: { code: 'transport', msg: 'viewer went away (app.bye)' } });
+      }
+      this.pending.clear();
+      this.emit('app.bye', d.payload);
       this.fanOut(d);
       return;
     }

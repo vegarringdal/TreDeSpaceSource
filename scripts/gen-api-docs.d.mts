@@ -26,3 +26,9 @@ export interface ApiDocsData {
 }
 export function generateApiDocs(): ApiDocsData;
 export function writeApiDocs(): ApiDocsData;
+/** Product page: `{{apiNamespaceCount}}` → the namespace count; every
+ *  namespace needs a `data-ns` tile and every tile must be a namespace. */
+export function applyApiNamespaces(
+  html: string,
+  data: Pick<ApiDocsData, 'groups'>,
+): { html: string; problems: string[] };

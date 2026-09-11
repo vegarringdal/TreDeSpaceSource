@@ -6,7 +6,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 import pkg from './package.json' with { type: 'json' };
-import { writeApiDocs } from './scripts/gen-api-docs.mjs';
+import { type ApiDocsData, applyApiNamespaces, writeApiDocs } from './scripts/gen-api-docs.mjs';
 import { writeWidgetDocs } from './scripts/gen-widget-docs.mjs';
 import { packUi } from './scripts/pack-ui.mjs';
 
@@ -123,6 +123,7 @@ function legalBanner(): Plugin {
 function apiDocs(): Plugin {
   const clientPath = resolve(import.meta.dirname, 'api/tredespace-client.ts');
   let isBuild = false;
+  let apiData: ApiDocsData | null = null;
   return {
     name: 'api-docs',
     configResolved(config) {
@@ -130,7 +131,8 @@ function apiDocs(): Plugin {
     },
     buildStart() {
       writeWidgetDocs();
-      const { problems } = writeApiDocs();
+      apiData = writeApiDocs();
+      const { problems } = apiData;
       // STRICT: every command must be documented (JSDoc in the SDK + an example
       // in EVENTS.md). Fail the build if not; in dev just warn so iterating on
       // unrelated code isn't blocked.
@@ -142,6 +144,23 @@ function apiDocs(): Plugin {
           this.warn(msg);
         }
       }
+    },
+    // the product page's namespace count + command-surface grid come from
+    // the same data as the reference, so they cannot drift from the SDK
+    transformIndexHtml(html) {
+      if (!html.includes('{{apiNamespaceCount}}') && !html.includes('data-ns=')) {
+        return html;
+      }
+      apiData ??= writeApiDocs();
+      const r = applyApiNamespaces(html, apiData);
+      if (r.problems.length) {
+        const msg = `API namespace grid out of sync:\n  ${r.problems.join('\n  ')}`;
+        if (isBuild) {
+          throw new Error(msg);
+        }
+        console.warn(msg);
+      }
+      return r.html;
     },
     generateBundle() {
       this.emitFile({

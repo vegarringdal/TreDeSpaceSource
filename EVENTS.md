@@ -109,6 +109,24 @@ assets index read):
 Hosts should queue commands until `app.ready` (commands before it get
 `{ code: 'not-ready' }`).
 
+The app also says goodbye. On `pagehide` — a reload, a navigation, its tab
+closing, or the page going into the back-forward cache — it posts `app.bye`
+to every connected window (parent, opener, panels, opened tabs), and when it
+comes back out of the back-forward cache it announces `app.ready` again (a
+reload announces it through the normal boot). Opt-in on the SDK side
+(`onAppBye`): before the handler runs, in-flight requests are settled with a
+`transport` error and `ready()` is armed again, so `await client.ready()`
+waits for the next `app.ready`. It is not `client.closed` — a reloaded
+iframe comes back on the same client. Every `app.ready` is also raised to
+`on('app.ready')` / `onAppReady`, the place to re-subscribe to the custom
+bus (client ids are per viewer lifetime), re-set instance data and re-register
+host apps.
+
+```js
+// app → host, unsolicited, id: null
+{ tredespace: 1, id: null, type: 'app.bye', ok: true, payload: { reason: 'unload' } }
+```
+
 **Client notes.** The SDK also posts two `id: null` messages of its own:
 `client.hello` on construction (and again when a page returns from the
 back-forward cache) and `client.bye` on `dispose()` and on `pagehide`. The
@@ -362,6 +380,95 @@ shape) plus app info.
 ```js
 payload:  {}
 response: { version: '0.0.10', viewer: { sketch: false, geoEdges: true, ... } }
+```
+
+### settings.rendering.set
+Set Settings → Rendering — any subset of its keys (antialiasing, culling,
+picking, the VRAM budget, background & selection, outline, transparency,
+dark colours, debug; the full list is `RenderingSettings` in the SDK). The
+rules are shared by every `settings.<tab>.set`:
+
+- **Strict.** An unknown key, a wrong type, an enum value outside its list or
+  a colour that is not `#rrggbb` / a CSS colour name is a `bad-payload`
+  error and nothing is applied — a typo in a company default must not
+  silently no-op. Numbers are not range-clamped (the same trust the settings
+  file loader extends).
+- **Persisted** exactly like an edit in the Settings panel (localStorage +
+  cross-tab sync). Roll out company defaults once, after `app.ready`, not on
+  every load — re-sending overwrites the user's own tweaks each time.
+- `reset: true` returns the whole tab to defaults BEFORE the rest of the
+  payload applies, so `{ reset: true }` alone is the tab's reset button.
+- An empty payload changes nothing and reads. The response is always the
+  tab's values after the change.
+
+```js
+payload:  { fastAA: true, aaSamples: 16, vramBudgetOn: true, maxVramMb: 2048, bgColor: '#202020' }
+response: { fastAA: true, aaSamples: 16, msaa4x: true, pixelRatio: 1, ..., vramBudgetOn: true, maxVramMb: 2048, ..., bgColor: '#202020', ..., debugBuf: 0 }
+```
+
+### settings.lighting.set
+Settings → Lighting: the shaded scene's ambient + headlight and sketch mode's
+own pair (`LightingSettings`). Same rules as `settings.rendering.set`.
+
+```js
+payload:  { ambientIntensity: 0.4, headlightColor: '#fff4e0', reset: true }
+response: { ambientColor: '#ffffff', ambientIntensity: 0.4, headlightColor: '#fff4e0', headlightIntensity: 0.65, sketchAmbientColor: '#ffffff', ... }
+```
+
+### settings.edges.set
+Settings → Edges: the common switches, the flat-shaded and authored-normal
+tuning, and sketch mode's edges + cube colours (`EdgesSettings`). Same
+rules as `settings.rendering.set`.
+
+```js
+payload:  { geoEdges: true, itemEdges: false, edgeColor: 'black', sketchColorMode: 'fill' }
+response: { geoEdges: true, itemEdges: false, edgeColor: '#000000', whiteOnDark: true, darkThr: 0.07, ..., sketchColorMode: 'fill', ..., sketchCubeHoverColor: '#9e9e9e' }
+```
+
+### settings.ao.set
+Settings → Ambient Occlusion (`AoSettings`; `aoMode` 0 off, 1 while moving
+too, 2 at rest only). Same rules as `settings.rendering.set`.
+
+```js
+payload:  { aoMode: 2, aoStrength: 0.25 }
+response: { aoMode: 2, aoRadius: 0.8, aoStrength: 0.25, aoSlices: 6, aoSamples: 6 }
+```
+
+### settings.gizmo.set
+Settings → Gizmo: the view cube's colours and/or its face names. `labels`
+takes any subset of the six faces (`front back left right top bottom`); an
+empty name restores that face's default, names are cut to 5 characters.
+`reset: true` resets colours AND names. Same rules otherwise.
+
+```js
+payload:  { cubeFaceColor: '#1e2a3a', labels: { front: 'N', back: 'S', top: 'UP' } }
+response: { cubeFaceColor: '#1e2a3a', cubeLineColor: '#4d5665', cubeTextColor: '#c9cfd8', cubeHoverColor: '#4a6d9c',
+            labels: { front: 'N', back: 'S', left: 'LEFT', right: 'RIGHT', top: 'UP', bottom: 'BOT' } }
+```
+
+### gpu.info.get
+What the viewer is rendering on, for tracking and for choosing performance
+settings. WebGPU cannot list GPUs: the app asks the browser for a
+high-performance, a low-power and a software-fallback adapter and reports
+what each resolves to — `hasMultipleGpus` is true when the first two differ
+(a laptop with an integrated + a discrete GPU). `active` is the adapter the
+device was created on. Chrome fills in `device`/`description` only with
+"WebGPU Developer Features" on; vendor + architecture are always there and
+tell GPUs apart. On Linux, Chrome usually exposes only the GPU its GPU
+process runs on, so both hints resolve to the same adapter even on dual-GPU
+machines. `deviceMemoryGb` is system RAM as the browser reports it (capped
+at 8), not VRAM — WebGPU has no VRAM size. `suggestedVramBudgetMb` is the
+budget the Settings panel would propose for this adapter (null = no opinion).
+`not-ready` before the renderer has a device.
+
+```js
+payload:  {}
+response: { active: { vendor: 'nvidia', architecture: 'ampere', device: '0x2484', description: 'NVIDIA GeForce RTX 3070', isFallback: false },
+            adapters: { 'high-performance': { vendor: 'nvidia', ... }, 'low-power': { vendor: 'intel', architecture: 'gen-12lp', ... }, fallback: { vendor: 'google', description: 'SwiftShader', isFallback: true, ... } },
+            hasMultipleGpus: true,
+            features: { multiDrawIndirect: true, timestampQuery: true }, cullMode: 'mdi',
+            limits: { maxBufferSize: 4294967296, maxStorageBufferBindingSize: 4294967292 },
+            deviceMemoryGb: 8, isMobile: false, suggestedVramBudgetMb: null }
 ```
 
 ### view.sketch
@@ -1205,6 +1312,88 @@ response: { data: { project: 'P-42', role: 'review' } }   // state after the cal
 // instance.get: payload {} → same response shape
 ```
 
+### custom.subscribe
+Join the custom-event bus — a message channel between the pages connected
+to one viewer (the host page, external-app panels and modals inside it, tabs
+it opened), relayed by the viewer so they need not share an origin. The
+viewer assigns every connected page an id (`clientId`; per window lifetime —
+a reloaded page is a new client) and stamps its origin, so neither can be
+spoofed. `name` is a display name other pages see; `tag` is a free-form
+label they can pick recipients by (a role, a version, a project); `events`
+narrows what reaches this client to exact names — omit it for everything,
+pass `[]` for presence only (`custom.clients.changed` without the
+traffic). A repeat call replaces all three. Subscriptions end with `custom.unsubscribe`, the SDK's
+`client.bye` (dispose / page unload), or the window going away.
+
+**Not for secrets.** Everything on the bus passes through the viewer and
+lands in every subscriber it is addressed to, on whatever origin they run:
+`from.origin` tells a receiver who sent an event, but nothing stops a
+broadcast — or a mistyped `to` — from reaching a page you did not mean.
+Keep tokens, credentials and personal data off it. For anything sensitive,
+talk to the other window directly with `postMessage`: a panel reaches the
+page hosting the viewer through `window.parent.parent`, a tab has the
+window that opened it as `window.opener`, and the other side answers on
+`event.source` after checking `event.origin`, with a concrete
+`targetOrigin`. That gives the browser's end-to-end guarantee of who is on
+each side, with no intermediary. The bus is for coordination — "row picked",
+"filter changed", "project chosen" — not for payloads that must stay private.
+The exception is a viewer you host yourself and whose messaging setup you
+have validated (the API origin allowlist, the registered External apps):
+then the viewer is your own infrastructure and the bus is exactly as private
+as that allowlist.
+
+Relay note: a window driven through a host's `relay()` shares that host's
+client identity — the host is the subscriber, and its fan-out forwards the
+events on.
+
+```js
+payload:  { name: 'report-viewer', tag: 'reports-v2', events: ['row.pick', 'filter.changed'] }
+response: { clientId: 'c7' }
+```
+
+### custom.unsubscribe
+Leave the bus (no-op when not subscribed).
+
+```js
+payload:  {}
+response: {}
+```
+
+### custom.post
+Post one event to the other subscribers: all of them when `to` is omitted,
+else exactly the ids named (one id or a list). The sender never receives its
+own event. `data` is JSON only — round-tripped through JSON on the viewer
+(Dates become strings, undefined fields vanish), rejected as `bad-payload`
+when it is not serializable or its JSON text exceeds ~1 MB; omitted = null.
+Posting does not require being subscribed. Not for secrets — see
+`custom.subscribe`. `delivered` counts the
+subscribers it went to; `missed` lists addressed ids that did not get it —
+unknown, not subscribed, filtered it out with their `events`, or the sender's
+own id.
+
+```js
+payload:  { event: 'row.pick', data: { tag: 'P-401', row: 12 }, to: ['c3', 'c9'] }
+response: { delivered: 1, missed: ['c9'] }
+```
+
+### custom.clients
+Every page connected to this viewer, the caller included (`self`): its id,
+origin, `kind` (`parent` = the page hosting the viewer, `opener` = the page
+that opened it, `panel` = an external-app panel / modal inside it with its
+`ui.dialogs` id in `dialog`, `window` = a tab the viewer opened), the `name`
+and `tag` it chose and whether it is `subscribed`. Unsubscribed pages are listed so a
+host can see its panels; only subscribed ones can be posted to. A page is
+"connected" from its first message (the SDK's `client.hello`).
+
+```js
+payload:  {}
+response: { self: 'c1', clients: [
+  { id: 'c1', origin: 'https://portal.example.com', kind: 'parent', name: 'portal', subscribed: true },
+  { id: 'c7', origin: 'https://reports.example.com', kind: 'panel', dialog: 'ext-reports', name: 'report-viewer', tag: 'reports-v2', subscribed: true },
+  { id: 'c8', origin: 'https://reports.example.com', kind: 'panel', dialog: 'ext-detail', subscribed: false },
+] }
+```
+
 ### labels.explode / labels.implode
 Spread the scene labels apart (explode) or pull them back onto their anchors
 (implode) — the in-app label-layout toggles.
@@ -1547,6 +1736,14 @@ Two more types are raised by the SDK client itself and never cross
 postMessage: `client.closed` (`onClosed`) and `relay.changed`
 (`onRelayChanged`) — see "Windows you open: relaying the client".
 
+### app.bye
+The viewer is going away — see "Handshake". Payload `{ reason: 'unload' }`.
+SDK: `onAppBye`; the matching reconnect hook is `onAppReady`.
+
+```js
+{ reason: 'unload' }
+```
+
 ### tree.select
 The user selected a node — a row in the tree view (Hierarchy panel or its
 search results) or an item picked by clicking the model in the viewport
@@ -1665,6 +1862,31 @@ The config JSON doubles as the modal's initial-size source — `width` and
 `height` accept px or % of the viewport (`{"width": "600px", "height": "60%"}`;
 a bare number means px), defaulting to 70% × 70%. The rest of the object is
 still delivered verbatim to the page.
+
+### custom.event
+A custom event another connected page posted with `custom.post`. Unlike the
+viewer's own events it is NOT broadcast to every window: it goes only to the
+subscribers it is for (see `custom.post`), each with its own origin as
+`targetOrigin`. `from` is stamped by the viewer — filter on `from.origin` or
+`from.kind` when only some senders should be trusted. `to` is the list the
+sender addressed, or null for a broadcast. SDK: the handler given to
+`customSubscribe`.
+
+```js
+{ event: 'row.pick', data: { tag: 'P-401', row: 12 },
+  from: { id: 'c1', origin: 'https://portal.example.com', kind: 'parent', name: 'portal', subscribed: true },
+  to: null }
+```
+
+### custom.clients.changed
+Presence on the bus, sent to subscribers only: a client subscribed,
+unsubscribed, renamed, or disconnected (bye, closed tab, removed panel). The
+payload is the full list, as `custom.clients` returns it. SDK:
+`onClientsChanged`; subscribe with `events: []` to receive only this.
+
+```js
+{ clients: [ { id: 'c1', origin: 'https://portal.example.com', kind: 'parent', subscribed: true }, … ] }
+```
 
 ### Dialog identity and state (`tdsDialogId`)
 
@@ -1860,7 +2082,9 @@ such tabs in memory: after a viewer reload, reload the tab to reconnect.
 Try it: the `/demo/` page's Relay section opens itself as a relayed tab
 (`?popup=1`), from iframe mode or from a panel inside the viewer; the same
 `/demo/?popup=1` URL configured as a tab-mode External app is a viewer-opened
-tab.
+tab — Settings → External → "Add Demos" adds exactly that as the **Tab**
+preset (next to **Dialog**, the panel, and **Host**, a tab embedding its own
+viewer).
 
 The partitioning above is one symptom of a general rule: when the viewer is a
 **cross-site** frame, everything the host opens *inside* it (External-app

@@ -1,10 +1,11 @@
 import { Button } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
-import { useDemo } from '../DemoContext';
+import { type Connection, useDemo } from '../DemoContext';
 import { IS_DIALOG, IS_POPUP } from '../hostEnv';
 import { AppSection } from '../sections/AppSection';
 import { ClipSection } from '../sections/ClipSection';
 import { ColorRulesSection } from '../sections/ColorRulesSection';
+import { CustomEventsSection } from '../sections/CustomEventsSection';
 import { EventsSection } from '../sections/EventsSection';
 import { ExternalAppsSection } from '../sections/ExternalAppsSection';
 import { InstanceSection } from '../sections/InstanceSection';
@@ -14,10 +15,23 @@ import { ModelStoresSection } from '../sections/ModelStoresSection';
 import { NavigationSection } from '../sections/NavigationSection';
 import { RelaySection } from '../sections/RelaySection';
 import { SelectionSection } from '../sections/SelectionSection';
+import { SettingsSection } from '../sections/SettingsSection';
 import { SqlSection } from '../sections/SqlSection';
 import { ViewpointsSection } from '../sections/ViewpointsSection';
 import { Hint } from './Hint';
 import { Row } from './Row';
+
+const CONNECTION_BADGE: Record<Connection, { text: string; cls: string }> = {
+  waiting: { text: '○ waiting for app.ready', cls: 'text-slate-500' },
+  connected: { text: '● connected', cls: 'text-emerald-400' },
+  gone: { text: '● viewer gone — waiting for the next app.ready', cls: 'text-rose-400' },
+};
+
+function ConnectionBadge() {
+  const { connection } = useDemo();
+  const badge = CONNECTION_BADGE[connection];
+  return <span className={`font-normal text-[11px] ${badge.cls}`}>{badge.text}</span>;
+}
 
 function ModeLine() {
   if (IS_POPUP) {
@@ -56,7 +70,10 @@ export function ControlsColumn() {
         IS_DIALOG || IS_POPUP ? 'min-h-0 w-full flex-1' : 'w-[340px] flex-none border-slate-800 border-r'
       }`}
     >
-      <h1 className="m-0 font-semibold text-[13px]">TreDeSpace postMessage API demo</h1>
+      <h1 className="m-0 flex items-baseline justify-between gap-2 font-semibold text-[13px]">
+        TreDeSpace postMessage API demo
+        <ConnectionBadge />
+      </h1>
       <Hint>
         The app runs in the iframe on the right; every button posts a command through the copy-paste SDK (
         <code>api/tredespace-client.ts</code>) and logs the full request/response below — including <code>missed</code>{' '}
@@ -77,9 +94,11 @@ export function ControlsColumn() {
         <NavigationSection />
         <ClipSection />
         <InstanceSection />
+        <CustomEventsSection />
         <MeasurementsSection />
         <ViewpointsSection />
         <AppSection />
+        <SettingsSection />
         <ModelStoresSection />
         <SqlSection />
         <ExternalAppsSection />

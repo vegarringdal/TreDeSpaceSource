@@ -14,6 +14,7 @@ import { DEFAULT_GIZMO_LABELS, gizmoLabelsActions, gizmoLabelsState } from '../.
 import { NAV_DEFAULTS, navActions, navState } from '../../../state/viewer/nav.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { initialViewerState, type ViewerState, viewerState } from '../../../state/viewer/viewer.state';
+import { pickViewer, VIEWER_SECTION_KEYS } from '../../../state/viewer/viewerSettingsGroups';
 import { consoleActions } from '../console/console.actions';
 import { settingsActions } from './settings.actions';
 import { SETTINGS_DEFAULTS, settingsState } from './settings.state';
@@ -46,21 +47,13 @@ function differs(state: object, defaults: object): boolean {
   return Object.keys(d).some((k) => !same(s[k], d[k]));
 }
 
-function pickDefaults<T extends object, K extends keyof T>(defaults: T, keys: readonly K[]): Partial<T> {
-  const out: Partial<T> = {};
-  for (const k of keys) {
-    out[k] = defaults[k];
-  }
-  return out;
-}
-
 /** A section made of viewer-state keys only (the common case). */
 function viewerSection(label: string, keys: readonly (keyof ViewerState)[]): SectionDef {
   return {
     label,
     stores: [viewerState],
     isDirty: () => keys.some((k) => !same(viewerState.get()[k], initialViewerState[k])),
-    reset: () => viewerActions.update(pickDefaults(initialViewerState, keys)),
+    reset: () => viewerActions.update(pickViewer(initialViewerState, keys)),
   };
 }
 
@@ -69,70 +62,24 @@ function viewerSection(label: string, keys: readonly (keyof ViewerState)[]): Sec
 // -----------------------------------------------------------------------------
 
 export const SETTINGS_SECTIONS = {
-  antialiasing: viewerSection('Antialiasing', [
-    'fastAA',
-    'aaSamples',
-    'msaa4x',
-    'pixelRatio',
-    'useDevicePixelRatio',
-    'smartPixelRatio',
-  ]),
-  culling: viewerSection('Culling', ['fpsLimit', 'freezeCull', 'protectDist', 'pxCut', 'pxCutEnabled', 'vertexPull']),
-  picking: viewerSection('Picking', ['pickOpacityPct']),
-  vramBudget: viewerSection('VRAM budget', [
-    'vramBudgetOn',
-    'maxVramMb',
-    'vramSwapSpeed',
-    'vramDebugBoxes',
-    'vramCutSizeM',
-    'vramCutDistM',
-    'vramDropHidden',
-    'vramActivityHud',
-    'vramHoldAccum',
-  ]),
-  selection: viewerSection('Background & selection', ['bgColor', 'selectionColor', 'selectionStyle']),
-  outline: viewerSection('Outline', [
-    'outlineHover',
-    'outlineStrength',
-    'outlineGlow',
-    'outlineThickness',
-    'outlinePulse',
-    'outlineVisibleColor',
-    'outlineHiddenColor',
-  ]),
-  transparency: viewerSection('Transparency', ['transparencyBlend', 'transparencyBackdrop', 'backdropFadePct']),
-  darkColors: viewerSection('Dark colours', ['darkLift', 'darkLiftPct']),
-  debug: viewerSection('Debug', ['meshletVis', 'debugBuf']),
-  lighting: viewerSection('Lighting', ['ambientColor', 'ambientIntensity', 'headlightColor', 'headlightIntensity']),
-  sketchLighting: viewerSection('Sketch lighting', [
-    'sketchAmbientColor',
-    'sketchAmbientIntensity',
-    'sketchHeadlightColor',
-    'sketchHeadlightIntensity',
-  ]),
-  edgesCommon: viewerSection('Edges — common', ['geoEdges', 'itemEdges', 'edgeColor', 'whiteOnDark', 'darkThr']),
-  edgesFlat: viewerSection('Edges — flat shading', ['flatMeshEdges', 'fadeExp', 'depthThr', 'normalThr']),
-  edgesSmooth: viewerSection('Edges — with normals', [
-    'smoothMeshEdges',
-    'smoothFadeExp',
-    'smoothDepthThr',
-    'smoothNormalThr',
-  ]),
-  sketchEdges: viewerSection('Sketch edges', [
-    'sketchEdgeColor',
-    'sketchFadeExp',
-    'sketchDepthThr',
-    'sketchNormalThr',
-    'sketchRespectsEdgesOff',
-    'sketchColorMode',
-    'sketchCubeFaceColor',
-    'sketchCubeLineColor',
-    'sketchCubeTextColor',
-    'sketchCubeHoverColor',
-  ]),
-  ao: viewerSection('Ambient Occlusion', ['aoMode', 'aoRadius', 'aoStrength', 'aoSlices', 'aoSamples']),
-  cubeColors: viewerSection('Cube colours', ['cubeFaceColor', 'cubeLineColor', 'cubeTextColor', 'cubeHoverColor']),
-  stats: viewerSection('Stats', ['showStats', 'statsHidden', 'statsBackdrop', 'gpuTimings', 'trace']),
+  antialiasing: viewerSection('Antialiasing', VIEWER_SECTION_KEYS.antialiasing),
+  culling: viewerSection('Culling', VIEWER_SECTION_KEYS.culling),
+  picking: viewerSection('Picking', VIEWER_SECTION_KEYS.picking),
+  vramBudget: viewerSection('VRAM budget', VIEWER_SECTION_KEYS.vramBudget),
+  selection: viewerSection('Background & selection', VIEWER_SECTION_KEYS.selection),
+  outline: viewerSection('Outline', VIEWER_SECTION_KEYS.outline),
+  transparency: viewerSection('Transparency', VIEWER_SECTION_KEYS.transparency),
+  darkColors: viewerSection('Dark colours', VIEWER_SECTION_KEYS.darkColors),
+  debug: viewerSection('Debug', VIEWER_SECTION_KEYS.debug),
+  lighting: viewerSection('Lighting', VIEWER_SECTION_KEYS.lighting),
+  sketchLighting: viewerSection('Sketch lighting', VIEWER_SECTION_KEYS.sketchLighting),
+  edgesCommon: viewerSection('Edges — common', VIEWER_SECTION_KEYS.edgesCommon),
+  edgesFlat: viewerSection('Edges — flat shading', VIEWER_SECTION_KEYS.edgesFlat),
+  edgesSmooth: viewerSection('Edges — with normals', VIEWER_SECTION_KEYS.edgesSmooth),
+  sketchEdges: viewerSection('Sketch edges', VIEWER_SECTION_KEYS.sketchEdges),
+  ao: viewerSection('Ambient Occlusion', VIEWER_SECTION_KEYS.ao),
+  cubeColors: viewerSection('Cube colours', VIEWER_SECTION_KEYS.cubeColors),
+  stats: viewerSection('Stats', VIEWER_SECTION_KEYS.stats),
   navigation: {
     label: 'Navigation',
     stores: [navState, viewerState],

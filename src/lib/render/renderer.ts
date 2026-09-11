@@ -49,6 +49,7 @@ import { trackDeviceAllocations } from './allocationTracker';
 import { CameraController } from './camera';
 import { isMobileDevice } from './device';
 import type { GpuModel } from './gpuModel';
+import { type AdapterFacts, adapterFacts } from './gpuProbe';
 import { GpuTimings } from './gpuTimings';
 import { ItemPickPass } from './itemPickPass';
 import {
@@ -302,6 +303,10 @@ export class Renderer {
   /** Adapter facts a VRAM-budget suggestion can be derived from (vramHint.ts);
    *  display is `adapterInfo`, policy reads this. */
   adapterHints: AdapterHints | null = null;
+  /** The adapter the device was created on, field by field (`gpu.info.get`). */
+  adapterFacts: AdapterFacts | null = null;
+  /** What the adapter OFFERS (the device is created with these clamped to 2 GB). */
+  adapterLimits: { maxBufferSize: number; maxStorageBufferBindingSize: number } | null = null;
   /** Adapter request preference — set BEFORE init() (Settings → Rendering → GPU). */
   gpuPreference: 'high-performance' | 'low-power' | 'fallback' = 'high-performance';
   cullMode: 'mdi' | 'vp' | 'full' = 'full'; // resolved per frame (for the HUD)
@@ -801,6 +806,11 @@ export class Renderer {
 
     const info = adapter.info;
     this.adapterInfo = `${info.vendor} ${info.architecture} ${info.device} ${info.description}`.trim();
+    this.adapterFacts = adapterFacts(adapter, this.gpuPreference === 'fallback');
+    this.adapterLimits = {
+      maxBufferSize: adapter.limits.maxBufferSize,
+      maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
+    };
     this.adapterHints = {
       vendor: info.vendor,
       architecture: info.architecture,

@@ -4,6 +4,88 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.11** (>0.0.114):
+  postMessage API: settings can now be SET per Settings tab —
+  `settings.rendering.set`, `settings.lighting.set`, `settings.edges.set`,
+  `settings.ao.set` and `settings.gizmo.set` (SDK `settingsRenderingSet` …
+  `settingsGizmoSet`) take any subset of that tab's keys so a host page can
+  roll out company defaults; strict validation (unknown key / wrong type /
+  bad colour → `bad-payload`), `reset: true` for the tab's defaults, an
+  empty call reads, and the change persists like a panel edit. The key
+  lists are shared with the panel's per-section reset buttons
+  (`viewerSettingsGroups.ts`) and pinned to the SDK's interfaces at compile
+  time. New `gpu.info.get` (`gpuInfoGet`) reports the active adapter, what
+  the high-performance / low-power / fallback hints resolve to (so a
+  dual-GPU machine shows as `hasMultipleGpus`), the features and draw path
+  in use, the adapter limits and the suggested VRAM budget; the Settings →
+  GPU probe now shares that code.
+  Product page (docs/index.html): the "API namespaces" metric and the
+  command-surface heading were a stale hand-typed 11 — both are now injected
+  at build/dev time from the generated API data, and the command-surface
+  grid lists every namespace (one tile per generated group, `data-ns`),
+  which the build checks: a namespace without a tile, or a tile that is not
+  a namespace, fails `vite build` like an undocumented command does.
+  Product page, security section: the copy now matches the code. The
+  "Per-plugin sandbox" bullet claimed panels get `allow-scripts` only with
+  no same-origin and no storage — the real base policy is `allow-scripts
+  allow-same-origin allow-forms allow-downloads` (panels run on their own
+  origin; popups, modals and permissions are per-app opt-ins; top navigation
+  never), and it is the same-origin policy, not the sandbox, that keeps a
+  panel out of the viewer's and the host's DOM and cookies. The allowlist
+  bullet now describes the viewer-side check (embed-time `?apiOrigins=`,
+  Settings, registered panels) rather than only the SDK's reply filter;
+  protocol mismatches are "dropped", not "refused"; the two framing lines
+  no longer say every layer sits "behind a sandbox".
+  postMessage API: a custom-event bus between the pages connected to one
+  viewer (`custom.subscribe` / `custom.unsubscribe` / `custom.post` /
+  `custom.clients`; SDK `customSubscribe`, `customUnsubscribe`,
+  `customPost`, `customClients`, `onClientsChanged`). The viewer assigns
+  every connected window an id from its first message and stamps its origin
+  and kind (parent / opener / panel with its dialog id / window), so a host
+  page, its panels and opened tabs can message each other through the viewer
+  without sharing an origin. Delivery is targeted (all subscribers, or the
+  ids in `to`, never the sender), presence changes go to subscribers only,
+  JSON only with a ~1 MB cap, `missed` reports addressed ids that did not
+  get it. Subscriptions end on unsubscribe, the SDK's bye, or the window
+  going away. The docs steer sensitive data off the bus (it transits the
+  viewer and reaches every addressed subscriber) toward direct
+  `postMessage` between the windows, where `event.origin` is certain. The
+  iframe → dialog lookup moved from the ui handlers into the client
+  registry.
+  postMessage API: the app now says goodbye — `app.bye` on `pagehide`
+  (reload, navigation, tab close, back-forward cache) to every connected
+  window, and `app.ready` again when it returns from the back-forward
+  cache. SDK: opt-in `onAppBye` (in-flight requests settle with a
+  `transport` error first and `ready()` re-arms for the next
+  `app.ready`; the client is not closed — a reloaded iframe comes back on
+  it) and `onAppReady`, which now fires on every `app.ready` (it never
+  reached `on()` before), the place to re-subscribe to the bus and re-set
+  instance data after a viewer reload. Before this an iframe host learned
+  nothing when the viewer reloaded: requests timed out and `ready()` stayed
+  resolved on a stale payload.
+  Custom bus: `custom.subscribe` takes an optional free-form `tag` next to
+  `name` (a role, a version, a project), shown in `ClientInfo` so pages can
+  pick recipients by it. Reference fix: `customSubscribe` was labelled
+  `custom.unsubscribe` — the generator takes a method's first `send()`,
+  which was the abort-time unsubscribe; that moved into a private helper.
+  Demo: a connection badge (waiting / connected / viewer gone) driven by
+  `onAppReady` / `onAppBye`, a "reload viewer" button in Events to watch
+  `app.bye` → `app.ready` happen, and a Custom events section — subscribe
+  with name / tag / event filter, list the connected clients, post to all or
+  to the clients ticked in that list. And a Settings & GPU section: pick a
+  tab, edit its JSON patch, set / read / reset — plus `gpu.info.get`.
+  Settings → External → Add Demos: the entry that opened the demo as a host
+  page in a new tab is now called **Host**, and **Tab** is new — the demo in
+  a new browser tab driving THIS viewer through `window.opener`
+  (`demo/?popup=1`), the panel demo's tab twin for quick API testing.
+  Hotkey `external.demo.host` added; `external.demo.tab` now adds the new Tab.
+  API reference: `assetsLoad` and `assetsSetLoaded` were listed under
+  "client" with no command and no example — they send through the private
+  `loadCall` wrapper, which the doc generator's "first `send()`" rule did
+  not see. The generator now knows the sender wrappers (`SENDERS`), fails
+  the build when a public method hands a command-shaped string to an
+  unlisted helper, and files command-less convenience wrappers
+  (`assetsImportAndLoad`) under the namespace their name starts with.
 - **2026.09.11** (>0.0.113):
   Settings panel overhaul: every section explains itself behind the header
   info icon (the sections that lacked one got their text), and every section

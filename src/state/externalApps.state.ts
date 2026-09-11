@@ -144,21 +144,36 @@ export const externalAppsActions = {
       tooltip: 'postMessage API demo hosted as a panel — drives this viewer',
     });
   },
-  /** Preset: the bundled API demo in a new browser tab (embeds its own viewer). */
+  /** Preset: the bundled API demo in a new browser tab that drives THIS
+   *  viewer through window.opener (?popup=1) — the panel demo's tab twin,
+   *  handy for quick API testing without docking a panel. */
   addDemoTab() {
     externalAppsActions.add({
       name: 'Tab',
-      url: new URL('demo/', document.baseURI).href,
+      url: new URL('demo/?popup=1', document.baseURI).href,
       section: 'Demo',
       size: 'big',
-      tooltip: 'postMessage API demo in a new tab — embeds a viewer in an iframe',
+      tooltip: 'postMessage API demo in a new tab — drives this viewer through window.opener',
       newWindow: true,
     });
   },
-  /** Add both bundled demo entries at once (Dialog panel + Tab). */
+  /** Preset: the bundled API demo as a HOST page in a new browser tab — it
+   *  embeds its own viewer in an iframe (the "your product embeds us" setup). */
+  addDemoHost() {
+    externalAppsActions.add({
+      name: 'Host',
+      url: new URL('demo/', document.baseURI).href,
+      section: 'Demo',
+      size: 'big',
+      tooltip: 'postMessage API demo as a host page in a new tab — embeds its own viewer in an iframe',
+      newWindow: true,
+    });
+  },
+  /** Add all bundled demo entries at once (Dialog panel + Tab + Host). */
   addDemos() {
     externalAppsActions.addDemoDialog();
     externalAppsActions.addDemoTab();
+    externalAppsActions.addDemoHost();
   },
   update(id: string, patch: Partial<Omit<ExternalApp, 'id'>>) {
     externalAppsState.set((s) => ({ apps: s.apps.map((a) => (a.id === id ? { ...a, ...patch } : a)) }));

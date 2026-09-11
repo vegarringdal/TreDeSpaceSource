@@ -13,10 +13,13 @@ import { apiSecurityActions } from '../../state/apiSecurity.actions';
 import { apiSecurityState } from '../../state/apiSecurity.state';
 import { assetsActions } from '../../state/assets/assets.actions';
 import { storesActions } from '../../state/stores/stores.actions';
+import { dropClient, touchClient } from './clients';
 import { assetHandlers } from './handlersAssets';
 import { consoleHandlers } from './handlersConsole';
+import { customHandlers } from './handlersCustom';
 import { externalAppsHandlers } from './handlersExternalApps';
 import { sceneHandlers } from './handlersScene';
+import { settingsHandlers } from './handlersSettings';
 import { sqlHandlers } from './handlersSql';
 import { installDialogEvents, uiHandlers } from './handlersUi';
 import { viewerHandlers } from './handlersViewer';
@@ -37,11 +40,13 @@ export { allowApiOrigins, emitApiEvent, markApiReady };
 const handlers: Record<string, ApiHandler> = {
   ...sceneHandlers,
   ...viewerHandlers,
+  ...settingsHandlers,
   ...assetHandlers,
   ...uiHandlers,
   ...sqlHandlers,
   ...externalAppsHandlers,
   ...consoleHandlers,
+  ...customHandlers,
 };
 
 let installed = false;
@@ -55,6 +60,15 @@ export function initMessageApi() {
   installDialogEvents();
   applyUrlParamOrigins();
   window.addEventListener('message', (e) => void onMessage(e));
+  // the app says goodbye on the way out (reload, navigation, close, bfcache)
+  // so hosts can show "not connected", and re-announces ready when the page
+  // comes back from the back-forward cache (no boot happens then)
+  window.addEventListener('pagehide', () => emitApiEvent('app.bye', { reason: 'unload' }));
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      announceReady();
+    }
+  });
 }
 
 /** `?apiOrigins=` is trusted as-is only INSIDE AN IFRAME: the browser partitions
@@ -127,11 +141,17 @@ async function onMessage(e: MessageEvent) {
   if (!source) {
     return;
   }
+  // every sender is a client from its first message (custom.* identity)
+  touchClient(source, e.origin);
   // the SDK's id-less notes: hello gets app.ready (a late-arriving page —
-  // panel, dialog, a tab we opened — resolves ready() on it); bye exists for
-  // a relaying opener and falls through the string-id gate below
+  // panel, dialog, a tab we opened — resolves ready() on it); bye (dispose /
+  // page unload) forgets the client — its bus subscription with it
   if (d.id === null && d.type === 'client.hello') {
     announceReadyTo(source, e.origin);
+    return;
+  }
+  if (d.id === null && d.type === 'client.bye') {
+    dropClient(source);
     return;
   }
   if (typeof d.id !== 'string') {

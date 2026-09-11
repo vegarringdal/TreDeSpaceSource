@@ -14,6 +14,7 @@ import { releaseHeldClose, setCloseHold } from '../../state/externalCloseHold';
 import { forgetDialogId } from '../../state/externalDialogIds';
 import { externalPanelsActions, findExternalPanel } from '../../state/externalPanels/externalPanels.actions';
 import { externalPanelsState } from '../../state/externalPanels/externalPanels.state';
+import { panelIdOfWindow } from './clients';
 import { type DialogSnapshot, diffDialogChanges } from './dialogEvents';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
 import { getInstanceData, getKiosk, getPanelControl, setInstanceData } from './registry';
@@ -39,22 +40,6 @@ const showOrHidePanel: ApiHandler = ({ type, p }) => {
 /** The external modal dialog id or dock panel id hosting `source`, for the
  *  id-less form of the dialog commands (an embedded app addressing ITSELF).
  *  DOM-only, so it needs no dock-manager registration. */
-function dialogIdOfSource(source?: Window | null): string | null {
-  if (!source) {
-    return null;
-  }
-  for (const f of document.querySelectorAll('iframe')) {
-    if (f.contentWindow === source) {
-      return (
-        f.closest('[data-ext-modal]')?.getAttribute('data-ext-modal') ??
-        f.closest('[data-panel]')?.getAttribute('data-panel') ??
-        null
-      );
-    }
-  }
-  return null;
-}
-
 /** The modal dialog or dock panel a command targets, by its own id. */
 type DialogTarget = { kind: 'dialog' | 'panel'; id: string };
 
@@ -62,7 +47,7 @@ type DialogTarget = { kind: 'dialog' | 'panel'; id: string };
  *  panel id, or the `tdsDialogId` the page sees on its URL — else the sending
  *  window's own dialog or panel. */
 function requireDialogTarget(p: Record<string, unknown>, source?: Window | null): DialogTarget {
-  const id = typeof p.id === 'string' && p.id ? p.id : dialogIdOfSource(source);
+  const id = typeof p.id === 'string' && p.id ? p.id : panelIdOfWindow(source);
   if (!id) {
     throw new ApiError('bad-payload', 'id is required (no external dialog or panel hosts the sending window)');
   }
@@ -166,7 +151,7 @@ export const uiHandlers: Record<string, ApiHandler> = {
   // closing themselves, e.g. a project selector after a choice); `remove`
   // forgets the instance for good — the end of one tab of a multi-instance app
   'ui.close': ({ p, source }) => {
-    const id = dialogIdOfSource(source);
+    const id = panelIdOfWindow(source);
     if (!id) {
       throw new ApiError('not-found', 'no closable dialog or panel hosts the sending window');
     }

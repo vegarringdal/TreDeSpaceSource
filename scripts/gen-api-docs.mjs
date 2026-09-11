@@ -61,10 +61,28 @@ function jsdocText(node) {
   return '';
 }
 
-/** First `this.send('command', …)` string inside a method body, if any. */
+/** The SDK's command-sending helpers: `send` and every private wrapper
+ *  around it. A public method's command is the first string one of these is
+ *  called with. A new wrapper must be listed here — `suspectHelperOf` flags
+ *  a public method that hands a command-shaped string to anything else. */
+const SENDERS = ['send', 'loadCall'];
+const COMMAND_SHAPE = /^[a-z]+(?:\.[a-zA-Z]+)+$/;
+
+/** First command string passed to a sender inside a method body, if any. */
 function commandOf(methodText) {
-  const m = methodText.match(/\.send(?:<[^>]*>)?\(\s*['"]([^'"]+)['"]/);
+  const re = new RegExp(`\\.(?:${SENDERS.join('|')})(?:<[^>]*>)?\\(\\s*['"]([^'"]+)['"]`);
+  const m = methodText.match(re);
   return m ? m[1] : null;
+}
+
+/** For a method with no detected command: a `this.<helper>('a.b')` call
+ *  that looks like it sends a command through an unlisted wrapper. */
+function suspectHelperOf(methodText) {
+  const skip = new Set([...SENDERS, 'on', 'emit', 'note']);
+  for (const m of methodText.matchAll(/this\.([a-zA-Z]+)\(\s*['"]([^'"]+)['"]/g)) {
+    if (!skip.has(m[1]) && COMMAND_SHAPE.test(m[2])) return `${m[1]}('${m[2]}')`;
+  }
+  return null;
 }
 
 /** Strip block comments and collapse whitespace (signature source often has
@@ -299,11 +317,13 @@ export function generateApiDocs() {
 
         const params = mem.parameters.map((p) => cleanText(p.getText(sf)));
         const ret = mem.type ? cleanText(mem.type.getText(sf)) : 'void';
-        const command = commandOf(mem.getText(sf));
+        const text = mem.getText(sf);
+        const command = commandOf(text);
         const example = command ? (examples.get(command) ?? null) : null;
         methods.push({
           name,
           command,
+          suspect: command ? null : suspectHelperOf(text),
           signature: formatSignature(name, params, ret),
           doc: jsdocText(mem),
           example,
@@ -316,11 +336,15 @@ export function generateApiDocs() {
   };
   visit(sf);
 
-  // group methods by command namespace (prefix before the first dot); methods
-  // with no command (ready, dispose, on*, helpers) go under 'client'.
+  // group methods by command namespace (prefix before the first dot). A
+  // method with no command (a convenience wrapper like assetsImportAndLoad)
+  // joins the namespace its name starts with when that is one; the rest
+  // (ready, dispose, relay, on*) go under 'client'.
+  const knownNs = new Set(methods.filter((m) => m.command).map((m) => m.command.split('.')[0]));
   const groupsMap = new Map();
   for (const m of methods) {
-    const ns = m.command ? m.command.split('.')[0] : 'client';
+    const lead = m.name.match(/^[a-z]+/)?.[0] ?? '';
+    const ns = m.command ? m.command.split('.')[0] : knownNs.has(lead) ? lead : 'client';
     if (!groupsMap.has(ns)) groupsMap.set(ns, []);
     groupsMap.get(ns).push(m);
   }
@@ -335,6 +359,13 @@ export function generateApiDocs() {
     if (!m.doc.trim()) problems.push(`${m.command} (${m.name}): no JSDoc in api/tredespace-client.ts`);
     if (!m.example) problems.push(`${m.command}: no payload/response example in EVENTS.md`);
   }
+  for (const m of methods) {
+    if (m.suspect) {
+      problems.push(
+        `${m.name}: sends through ${m.suspect} — add that helper to SENDERS in scripts/gen-api-docs.mjs so the command is documented`,
+      );
+    }
+  }
 
   return {
     protocol,
@@ -344,6 +375,24 @@ export function generateApiDocs() {
     methodCount: methods.length,
     problems,
   };
+}
+
+/** The product page's "API namespaces" count + command-surface grid, kept
+ *  honest against the generated data: every `{{apiNamespaceCount}}` in the
+ *  HTML becomes the namespace count, and every namespace must have a tile
+ *  (`data-ns="<ns>"`) in the grid — a missing or unknown tile is a problem
+ *  (build error, dev warning — same discipline as the JSDoc/EVENTS check). */
+export function applyApiNamespaces(html, data) {
+  const nss = data.groups.map((g) => g.ns);
+  const tiles = [...html.matchAll(/data-ns="([^"]+)"/g)].map((m) => m[1]);
+  const problems = [];
+  for (const ns of nss) {
+    if (!tiles.includes(ns)) problems.push(`namespace '${ns}' has no tile in the command-surface grid (docs/index.html)`);
+  }
+  for (const t of tiles) {
+    if (!nss.includes(t)) problems.push(`grid tile '${t}' is not an API namespace (docs/index.html)`);
+  }
+  return { html: html.replaceAll('{{apiNamespaceCount}}', String(nss.length)), problems };
 }
 
 export function writeApiDocs() {

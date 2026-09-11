@@ -1,37 +1,26 @@
 import { Button, RadioGroup } from '@treDeSpaceUI/widgets';
 import { useEffect, useState } from 'react';
+import { adapterLabel, probeAdapters } from '../../../../lib/render/gpuProbe';
 import { getRenderer } from '../../../../state/viewer/viewer.actions';
 import { SettingsSection } from '../SettingsSection';
 import { settingsActions } from '../settings.actions';
 import { bootGpu, type SettingsState, settingsState } from '../settings.state';
 
-/**
- * WebGPU can't enumerate GPUs — it can only be ASKED for high-performance /
- * low-power / software-fallback adapters. Probe all three so the radio can
- * show which physical GPU each hint resolves to on this machine.
- */
+/** Which physical GPU each adapter hint resolves to on this machine, as
+ *  radio hints (WebGPU can't list GPUs — see gpuProbe.ts). */
 function useGpuProbe(): Record<string, string> {
   const [gpus, setGpus] = useState<Record<string, string>>({});
   useEffect(() => {
     let alive = true;
-    void (async () => {
+    void probeAdapters().then((facts) => {
       const out: Record<string, string> = {};
-      for (const pref of ['high-performance', 'low-power', 'fallback'] as const) {
-        try {
-          const a = await navigator.gpu?.requestAdapter({
-            powerPreference: pref === 'fallback' ? undefined : pref,
-            forceFallbackAdapter: pref === 'fallback',
-          });
-          const i = a?.info;
-          out[pref] = i ? `${i.description || i.device || i.architecture || i.vendor}`.trim() : 'not available';
-        } catch {
-          out[pref] = 'not available';
-        }
+      for (const [hint, f] of Object.entries(facts)) {
+        out[hint] = adapterLabel(f);
       }
       if (alive) {
         setGpus(out);
       }
-    })();
+    });
     return () => {
       alive = false;
     };

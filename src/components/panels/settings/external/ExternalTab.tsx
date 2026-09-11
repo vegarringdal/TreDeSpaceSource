@@ -26,7 +26,8 @@ export function ExternalTab() {
             The bundled demo page (drives the viewer through the API) is served at{' '}
             <code className="select-text">{new URL('demo/', document.baseURI).href}</code>. Add ready-made entries
             (section <b>Demo</b>): <b>Dialog</b> hosts it as a panel driving this viewer; <b>Tab</b> opens it in a new
-            browser tab embedding its own viewer.
+            browser tab that also drives this viewer (through its opener — quick testing without docking a panel);{' '}
+            <b>Host</b> opens it in a new tab as a host page embedding its own viewer.
           </>
         }
       >
@@ -51,7 +52,7 @@ export function ExternalTab() {
             Reset external apps
           </Button>
           <Button
-            tooltip="Add both bundled API demo entries: a Dialog panel driving this viewer and a Tab that embeds its own viewer"
+            tooltip="Add the bundled API demo entries: Dialog (panel driving this viewer), Tab (new tab driving this viewer) and Host (new tab embedding its own viewer)"
             shortcut="external.demos"
             onClick={() => externalAppsActions.addDemos()}
           >

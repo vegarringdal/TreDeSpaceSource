@@ -34,7 +34,7 @@
 
       <div class="metrics">
         <div class="metric"><div class="v">1&nbsp;line</div><div class="k">of HTML to embed</div></div>
-        <div class="metric"><div class="v">11</div><div class="k">API namespaces</div></div>
+        <div class="metric"><div class="v">{{apiNamespaceCount}}</div><div class="k">API namespaces</div></div>
         <div class="metric"><div class="v">WebGPU</div><div class="k">modern in-browser GPU rendering</div></div>
         <div class="metric"><div class="v">0</div><div class="k">shared DOM · shared origin</div></div>
       </div>
@@ -46,8 +46,8 @@
         <p class="sec-kick">The architecture</p>
         <h2>Boxes inside boxes — origins inside origins</h2>
         <p class="sec-sub">
-          Each frame is its own web origin with its own sandbox. Nothing reaches across a
-          boundary except a typed message on a locked bridge.
+          Each frame is its own web origin; your panels are sandboxed on top. Nothing reaches
+          across a boundary except a typed message on a locked bridge.
         </p>
       </div>
 
@@ -261,22 +261,32 @@
     <section id="api">
       <div class="sec-head">
         <p class="sec-kick">The command surface</p>
-        <h2>Eleven namespaces, one protocol</h2>
+        <h2>{{apiNamespaceCount}} namespaces, one protocol</h2>
         <p class="sec-sub">Every call is typed, awaits a result, and reports what it couldn't find (<code class="inline">missed</code> fullnames) — no silent failures.</p>
       </div>
       <div class="api">
-        <div class="ns"><div class="name">selection</div><div class="desc">set · get · clear by fullname</div></div>
-        <div class="ns"><div class="name">labels</div><div class="desc">add · anchor · explode · implode</div></div>
-        <div class="ns"><div class="name">measurements</div><div class="desc">point · line · path · area · angle</div></div>
-        <div class="ns"><div class="name">colorRules</div><div class="desc">filter-driven paint + run</div></div>
-        <div class="ns"><div class="name">clip</div><div class="desc">fit box · sphere / cylinder / box shapes</div></div>
-        <div class="ns"><div class="name">nav</div><div class="desc">flyTo · orbit a fullname</div></div>
-        <div class="ns"><div class="name">instance</div><div class="desc">one shared JSON per window</div></div>
-        <div class="ns"><div class="name">ui</div><div class="desc">kiosk · panels · dialogs · confirm</div></div>
-        <div class="ns"><div class="name">stores / assets</div><div class="desc">import GLB · RVM · IFC · STEP</div></div>
-        <div class="ns"><div class="name">sql</div><div class="desc">import + query SQLite in OPFS</div></div>
-        <div class="ns"><div class="name">events</div><div class="desc">tree.select · instance.changed</div></div>
-        <div class="ns"><div class="name">settings</div><div class="desc">read viewer state</div></div>
+        <div class="ns" data-ns="client"><div class="name">client / events</div><div class="desc">ready · relay · onTreeSelect · onDialogChanged</div></div>
+        <div class="ns" data-ns="selection"><div class="name">selection</div><div class="desc">set · get · clear by fullname</div></div>
+        <div class="ns" data-ns="labels"><div class="name">labels</div><div class="desc">add · anchor · explode · implode</div></div>
+        <div class="ns" data-ns="measurements"><div class="name">measurements</div><div class="desc">point · line · path · area · angle</div></div>
+        <div class="ns" data-ns="colorRules"><div class="name">colorRules</div><div class="desc">filter-driven paint + run</div></div>
+        <div class="ns" data-ns="colors"><div class="name">colors</div><div class="desc">the named-colour table</div></div>
+        <div class="ns" data-ns="model"><div class="name">model</div><div class="desc">reset colours · opacity · hidden · transforms</div></div>
+        <div class="ns" data-ns="clip"><div class="name">clip</div><div class="desc">fit box · sphere / cylinder / box shapes</div></div>
+        <div class="ns" data-ns="nav"><div class="name">nav</div><div class="desc">flyTo · orbit · fitVisible</div></div>
+        <div class="ns" data-ns="settings"><div class="name">settings</div><div class="desc">get · set rendering / lighting / edges / AO / gizmo</div></div>
+        <div class="ns" data-ns="gpu"><div class="name">gpu</div><div class="desc">active adapter · dual-GPU · limits</div></div>
+        <div class="ns" data-ns="view"><div class="name">view</div><div class="desc">sketch mode · screenshot</div></div>
+        <div class="ns" data-ns="stores"><div class="name">stores</div><div class="desc">named asset groups (projects)</div></div>
+        <div class="ns" data-ns="assets"><div class="name">assets</div><div class="desc">import GLB · RVM · IFC · STEP · load / unload</div></div>
+        <div class="ns" data-ns="sql"><div class="name">sql</div><div class="desc">import + query SQLite in OPFS</div></div>
+        <div class="ns" data-ns="camera"><div class="name">camera</div><div class="desc">get · set</div></div>
+        <div class="ns" data-ns="viewpoints"><div class="name">viewpoints</div><div class="desc">set · by URL · bookmark button</div></div>
+        <div class="ns" data-ns="ui"><div class="name">ui</div><div class="desc">kiosk · panels · dialogs · confirm</div></div>
+        <div class="ns" data-ns="externalApps"><div class="name">externalApps</div><div class="desc">host your tools as sandboxed panels</div></div>
+        <div class="ns" data-ns="console"><div class="name">console</div><div class="desc">get · add · clear</div></div>
+        <div class="ns" data-ns="instance"><div class="name">instance</div><div class="desc">one shared JSON per window</div></div>
+        <div class="ns" data-ns="custom"><div class="name">custom</div><div class="desc">a message bus between your pages · subscribe · post · clients</div></div>
       </div>
     </section>
 
@@ -285,24 +295,24 @@
       <div class="sec-head">
         <p class="sec-kick">The security model</p>
         <h2>Isolation is the default, not a setting</h2>
-        <p class="sec-sub">Because every layer is a separate origin behind a sandbox, a plugin can render and message — but it cannot read your session or escape its frame.</p>
+        <p class="sec-sub">Because every layer is a separate origin, a plugin can render and message — but it cannot read your session, and it can never navigate the viewer away.</p>
       </div>
       <div class="split">
         <ul class="checks">
           <li>
             <span class="mk">✓</span>
             <span class="body"><strong>Strict origin allowlist</strong>
-              <span>Every inbound message is dropped unless it comes from the configured origin — <code>if (e.origin !== targetOrigin) return;</code></span></span>
+              <span>Every message the viewer receives is checked against an allowlist — the origins you name at embed time (<code>?apiOrigins=</code>) or in Settings, plus your registered panels. Anything else is dropped. The SDK filters replies the same way — <code>if (e.origin !== targetOrigin) return;</code></span></span>
           </li>
           <li>
             <span class="mk">✓</span>
             <span class="body"><strong>Versioned, typed protocol</strong>
-              <span>Each message is tagged <code>protocol&nbsp;v1</code>; the client and viewer refuse mismatches instead of guessing.</span></span>
+              <span>Each message is tagged <code>protocol&nbsp;v1</code>; the client and viewer drop mismatches instead of guessing.</span></span>
           </li>
           <li>
             <span class="mk amk">⌘</span>
             <span class="body"><strong>Per-plugin sandbox</strong>
-              <span>Third-party panels get <code>allow-scripts</code> only — no same-origin, no storage, no top-navigation. They can't touch your DOM or cookies.</span></span>
+              <span>Panels run on their own origin under <code>allow-scripts allow-same-origin allow-forms allow-downloads</code> and no browser permissions; popups, modals and permissions are per-app opt-ins, top navigation is never offered. Cross-origin, a panel can't touch the viewer's or your app's DOM, cookies or storage — the browser's same-origin policy enforces that, not a checkbox.</span></span>
           </li>
           <li>
             <span class="mk">✓</span>
