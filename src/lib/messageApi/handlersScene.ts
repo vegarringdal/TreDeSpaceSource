@@ -199,6 +199,32 @@ export const sceneHandlers: Record<string, ApiHandler> = {
     return { loaded };
   },
 
+  'viewpoints.addFromLabels': async ({ p }) => {
+    const items = labelsState.get().items;
+    let picked: SceneLabel[];
+    if (p.ids === undefined && p.fullnames === undefined) {
+      picked = items.filter((l) => l.selected);
+    } else {
+      const ids: unknown[] = Array.isArray(p.ids) ? p.ids : p.ids === undefined ? [] : [null];
+      const names: unknown[] = Array.isArray(p.fullnames) ? p.fullnames : p.fullnames === undefined ? [] : [null];
+      if (!ids.every((x) => typeof x === 'number')) {
+        throw new ApiError('bad-payload', 'ids must be an array of label ids (numbers, from labels.get)');
+      }
+      if (!names.every((x) => typeof x === 'string')) {
+        throw new ApiError('bad-payload', 'fullnames must be an array of strings');
+      }
+      const norm = (s: string) => s.trim().toLowerCase().replace(/^\//, '');
+      const idSet = new Set(ids);
+      const nameSet = new Set(names.map(norm));
+      picked = items.filter((l) => idSet.has(l.id) || (l.fullname != null && nameSet.has(norm(l.fullname))));
+    }
+    const result = await viewpointsActions.addFromLabels(picked);
+    if (p.showViewer === true) {
+      openViewpointViewerPanelRight();
+    }
+    return result;
+  },
+
   'viewpoints.setBookmarkButton': ({ p }) => {
     if (p.button === null) {
       viewpointsActions.setBookmarkButton(null);

@@ -469,6 +469,36 @@ every embedded external-app frame.
   library keeps its own default key and is pointed at `tds:hotkeys` by
   `installHotkeys`.
 
+### GPU device loss & recovery (2026-09-11)
+
+The WebGPU device can vanish under the app: Chrome's GPU process crashes, or
+the driver runs out of video memory (too many models loaded, another
+application took the VRAM). The page's own process — and with it the model DB
+worker — survives, so hierarchy, item states, colors and transforms are all
+still there; only VRAM is gone. `Renderer.onLost` (from `device.lost`, ignoring
+the `destroyed` reason our own `dispose()` produces) stops the viewport's frame
+loop and hands over to `src/state/viewer/gpuRecovery.ts`, which asks the user
+and then:
+
+1. snapshots the camera pose from the dead renderer;
+2. remounts the viewport panel in place (`DockManager.remountPanel`) — a fresh
+   adapter, device and `Renderer` in the same host; the boot settles a promise
+   with the new instance;
+3. rebuilds the renderer's model array to line up with the worker's
+   (`db.slotSummaries()`): live slots re-read their cooked file from the OPFS
+   asset store (coarse first under a VRAM budget, like a fresh load), repack in
+   the worker for the SAME slot and upload — sequential uploads reproduce the
+   slot indices and item bases — while removed slots get a
+   `reserveTombstone(itemCount)`; a model whose file is missing or whose item
+   table changed is unloaded in the worker too and named to the user;
+4. re-pushes item states and the transform pool, re-registers residency
+   records, restores the camera.
+
+Nothing is persisted for this: the worker IS the state. Settings → GPU has a
+"Simulate GPU crash" button (`Renderer.simulateDeviceLoss()`, which destroys the
+device with a flag so the handler treats it as a real loss); a real GPU-process
+crash can be provoked with `chrome://gpucrash`.
+
 ## Not yet ported from native
 
 Genuine parity gaps — features the native renderer ships that the web viewer

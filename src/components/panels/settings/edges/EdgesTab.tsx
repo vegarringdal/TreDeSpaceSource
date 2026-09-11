@@ -1,8 +1,9 @@
-import { Collapsible, ColorSelect, NumberInput } from '@treDeSpaceUI/widgets';
+import { ColorSelect, NumberInput } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 import { EdgeTuning } from './EdgeTuning';
 import { SketchEdgesSection } from './SketchEdgesSection';
 
@@ -13,7 +14,8 @@ export function EdgesTab() {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Collapsible
+      <SettingsSection
+        id="edgesCommon"
         title="Edges — common"
         info="Global edge switches plus the styling shared by every mesh: line colour and the white-on-dark override. The two categories below tune the edge-detection thresholds per shading type."
       >
@@ -50,9 +52,10 @@ export function EdgesTab() {
             onChange={(x) => act.update({ darkThr: x })}
           />
         </Row>
-      </Collapsible>
+      </SettingsSection>
 
-      <Collapsible
+      <SettingsSection
+        id="edgesFlat"
         title="Edges — flat shading (default)"
         info="Edge detection for flat-shaded meshes — the default look (GLBs imported without normals, and everything cooked flat). Fade/thresholds here don't affect meshes with authored normals."
       >
@@ -82,9 +85,10 @@ export function EdgesTab() {
             incShortcut: 'render.edgeNormal.inc',
           }}
         />
-      </Collapsible>
+      </SettingsSection>
 
-      <Collapsible
+      <SettingsSection
+        id="edgesSmooth"
         title="Edges — with normals"
         info="Separate edge tuning for meshes that carry authored normals (smooth shading) — e.g. standard GLBs imported with 'Import normals' on."
       >
@@ -114,7 +118,7 @@ export function EdgesTab() {
             incShortcut: 'render.smoothNormal.inc',
           }}
         />
-      </Collapsible>
+      </SettingsSection>
 
       <SketchEdgesSection />
     </div>

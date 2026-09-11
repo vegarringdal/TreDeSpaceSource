@@ -4,6 +4,35 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.11** (>0.0.113):
+  Settings panel overhaul: every section explains itself behind the header
+  info icon (the sections that lacked one got their text), and every section
+  has its own reset in the header — greyed out while the section already
+  equals its defaults, with a hotkey each (`settings.reset.<section>`); the
+  in-body "Reset viewer defaults" (Stats) and "Reset names" (Gizmo) buttons
+  are gone, replaced by those. The footer gains Save… / Load… next to Reset
+  all: one JSON file holding the same scope Reset all covers plus the colour
+  swatches and custom shortcuts (Layout slots and External apps stay out);
+  Load merges tolerantly over the defaults. Sketch mode gets its own
+  lighting (ambient + headlight, Settings → Lighting → Sketch lighting, with
+  stepper hotkeys), swapped in like the sketch edge tuning. The `Collapsible`
+  widget gains an `actions` header slot (README + gallery). API: new
+  `viewpoints.addFromLabels` command — the Labels panel's "Selected to
+  viewpoints" as a command, picking labels by ids and/or fullnames (or the
+  selected ones), with the added / skipped / ignored counts back.
+  GPU crash recovery: when the WebGPU device is lost (GPU process crash, out
+  of video memory — too many models, or another application took it) the
+  viewport stops and asks "Oh no, the GPU crashed — recover?". Recovery
+  remounts the viewport in place (fresh adapter, device and renderer),
+  rebuilds the renderer's model slots against the model-DB worker — which
+  survives the crash with hierarchy, selection, colors, hidden items and
+  transforms intact — re-reading each model's cooked file from the asset
+  store (coarse first under a VRAM budget), re-pushes item states and the
+  transform pool, and puts the camera back where it was. Models whose file is
+  missing or changed are unloaded and named in a follow-up dialog. Settings →
+  GPU gains a "Simulate GPU crash" button (with hotkey) that destroys the
+  device to exercise the flow; the dockable shell gains
+  `manager.remountPanel(id)` (README).
 - **2026.09.11** (>0.0.112):
   SQL Editor / report editor: the per-filter sections are dense now — a new
   `dense` option on `InlinePanel` (tight header and body padding, in the

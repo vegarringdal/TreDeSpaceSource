@@ -432,6 +432,18 @@ export const modelsApi = {
     return out;
   },
 
+  /** Every slot in index order, tombstones included — GPU recovery rebuilds a
+   *  fresh renderer's model array to line up with this one. */
+  slotSummaries(): { removed: boolean; name: string; group: string; store: string; itemCount: number }[] {
+    return models.map((m) => ({
+      removed: m.removed === true,
+      name: m.name,
+      group: m.group,
+      store: m.store,
+      itemCount: m.itemCount,
+    }));
+  },
+
   /** Is a model with this file name already loaded in this folder/group?
    * Matches on group+name so two versions of the same model living in
    * different folders don't collide. Mirrors addModel's `group = name`. */

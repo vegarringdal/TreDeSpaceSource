@@ -10,6 +10,10 @@ export interface CollapsibleProps {
   /** Explanation shown behind an info icon in the header — the compact
    *  replacement for an always-visible InfoBox inside the section. */
   info?: ReactNode;
+  /** Header action buttons (icon-only Buttons, e.g. a section reset), placed
+   *  between the aside and the info icon. They sit outside the toggle, so a
+   *  click never collapses the section. */
+  actions?: ReactNode;
   defaultOpen?: boolean;
   children: ReactNode;
   className?: string;
@@ -27,6 +31,7 @@ export function Collapsible({
   title,
   aside,
   info,
+  actions,
   defaultOpen = true,
   children,
   className = '',
@@ -53,6 +58,7 @@ export function Collapsible({
           {title}
         </button>
         {aside != null && <span className="text-slate-500">{aside}</span>}
+        {actions != null && <span className="flex shrink-0 items-center gap-0.5">{actions}</span>}
         {info != null && <InfoButton>{info}</InfoButton>}
       </div>
       {open && <div className={cn('flex flex-col gap-2 p-2', fill && fillClasses)}>{children}</div>}

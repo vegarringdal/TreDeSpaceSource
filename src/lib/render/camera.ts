@@ -159,6 +159,15 @@ export class CameraController {
     this.anim = null;
   }
 
+  /** Instant restore of a full pose (GPU recovery re-seats the camera on a
+   *  fresh renderer): no animation, smoothing targets snapped too. */
+  setPose(target: readonly [number, number, number], azimuth: number, elevation: number, distance: number) {
+    this.target.set(target);
+    this.setView(azimuth, elevation);
+    this.orbitDistance = this.tDist = Math.max(distance, 0.05);
+    this.anim = null;
+  }
+
   // Animate to a new pivot/distance keeping azimuth/elevation (native dolly()).
   dolly(point: [number, number, number], distance: number, smoothTime: number) {
     this.anim = {

@@ -1,8 +1,9 @@
-import { Collapsible, ColorSelect, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
+import { ColorSelect, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 
 /** Rendering → Background & selection colors plus the outline effect tuning. */
 export function SelectionSection() {
@@ -11,7 +12,16 @@ export function SelectionSection() {
 
   return (
     <>
-      <Collapsible title="Background & selection">
+      <SettingsSection
+        id="selection"
+        title="Background & selection"
+        info={
+          <>
+            The canvas colour, the tint a selected item gets, and whether a selection shows as a tint, an outline, or
+            both — the outline itself is tuned in the section below.
+          </>
+        }
+      >
         <Row label="Background">
           <ColorSelect value={v.bgColor} onChange={(x) => act.update({ bgColor: x })} />
         </Row>
@@ -33,9 +43,10 @@ export function SelectionSection() {
           value={v.selectionStyle}
           onChange={(x) => act.update({ selectionStyle: (x ?? 'tint') as 'tint' | 'outline' | 'both' })}
         />
-      </Collapsible>
+      </SettingsSection>
 
-      <Collapsible
+      <SettingsSection
+        id="outline"
         title="Outline (selection & hover)"
         info={
           <>
@@ -101,7 +112,7 @@ export function SelectionSection() {
         <Row label="Hidden edge">
           <ColorSelect value={v.outlineHiddenColor} onChange={(x) => act.update({ outlineHiddenColor: x })} />
         </Row>
-      </Collapsible>
+      </SettingsSection>
     </>
   );
 }

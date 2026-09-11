@@ -1,6 +1,7 @@
-import { Button, Collapsible, ColorSelect } from '@treDeSpaceUI/widgets';
+import { Button, ColorSelect } from '@treDeSpaceUI/widgets';
 import { pickerSwatchesActions, pickerSwatchesState } from '../../../../state/pickerSwatches.state';
 import { Check } from '../Check';
+import { SettingsSection } from '../SettingsSection';
 import { settingsActions } from '../settings.actions';
 import { settingsState } from '../settings.state';
 
@@ -10,7 +11,16 @@ export function EditorTab() {
   const pickerSwatches = pickerSwatchesState.use().colors;
 
   return (
-    <Collapsible title="Editor">
+    <SettingsSection
+      id="editor"
+      title="Editor"
+      info={
+        <>
+          Editor preferences: the swatch grid every colour picker shows at its bottom, and the light or dark theme (also
+          switchable with a hotkey).
+        </>
+      }
+    >
       <div className="text-slate-400 text-xs">Color picker swatches</div>
       <div className="grid grid-cols-4 gap-1">
         {pickerSwatches.map((c, i) => (
@@ -39,6 +49,6 @@ export function EditorTab() {
         shortcut="view.theme.toggle"
         onChange={(dark) => settingsActions.setTheme(dark ? 'dark' : 'light')}
       />
-    </Collapsible>
+    </SettingsSection>
   );
 }

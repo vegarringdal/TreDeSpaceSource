@@ -1,9 +1,10 @@
-import { Collapsible, NumberInput } from '@treDeSpaceUI/widgets';
+import { NumberInput } from '@treDeSpaceUI/widgets';
 import { isMobileDevice } from '../../../../lib/render/device';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 
 /** Rendering → Antialiasing: TAA accumulation, MSAA and pixel-ratio control. */
 export function AntialiasingSection() {
@@ -11,7 +12,17 @@ export function AntialiasingSection() {
   const act = viewerActions;
 
   return (
-    <Collapsible title="Antialiasing">
+    <SettingsSection
+      id="antialiasing"
+      title="Antialiasing"
+      info={
+        <>
+          How the picture converges at rest and how sharp it renders. Fast AA accumulates frames into a temporal result
+          (TAA) while the camera stands still; MSAA smooths edges per sample; the pixel-ratio options set the render
+          resolution — Smart picks 1 on mobile and the native ratio on desktops so 1 px edge lines stay crisp.
+        </>
+      }
+    >
       <Check
         label="AA fast (accumulation TAA)"
         checked={v.fastAA}
@@ -62,6 +73,6 @@ export function AntialiasingSection() {
         shortcut="render.useDevicePixelRatio"
         onChange={(x) => act.update({ useDevicePixelRatio: x })}
       />
-    </Collapsible>
+    </SettingsSection>
   );
 }

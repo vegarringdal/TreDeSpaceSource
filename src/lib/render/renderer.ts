@@ -22,6 +22,28 @@ import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
 /** what the GPU upload needs — the worker keeps itemBounds for itself */
 export type GpuPackedModel = Omit<PackedModel, 'itemBounds'>;
 
+/** A geometry-less pack with `itemCount` items — what reserveTombstone
+ *  uploads before tombstoning the slot (bounds neutral for the scene union). */
+function emptyPack(itemCount: number): GpuPackedModel {
+  return {
+    name: 'tombstone',
+    boundsMin: [Infinity, Infinity, Infinity],
+    boundsMax: [-Infinity, -Infinity, -Infinity],
+    denseMin: null,
+    denseMax: null,
+    meshletCount: 0,
+    triangleCount: 0,
+    itemCount,
+    cgCount: 0,
+    positionsQ: new Uint16Array(0),
+    normalsQ: null,
+    indices16: new Uint16Array(0),
+    cull: new ArrayBuffer(0),
+    meshletInfo: new ArrayBuffer(0),
+    cgColors: new Float32Array(0),
+  };
+}
+
 import type { GizmoFace } from '../overlay/ViewGizmo';
 import { trackDeviceAllocations } from './allocationTracker';
 import { CameraController } from './camera';
@@ -284,6 +306,12 @@ export class Renderer {
   gpuPreference: 'high-performance' | 'low-power' | 'fallback' = 'high-performance';
   cullMode: 'mdi' | 'vp' | 'full' = 'full'; // resolved per frame (for the HUD)
   gpuError = ''; // first uncaptured device error, shown in the HUD
+  /** The device is gone (GPU crash, out of memory, or simulated) — frames
+   *  are pointless until the viewport boots a fresh Renderer (gpuRecovery). */
+  lost = false;
+  /** Fires once when the device is lost for real (not on dispose()). */
+  onLost: ((message: string) => void) | null = null;
+  private simulatingLoss = false;
 
   // GPU memory we allocated (WebGPU has no real VRAM query — this tracks our
   // own createBuffer/createTexture, decremented on destroy())
@@ -815,12 +843,15 @@ export class Renderer {
 
     this.device.lost.then((info) => {
       // "destroyed" is the expected result of dispose() (e.g. React StrictMode
-      // double-mount tearing down the first instance) — not an error.
-      if (info.reason === 'destroyed') {
+      // double-mount tearing down the first instance) — not an error, unless
+      // simulateDeviceLoss() destroyed it on purpose
+      if (info.reason === 'destroyed' && !this.simulatingLoss) {
         return;
       }
+      this.lost = true;
       this.gpuError = `device lost: ${info.reason} ${info.message}`;
       console.error('WebGPU device lost:', info.reason, info.message);
+      this.onLost?.(this.gpuError);
     });
     this.device.addEventListener('uncapturederror', (e) => {
       const msg = (e as GPUUncapturedErrorEvent).error.message;
@@ -1565,6 +1596,23 @@ export class Renderer {
   /** Tear down the GPU device (panel unmount). The instance is dead after this. */
   dispose() {
     this.device?.destroy();
+  }
+
+  /** Debug: destroy the device so the loss handler runs exactly as after a
+   *  real GPU crash (Settings → GPU → "Simulate GPU crash"). */
+  simulateDeviceLoss() {
+    this.simulatingLoss = true;
+    this.device.destroy();
+  }
+
+  /** GPU recovery: occupy the next slot with a tombstone of `itemCount` items
+   *  so a fresh renderer's slot indices and item-id ranges line up with the
+   *  worker's model array (which keeps its removed models as tombstones). */
+  reserveTombstone(itemCount: number): number {
+    this.hadFirstFit = true; // a tombstone never frames the camera
+    const slot = this.uploadModel(emptyPack(itemCount));
+    this.removeModels([slot], { quiet: true });
+    return slot;
   }
 
   /** Upload fresh per-item state for one model (from the worker). Dead slots

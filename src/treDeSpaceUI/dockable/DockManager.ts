@@ -399,6 +399,26 @@ export class DockManager {
     }
   }
 
+  /** Re-run a panel's render in its existing host element: dispose the
+   *  current instance, empty the element, mount anew. Layout, tab and
+   *  floating state are untouched — for a panel whose contents must restart
+   *  (a viewport recovering from GPU device loss). No-op when the panel is
+   *  not mounted. */
+  remountPanel(panelId: string) {
+    const host = this.hosts.get(panelId);
+    const def = this.defs.get(panelId);
+    if (!host || !def) {
+      return;
+    }
+    host.dispose?.();
+    host.dispose = undefined;
+    host.el.replaceChildren();
+    const dispose = def.render(host.el, this.contextFor(panelId));
+    if (typeof dispose === 'function') {
+      host.dispose = dispose;
+    }
+  }
+
   /** Restore the layout the manager was constructed with. */
   /** Solo mode: close every unlocked panel except the main (central) one;
    *  a second call restores the exact layout from before. */

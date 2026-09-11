@@ -18,7 +18,7 @@ export interface NavState {
   keysDefaultWalk: boolean;
 }
 
-const DEFAULTS: NavState = {
+export const NAV_DEFAULTS: NavState = {
   mode: 'fly',
   flySpeed: 6,
   flyShift: 18,
@@ -29,6 +29,7 @@ const DEFAULTS: NavState = {
   keyPanSens: 0.3,
   keysDefaultWalk: false,
 };
+const DEFAULTS = NAV_DEFAULTS;
 const KEY = storageKey('nav');
 
 function load(): NavState {

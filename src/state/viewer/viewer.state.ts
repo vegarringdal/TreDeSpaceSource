@@ -91,6 +91,12 @@ export interface ViewerState {
   ambientIntensity: number;
   headlightColor: string;
   headlightIntensity: number;
+  // sketch mode's OWN lighting — the paper look usually wants a flatter
+  // light than the shaded scene (swapped in like the sketch edge tuning)
+  sketchAmbientColor: string;
+  sketchAmbientIntensity: number;
+  sketchHeadlightColor: string;
+  sketchHeadlightIntensity: number;
   // outline effect (three.js OutlinePass style: selection + hover)
   /** Outline the item under the cursor (throttled hover picks). */
   outlineHover: boolean;
@@ -226,6 +232,10 @@ export const initialViewerState: ViewerState = {
   ambientIntensity: 0.3,
   headlightColor: '#ffffff',
   headlightIntensity: 0.65,
+  sketchAmbientColor: '#ffffff',
+  sketchAmbientIntensity: 0.3,
+  sketchHeadlightColor: '#ffffff',
+  sketchHeadlightIntensity: 0.65,
   outlineHover: false,
   selectionStyle: 'tint',
   outlineStrength: 3,

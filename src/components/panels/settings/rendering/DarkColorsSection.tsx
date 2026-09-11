@@ -1,8 +1,9 @@
-import { Collapsible, NumberInput } from '@treDeSpaceUI/widgets';
+import { NumberInput } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 
 /** Rendering → Dark colours: render pure-black material colours as grey so
  *  the headlight has something to shade. */
@@ -11,7 +12,8 @@ export function DarkColorsSection() {
   const act = viewerActions;
 
   return (
-    <Collapsible
+    <SettingsSection
+      id="darkColors"
       title="Dark colours"
       info={
         <>
@@ -42,6 +44,6 @@ export function DarkColorsSection() {
           onChange={(x) => act.update({ darkLiftPct: x })}
         />
       </Row>
-    </Collapsible>
+    </SettingsSection>
   );
 }

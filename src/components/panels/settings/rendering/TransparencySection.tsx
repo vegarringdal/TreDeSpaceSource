@@ -1,7 +1,8 @@
-import { Collapsible, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
+import { NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 
 type TransparencyMode = 'hash' | 'blend' | 'backdrop';
 
@@ -29,7 +30,8 @@ export function TransparencySection() {
   const v = useViewer();
 
   return (
-    <Collapsible
+    <SettingsSection
+      id="transparency"
       title="Transparency"
       info={
         <>
@@ -64,6 +66,6 @@ export function TransparencySection() {
           onChange={(x) => viewerActions.update({ backdropFadePct: x })}
         />
       </Row>
-    </Collapsible>
+    </SettingsSection>
   );
 }

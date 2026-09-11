@@ -60,6 +60,11 @@ export const gizmoLabelsActions = {
     gizmoLabelsState.set({ labels: { ...DEFAULT_GIZMO_LABELS } });
     localStorage.removeItem(KEY);
   },
+  /** Replace the whole set (settings file load) — persisted like set(). */
+  setAll(labels: Record<GizmoFaceName, string>) {
+    gizmoLabelsState.set({ labels });
+    localStorage.setItem(KEY, JSON.stringify(labels));
+  },
 };
 
 /** Short button letters: first letter, extended with the second letter when

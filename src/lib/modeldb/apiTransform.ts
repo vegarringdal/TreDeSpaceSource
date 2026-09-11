@@ -84,6 +84,12 @@ export function resetTransformUndo(): void {
 }
 
 export const transformApi = {
+  /** The committed transform pool as it stands — GPU recovery re-uploads it
+   *  to a fresh renderer's transform buffer. */
+  transformsNow(): Float32Array {
+    return transformsSnapshot();
+  },
+
   /** Nudge the selection. move: `amount` meters along world axis. rotate:
    * `amount` degrees around the world axis through the selection center.
    * scale-uniform: grow/shrink so the selection's largest dimension changes

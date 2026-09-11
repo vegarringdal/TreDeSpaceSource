@@ -396,7 +396,8 @@ A titled section with a chevron header — the standard building block of a
 settings panel.
 
 ```tsx
-<Collapsible title="Rendering" aside="12 options" defaultOpen>
+<Collapsible title="Rendering" aside="12 options" defaultOpen
+  actions={<Button iconOnly icon={<IconRestore size={14} />} tooltip="Reset" onClick={reset} />}>
   <Checkbox checked={taa} onChange={setTaa} label="TAA" />
 </Collapsible>
 ```
@@ -405,6 +406,8 @@ settings panel.
 type CollapsibleProps = {
   title: ReactNode;
   aside?: ReactNode;      // right-aligned note in the header (count, badge…)
+  actions?: ReactNode;    // header action buttons (icon-only), before the info icon;
+                          // outside the toggle, so clicking one never collapses
   info?: ReactNode;       // explanation behind an info icon in the header
   defaultOpen?: boolean;
   children: ReactNode;
@@ -1094,6 +1097,8 @@ manager.openPanel(id, targetNodeId?)   // reopen a closed panel (home/first node
                                        // 'left'/'right'/'bottom' recreate that side column if pruned)
 manager.closePanel(id)
 manager.togglePanel(id)
+manager.remountPanel(id)               // re-run render() in the same host (restart a panel's
+                                       // contents in place — layout/tab/window state untouched)
 manager.openPanels(); manager.closedPanels(); manager.isOpen(id)
 manager.focusPanel(id)                 // activate its tab (and raise its window)
 

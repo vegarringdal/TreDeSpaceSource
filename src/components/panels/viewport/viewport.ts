@@ -32,6 +32,7 @@ import { buildViewCubeGeometry } from '../../../lib/render/viewCubeGpu';
 import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { db, transfer } from '../../../state/viewer/db';
 import { gizmoLabelsState } from '../../../state/viewer/gizmoLabels.state';
+import { onGpuDeviceLost, registerViewportRemount } from '../../../state/viewer/gpuRecovery';
 import { labelsActions } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
 import { navActions, navState } from '../../../state/viewer/nav.state';
@@ -49,6 +50,11 @@ import { ribbonSelectionTransformActions } from '../ribbon-selection-transform/r
 import { ribbonSelectionTransformState } from '../ribbon-selection-transform/ribbonSelectionTransform.state';
 import { settingsState } from '../settings/settings.state';
 import { concatLines, MarkerCache } from './markerLines';
+
+// GPU recovery: the remount promise settles with the renderer the NEXT boot
+// registers (null when WebGPU init failed); ?auto= files load once per page
+let settleBoot: ((r: Renderer | null) => void) | null = null;
+let autoLoadDone = false;
 
 function hexRgb(hex: string): [number, number, number] {
   return [
@@ -115,8 +121,17 @@ export const viewport: PanelDefinition = {
   minHeight: 180,
   closable: false,
 
-  render(host) {
+  render(host, ctx) {
     host.style.position = 'relative';
+    // GPU recovery restarts this panel in place (fresh adapter/device/Renderer,
+    // same host); the promise settles when the new boot registers its renderer
+    registerViewportRemount(
+      () =>
+        new Promise<Renderer | null>((resolve) => {
+          settleBoot = resolve;
+          ctx.manager.remountPanel(ctx.id);
+        }),
+    );
 
     const canvas = document.createElement('canvas');
     canvas.style.display = 'block';
@@ -446,10 +461,11 @@ export const viewport: PanelDefinition = {
       o.backdropFade = s.backdropFadePct / 100;
       o.hasTransparency = s.hasTransparency;
       o.aaSamples = s.aaSamples;
-      o.ambientColor = hexRgb(s.ambientColor);
-      o.ambientIntensity = s.ambientIntensity;
-      o.headlightColor = hexRgb(s.headlightColor);
-      o.headlightIntensity = s.headlightIntensity;
+      // sketch mode has its own lights (Settings → Lighting → Sketch lighting)
+      o.ambientColor = hexRgb(s.sketch ? s.sketchAmbientColor : s.ambientColor);
+      o.ambientIntensity = s.sketch ? s.sketchAmbientIntensity : s.ambientIntensity;
+      o.headlightColor = hexRgb(s.sketch ? s.sketchHeadlightColor : s.headlightColor);
+      o.headlightIntensity = s.sketch ? s.sketchHeadlightIntensity : s.headlightIntensity;
       // outline effect (selection style: tint / outline / both)
       o.outlineHover = s.outlineHover;
       o.outlineSelection = s.selectionStyle !== 'tint';
@@ -519,6 +535,8 @@ export const viewport: PanelDefinition = {
         setError(String(e));
         consoleActions.log('error', String(e));
         consoleActions.markStartupDone();
+        settleBoot?.(null);
+        settleBoot = null;
         return;
       }
       if (disposed) {
@@ -526,6 +544,13 @@ export const viewport: PanelDefinition = {
         return;
       }
       registerRenderer(renderer);
+      renderer.onLost = (message) => {
+        cancelAnimationFrame(frame);
+        setError(`GPU ERROR: ${message}`);
+        void onGpuDeviceLost(renderer, message);
+      };
+      settleBoot?.(renderer);
+      settleBoot = null;
       if (!renderer.multiDraw) {
         // no MDI: vertex-pull culling is the only GPU-driven path — default on
         viewerState.set({ vertexPull: true });
@@ -573,7 +598,8 @@ export const viewport: PanelDefinition = {
 
       // dev auto-load: ?auto=/@fs/abs/path/a.model,...
       const auto = new URLSearchParams(location.search).get('auto');
-      if (auto) {
+      if (auto && !autoLoadDone) {
+        autoLoadDone = true;
         for (const url of auto.split(',')) {
           try {
             const resp = await fetch(url);
@@ -812,6 +838,9 @@ export const viewport: PanelDefinition = {
 
       let lastFrameT = 0;
       const tick = (now: number) => {
+        if (renderer.lost) {
+          return; // gpuRecovery remounts the panel; nothing to draw meanwhile
+        }
         frame = requestAnimationFrame(tick);
         if (host.clientWidth === 0 || host.clientHeight === 0) {
           return; // hidden tab
@@ -888,6 +917,7 @@ export const viewport: PanelDefinition = {
 
     return () => {
       disposed = true;
+      registerViewportRemount(null);
       cancelAnimationFrame(frame);
       registerRenderer(null);
       gizmo?.dispose();

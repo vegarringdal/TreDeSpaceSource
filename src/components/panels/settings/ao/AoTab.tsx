@@ -1,7 +1,8 @@
-import { Collapsible, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
+import { NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 
 const aoModes = [
   { value: '0', label: 'Off', shortcut: 'render.aoMode.off' },
@@ -15,7 +16,8 @@ export function AoTab() {
   const act = viewerActions;
 
   return (
-    <Collapsible
+    <SettingsSection
+      id="ao"
       title="Ambient Occlusion"
       info={
         <>
@@ -81,6 +83,6 @@ export function AoTab() {
           onChange={(x) => act.update({ aoSamples: x })}
         />
       </Row>
-    </Collapsible>
+    </SettingsSection>
   );
 }

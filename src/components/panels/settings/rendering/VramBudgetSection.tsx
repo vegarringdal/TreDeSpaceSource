@@ -1,10 +1,11 @@
-import { Button, Collapsible, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
+import { Button, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { residency } from '../../../../state/viewer/residency';
 import { getRenderer, viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 import { VramSuggestedRow } from './VramSuggestedRow';
 
 const swapSpeeds = [
@@ -29,7 +30,8 @@ export function VramBudgetSection() {
   };
 
   return (
-    <Collapsible
+    <SettingsSection
+      id="vramBudget"
       title="VRAM budget"
       info={
         <>
@@ -141,6 +143,6 @@ export function VramBudgetSection() {
           Clear
         </Button>
       </div>
-    </Collapsible>
+    </SettingsSection>
   );
 }

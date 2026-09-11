@@ -1,7 +1,7 @@
-import { Collapsible } from '@treDeSpaceUI/widgets';
 import { getRenderer, viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
+import { SettingsSection } from '../SettingsSection';
 import { StatsReadout } from './StatsReadout';
 
 /** Settings → Stats tab: live readout + overlay/timing toggles. */
@@ -10,7 +10,17 @@ export function StatsTab() {
   const act = viewerActions;
 
   return (
-    <Collapsible title="Stats">
+    <SettingsSection
+      id="stats"
+      title="Stats"
+      info={
+        <>
+          Live renderer statistics — draws, meshlets, VRAM, pass times. Untick rows to leave them out of the viewport
+          overlay; GPU pass times need the adapter's timestamp-query feature, and the verbose trace is a developer
+          diagnostic.
+        </>
+      }
+    >
       <StatsReadout />
       <Check
         label="Show overlay in viewport"
@@ -45,9 +55,6 @@ export function StatsTab() {
         checked={v.trace}
         onChange={(x) => act.update({ trace: x })}
       />
-      <button type="button" className="btn mt-2 self-start" onClick={() => act.reset()}>
-        Reset viewer defaults
-      </button>
-    </Collapsible>
+    </SettingsSection>
   );
 }

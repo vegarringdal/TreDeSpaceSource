@@ -1,7 +1,8 @@
-import { Button, Collapsible, RadioGroup } from '@treDeSpaceUI/widgets';
+import { Button, RadioGroup } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
+import { SettingsSection } from '../SettingsSection';
 import { logMeshletFill } from './fillStats';
 
 const debugBuffers = [
@@ -19,7 +20,16 @@ export function DebugSection() {
   const act = viewerActions;
 
   return (
-    <Collapsible title="Debug">
+    <SettingsSection
+      id="debug"
+      title="Debug"
+      info={
+        <>
+          Renderer diagnostics: colour every meshlet differently, or show one of the internal buffers (normals, depth,
+          item ids, edges, AO) instead of the shaded picture.
+        </>
+      }
+    >
       <Check
         label="Meshlet colors"
         checked={v.meshletVis}
@@ -40,6 +50,6 @@ export function DebugSection() {
       >
         Log meshlet fill
       </Button>
-    </Collapsible>
+    </SettingsSection>
   );
 }

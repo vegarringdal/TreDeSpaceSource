@@ -1,9 +1,10 @@
-import { Collapsible, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
+import { NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
 import { navActions, navState } from '../../../../state/viewer/nav.state';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 import { buildSpeedRows } from './navigationSpeedRows';
 
 const NAV_MODES = [
@@ -34,7 +35,17 @@ export function NavigationTab() {
   const speedRows = buildSpeedRows(nav);
 
   return (
-    <Collapsible title="Navigation">
+    <SettingsSection
+      id="navigation"
+      title="Navigation"
+      info={
+        <>
+          How the camera moves: orbit around a pivot, fly freely along the view direction, or walk at a constant height
+          (TAB toggles). Speeds are units per second with a separate Shift speed; the sensitivities scale the mouse and
+          the arrow keys.
+        </>
+      }
+    >
       <div className="text-slate-400 text-xs">Mode (TAB toggles)</div>
       <RadioGroup
         options={NAV_MODES}
@@ -73,6 +84,6 @@ export function NavigationTab() {
           </>
         }
       />
-    </Collapsible>
+    </SettingsSection>
   );
 }

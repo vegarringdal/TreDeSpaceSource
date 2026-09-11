@@ -2074,6 +2074,24 @@ export class TredespaceClient {
     return this.send('viewpoints.setUrl', { url, ...(opts?.showViewer ? { showViewer: true } : {}) });
   }
 
+  /** Add one viewpoint per label with a linked fullname — what the Labels
+   *  panel's "Selected to viewpoints" button does: the label's first line as
+   *  the name, the fullname as the viewpoint's selection, the label copied
+   *  in, and the camera pivoted on the label's anchor at the distance that
+   *  frames the item (never closer than 2 m, current view direction kept).
+   *  Pick labels by `ids` (from `labelsGet`) and/or `fullnames`; with
+   *  neither, the SELECTED labels are used. Labels without a fullname are
+   *  `ignored`, and a fullname + name pair some viewpoint already carries is
+   *  `skipped`, so calling again only adds what is new. Nothing is
+   *  activated; `showViewer: true` docks the Viewpoint Viewer on the right. */
+  viewpointsAddFromLabels(opts?: {
+    ids?: number[];
+    fullnames?: string[];
+    showViewer?: boolean;
+  }): Promise<Result<{ added: number; skipped: number; ignored: number }>> {
+    return this.send('viewpoints.addFromLabels', { ...opts });
+  }
+
   /** Show (or remove, with null) a SESSION-ONLY bookmark button in the
    *  Viewpoints panel, between Add viewpoint and Save. When the user clicks
    *  it the viewer fires the unsolicited `viewpoints.bookmark` event with the

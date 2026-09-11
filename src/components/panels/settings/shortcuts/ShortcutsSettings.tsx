@@ -1,7 +1,8 @@
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { formatSequence, hotkeysActions, hotkeysState } from '@treDeSpaceUI/hotkeys';
-import { Button, Collapsible, InfoButton, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, InfoButton, TextInput } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
+import { SettingsSection } from '../SettingsSection';
 import { CameraControlsSection } from './CameraControlsSection';
 import { ShortcutRow } from './ShortcutRow';
 import { useShortcutsEditing } from './useShortcutsEditing';
@@ -51,20 +52,25 @@ export function ShortcutsSettings() {
     g.ids.push(id);
   }
 
-  const anyCustom = Object.keys(overrides).length > 0;
-
   return (
     <div className="flex flex-col gap-1.5">
-      <Collapsible title="Import / export" defaultOpen={false}>
+      <SettingsSection
+        id="shortcuts"
+        title="Import / export"
+        defaultOpen={false}
+        info={
+          <>
+            Share a keymap: Export writes only your custom bindings to JSON, Import applies such a file (unknown or
+            conflicting bindings are skipped). The header reset drops every custom binding.
+          </>
+        }
+      >
         <div className="flex flex-wrap gap-2">
           <Button onClick={doExport}>Export…</Button>
           <Button onClick={picker.open}>Import…</Button>
-          <Button disabled={!anyCustom} onClick={() => hotkeysActions.resetAll()}>
-            Reset all
-          </Button>
           {picker.element}
         </div>
-      </Collapsible>
+      </SettingsSection>
 
       <TextInput
         value={query}

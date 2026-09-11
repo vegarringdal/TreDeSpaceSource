@@ -34,7 +34,9 @@ import { ribbonSelectionColorActions as colorNum } from '../components/panels/ri
 import { ribbonSelectionColorState } from '../components/panels/ribbon-selection-color/ribbonSelectionColor.state';
 import { ribbonSelectionTransformActions as tx } from '../components/panels/ribbon-selection-transform/ribbonSelectionTransform.actions';
 import { logMeshletFill } from '../components/panels/settings/rendering/fillStats';
+import { resetSection, SETTINGS_SECTION_IDS, SETTINGS_SECTIONS } from '../components/panels/settings/sectionResets';
 import { settingsActions } from '../components/panels/settings/settings.actions';
+import { loadSettingsFile, saveSettingsFile } from '../components/panels/settings/settingsFile';
 import { callSqlImport, openSqlAssetsPanel } from '../components/panels/sql-assets/sqlAssetsPanel';
 import { openSqlDetailPanel, toggleAllDetailListening } from '../components/panels/sql-detail/sqlDetailPanel';
 import { callSqlRun, openSqlEditorPanel } from '../components/panels/sql-editor/sqlEditorPanel';
@@ -89,6 +91,24 @@ const NUM_SETTINGS = [
   { id: 'pixelRatio', label: 'Pixel ratio', field: 'pixelRatio', step: 0.1, lo: 0.25, hi: 4, code: 486 },
   { id: 'ambient', label: 'Ambient intensity', field: 'ambientIntensity', step: 0.05, lo: 0, hi: 2, code: 456 },
   { id: 'headlight', label: 'Headlight intensity', field: 'headlightIntensity', step: 0.05, lo: 0, hi: 2, code: 458 },
+  {
+    id: 'sketchAmbient',
+    label: 'Sketch ambient intensity',
+    field: 'sketchAmbientIntensity',
+    step: 0.05,
+    lo: 0,
+    hi: 2,
+    code: 1235,
+  },
+  {
+    id: 'sketchHeadlight',
+    label: 'Sketch headlight intensity',
+    field: 'sketchHeadlightIntensity',
+    step: 0.05,
+    lo: 0,
+    hi: 2,
+    code: 1237,
+  },
   { id: 'edgeFade', label: 'Edge fade', field: 'fadeExp', step: 0.05, lo: 0, hi: 2, code: 460 },
   { id: 'edgeDepth', label: 'Edge depth threshold', field: 'depthThr', step: 0.005, lo: 0, hi: 0.2, code: 462 },
   { id: 'edgeNormal', label: 'Edge normal threshold', field: 'normalThr', step: 0.05, lo: 0, hi: 1, code: 464 },
@@ -486,6 +506,31 @@ export const HOTKEYS: HotkeyDef[] = [
       'Reset Rendering, Lighting, GPU, Navigation, Edges, AO, Gizmo, Stats, Editor, theme and custom Shortcuts to defaults (Layout & External are left as-is)',
     run: () => settingsActions.resetAll(),
   },
+  {
+    id: 'settings.save',
+    category: 'View',
+    label: 'Save settings to file',
+    defaultKeys: 'ALT + 1239',
+    description: 'Download every setting Reset all covers, plus swatches and custom shortcuts, as a JSON file',
+    run: () => saveSettingsFile(),
+  },
+  {
+    id: 'settings.load',
+    category: 'View',
+    label: 'Load settings from file',
+    defaultKeys: 'ALT + 1240',
+    description: 'Pick a settings JSON file saved here and apply it (Layout slots and External apps are untouched)',
+    run: () => loadSettingsFile(),
+  },
+  // per-section resets (Settings → header reset button of each section) — codes 1241..
+  ...SETTINGS_SECTION_IDS.map((id, i) => ({
+    id: `settings.reset.${id}`,
+    category: 'View',
+    label: `Reset settings: ${SETTINGS_SECTIONS[id].label}`,
+    defaultKeys: `ALT + ${1241 + i}`,
+    description: `Reset the ${SETTINGS_SECTIONS[id].label} settings section to its defaults`,
+    run: () => resetSection(id),
+  })),
   {
     id: 'settings.showDocs',
     category: 'View',
@@ -1596,6 +1641,14 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 622',
     description: 'Reload the app so the selected GPU preference takes effect',
     run: () => window.location.reload(),
+  },
+  {
+    id: 'settings.gpuCrashTest',
+    category: 'View',
+    label: 'GPU: simulate crash',
+    defaultKeys: 'ALT + 1234',
+    description: 'Destroy the WebGPU device to test the crash-recovery prompt',
+    run: () => getRenderer()?.simulateDeviceLoss(),
   },
   {
     id: 'assets.keepCamera',

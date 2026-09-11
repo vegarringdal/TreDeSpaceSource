@@ -38,6 +38,7 @@ import { residency } from '../viewer/residency';
 import { getRenderer, loadModelBytes, viewerActions } from '../viewer/viewer.actions';
 import { viewerState } from '../viewer/viewer.state';
 import { vramBudgetMb } from '../viewer/vramBudget';
+import { readAssetBytes } from './assetBytes';
 import {
   type AssetBounds,
   type AssetEntry,
@@ -371,19 +372,7 @@ async function loadOne(id: string): Promise<boolean> {
     // With a VRAM budget active, start from the COARSE variant — the scene
     // never overshoots the budget at load time, and the residency manager
     // promotes the nearest zones to full detail once the camera settles.
-    const dir = await modelStoreDir(entry.store);
-    let variant: 'full' | 'coarse' = 'full';
-    let bytes: ArrayBuffer;
-    if (vramBudgetMb(viewerState.get()) > 0 && entry.coarse) {
-      try {
-        bytes = await readFile(dir, `${entry.id}.coarse.tdp`);
-        variant = 'coarse';
-      } catch {
-        bytes = await readFile(dir, `${entry.id}.tdp`); // missing coarse file
-      }
-    } else {
-      bytes = await readFile(dir, `${entry.id}.tdp`);
-    }
+    const { bytes, variant } = await readAssetBytes(entry, vramBudgetMb(viewerState.get()) > 0);
     const loaded = await loadModelBytes(entry.name, bytes, groupOf(entry), {
       edges: entry.edges !== false,
       store: entry.store,

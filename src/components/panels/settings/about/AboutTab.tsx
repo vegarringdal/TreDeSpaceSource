@@ -8,7 +8,7 @@ import { ThirdPartyNotices } from './ThirdPartyNotices';
 export function AboutTab() {
   return (
     <div className="flex flex-col gap-1.5">
-      <Collapsible title="About">
+      <Collapsible title="About" info="Version, licence and the third-party notices for this build.">
         <div className="flex flex-col gap-1 text-slate-300 text-xs">
           <div className="font-medium text-slate-100 text-sm">TreDeSpace Web Viewer</div>
           <div>Made by Vegar Ringdal</div>

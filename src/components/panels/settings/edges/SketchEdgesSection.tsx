@@ -1,8 +1,9 @@
-import { Collapsible, ColorSelect, RadioGroup } from '@treDeSpaceUI/widgets';
+import { ColorSelect, RadioGroup } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 import { EdgeTuning } from './EdgeTuning';
 
 const colorModes = [
@@ -22,7 +23,8 @@ export function SketchEdgesSection() {
   const act = viewerActions;
 
   return (
-    <Collapsible
+    <SettingsSection
+      id="sketchEdges"
       title="Sketch edges"
       info={
         <>
@@ -84,6 +86,6 @@ export function SketchEdgesSection() {
           incShortcut: 'render.sketchNormal.inc',
         }}
       />
-    </Collapsible>
+    </SettingsSection>
   );
 }

@@ -168,13 +168,22 @@ export const viewpointsActions = {
    *  carries is skipped, so re-running only adds what is new. Nothing is
    *  activated; the Viewpoint Viewer panel is opened to show the result. */
   async addFromSelectedLabels() {
-    const picks = labelsState
-      .get()
-      .items.flatMap((l) => (l.selected && l.fullname?.trim() ? [{ label: l, fullname: l.fullname.trim() }] : []));
-    if (picks.length === 0) {
+    const selected = labelsState.get().items.filter((l) => l.selected);
+    if (!selected.some((l) => l.fullname?.trim())) {
       dialogs.error('No selected label has a linked fullname — select labels with a fullname first.', 'Viewpoints');
       return;
     }
+    await viewpointsActions.addFromLabels(selected);
+    openViewpointViewerPanel();
+  },
+
+  /** The core of "labels → viewpoints" — the panel button above and the
+   *  `viewpoints.addFromLabels` API command: one viewpoint per given label
+   *  with a linked fullname, built as addFromSelectedLabels describes. Labels
+   *  without a fullname are ignored, existing fullname + name pairs skipped;
+   *  the counts come back for the caller's report. Nothing is activated. */
+  async addFromLabels(labels: SceneLabel[]): Promise<{ added: number; skipped: number; ignored: number }> {
+    const picks = labels.flatMap((l) => (l.fullname?.trim() ? [{ label: l, fullname: l.fullname.trim() }] : []));
     const fovY = getRenderer()?.camera.fovY ?? FALLBACK_FOV_Y;
     let added = 0;
     let skipped = 0;
@@ -204,7 +213,7 @@ export const viewpointsActions = {
       'info',
       `Viewpoints: added ${added} from labels${skipped ? `, skipped ${skipped} already present` : ''}`,
     );
-    openViewpointViewerPanel();
+    return { added, skipped, ignored: labels.length - picks.length };
   },
 
   /** Activate: animated camera + clip + labels/measurements swap + rules run

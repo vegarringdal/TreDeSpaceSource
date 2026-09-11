@@ -672,6 +672,26 @@ payload:  { url: 'https://cdn.example.com/plant-7/viewpoints.json', showViewer: 
 response: { loaded: 3 }
 ```
 
+### viewpoints.addFromLabels
+One viewpoint per label with a linked fullname — the Labels panel's "Selected
+to viewpoints" button as a command: the label's first line becomes the name,
+the fullname the viewpoint's selection, the label is copied in, and the camera
+is pivoted on the label's anchor at the distance that frames the item (never
+closer than 2 m, current view direction kept). Pick labels by `ids` (as
+returned by `labels.get`) and/or `fullnames`; with neither, the SELECTED
+labels are used. Labels without a fullname count as `ignored`; a fullname +
+name pair some viewpoint already carries is `skipped`, so a second call only
+adds what is new. Nothing is activated. `showViewer: true` docks the
+Viewpoint Viewer panel on the RIGHT afterwards.
+
+```js
+payload:  { fullnames: ['/PLANT/AREA-1/PUMP-101'], showViewer: true }
+response: { added: 1, skipped: 0, ignored: 0 }
+
+payload:  { }                      // the selected labels
+response: { added: 3, skipped: 1, ignored: 0 }
+```
+
 ### viewpoints.setBookmarkButton
 Show (or remove, with `button: null`) a SESSION-ONLY bookmark button in the
 Viewpoints panel, between Add viewpoint and Save. When the user clicks it the

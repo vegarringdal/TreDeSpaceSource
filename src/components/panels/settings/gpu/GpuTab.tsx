@@ -1,5 +1,7 @@
-import { Button, Collapsible, RadioGroup } from '@treDeSpaceUI/widgets';
+import { Button, RadioGroup } from '@treDeSpaceUI/widgets';
 import { useEffect, useState } from 'react';
+import { getRenderer } from '../../../../state/viewer/viewer.actions';
+import { SettingsSection } from '../SettingsSection';
 import { settingsActions } from '../settings.actions';
 import { bootGpu, type SettingsState, settingsState } from '../settings.state';
 
@@ -37,17 +39,25 @@ function useGpuProbe(): Record<string, string> {
   return gpus;
 }
 
-/** Settings → GPU tab: adapter preference + reload-to-apply. */
+/** Settings → GPU tab: adapter preference + reload-to-apply, and the
+ *  device-loss test button that exercises the crash-recovery prompt. */
 export function GpuTab() {
   const s = settingsState.use();
   const gpus = useGpuProbe();
 
   return (
-    <Collapsible title="GPU">
-      <div className="text-slate-400 text-xs">
-        Browsers only take a hint (WebGPU cannot list GPUs directly) — each choice shows the adapter it resolves to on
-        this machine. Takes effect after a reload.
-      </div>
+    <SettingsSection
+      id="gpu"
+      title="GPU"
+      info={
+        <>
+          Which graphics adapter the viewer asks the browser for. Browsers only take a hint — WebGPU cannot list GPUs
+          directly — so each choice shows the adapter it resolves to on this machine. A new choice takes effect after a
+          reload, because the GPU device is baked into the render pipelines. "Simulate GPU crash" destroys the live
+          device to exercise the crash-recovery prompt.
+        </>
+      }
+    >
       <RadioGroup
         options={[
           { value: 'high-performance', label: 'High performance', hint: gpus['high-performance'] ?? '…' },
@@ -57,15 +67,23 @@ export function GpuTab() {
         value={s.gpu}
         onChange={(x) => settingsActions.setGpu(x as SettingsState['gpu'])}
       />
-      <Button
-        className="mt-1 self-start"
-        disabled={s.gpu === bootGpu}
-        onClick={() => window.location.reload()}
-        tooltip="Reload the app so the selected GPU takes effect"
-        shortcut="settings.gpuReload"
-      >
-        Reload to apply
-      </Button>
-    </Collapsible>
+      <div className="mt-1 flex gap-2">
+        <Button
+          disabled={s.gpu === bootGpu}
+          onClick={() => window.location.reload()}
+          tooltip="Reload the app so the selected GPU takes effect"
+          shortcut="settings.gpuReload"
+        >
+          Reload to apply
+        </Button>
+        <Button
+          onClick={() => getRenderer()?.simulateDeviceLoss()}
+          tooltip="Destroy the WebGPU device to test the crash-recovery prompt (a real GPU-process crash: chrome://gpucrash)"
+          shortcut="settings.gpuCrashTest"
+        >
+          Simulate GPU crash
+        </Button>
+      </div>
+    </SettingsSection>
   );
 }

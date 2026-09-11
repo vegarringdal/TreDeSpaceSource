@@ -1,4 +1,4 @@
-import { Collapsible, ColorSelect, TextInput } from '@treDeSpaceUI/widgets';
+import { ColorSelect, TextInput } from '@treDeSpaceUI/widgets';
 import {
   DEFAULT_GIZMO_LABELS,
   type GizmoFaceName,
@@ -8,6 +8,7 @@ import {
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 
 /** Settings → Gizmo tab: view-cube face names + cube colours. */
 export function GizmoTab() {
@@ -16,8 +17,9 @@ export function GizmoTab() {
   const gizmoLabels = gizmoLabelsState.use().labels;
 
   return (
-    <>
-      <Collapsible
+    <div className="flex flex-col gap-1.5">
+      <SettingsSection
+        id="gizmoNames"
         title="Gizmo"
         info="View-cube face names — the colored face buttons on the ribbons use their first letters."
       >
@@ -26,11 +28,9 @@ export function GizmoTab() {
             <TextInput value={gizmoLabels[face]} onChange={(x) => gizmoLabelsActions.set(face, x)} />
           </Row>
         ))}
-        <button type="button" className="btn self-start" onClick={gizmoLabelsActions.reset}>
-          Reset names
-        </button>
-      </Collapsible>
-      <Collapsible
+      </SettingsSection>
+      <SettingsSection
+        id="cubeColors"
         title="Cube colours"
         info={
           <>
@@ -51,7 +51,7 @@ export function GizmoTab() {
         <Row label="Hover">
           <ColorSelect value={v.cubeHoverColor} onChange={(x) => act.update({ cubeHoverColor: x })} />
         </Row>
-      </Collapsible>
-    </>
+      </SettingsSection>
+    </div>
   );
 }

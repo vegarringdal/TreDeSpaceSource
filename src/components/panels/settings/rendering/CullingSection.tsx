@@ -1,8 +1,9 @@
-import { Collapsible, NumberInput } from '@treDeSpaceUI/widgets';
+import { NumberInput } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { Check } from '../Check';
 import { Row } from '../Row';
+import { SettingsSection } from '../SettingsSection';
 import { TransparencySection } from './TransparencySection';
 
 /** Rendering → Transparency, Culling and Picking. */
@@ -14,7 +15,17 @@ export function CullingSection() {
     <>
       <TransparencySection />
 
-      <Collapsible title="Culling">
+      <SettingsSection
+        id="culling"
+        title="Culling"
+        info={
+          <>
+            GPU-side culling and frame pacing. The FPS limit caps the render loop; Cut size drops meshlets smaller than
+            that many pixels while the camera moves, and Protect distance keeps the nearby ones; Freeze cull stops
+            updating the visible set (debugging); Vertex pull is the culling path that needs no multi-draw extension.
+          </>
+        }
+      >
         <Row label="FPS limit">
           <NumberInput
             value={v.fpsLimit}
@@ -68,9 +79,10 @@ export function CullingSection() {
             onChange={(x) => act.update({ protectDist: x })}
           />
         </Row>
-      </Collapsible>
+      </SettingsSection>
 
-      <Collapsible
+      <SettingsSection
+        id="picking"
         title="Picking"
         info={
           <>
@@ -92,7 +104,7 @@ export function CullingSection() {
             onChange={(x) => act.update({ pickOpacityPct: x })}
           />
         </Row>
-      </Collapsible>
+      </SettingsSection>
     </>
   );
 }

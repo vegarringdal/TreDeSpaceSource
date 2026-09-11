@@ -14,6 +14,7 @@ import { NavigationTab } from './navigation/NavigationTab';
 import { RenderingTab } from './rendering/RenderingTab';
 import { settingsActions } from './settings.actions';
 import { settingsTabState } from './settings.state';
+import { loadSettingsFile, saveSettingsFile } from './settingsFile';
 import { ShortcutsSettings } from './shortcuts/ShortcutsSettings';
 import { StatsTab } from './stats/StatsTab';
 
@@ -44,7 +45,21 @@ export function Settings() {
           { id: 'about', label: 'About', content: <AboutTab /> },
         ]}
       />
-      <div className="flex shrink-0 justify-center border-slate-800 border-t pt-1.5 pb-0.5">
+      <div className="flex shrink-0 justify-center gap-2 border-slate-800 border-t pt-1.5 pb-0.5">
+        <Button
+          tooltip="Save every setting Reset all covers, plus the colour swatches and custom Shortcuts, to a JSON file"
+          shortcut="settings.save"
+          onClick={saveSettingsFile}
+        >
+          Save…
+        </Button>
+        <Button
+          tooltip="Load a settings JSON file saved here — replaces that same scope; Layout slots and External apps are untouched"
+          shortcut="settings.load"
+          onClick={loadSettingsFile}
+        >
+          Load…
+        </Button>
         <Button
           tooltip={
             'Reset Rendering, Lighting, GPU, Navigation, Edges, Ambient Occlusion, Gizmo, Stats, Editor, theme and custom Shortcuts to defaults.\n\nLayout slots and External apps are NOT touched — reset those from their own tabs.'
