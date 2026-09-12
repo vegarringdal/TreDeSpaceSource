@@ -8,7 +8,7 @@ type TransparencyMode = 'hash' | 'blend' | 'backdrop';
 
 const transparencyModes = [
   { value: 'hash', label: 'Alpha hash', hint: 'converges with AA', shortcut: 'render.transparency.hash' },
-  { value: 'blend', label: 'Blend', hint: 'unsorted', shortcut: 'render.transparency.blend' },
+  { value: 'blend', label: 'Blend', hint: 'sorted per meshlet', shortcut: 'render.transparency.blend' },
   {
     value: 'backdrop',
     label: 'Background',
@@ -24,8 +24,8 @@ function transparencyMode(blend: boolean, backdrop: boolean): TransparencyMode {
   return backdrop ? 'backdrop' : 'blend';
 }
 
-/** Rendering → Transparency: alpha hash, unsorted blend, or the transparent
- *  items rendered solid as a backdrop behind everything opaque. */
+/** Rendering → Transparency: alpha hash, depth-sorted blend, or the
+ *  transparent items rendered solid as a backdrop behind everything opaque. */
 export function TransparencySection() {
   const v = useViewer();
 
@@ -35,14 +35,14 @@ export function TransparencySection() {
       title="Transparency"
       info={
         <>
-          Blend draws transparent surfaces unsorted, which can have side effects: overlapping glass may blend in the
-          wrong order and edges/AO can look off. Alpha hash avoids this and converges with AA. Background renders the
-          items you set transparent SOLID, as a backdrop behind everything else: they never cover opaque geometry, so
-          the transparency itself goes away and what you left opaque always stands in front — the "ghosted context"
-          look, at the price of depth cues between the two groups. Clicks on backdrop items pick nothing. In Sketch
-          mode, Blend and Background leave transparent items out entirely — on the paper they would only smear colour.
-          Fade sets how far backdrop colours move toward the canvas background: 0 keeps their own colours, 100 makes
-          them flat silhouettes.
+          Blend draws transparent surfaces back to front, sorted per meshlet with each part's far side under its near
+          side; parts closer than a meshlet's size may still blend in the wrong order, and edges/AO come from the opaque
+          surface behind the glass. Alpha hash avoids this and converges with AA. Background renders the items you set
+          transparent SOLID, as a backdrop behind everything else: they never cover opaque geometry, so the transparency
+          itself goes away and what you left opaque always stands in front — the "ghosted context" look, at the price of
+          depth cues between the two groups. Clicks on backdrop items pick nothing. In Sketch mode, Blend and Background
+          leave transparent items out entirely — on the paper they would only smear colour. Fade sets how far backdrop
+          colours move toward the canvas background: 0 keeps their own colours, 100 makes them flat silhouettes.
         </>
       }
     >

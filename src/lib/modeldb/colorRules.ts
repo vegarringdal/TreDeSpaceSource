@@ -3,6 +3,7 @@
 // apiColor — the selection-based override actions live there; the shared
 // STATE undo stack lives in colorUndo.
 
+import * as Comlink from 'comlink';
 import { PACKED_NO_COLOR, PACKED_NO_OPACITY, type PackedNames, packedName } from '../color/packedNames';
 import { type ColorUndoRecord, captureColorRuns, pushColorUndo } from './colorUndo';
 import {
@@ -17,7 +18,7 @@ import {
   type StateUpdate,
 } from './dbState';
 import { ensureGlobalIndex, hitEntry, hitModel, liveHits } from './globalNameIndex';
-import { bfsOrder, ensureNames, entryDepths, itemsUnder, packStates } from './hierarchyIndex';
+import { bfsOrder, ensureNames, entryDepths, itemsUnder, packStates, updateBuffers } from './hierarchyIndex';
 
 /** Escape a literal string for embedding in a RegExp (wildcard compile). */
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -627,5 +628,5 @@ export function applyColorRules(
   pushColorUndo(undoStep);
   const updates = Array.from(touched, (idx) => packStates(models[idx], idx));
   T?.mark('packStates');
-  return { updates, counts, ...(T ? { trace: T.rows } : {}) };
+  return Comlink.transfer({ updates, counts, ...(T ? { trace: T.rows } : {}) }, updateBuffers(updates));
 }

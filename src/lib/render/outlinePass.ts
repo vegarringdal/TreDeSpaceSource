@@ -218,7 +218,7 @@ export class OutlinePass {
     // occluded parts of the subset still land in the mask (native hover_xray)
     const mask = enc.beginRenderPass({
       colorAttachments: [],
-      timestampWrites: timings.span(8, 'begin'),
+      timestampWrites: timings.span(9, 'begin'),
       depthStencilAttachment: {
         view: this.depthTex!.createView(),
         depthClearValue: 0, // reversed-Z
@@ -286,7 +286,7 @@ export class OutlinePass {
         { binding: 6, resource: { buffer: this.compBuf } },
       ],
       'load',
-      timings.span(8, 'end'),
+      timings.span(9, 'end'),
     );
   }
 }

@@ -128,7 +128,7 @@ async function reviveSlot(
   try {
     renderer.reviveModel(slot, packed, opts);
   } catch (e) {
-    await db.removeModels([slot]);
+    await db.forgetModels([slot]);
     throw e;
   }
   applyStateUpdates(await db.statesFor([slot]));
@@ -278,8 +278,8 @@ export const viewerActions = {
 
   /** Hierarchy → Remove: unload specific model files. Worker + renderer keep
    *  the slots (tombstoned) so remaining model indices stay aligned; the
-   *  per-item state (colors, hidden, transforms) is reset, so a later load of
-   *  the same file starts clean. */
+   *  worker releases the model's tables (hierarchy, per-item state, bounds),
+   *  so a later load of the same file starts clean. */
   async removeModels(indices: number[], label?: string) {
     if (!renderer || indices.length === 0) {
       return;
@@ -299,8 +299,7 @@ export const viewerActions = {
     }
     residency.unregister(indices);
     renderer.removeModels(indices);
-    await db.removeModels(indices);
-    await db.resetItemStates(indices);
+    await db.forgetModels(indices);
     applyStateUpdates(await db.clearSelection());
     selectionState.set({ count: 0, active: null, actives: [], activeGroup: null, activeGroups: [], reveal: null });
     selectionState.set((p) => ({ modelsVersion: p.modelsVersion + 1 }));

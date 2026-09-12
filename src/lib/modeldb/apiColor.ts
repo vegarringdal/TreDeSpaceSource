@@ -22,7 +22,7 @@ import {
   OPACITY_SHIFT,
   type StateUpdate,
 } from './dbState';
-import { packStates } from './hierarchyIndex';
+import { packStates, transferUpdates } from './hierarchyIndex';
 
 export const colorApi = {
   /** Opacity override 0-100 on the selection (native flag bits 25-31).
@@ -45,7 +45,7 @@ export const colorApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   resetOpacityOnSelection(): StateUpdate[] {
@@ -65,7 +65,7 @@ export const colorApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   resetAllOpacity(): StateUpdate[] {
@@ -92,7 +92,7 @@ export const colorApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Clear the chosen override kinds EVERYWHERE as ONE undo step: `color`
@@ -136,7 +136,7 @@ export const colorApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** "Clear all": unhide everything + reset every color and opacity override,
@@ -200,7 +200,7 @@ export const colorApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   clearColorOnSelection(): StateUpdate[] {
@@ -220,7 +220,7 @@ export const colorApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Clear every color override everywhere (undoable, coloring domain). */
@@ -248,15 +248,15 @@ export const colorApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   undoColor(): StateUpdate[] {
-    return undoColorStep().map((model) => packStates(models[model], model));
+    return transferUpdates(undoColorStep().map((model) => packStates(models[model], model)));
   },
 
   redoColor(): StateUpdate[] {
-    return redoColorStep().map((model) => packStates(models[model], model));
+    return transferUpdates(redoColorStep().map((model) => packStates(models[model], model)));
   },
 
   colorUndoDepth,

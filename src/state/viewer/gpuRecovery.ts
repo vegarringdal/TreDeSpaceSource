@@ -144,8 +144,7 @@ async function rebuildModels(renderer: Renderer): Promise<RebuildResult> {
   }
   renderer.writeTransforms(await db.transformsNow());
   if (lost.length > 0) {
-    await db.removeModels(lost);
-    await db.resetItemStates(lost);
+    await db.forgetModels(lost);
   }
   return { restored: live.length, failed };
 }

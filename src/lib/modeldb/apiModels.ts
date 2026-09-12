@@ -2,7 +2,7 @@
 // scene clear (which resets every per-domain store), and scene-wide framing.
 import * as Comlink from 'comlink';
 import { boxInFrustum } from '../math/frustum';
-import { parseModel } from '../model/format';
+import { type ParsedModel, parseModel } from '../model/format';
 import {
   estimateItemFullBytes,
   hasAuthoredNormals,
@@ -15,9 +15,9 @@ import {
 import { clipCulledSphere } from '../render/clipCull';
 import { resetTransformUndo } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
-import { type DbModel, isEffectivelyHidden, models, resetItemStates, type StateUpdate } from './dbState';
-import { resetGlobalIndex } from './globalNameIndex';
-import { buildIndexes, packStates } from './hierarchyIndex';
+import { type DbModel, forgetModelTables, isEffectivelyHidden, models, type StateUpdate } from './dbState';
+import { dropModelFromGlobalIndex, indexRevivedModel, resetGlobalIndex } from './globalNameIndex';
+import { buildIndexes, packStates, transferUpdates } from './hierarchyIndex';
 import { itemWorldBounds, resetTransformPool } from './transformPool';
 
 /** Mark the packed geometry arrays for zero-copy transfer to the main thread. */
@@ -153,15 +153,9 @@ function countMissingVisible(m: DbModel, packedBounds: Float32Array, clip: Float
   return n;
 }
 
-/** Parse+pack variant bytes for an already-registered model, verifying the
- * item table lines up BEFORE any state is mutated. The DbModel keeps its
- * finite itemBounds — a variant's degraded bounds never overwrite them — but
- * non-finite entries (initial coarse load whose cooker cut the item) adopt
- * the incoming bounds; see healItemBounds. */
-async function repackForModel(
-  index: number,
-  bytes: ArrayBuffer,
-): Promise<Omit<PackedModel, 'itemBounds'> & { packDropped: number }> {
+/** Parse variant bytes for an already-registered slot, verifying the item
+ * table lines up BEFORE any state is mutated (`itemcount-mismatch:`). */
+async function parseVariant(index: number, bytes: ArrayBuffer): Promise<ParsedModel> {
   const m = models[index];
   if (!m) {
     throw new Error(`repackModel: no model at index ${index}`);
@@ -170,10 +164,63 @@ async function repackForModel(
   if (parsed.itemCount !== m.itemCount) {
     throw new Error(`itemcount-mismatch: model ${index} has ${m.itemCount} items, variant has ${parsed.itemCount}`);
   }
+  return parsed;
+}
+
+/** Parse+pack variant bytes for an already-registered LIVE model. The DbModel
+ * keeps its finite itemBounds — a variant's degraded bounds never overwrite
+ * them — but non-finite entries (initial coarse load whose cooker cut the
+ * item) adopt the incoming bounds; see healItemBounds. */
+async function repackForModel(
+  index: number,
+  bytes: ArrayBuffer,
+): Promise<Omit<PackedModel, 'itemBounds'> & { packDropped: number }> {
+  const parsed = await parseVariant(index, bytes);
+  const m = models[index];
   const { itemBounds, ...packed } = packModel(parsed);
   healItemBounds(m.itemBounds, itemBounds);
   const packDropped = countMissingVisible(m, itemBounds, null);
   return { ...transferPacked(packed), packDropped };
+}
+
+/** The worker-side record for a freshly parsed model: hierarchy + indexes,
+ * load-time item state, the ORIGINAL per-item color (cgColors is transferred
+ * to the renderer and would need a GPU readback to recover later). */
+function buildDbModel(
+  name: string,
+  group: string,
+  store: string,
+  parsed: ParsedModel,
+  itemBounds: Float32Array,
+): DbModel {
+  const baseColor = new Uint32Array(parsed.itemCount);
+  const cgPacked = parsed.colorGroups.map((cg) => {
+    const b = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255);
+    return (b(cg.color[0]) | (b(cg.color[1]) << 8) | (b(cg.color[2]) << 16) | (b(cg.color[3]) << 24)) >>> 0;
+  });
+  for (let i = 0; i < parsed.itemCount; i++) {
+    baseColor[i] = cgPacked[parsed.itemToCg[i]];
+  }
+  const m: DbModel = {
+    name,
+    group,
+    store,
+    bakedTransparent: parsed.colorGroups.some((c) => c.color[3] < 1),
+    itemCount: parsed.itemCount,
+    hierarchy: parsed.hierarchy,
+    childStart: new Uint32Array(0),
+    childList: new Uint32Array(0),
+    roots: new Uint32Array(0),
+    itemToEntry: new Uint32Array(0),
+    namesLower: null,
+    states: new Uint32Array(parsed.itemCount * 2),
+    tidx: new Uint32Array(parsed.itemCount),
+    baseColor,
+    selected: new Uint32Array(0),
+    itemBounds,
+  };
+  buildIndexes(m);
+  return m;
 }
 
 export const modelsApi = {
@@ -189,35 +236,7 @@ export const modelsApi = {
   ): Promise<Omit<PackedModel, 'itemBounds'> & { packDropped: number }> {
     const parsed = await parseModel(name, bytes);
     const { itemBounds, ...packed } = packModel(parsed);
-    // original per-item color, captured now — cgColors is transferred to the
-    // renderer below and would need a GPU readback to recover later
-    const baseColor = new Uint32Array(parsed.itemCount);
-    const cgPacked = parsed.colorGroups.map((cg) => {
-      const b = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255);
-      return (b(cg.color[0]) | (b(cg.color[1]) << 8) | (b(cg.color[2]) << 16) | (b(cg.color[3]) << 24)) >>> 0;
-    });
-    for (let i = 0; i < parsed.itemCount; i++) {
-      baseColor[i] = cgPacked[parsed.itemToCg[i]];
-    }
-    const m: DbModel = {
-      name,
-      group,
-      store,
-      bakedTransparent: parsed.colorGroups.some((c) => c.color[3] < 1),
-      itemCount: parsed.itemCount,
-      hierarchy: parsed.hierarchy,
-      childStart: new Uint32Array(0),
-      childList: new Uint32Array(0),
-      roots: new Uint32Array(0),
-      itemToEntry: new Uint32Array(0),
-      namesLower: null,
-      states: new Uint32Array(parsed.itemCount * 2),
-      tidx: new Uint32Array(parsed.itemCount),
-      baseColor,
-      selected: new Uint32Array(0),
-      itemBounds,
-    };
-    buildIndexes(m);
+    const m = buildDbModel(name, group, store, parsed, itemBounds);
     models.push(m);
     return { ...transferPacked(packed), packDropped: countMissingVisible(m, m.itemBounds, null) };
   },
@@ -233,17 +252,28 @@ export const modelsApi = {
   },
 
   /** Un-tombstone a removed model with fresh bytes (reload / promote from
-   * unloaded), keeping hierarchy, states, colors, and item bounds. `removed`
-   * is cleared only after the item-table check passes — a mismatch leaves the
+   * unloaded). A slot released by forgetModels gets a rebuilt record from the
+   * parse (load-time state, like a fresh addModel in the same slot); any other
+   * tombstone keeps hierarchy, states, colors and item bounds. `removed` is
+   * cleared only after the item-table check passes — a mismatch leaves the
    * tombstone untouched so the caller can fall back to a fresh addModel. */
   async reviveModel(
     index: number,
     bytes: ArrayBuffer,
   ): Promise<Omit<PackedModel, 'itemBounds'> & { packDropped: number }> {
-    const packed = await repackForModel(index, bytes);
-    const m = models[index];
-    m.removed = false;
-    return packed;
+    const parsed = await parseVariant(index, bytes);
+    const old = models[index];
+    const { itemBounds, ...packed } = packModel(parsed);
+    if (old.forgotten) {
+      const m = buildDbModel(old.name, old.group, old.store, parsed, itemBounds);
+      models[index] = m;
+      indexRevivedModel(index);
+      return { ...transferPacked(packed), packDropped: countMissingVisible(m, itemBounds, null) };
+    }
+    healItemBounds(old.itemBounds, itemBounds);
+    const packDropped = countMissingVisible(old, itemBounds, null);
+    old.removed = false;
+    return { ...transferPacked(packed), packDropped };
   },
 
   /** Mixed-residency repack (tier 2.5): spend `targetBytes` of full-detail
@@ -394,7 +424,7 @@ export const modelsApi = {
       }
       out.push(packStates(m, i));
     }
-    return out;
+    return transferUpdates(out);
   },
 
   clear() {
@@ -584,30 +614,23 @@ export const modelsApi = {
     return out;
   },
 
-  /** Tombstone models: indices stay stable (item ids / renderer slots keep
-   *  lining up); removed models vanish from groups/names/roots. The per-item
-   *  state is kept — a residency swap revives the slot with it intact; an
-   *  explicit unload calls resetItemStates as well. */
-  removeModels(indices: number[]) {
+  /** EXPLICIT unload (GUI / API remove, a recovery slot whose file is gone):
+   *  tombstone the slots — indices stay stable so item ids / renderer slots
+   *  keep lining up, and the models vanish from groups/names/roots — and
+   *  release every per-model table plus the model's global-name hits, so an
+   *  unloaded model costs nothing but its slot. A later load of the same file
+   *  revives the slot from a fresh parse and therefore starts clean. NOT the
+   *  residency evict path: that never tombstones the worker record, it keeps
+   *  the DbModel live so the revive restores state. */
+  forgetModels(indices: number[]) {
     for (const i of indices) {
       const m = models[i];
       if (!m) {
         continue;
       }
       m.removed = true;
-      m.selected = new Uint32Array(0);
-    }
-  },
-
-  /** Explicit unload: forget every per-item state (colors, opacity, hidden,
-   *  item edges, transforms) so a later load of the same file comes back
-   *  clean instead of reviving the old look with the slot. */
-  resetItemStates(indices: number[]) {
-    for (const i of indices) {
-      const m = models[i];
-      if (m) {
-        resetItemStates(m);
-      }
+      forgetModelTables(m);
+      dropModelFromGlobalIndex(i);
     }
   },
 

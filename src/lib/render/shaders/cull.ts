@@ -4,6 +4,28 @@
 //   pass 2: test ALL meshlets against frustum+cone+HZB; draw the ones that
 //           just became visible; persist visibility for next frame's pass 1.
 // Sphere -> screen-rect projection ported from niagara (zeux), reversed-Z.
+//
+// Blend-mode transparency (DESIGN.md "Sorted blend pass"): with sort_mode on,
+// a visible transparent meshlet is not emitted as an opaque draw but appended
+// to a per-model candidate list keyed by a view-depth bucket; after cull 2 the
+// scan + scatter kernels below turn that into a back-to-front draw list the
+// blend pass draws on its own — no full-scene replay, no vertex-shader routing.
+
+/** Depth buckets of the sorted blend list (per-model histogram words). With
+ *  the log-mapped perspective key over near..sort_far (typically 14-18
+ *  octaves) a bucket spans well under 1 % of the view depth. */
+export const SORT_BUCKETS = 2048;
+/** Words in a model's sort-state buffer: histogram + candidate count. The
+ *  scatter's indirect dispatch args live in a separate 16 B buffer — a buffer
+ *  cannot be writable storage and an indirect source in one compute pass. */
+export const SORT_STATE_WORDS = SORT_BUCKETS + 1;
+/** Bytes to zero before cull 1 each frame (histogram + candidate count). */
+export const SORT_CLEAR_BYTES = SORT_STATE_WORDS * 4;
+/** Word inside a model's transparent count slot holding the candidate count
+ *  (MDI multi-draw count + stats); words 0-3 are the vertex-pull drawIndirect
+ *  args, whose instanceCount is 2 x that (two entries per meshlet). */
+export const SORT_COUNT_WORD = 4;
+const SCAN_THREADS = 256;
 
 const CULL_COMMON = /* wgsl */ `
 // Logical view of one packed 36-byte cull record (see load_meshlet): a WGSL
@@ -36,6 +58,10 @@ struct CullParams {
   is_ortho: u32,     // 1 = orthographic (p00/p11 are 1/half_w, 1/half_h)
   ortho_near: f32,   // ortho view-depth slab for HZB depth reconstruction
   ortho_far: f32,
+  sort_mode: u32,    // 1 = route transparent meshlets to the sorted blend list
+  sort_far: f32,     // perspective sort-key range end (view depth from the eye)
+  pad0: f32,
+  pad1: f32,
 };
 
 @group(0) @binding(0) var<storage, read> meshlets: array<u32>;
@@ -74,6 +100,57 @@ struct ModelUniCull {
 };
 @group(0) @binding(7) var<uniform> model_uni_cull: ModelUniCull;
 @group(1) @binding(0) var<uniform> params: CullParams;
+
+// Sorted blend list inputs: cooked colour-group colours (baked alpha), the
+// candidate list [meshlet, bucket] pairs and the sort state — SORT_BUCKETS
+// histogram words (exclusive bases after the scan) and the candidate count
+// (sortScanWgsl / sortScatterWgsl).
+const SORT_BUCKETS = ${SORT_BUCKETS}u;
+@group(0) @binding(8) var<storage, read> cg_colors_cull: array<vec4f>;
+@group(0) @binding(9) var<storage, read_write> cand: array<u32>;
+@group(0) @binding(10) var<storage, read_write> sort_state: array<atomic<u32>>;
+
+// Mirror of the scene shader's item_opacity < 1: an explicit opacity override
+// wins, else a colour override's alpha, else the baked colour-group alpha.
+// (Effective opacity 0 never gets here — item_hidden culls it first.)
+fn meshlet_transparent(i: u32) -> bool {
+  let st = item_states_cull[info_words[i * 8u + 7u]];
+  if ((st.flags & 64u) != 0u) { return ((st.flags >> 25u) & 127u) < 100u; }
+  if ((st.flags & 16u) != 0u) { return ((st.color >> 24u) & 255u) < 255u; }
+  return cg_colors_cull[info_words[i * 8u + 3u]].w < 1.0;
+}
+
+// Depth bucket of the (transformed) bounding-sphere centre: bucket 0 is the
+// farthest and draws first. Perspective: log-mapped view depth between the
+// near plane and sort_far, so a bucket spans a fixed fraction of the distance
+// wherever the meshlet sits; ortho: linear over the depth slab. Both cull
+// passes bucket with the same params, so the list is consistent per frame.
+fn sort_bucket(center: vec3f) -> u32 {
+  let d = -(params.view * vec4f(center, 1.0)).z;
+  var t: f32;
+  if (params.is_ortho == 1u) {
+    t = (d - params.ortho_near) / max(params.ortho_far - params.ortho_near, 1e-6);
+  } else {
+    t = log2(max(d, params.znear) / params.znear) / log2(max(params.sort_far / params.znear, 2.0));
+  }
+  return u32((1.0 - clamp(t, 0.0, 1.0)) * f32(SORT_BUCKETS - 1u) + 0.5);
+}
+
+fn emit_transparent(m: MeshletCull, i: u32) {
+  let b = sort_bucket(m.center);
+  let c = atomicAdd(&sort_state[SORT_BUCKETS], 1u);
+  cand[c * 2u] = i;
+  cand[c * 2u + 1u] = b;
+  atomicAdd(&sort_state[b], 1u);
+}
+
+fn emit(m: MeshletCull, i: u32) {
+  if (params.sort_mode == 1u && meshlet_transparent(i)) {
+    emit_transparent(m, i);
+  } else {
+    emit_opaque(m, i);
+  }
+}
 
 // Invisible as the user sees it — the hide flag, an explicit opacity override
 // of 0, or a colour override with alpha 0 (the explicit override wins, like
@@ -221,15 +298,16 @@ const CULL_EMIT_MDI = /* wgsl */ `
 @group(0) @binding(1) var<storage, read_write> records: array<u32>;
 @group(0) @binding(2) var<storage, read_write> draw_count: atomic<u32>;
 
-fn emit(m: MeshletCull, i: u32) {
+fn emit_opaque(m: MeshletCull, i: u32) {
   let slot = atomicAdd(&draw_count, 1u) * 5u;
   records[slot + 0u] = m.index_count;
   records[slot + 1u] = 1u;
   records[slot + 2u] = m.first_index;
   records[slot + 3u] = m.base_vertex;
-  // firstInstance = meshlet index; the render shader looks up color-group
-  // and item id in meshlet_info
-  records[slot + 4u] = i;
+  // firstInstance = 2 x meshlet index: the render shader reads the meshlet
+  // from instance_index >> 1 and the blend pass's facing half from bit 0
+  // (the sorted transparent records draw two instances per meshlet)
+  records[slot + 4u] = i * 2u;
 }
 `;
 
@@ -243,7 +321,7 @@ struct DrawArgs {
 @group(0) @binding(1) var<storage, read_write> vis_list: array<u32>;
 @group(0) @binding(2) var<storage, read_write> args: DrawArgs;
 
-fn emit(m: MeshletCull, i: u32) {
+fn emit_opaque(m: MeshletCull, i: u32) {
   vis_list[atomicAdd(&args.instance_count, 1u)] = i;
 }
 
@@ -378,6 +456,95 @@ export function cullWgsl(pass2: boolean, vp: boolean): string {
   const emit = vp ? CULL_EMIT_VP : CULL_EMIT_MDI;
   const body = pass2 ? CULL2_BODY : CULL1_MAIN;
   return (CULL_COMMON + emit + body).replaceAll('STAMP', vp ? 'stamp_args(gid);' : '');
+}
+
+/** Sorted blend list, step 1 (one workgroup per model, after cull 2): turn
+ *  the bucket histogram into exclusive bases in place, and publish the
+ *  candidate count as the transparent draw slot ([372, 2n, 0, 0] vertex-pull
+ *  args + the plain count at SORT_COUNT_WORD) and the scatter's dispatch args
+ *  (its own buffer, consumed as indirect by the NEXT compute pass). 256
+ *  threads x 8 buckets with a serial scan over the 256 partials — a few
+ *  microseconds, far below a dispatch's fixed cost. */
+export function sortScanWgsl(): string {
+  return /* wgsl */ `
+const SORT_BUCKETS = ${SORT_BUCKETS}u;
+const SCAN_THREADS = ${SCAN_THREADS}u;
+const PER_THREAD = SORT_BUCKETS / SCAN_THREADS;
+@group(0) @binding(0) var<storage, read_write> sort_state: array<u32>;
+@group(0) @binding(1) var<storage, read_write> t_slot: array<u32>;
+@group(0) @binding(2) var<storage, read_write> dispatch_args: array<u32>;
+var<workgroup> partial: array<u32, SCAN_THREADS>;
+
+@compute @workgroup_size(${SCAN_THREADS})
+fn main(@builtin(local_invocation_id) lid: vec3u) {
+  let t = lid.x;
+  var sum = 0u;
+  for (var k = 0u; k < PER_THREAD; k++) { sum += sort_state[t * PER_THREAD + k]; }
+  partial[t] = sum;
+  workgroupBarrier();
+  if (t == 0u) {
+    var run = 0u;
+    for (var j = 0u; j < SCAN_THREADS; j++) {
+      let v = partial[j];
+      partial[j] = run;
+      run += v;
+    }
+    let n = sort_state[SORT_BUCKETS];
+    dispatch_args[0] = (n + 63u) / 64u;
+    dispatch_args[1] = 1u;
+    dispatch_args[2] = 1u;
+    t_slot[0] = 372u;
+    t_slot[1] = n * 2u;
+    t_slot[2] = 0u;
+    t_slot[3] = 0u;
+    t_slot[${SORT_COUNT_WORD}] = n;
+  }
+  workgroupBarrier();
+  var base = partial[t];
+  for (var k = 0u; k < PER_THREAD; k++) {
+    let idx = t * PER_THREAD + k;
+    let v = sort_state[idx];
+    sort_state[idx] = base;
+    base += v;
+  }
+}
+`;
+}
+
+/** Sorted blend list, step 2 (indirect dispatch, one thread per candidate):
+ *  place each candidate at its bucket's running base. MDI: a 5-word
+ *  drawIndexedIndirect record with instanceCount 2 and firstInstance 2i;
+ *  vertex-pull: two consecutive list entries, i and i | facing bit 31. Either
+ *  way the two facing halves of a meshlet stay adjacent in draw order. */
+export function sortScatterWgsl(vp: boolean): string {
+  return /* wgsl */ `
+const SORT_BUCKETS = ${SORT_BUCKETS}u;
+@group(0) @binding(0) var<storage, read> cand: array<u32>;
+@group(0) @binding(1) var<storage, read_write> sort_state: array<atomic<u32>>;
+@group(0) @binding(2) var<storage, read_write> out: array<u32>;
+${vp ? '' : '@group(0) @binding(3) var<storage, read> meshlets: array<u32>;'}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid: vec3u) {
+  let g = gid.x;
+  if (g >= atomicLoad(&sort_state[SORT_BUCKETS])) { return; }
+  let i = cand[g * 2u];
+  let b = cand[g * 2u + 1u];
+  let dst = atomicAdd(&sort_state[b], 1u);
+${
+  vp
+    ? `  out[dst * 2u] = i;
+  out[dst * 2u + 1u] = i | 0x80000000u;`
+    : `  let o = i * 9u;
+  let slot = dst * 5u;
+  out[slot + 0u] = meshlets[o + 5u];
+  out[slot + 1u] = 2u;
+  out[slot + 2u] = meshlets[o + 6u];
+  out[slot + 3u] = meshlets[o + 8u];
+  out[slot + 4u] = i * 2u;`
+}
+}
+`;
 }
 
 // Min-reduction depth downsample. Source is the depth buffer for mip 0

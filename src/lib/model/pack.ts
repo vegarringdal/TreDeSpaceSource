@@ -60,9 +60,10 @@ function packCone(ax: number, ay: number, az: number, cutoff: number): number {
 export const ITEM_DROP = 2;
 
 /** GPU bytes per meshlet that do not depend on its size: the cull record,
- *  the two draw-record slots, the visibility word, the info record and the
- *  full-list entry (renderer.ts MESHLET_RECORD_BYTES). */
-export const MESHLET_RECORD_BYTES = 116;
+ *  the three draw-record slots (pass 1, pass 2, sorted transparent), the
+ *  sort candidate, the visibility word, the info record and the full-list
+ *  entry (renderer.ts MESHLET_RECORD_BYTES). */
+export const MESHLET_RECORD_BYTES = 144;
 const POSITION_BYTES_PER_VERTEX = 8;
 const NORMAL_BYTES_PER_VERTEX = 4;
 const INDEX_BYTES_PER_TRIANGLE = 6;

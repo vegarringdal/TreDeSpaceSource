@@ -5,10 +5,12 @@
 // their current committed slot so every distinct base reuses one new slot
 // (new = group * old). Undoable on the TRANSFORM stack (per-domain — this
 // module owns that stack; there is no global undo).
+
+import * as Comlink from 'comlink';
 import { type M4, m4AboutPoint, m4AxisRotate, m4AxisScale, m4Identity, m4Mul, m4Translate } from '../math/m4';
 import { selectionApi } from './apiSelection';
 import { models, type StateUpdate } from './dbState';
-import { packStates } from './hierarchyIndex';
+import { packStates, transferUpdates, updateBuffers } from './hierarchyIndex';
 import { allocTransformSlot, transforms, transformsSnapshot } from './transformPool';
 
 /** One undo RECORD per model: the whole per-item slot band as drawrange-style
@@ -165,7 +167,8 @@ export const transformApi = {
       updates.push(packStates(m, idx));
     });
     pushTransformUndo(step);
-    return { updates, transforms: transformsSnapshot() };
+    const snapshot = transformsSnapshot();
+    return Comlink.transfer({ updates, transforms: snapshot }, [...updateBuffers(updates), snapshot.buffer]);
   },
 
   /** Reset the selection's transforms to identity (undoable). */
@@ -186,7 +189,7 @@ export const transformApi = {
       updates.push(packStates(m, idx));
     });
     pushTransformUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Reset every transform everywhere (undoable, transform domain). */
@@ -212,7 +215,7 @@ export const transformApi = {
       updates.push(packStates(m, idx));
     });
     pushTransformUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   undoTransform(): StateUpdate[] {
@@ -229,7 +232,7 @@ export const transformApi = {
     for (const rec of step) {
       restoreTransformRuns(rec);
     }
-    return step.map((r) => packStates(models[r.model], r.model));
+    return transferUpdates(step.map((r) => packStates(models[r.model], r.model)));
   },
 
   redoTransform(): StateUpdate[] {
@@ -245,7 +248,7 @@ export const transformApi = {
     for (const rec of step) {
       restoreTransformRuns(rec);
     }
-    return step.map((r) => packStates(models[r.model], r.model));
+    return transferUpdates(step.map((r) => packStates(models[r.model], r.model)));
   },
 
   transformUndoDepth(): number {

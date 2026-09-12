@@ -4,6 +4,37 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.12** (>0.0.115):
+  Blend transparency is now depth-sorted and no longer replays the whole
+  scene (review 5b.1 + 5b.4, MDI and vertex-pull alike). The cull routes
+  transparent meshlets into a per-model list bucketed by view depth (2048
+  log-spaced buckets), scan and scatter passes after cull 2 order it back to
+  front, and the blend pass draws only that list — before, every visible
+  meshlet ran the vertex shader twice whenever anything was transparent, and
+  glass blended in load/emission order, so a pipe behind a tank could sit on
+  top of it. Each transparent meshlet now draws twice, adjacent: its back
+  faces first, then its front faces, decided from the face normal oriented
+  away from the meshlet centre (winding is not enforced in the cook path), so
+  a pipe's far wall stays under its near wall. Pick, outline and the residency
+  draw counts follow the new list; the Stats tab shows it as "drawn … /
+  blend" and a "sort" GPU timing. VRAM: +28 B per meshlet and 8 KB per model.
+  The no-cull fallback (no MDI, vertex-pull off) keeps the old unsorted path.
+  Explicit model unload (Hierarchy → Remove, Model Assets unload, the API's
+  unload, and a GPU-recovery slot whose file is gone) now releases the model's
+  worker-side tables — hierarchy, name pool, indexes, per-item state, colours,
+  transforms, bounds and its global-name hits — instead of keeping them behind
+  the tombstone until "Unload all". The slot stays (item ids and renderer
+  slots keep lining up) and a later load of the same file revives it from a
+  fresh parse, so it starts clean as before. The VRAM residency evict/revive
+  path is untouched: it never tombstones the worker record and keeps state.
+  Item-state updates from the model-DB worker (select, hide, isolate, colour,
+  opacity, transforms, colour rules, snapshot apply, residency swaps) now
+  actually transfer their arrays to the main thread instead of being
+  structured-cloned: the transfer mark sat on each entry inside the returned
+  array, where Comlink never reads it. Every API returning updates marks the
+  returned value itself, saving one 12 B-per-item copy on each thread per
+  touched model per action (measured ~8 ms for a 1 M-item model, ~70 ms for
+  5 M).
 - **2026.09.11** (>0.0.114):
   postMessage API: settings can now be SET per Settings tab —
   `settings.rendering.set`, `settings.lighting.set`, `settings.edges.set`,

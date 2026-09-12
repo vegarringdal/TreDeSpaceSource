@@ -1,14 +1,16 @@
 // WebGPU renderer: two-pass GPU occlusion culling + multi-draw indexed indirect.
 //
 // Per model: vertex/index buffers (all color groups concatenated), a MeshletCull
-// storage buffer (sphere + cone + draw-record template), two draw-record buffers
-// (one per cull pass) and a persistent per-meshlet visibility buffer.
+// storage buffer (sphere + cone + draw-record template), three draw-record
+// buffers (one per cull pass + the depth-sorted transparent list blend mode
+// draws) and a persistent per-meshlet visibility buffer.
 // Draw counts for all models live in ONE buffer at 256-byte-aligned slots so a
 // single clearBuffer resets them and a single copy reads them all back for stats.
 //
 // Frame: clear counts -> cull pass 1 (last-frame-visible, frustum+cone) ->
 // render pass 1 -> build HZB depth pyramid -> cull pass 2 (all meshlets,
-// + occlusion, updates visibility) -> render pass 2 (newly visible only).
+// + occlusion, updates visibility) -> [blend mode: sort the transparent
+// candidates back-to-front] -> render pass 2 (newly visible only) -> blend pass.
 // With fast-AA/edges/MSAA the scene renders into an offscreen target and a
 // fullscreen post pass writes the swapchain. Freeze-cull skips all compute and
 // re-renders the last frozen draw records with the live camera.
@@ -48,7 +50,7 @@ import type { GizmoFace } from '../overlay/ViewGizmo';
 import { trackDeviceAllocations } from './allocationTracker';
 import { CameraController } from './camera';
 import { isMobileDevice } from './device';
-import type { GpuModel } from './gpuModel';
+import { type DrawList, drawListOf, type GpuModel, TRANSPARENT_LIST, vpArgsOffsetOf } from './gpuModel';
 import { type AdapterFacts, adapterFacts } from './gpuProbe';
 import { GpuTimings } from './gpuTimings';
 import { ItemPickPass } from './itemPickPass';
@@ -72,6 +74,7 @@ import {
   renderWgsl,
   vbaoWgsl,
 } from './shaders';
+import { SORT_CLEAR_BYTES, SORT_COUNT_WORD, SORT_STATE_WORDS, sortScanWgsl, sortScatterWgsl } from './shaders/cull';
 import { unitSphereMesh } from './sphereMesh';
 import { ViewCubePass } from './viewCubePass';
 import { type AdapterHints, readDeviceMemoryGb } from './vramHint';
@@ -86,11 +89,16 @@ interface PendingPick {
 
 const RECORD_STRIDE = 20; // drawIndexedIndirect: 5 x u32
 /** Fixed per-meshlet VRAM regardless of fill: cull 36 + info 32 + vis 4 +
- *  2 × RECORD_STRIDE draw records + 4 full-list. */
-const MESHLET_RECORD_BYTES = 116;
+ *  3 × RECORD_STRIDE draw records (pass 1, pass 2, sorted transparent) +
+ *  8 sort candidate + 4 full-list. */
+const MESHLET_RECORD_BYTES = 144;
 const COUNT_SLOT = 256; // storage-binding offset alignment
+/** Count slots per model: pass 1, pass 2, sorted transparent list. */
+const COUNT_SLOTS = 3;
 const MAX_MODELS = 4096;
-const PARAMS_SIZE = 224; // CullParams in shaders.ts
+const PARAMS_SIZE = 240; // CullParams in shaders/cull.ts
+/** Perspective sort-key span above the near plane before any model has bounds. */
+const SORT_FAR_FALLBACK_OCTAVES = 20;
 // Background transparency mode: the backdrop pass squeezes its depths into
 // (0, BACKDROP_DEPTH_MAX] through the viewport depth range, so every foreground
 // fragment beats a backdrop one while backdrop items still order among
@@ -234,6 +242,9 @@ export class Renderer {
   private cull2Pipeline!: GPUComputePipeline;
   private cullVp1Pipeline!: GPUComputePipeline; // vertex-pull emit
   private cullVp2Pipeline!: GPUComputePipeline;
+  private sortScanPipeline!: GPUComputePipeline; // sorted blend list: histogram scan
+  private sortScatterPipeline!: GPUComputePipeline; // MDI records
+  private sortScatterVpPipeline!: GPUComputePipeline; // vertex-pull entries
   private hzbDownPipeline!: GPUComputePipeline;
   private hzbFirstPipeline!: GPUComputePipeline;
   private hzbFirstMsPipeline!: GPUComputePipeline;
@@ -664,6 +675,8 @@ export class Renderer {
   }
   drawnPass1 = 0;
   drawnPass2 = 0;
+  /** Meshlets in the sorted transparent list (blend mode with culling). */
+  drawnBlend = 0;
 
   // GPU pass timings (timestamp-query, enabled from the Stats tab)
   private readonly timings = new GpuTimings();
@@ -912,12 +925,12 @@ export class Renderer {
     dev.queue.writeBuffer(this.transformsBuf, 0, new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
     this.countsBuf = dev.createBuffer({
       label: 'countsBuf',
-      size: MAX_MODELS * COUNT_SLOT * 2,
+      size: MAX_MODELS * COUNT_SLOT * COUNT_SLOTS,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
     this.statsBuf = dev.createBuffer({
       label: 'statsBuf',
-      size: MAX_MODELS * COUNT_SLOT * 2,
+      size: MAX_MODELS * COUNT_SLOT * COUNT_SLOTS,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
 
@@ -931,6 +944,9 @@ export class Renderer {
     this.cull2Pipeline = compute(cullWgsl(true, false));
     this.cullVp1Pipeline = compute(cullWgsl(false, true));
     this.cullVp2Pipeline = compute(cullWgsl(true, true));
+    this.sortScanPipeline = compute(sortScanWgsl());
+    this.sortScatterPipeline = compute(sortScatterWgsl(false));
+    this.sortScatterVpPipeline = compute(sortScatterWgsl(true));
     this.hzbDownPipeline = compute(hzbWgsl(false));
     this.hzbFirstPipeline = this.hzbDownPipeline; // non-MS depth binds as texture_2d<f32>
     this.hzbFirstMsPipeline = compute(hzbWgsl(true));
@@ -1341,6 +1357,7 @@ export class Renderer {
     itemBase: number,
     countOffset1: number,
     countOffset2: number,
+    countOffsetT: number,
   ): GpuModel {
     const dev = this.device;
     const { positionsQ, indices16, cull, meshletInfo, cgColors } = packed;
@@ -1388,6 +1405,27 @@ export class Renderer {
       });
     const recordBuf1 = mkRecords();
     const recordBuf2 = mkRecords();
+    // sorted transparent list (DESIGN.md "Sorted blend pass"): the record
+    // stride covers both MDI records and the doubled vertex-pull entries
+    const recordBufT = mkRecords();
+    const candBuf = dev.createBuffer({
+      label: 'modelCandBuf',
+      size: Math.max(8, totalMeshlets * 8),
+      usage: GPUBufferUsage.STORAGE,
+    });
+    const sortBuf = dev.createBuffer({
+      label: 'modelSortBuf',
+      size: SORT_STATE_WORDS * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    // the scatter's dispatch args: written by the scan pass, read as indirect
+    // by the scatter pass — a buffer may not be writable storage and an
+    // indirect source within one pass, hence its own buffer and two passes
+    const sortArgsBuf = dev.createBuffer({
+      label: 'modelSortArgsBuf',
+      size: 16,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+    });
 
     // args size differs: MDI binds a bare 4-byte atomic counter, the vertex-pull
     // emit binds the full 16-byte drawIndirect args block at the same offset.
@@ -1404,6 +1442,31 @@ export class Renderer {
           { binding: 5, resource: { buffer: itemStateBuf } },
           { binding: 6, resource: { buffer: this.transformsBuf } },
           { binding: 7, resource: { buffer: modelUniBuf } },
+          { binding: 8, resource: { buffer: cgColorBuf } },
+          { binding: 9, resource: { buffer: candBuf } },
+          { binding: 10, resource: { buffer: sortBuf } },
+        ],
+      });
+    // the scan publishes the transparent draw slot: vertex-pull args at the
+    // slot start, the plain count (MDI multi-draw count, stats) after them
+    const sortScanBind = dev.createBindGroup({
+      label: 'sortScanBind',
+      layout: this.sortScanPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: sortBuf } },
+        { binding: 1, resource: { buffer: this.countsBuf, offset: countOffsetT, size: (SORT_COUNT_WORD + 1) * 4 } },
+        { binding: 2, resource: { buffer: sortArgsBuf } },
+      ],
+    });
+    const mkScatterBind = (pipeline: GPUComputePipeline, vp: boolean) =>
+      dev.createBindGroup({
+        label: 'sortScatterBind',
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: candBuf } },
+          { binding: 1, resource: { buffer: sortBuf } },
+          { binding: 2, resource: { buffer: recordBufT } },
+          ...(vp ? [] : [{ binding: 3, resource: { buffer: meshletCullBuf } }]),
         ],
       });
 
@@ -1469,6 +1532,10 @@ export class Renderer {
       meshletCullBuf,
       recordBuf1,
       recordBuf2,
+      recordBufT,
+      candBuf,
+      sortBuf,
+      sortArgsBuf,
       visBuf,
       meshletInfoBuf,
       itemStateBuf,
@@ -1489,6 +1556,10 @@ export class Renderer {
       meshletCullBuf,
       recordBuf1,
       recordBuf2,
+      recordBufT,
+      candBuf,
+      sortBuf,
+      sortArgsBuf,
       visBuf,
       meshletInfoBuf,
       itemStateBuf,
@@ -1500,14 +1571,19 @@ export class Renderer {
       cullBind2: mkCullBind(this.cull2Pipeline, recordBuf2, countOffset2, 4),
       cullVpBind1: mkCullBind(this.cullVp1Pipeline, recordBuf1, countOffset1, 16),
       cullVpBind2: mkCullBind(this.cullVp2Pipeline, recordBuf2, countOffset2, 16),
+      sortScanBind,
+      sortScatterBind: mkScatterBind(this.sortScatterPipeline, false),
+      sortScatterVpBind: mkScatterBind(this.sortScatterVpPipeline, true),
       renderBind,
       vpGeoBind1: mkVpGeoBind(recordBuf1),
       vpGeoBind2: mkVpGeoBind(recordBuf2),
+      vpGeoBindT: mkVpGeoBind(recordBufT),
       vpGeoBindFull: mkVpGeoBind(fullListBuf),
       fullListBuf,
       fullArgsBuf,
       countOffset1,
       countOffset2,
+      countOffsetT,
     };
   }
 
@@ -1517,11 +1593,12 @@ export class Renderer {
       throw new Error('model limit reached');
     }
     const modelIdx = this.models.length;
-    const countOffset1 = modelIdx * COUNT_SLOT * 2;
+    const countOffset1 = modelIdx * COUNT_SLOT * COUNT_SLOTS;
     const countOffset2 = countOffset1 + COUNT_SLOT;
+    const countOffsetT = countOffset1 + 2 * COUNT_SLOT;
     const itemBase = this.nextItemBase;
     this.nextItemBase += packed.itemCount;
-    this.models.push(this.buildModelResources(packed, opts, itemBase, countOffset1, countOffset2));
+    this.models.push(this.buildModelResources(packed, opts, itemBase, countOffset1, countOffset2, countOffsetT));
 
     for (let i = 0; i < 3; i++) {
       this.sceneMin[i] = Math.min(this.sceneMin[i], packed.boundsMin[i]);
@@ -1557,7 +1634,14 @@ export class Renderer {
     if (packed.itemCount !== m.itemCount) {
       throw new Error(`itemcount-mismatch: slot ${slot} has ${m.itemCount}, packed has ${packed.itemCount}`);
     }
-    this.models[slot] = this.buildModelResources(packed, opts, m.itemBase, m.countOffset1, m.countOffset2);
+    this.models[slot] = this.buildModelResources(
+      packed,
+      opts,
+      m.itemBase,
+      m.countOffset1,
+      m.countOffset2,
+      m.countOffsetT,
+    );
     // quiet: the caller proved the slot draws nothing from this viewpoint, so
     // the converged picture stays valid — no re-render, no accumulation reset.
     // Its zeroed record buffers replay as no-op draws until the next real cull.
@@ -1816,6 +1900,10 @@ export class Renderer {
       m.meshletCullBuf.destroy();
       m.recordBuf1.destroy();
       m.recordBuf2.destroy();
+      m.recordBufT.destroy();
+      m.candBuf.destroy();
+      m.sortBuf.destroy();
+      m.sortArgsBuf.destroy();
       m.visBuf.destroy();
       m.meshletInfoBuf.destroy();
       m.fullListBuf.destroy();
@@ -1844,6 +1932,10 @@ export class Renderer {
       m.meshletCullBuf.destroy();
       m.recordBuf1.destroy();
       m.recordBuf2.destroy();
+      m.recordBufT.destroy();
+      m.candBuf.destroy();
+      m.sortBuf.destroy();
+      m.sortArgsBuf.destroy();
       m.visBuf.destroy();
       m.meshletInfoBuf.destroy();
       m.fullListBuf.destroy();
@@ -2058,6 +2150,23 @@ export class Renderer {
     return projectToScreen(this.lastVP, canvas.width, canvas.height, p);
   }
 
+  /** Far end of the perspective sort-key range (cull.ts sort_bucket): the
+   *  farthest scene-bounds corner from the eye, so the log buckets span
+   *  exactly what can be seen; a fixed span of octaves above the near plane
+   *  before any model has reported bounds. */
+  private sortFar(eye: ArrayLike<number>): number {
+    const near = this.camera.near;
+    if (!Number.isFinite(this.sceneMin[0])) {
+      return near * 2 ** SORT_FAR_FALLBACK_OCTAVES;
+    }
+    let far = 0;
+    for (let i = 0; i < 3; i++) {
+      const d = Math.max(Math.abs(this.sceneMin[i] - eye[i]), Math.abs(this.sceneMax[i] - eye[i]));
+      far += d * d;
+    }
+    return Math.max(Math.sqrt(far), near * 2);
+  }
+
   private async resolveStats(bytes: number, word: number) {
     await this.statsBuf.mapAsync(GPUMapMode.READ, 0, bytes);
     const counts = new Uint32Array(this.statsBuf.getMappedRange(0, bytes));
@@ -2065,18 +2174,23 @@ export class Renderer {
       this.drawnPerModel = new Uint32Array(this.models.length);
     }
     let p1 = 0,
-      p2 = 0;
+      p2 = 0,
+      pt = 0;
     for (let i = 0; i < this.models.length; i++) {
-      const m1 = counts[(i * COUNT_SLOT * 2) / 4 + word];
-      const m2 = counts[(i * COUNT_SLOT * 2 + COUNT_SLOT) / 4 + word];
-      this.drawnPerModel[i] = m1 + m2;
+      const slot = (i * COUNT_SLOT * COUNT_SLOTS) / 4;
+      const m1 = counts[slot + word];
+      const m2 = counts[slot + COUNT_SLOT / 4 + word];
+      const mt = counts[slot + (2 * COUNT_SLOT) / 4 + SORT_COUNT_WORD];
+      this.drawnPerModel[i] = m1 + m2 + mt;
       p1 += m1;
       p2 += m2;
+      pt += mt;
     }
     this.statsBuf.unmap();
     this.statsInFlight = false;
     this.drawnPass1 = p1;
     this.drawnPass2 = p2;
+    this.drawnBlend = pt;
     this.drawnResolvedT = this.lastCountRead;
   }
 
@@ -2485,13 +2599,18 @@ export class Renderer {
     ff.set([...opt.selectionColor, opt.selectionTint ? 1.0 : 0.0], FRAME_SLOT.selColor);
     ff.set([...opt.bgColor, opt.backdropFade], FRAME_SLOT.backdrop);
     dev.queue.writeBuffer(this.frameBuf, 0, frameData);
-    fu[FRAME_SLOT.flags + 2] |= opt.transparencyBackdrop ? 6 : 2; // blend-pass slot (+ bit2: Background mode)
-    dev.queue.writeBuffer(this.frameBuf, 256, frameData);
-
     // vp = vertex pulling (core WebGPU); mdi = multi-draw indirect (feature);
     // full = no culling, static all-meshlets vertex-pull draw
     const cullMode: 'mdi' | 'vp' | 'full' = opt.vertexPull ? 'vp' : this.multiDraw ? 'mdi' : 'full';
     this.cullMode = cullMode;
+    // blend mode with culling: the cull routes transparent meshlets into a
+    // depth-sorted list the blend pass draws with the facing split (DESIGN.md
+    // "Sorted blend pass"); the no-cull fallback keeps the vertex-shader
+    // routing over its static full list
+    const sortActive = opt.transparencyBlend && opt.hasTransparency && cullMode !== 'full';
+    // blend-pass slot: bit1 blend pass, bit2 Background mode, bit3 sorted list
+    fu[FRAME_SLOT.flags + 2] |= (opt.transparencyBackdrop ? 6 : 2) | (sortActive ? 8 : 0);
+    dev.queue.writeBuffer(this.frameBuf, 256, frameData);
     const cullActive = cullMode !== 'full' && this.models.length > 0 && !opt.freezeCull && !hold;
 
     if (cullActive) {
@@ -2513,6 +2632,8 @@ export class Renderer {
       new Uint32Array(params)[53] = opt.orthographic ? 1 : 0;
       pf[54] = this.camera.orthoNear;
       pf[55] = this.camera.orthoFar;
+      new Uint32Array(params)[56] = sortActive ? 1 : 0;
+      pf[57] = this.sortFar(eye);
       dev.queue.writeBuffer(this.paramsBuf, 0, params);
     }
 
@@ -2641,10 +2762,10 @@ export class Renderer {
     const vpBlendPipeline = opt.transparencyBackdrop
       ? pick4(this.renderVpBackdrop1x, this.renderVpBackdrop4x)
       : pick4(this.renderVpBlend1x, this.renderVpBlend4x);
-    // draw all models with the mode's submission (pass = 1 or 2);
-    // blend=true replays the same records through the transparency pipeline
-    // (frame-uniform slot 1 routes transparent items in, opaque out)
-    const drawScene = (pass: GPURenderPassEncoder, passIdx: 1 | 2, blend = false) => {
+    // draw all models' draw list (pass 1, pass 2 or the sorted transparent
+    // list) with the mode's submission; blend=true selects the transparency
+    // pipeline and the blend-pass frame slot
+    const drawScene = (pass: GPURenderPassEncoder, list: DrawList, blend = false) => {
       const frameOffset = [blend ? 256 : 0];
       if (cullMode === 'mdi') {
         pass.setPipeline(blend ? blendPipeline : renderPipeline);
@@ -2657,12 +2778,12 @@ export class Renderer {
           pass.setBindGroup(0, m.renderBind, frameOffset);
           pass.setVertexBuffer(0, m.vertexBuf);
           pass.setIndexBuffer(m.indexBuf, 'uint16');
-          const [buf, off] = passIdx === 1 ? [m.recordBuf1, m.countOffset1] : [m.recordBuf2, m.countOffset2];
+          const { buf, offset } = drawListOf(m, list);
           (
             pass as unknown as {
               multiDrawIndexedIndirect(b: GPUBuffer, o: number, max: number, cb: GPUBuffer, co: number): void;
             }
-          ).multiDrawIndexedIndirect(buf, 0, m.meshletCount, this.countsBuf, off);
+          ).multiDrawIndexedIndirect(buf, 0, m.meshletCount, this.countsBuf, offset);
         }
       } else {
         pass.setPipeline(blend ? vpBlendPipeline : vpPipeline);
@@ -2672,8 +2793,8 @@ export class Renderer {
           }
           pass.setBindGroup(0, m.renderBind, frameOffset);
           if (cullMode === 'vp') {
-            pass.setBindGroup(1, passIdx === 1 ? m.vpGeoBind1 : m.vpGeoBind2);
-            pass.drawIndirect(this.countsBuf, passIdx === 1 ? m.countOffset1 : m.countOffset2);
+            pass.setBindGroup(1, drawListOf(m, list).vpBind);
+            pass.drawIndirect(this.countsBuf, vpArgsOffsetOf(m, list));
           } else {
             // full: static all-meshlets list, no culling
             pass.setBindGroup(1, m.vpGeoBindFull);
@@ -2682,7 +2803,9 @@ export class Renderer {
         }
       }
     };
-    // transparency pass (blend mode only): replay both record sets blended
+    // transparency pass (blend mode only): the cull's depth-sorted transparent
+    // list, back-to-front with the facing split (no-cull fallback: the static
+    // full list, routed in the vertex shader).
     // Sketch mode skips the pass outright: blend mode routes every transparent
     // item here, and on the white paper they would only smear colour (the
     // opaque pass already leaves them out in blend mode) — so they are simply
@@ -2694,7 +2817,7 @@ export class Renderer {
       const pass = enc2.beginRenderPass({
         colorAttachments: sceneAttachments(false),
         depthStencilAttachment: depthAttachment(false),
-        timestampWrites: this.timings.writes(5),
+        timestampWrites: this.timings.writes(6),
       });
       if (opt.transparencyBackdrop) {
         // background mode: the depth range squeezes every fragment of this
@@ -2704,10 +2827,7 @@ export class Renderer {
         // layer behind everything opaque, the transparency itself gone.
         pass.setViewport(0, 0, canvas.width, canvas.height, 0, BACKDROP_DEPTH_MAX);
       }
-      drawScene(pass, 1, true);
-      if (cullMode !== 'full') {
-        drawScene(pass, 2, true);
-      }
+      drawScene(pass, cullMode === 'full' ? 1 : TRANSPARENT_LIST, true);
       pass.end();
     };
 
@@ -2718,7 +2838,14 @@ export class Renderer {
     } else if (cullMode !== 'full' && this.models.length > 0) {
       const vp = cullMode === 'vp';
       if (cullActive) {
-        enc.clearBuffer(this.countsBuf, 0, this.models.length * COUNT_SLOT * 2);
+        enc.clearBuffer(this.countsBuf, 0, this.models.length * COUNT_SLOT * COUNT_SLOTS);
+        if (sortActive) {
+          for (const m of this.models) {
+            if (!m.dead && m.meshletCount > 0) {
+              enc.clearBuffer(m.sortBuf, 0, SORT_CLEAR_BYTES);
+            }
+          }
+        }
 
         // cull pass 1: meshlets visible last frame, frustum + cone
         const cull1 = enc.beginComputePass({ timestampWrites: this.timings.writes(0) });
@@ -2768,13 +2895,41 @@ export class Renderer {
           cull2.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
         }
         cull2.end();
+
+        if (sortActive) {
+          // sorted blend list: per model, scan the bucket histogram into
+          // scatter bases (one workgroup), then scatter the candidates into
+          // recordBufT back-to-front (indirect dispatch, one thread each).
+          // Two passes: the scan WRITES the dispatch args the scatter reads
+          // as indirect, and one pass may not use a buffer both ways.
+          const scan = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'begin') });
+          scan.setPipeline(this.sortScanPipeline);
+          for (const m of this.models) {
+            if (m.dead || m.meshletCount === 0) {
+              continue;
+            }
+            scan.setBindGroup(0, m.sortScanBind);
+            scan.dispatchWorkgroups(1);
+          }
+          scan.end();
+          const scatter = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'end') });
+          scatter.setPipeline(vp ? this.sortScatterVpPipeline : this.sortScatterPipeline);
+          for (const m of this.models) {
+            if (m.dead || m.meshletCount === 0) {
+              continue;
+            }
+            scatter.setBindGroup(0, vp ? m.sortScatterVpBind : m.sortScatterBind);
+            scatter.dispatchWorkgroupsIndirect(m.sortArgsBuf, 0);
+          }
+          scatter.end();
+        }
       }
 
       // render pass 2: newly visible meshlets on top of pass 1
       const pass2 = enc.beginRenderPass({
         colorAttachments: sceneAttachments(false),
         depthStencilAttachment: depthAttachment(false),
-        timestampWrites: this.timings.writes(4),
+        timestampWrites: this.timings.writes(5),
       });
       drawScene(pass2, 2);
       this.drawHelperLines(pass2, opt.msaa4x);
@@ -2799,7 +2954,7 @@ export class Renderer {
 
     if (!hold && (aoActive || (opt.debugBuf === 5 && this.aoAccum === 0))) {
       // VBAO after the final scene pass (depth complete), before the post pass
-      const aoPass = enc.beginComputePass({ timestampWrites: this.timings.writes(6) });
+      const aoPass = enc.beginComputePass({ timestampWrites: this.timings.writes(7) });
       aoPass.setPipeline(opt.msaa4x ? this.vbaoMsPipeline : this.vbaoPipeline);
       aoPass.setBindGroup(0, this.aoBind!);
       aoPass.dispatchWorkgroups(Math.ceil(canvas.width / 8), Math.ceil(canvas.height / 8));
@@ -2813,7 +2968,7 @@ export class Renderer {
       // hold frame both buffers carry the final sum, so this stays stable.
       const even = (this.accumIdx % 2 === 0) !== hold;
       const post = enc.beginRenderPass({
-        timestampWrites: this.timings.writes(7),
+        timestampWrites: this.timings.writes(8),
         colorAttachments: [
           { view: swapView, loadOp: 'clear', storeOp: 'store' },
           {
@@ -2870,7 +3025,7 @@ export class Renderer {
     if (cullActive && !this.statsInFlight && countsDue) {
       this.statsInFlight = true;
       this.lastCountRead = t0;
-      statsBytes = this.models.length * COUNT_SLOT * 2;
+      statsBytes = this.models.length * COUNT_SLOT * COUNT_SLOTS;
       enc.copyBufferToBuffer(this.countsBuf, 0, this.statsBuf, 0, statsBytes);
     }
 

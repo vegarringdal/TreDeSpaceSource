@@ -299,7 +299,7 @@ export class ViewCubePass {
         });
       }
       const cube = enc.beginRenderPass({
-        timestampWrites: timings.span(9, 'begin'),
+        timestampWrites: timings.span(10, 'begin'),
         colorAttachments: [
           {
             view: this.msaaTex.createView(),
@@ -318,7 +318,7 @@ export class ViewCubePass {
 
       const blit = enc.beginRenderPass({
         colorAttachments: [{ view, loadOp: 'load', storeOp: 'store' }],
-        timestampWrites: timings.span(9, 'end'),
+        timestampWrites: timings.span(10, 'end'),
       });
       blit.setViewport(vx, vy, vw, vh, 0, 1);
       blit.setPipeline(this.blitPipeline!);
@@ -330,7 +330,7 @@ export class ViewCubePass {
 
     const pass = enc.beginRenderPass({
       colorAttachments: [{ view, loadOp: 'load', storeOp: 'store' }],
-      timestampWrites: timings.writes(9),
+      timestampWrites: timings.writes(10),
     });
     pass.setViewport(vx, vy, vw, vh, 0, 1);
     pass.setPipeline(this.pipeline);

@@ -4,6 +4,7 @@
 // Save streams one block per live model into OPFS; apply is REPLACE-semantics
 // per channel and resets the affected undo domains (snapshotting prev-state of
 // every item could blow the 64 MB undo caps).
+import * as Comlink from 'comlink';
 import { createFnv64Scratch, fnv1a64 } from '../hash/fnv64';
 import { opfsOpenByteStream } from '../opfs/opfsSyncWrite';
 import {
@@ -28,7 +29,7 @@ import {
 import { resetTransformUndo } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
 import { type DbModel, HAS_COLOR_OVERRIDE, IS_HIDDEN, models, NO_PARENT, type StateUpdate } from './dbState';
-import { ensureNames, packStates } from './hierarchyIndex';
+import { ensureNames, packStates, updateBuffers } from './hierarchyIndex';
 import {
   allocTransformSlot,
   resetTransformPool,
@@ -212,7 +213,7 @@ export interface SnapshotApplyResult {
   updates: StateUpdate[];
   /** Transform pool for renderer.writeTransforms — null when transforms were
    *  not applied (pool unchanged). */
-  transforms: Float32Array | null;
+  transforms: Float32Array<ArrayBuffer> | null;
   blocksTotal: number;
   blocksMatched: number;
   skippedModels: { group: string; name: string; store: string }[];
@@ -483,6 +484,9 @@ export const snapshotApi = {
       }
     });
     result.transforms = applyTransform ? transformsSnapshot() : null;
-    return result;
+    return Comlink.transfer(result, [
+      ...updateBuffers(result.updates),
+      ...(result.transforms ? [result.transforms.buffer] : []),
+    ]);
   },
 };

@@ -20,7 +20,7 @@ export function allocTransformSlot(): number {
 }
 
 /** The used region of the pool (for GPU upload; copied, not transferred). */
-export function transformsSnapshot(): Float32Array {
+export function transformsSnapshot(): Float32Array<ArrayBuffer> {
   return transforms.slice(0, maxTransformSlot * 16);
 }
 

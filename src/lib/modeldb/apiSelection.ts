@@ -5,7 +5,15 @@ import { aabbInsideShape, aabbIntersectsShape, type SelectShape, type SelectShap
 // transform-aware world bounds of the current selection.
 import { IS_SELECTED, models, NO_PARENT, type StateUpdate } from './dbState';
 import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel } from './globalNameIndex';
-import { entryName, interleaveStates, itemsUnder, packStates, stateAggregates } from './hierarchyIndex';
+import {
+  entryName,
+  interleaveStates,
+  itemsUnder,
+  packStates,
+  stateAggregates,
+  transferUpdates,
+  updateBuffers,
+} from './hierarchyIndex';
 import { itemWorldBounds, transforms } from './transformPool';
 
 export const selectionApi = {
@@ -25,7 +33,7 @@ export const selectionApi = {
     } else {
       updates.push(packStates(m, model));
     }
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Folder click: select EVERY item of every model in the group — including
@@ -52,7 +60,7 @@ export const selectionApi = {
         updates.push(packStates(m, idx));
       }
     });
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Root entries of every model in `group` OR any nested subgroup (folder
@@ -118,7 +126,10 @@ export const selectionApi = {
       }
       updates.push(packStates(m, i));
     }
-    return { updates, added: !allIn, roots: selectionApi.groupRootEntries(group, store) };
+    return Comlink.transfer(
+      { updates, added: !allIn, roots: selectionApi.groupRootEntries(group, store) },
+      updateBuffers(updates),
+    );
   },
 
   /** Add/remove/toggle one subtree in the selection (ctrl+click). Returns the
@@ -149,7 +160,8 @@ export const selectionApi = {
       }
     }
     m.selected = Uint32Array.from(cur);
-    return { updates: [packStates(m, model)], added: effective === 'add' };
+    const updates = [packStates(m, model)];
+    return Comlink.transfer({ updates, added: effective === 'add' }, updateBuffers(updates));
   },
 
   /** Add several subtrees at once (shift+click range). */
@@ -165,7 +177,7 @@ export const selectionApi = {
       m.selected = Uint32Array.from(cur);
       touched.add(model);
     }
-    return Array.from(touched, (idx) => packStates(models[idx], idx));
+    return transferUpdates(Array.from(touched, (idx) => packStates(models[idx], idx)));
   },
 
   /** Select every subtree named in a packed list (a big SQL result): each
@@ -241,7 +253,7 @@ export const selectionApi = {
       }
     }
     const out = pairs.slice(0, n * 2);
-    return Comlink.transfer({ updates, matched: n, missed, pairs: out }, [out.buffer]);
+    return Comlink.transfer({ updates, matched: n, missed, pairs: out }, [...updateBuffers(updates), out.buffer]);
   },
 
   selectItems(model: number, items: Uint32Array): StateUpdate[] {
@@ -257,7 +269,7 @@ export const selectionApi = {
     } else {
       updates.push(packStates(m, model));
     }
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Replace the selection with every item (of every model) whose world AABB
@@ -295,7 +307,7 @@ export const selectionApi = {
         updates.push(packStates(m, idx));
       }
     });
-    return updates;
+    return transferUpdates(updates);
   },
 
   clearSelection(): StateUpdate[] {
@@ -313,7 +325,7 @@ export const selectionApi = {
       m.selected = new Uint32Array(0);
       updates.push(packStates(m, idx));
     });
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Select everything that is currently NOT selected (per model). */
@@ -339,7 +351,7 @@ export const selectionApi = {
       m.selected = Uint32Array.from(inv);
       updates.push(packStates(m, idx));
     });
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Center of one item's world AABB (transformed corners when the item has

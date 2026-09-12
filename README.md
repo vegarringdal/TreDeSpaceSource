@@ -19,7 +19,7 @@ For better understanding/see it in action have a look at these links:
 
 ## Versioning
 
-> Still working on last checks, so not active yet.
+> Still working on last checks, so not active yet. See REVIEW_*.md under plan/
 
 When app is stable version will be per YY.NUMBER.0.
 

@@ -17,7 +17,9 @@ const RENDER_FRAME = /* wgsl */ `struct Frame {
   eye: vec4f,
   // x: 1 = per-meshlet debug colors; y: suppress selection tint on overrides;
   // z: bit0 = blend transparency mode, bit1 = this is the blend pass,
-  //    bit2 = Background mode (the blend pass renders solid, faded);
+  //    bit2 = Background mode (the blend pass renders solid, faded),
+  //    bit3 = the blend pass draws the cull's sorted transparent list, two
+  //           instances per meshlet (facing split: back faces, then front);
   // w: frame counter (alpha-hash seed)
   flags: vec4u,
   // xyz: directional headlight (surface -> light), used when w == 1 (ortho).
@@ -61,6 +63,24 @@ struct ModelUni {
 @group(0) @binding(4) var<uniform> model_uni: ModelUni;
 // committed item transforms (renderer-global pool, slot 0 = identity)
 @group(0) @binding(6) var<storage, read> transforms: array<mat4x4f>;
+
+// committed item transform (native mesh.slang: pos = T * pos) with the live
+// gizmo-drag preview on top (selected items only, native model_global);
+// absolute space in, absolute space out
+fn apply_item_transform(p: vec3f, tid: u32, live: bool) -> vec3f {
+  var q = p;
+  if (tid != 0u) {
+    q = (transforms[tid] * vec4f(q, 1.0)).xyz;
+  }
+  if (live) {
+    q = (model_uni.global * vec4f(q, 1.0)).xyz;
+  }
+  return q;
+}
+
+// Midpoint of the cooked u16 position range: aabb_min + Q_MID * aabb_scale is
+// the meshlet's AABB centre (the blend pass's facing reference).
+const Q_MID = 32767.5;
 
 // stochastic transparency (native mesh.slang alpha_hash): different pixels
 // discard each frame; TAA accumulates the result into smooth opacity
@@ -209,6 +229,11 @@ struct VsOut {
   // per-item edge tag bits for the post pass (4 = item edges off), read from
   // the item state here so the fragment stage needs no extra fetch
   @location(5) @interpolate(flat) edge_bits: u32,
+  // blend-pass facing split: the meshlet's AABB centre (rebased like world)
+  // the fragment stage orients the face normal away from, and which half this
+  // instance keeps (0 = back faces, 1 = front faces)
+  @location(6) @interpolate(flat) centre: vec3f,
+  @location(7) @interpolate(flat) facing: u32,
 };
 
 `;
@@ -244,6 +269,17 @@ fn fs(in: VsOut) -> FsOut {
   } else {
     l = normalize(frame.eye.xyz - in.world);
   }
+  let blend_pass = (frame.flags.z & 2u) != 0u;
+  let backdrop = (frame.flags.z & 4u) != 0u;
+  // sorted blend list, facing split: facing comes from geometry, not winding
+  // (the cook path enforces none) — the flat normal oriented away from the
+  // meshlet centre is the outward normal; instance 0 keeps the back faces,
+  // instance 1 the front faces, so a pipe's far wall blends under its near
+  // wall (l points at the viewer in both projections)
+  if (blend_pass && !backdrop && (frame.flags.z & 8u) != 0u) {
+    let out_n = select(-flat_n, flat_n, dot(flat_n, in.world - in.centre) >= 0.0);
+    if ((dot(out_n, l) > 0.0) != (in.facing == 1u)) { discard; }
+  }
   if (dot(n, l) < 0.0) { n = -n; } // two-sided: face the light/camera
   let t = dot(n, l);
   // native mesh.slang: half-Lambert + Blinn-Phong spec (headlight => half = l);
@@ -254,8 +290,6 @@ fn fs(in: VsOut) -> FsOut {
               frame.headlight.rgb * (frame.headlight.a * (diffuse + spec));
   let unlit_luma = dot(in.color.rgb, vec3f(0.299, 0.587, 0.114));
   var o: FsOut;
-  let blend_pass = (frame.flags.z & 2u) != 0u;
-  let backdrop = (frame.flags.z & 4u) != 0u;
   // blend pass: alpha is the colour blend factor only — the pipeline keeps the
   // destination alpha, so the scene alpha stays the unlit luma of the opaque
   // surface underneath (the edge pass's white-on-dark test); otherwise it
@@ -356,16 +390,21 @@ fn vs(
   @builtin(instance_index) inst: u32,
 ) -> VsOut {
   var o: VsOut;
-  let info = meshlet_info[inst]; // inst = meshlet index (from the cull records)
+  // cull records carry firstInstance = 2 x meshlet index; bit 0 is the
+  // facing half in the sorted transparent list (two instances per record)
+  let mi = inst >> 1u;
+  let facing = inst & 1u;
+  let info = meshlet_info[mi];
   let opacity = item_opacity(info.item, cg_colors[info.cg].a);
   let blend_mode = (frame.flags.z & 1u) != 0u;
   let blend_pass = (frame.flags.z & 2u) != 0u;
+  let split = blend_pass && (frame.flags.z & 12u) == 8u;
   let transparent = opacity < 1.0;
   // hidden or invisible (effective opacity 0 — the cull drops these, this
-  // covers the no-cull path), or routed to the other pass in blend mode ->
-  // degenerate
+  // covers the no-cull path), routed to the other pass in blend mode, or the
+  // second facing instance outside the split blend pass -> degenerate
   if ((item_states[info.item].flags & 1u) != 0u || opacity <= 0.0 ||
-      (blend_mode && transparent != blend_pass)) {
+      (blend_mode && transparent != blend_pass) || (facing == 1u && !split)) {
     o.clip = vec4f(0.0);
     o.world = vec3f(0.0);
     o.color = vec4f(0.0);
@@ -373,10 +412,13 @@ fn vs(
     o.opacity = 1.0;
     o.normal = vec3f(0.0);
     o.edge_bits = 0u;
+    o.centre = vec3f(0.0);
+    o.facing = 0u;
     return o;
   }
   o.opacity = opacity;
   o.edge_bits = select(0u, 4u, (item_states[info.item].flags & 256u) != 0u);
+  o.facing = facing;
   let tid = item_states[info.item].tidx;
   let live = model_uni.info.y == 1u && (item_states[info.item].flags & 4u) != 0u;
   // Rebase FIRST on the untransformed path: aabb_min - origin is an exact
@@ -386,16 +428,20 @@ fn vs(
   // absolute-space matrix, so they rebase after (as precise as before).
 ${quantized ? '  var world = (info.aabb_min - frame.origin.xyz) + vec3f(pos.xyz) * info.aabb_scale;' : '  var world = pos - frame.origin.xyz;'}
   if (tid != 0u || live) {
-${quantized ? '    var abs_world = info.aabb_min + vec3f(pos.xyz) * info.aabb_scale;' : '    var abs_world = pos;'}
-    // committed item transform (native mesh.slang: pos = T * pos)
-    if (tid != 0u) {
-      abs_world = (transforms[tid] * vec4f(abs_world, 1.0)).xyz;
-    }
-    // live gizmo-drag preview on top, selected items only (native model_global)
-    if (live) {
-      abs_world = (model_uni.global * vec4f(abs_world, 1.0)).xyz;
-    }
-    world = abs_world - frame.origin.xyz;
+${quantized ? '    let abs_world = info.aabb_min + vec3f(pos.xyz) * info.aabb_scale;' : '    let abs_world = pos;'}
+    world = apply_item_transform(abs_world, tid, live) - frame.origin.xyz;
+  }
+  // the facing split's reference point, only when that pass asks for it
+  o.centre = vec3f(0.0);
+  if (split) {
+${
+  quantized
+    ? `    o.centre = (info.aabb_min - frame.origin.xyz) + vec3f(Q_MID) * info.aabb_scale;
+    if (tid != 0u || live) {
+      o.centre = apply_item_transform(info.aabb_min + vec3f(Q_MID) * info.aabb_scale, tid, live) - frame.origin.xyz;
+    }`
+    : '    o.centre = world;'
+}
   }
   // authored normal (generic GLB import); vid = index value + baseVertex =
   // the global vertex index the normal stream is laid out by
@@ -409,7 +455,7 @@ ${quantized ? '    var abs_world = info.aabb_min + vec3f(pos.xyz) * info.aabb_sc
   o.clip = frame.view_proj * vec4f(world, 1.0);
   o.world = world;
   if (frame.flags.x == 1u) {
-    o.color = vec4f(hash_color(inst), 1.0);
+    o.color = vec4f(hash_color(mi), 1.0);
   } else {
     o.color = apply_item_state(cg_colors[info.cg], info.item);
   }
@@ -465,7 +511,11 @@ fn vs(
   @builtin(vertex_index) vid: u32,
   @builtin(instance_index) inst: u32,
 ) -> VsOut {
-  let mi = vis_list[inst];
+  // the sorted transparent list holds two entries per meshlet, the second
+  // with bit 31 set: the facing half this instance keeps
+  let entry = vis_list[inst];
+  let mi = entry & 0x7fffffffu;
+  let facing = entry >> 31u;
   let m = load_geo(mi);
   // clamp padding vertices to the last real index -> zero-area triangles
   let li = min(vid, m.index_count - 1u);
@@ -480,12 +530,13 @@ fn vs(
   let opacity = item_opacity(info.item, cg_colors[info.cg].a);
   let blend_mode = (frame.flags.z & 1u) != 0u;
   let blend_pass = (frame.flags.z & 2u) != 0u;
+  let split = blend_pass && (frame.flags.z & 12u) == 8u;
   let transparent = opacity < 1.0;
   // hidden or invisible (effective opacity 0 — the cull drops these, this
-  // covers the no-cull path), or routed to the other pass in blend mode ->
-  // degenerate
+  // covers the no-cull path), routed to the other pass in blend mode, or the
+  // second facing entry outside the split blend pass -> degenerate
   if ((item_states[info.item].flags & 1u) != 0u || opacity <= 0.0 ||
-      (blend_mode && transparent != blend_pass)) {
+      (blend_mode && transparent != blend_pass) || (facing == 1u && !split)) {
     o.clip = vec4f(0.0);
     o.world = vec3f(0.0);
     o.color = vec4f(0.0);
@@ -493,25 +544,27 @@ fn vs(
     o.opacity = 1.0;
     o.normal = vec3f(0.0);
     o.edge_bits = 0u;
+    o.centre = vec3f(0.0);
+    o.facing = 0u;
     return o;
   }
   o.opacity = opacity;
   o.edge_bits = select(0u, 4u, (item_states[info.item].flags & 256u) != 0u);
+  o.facing = facing;
   // rebase before dequantizing — see the MDI path for why
   let tid = item_states[info.item].tidx;
   let live = model_uni.info.y == 1u && (item_states[info.item].flags & 4u) != 0u;
   var world = (info.aabb_min - frame.origin.xyz) + q * info.aabb_scale;
   if (tid != 0u || live) {
-    var abs_world = info.aabb_min + q * info.aabb_scale;
-    // committed item transform (native mesh.slang: pos = T * pos)
-    if (tid != 0u) {
-      abs_world = (transforms[tid] * vec4f(abs_world, 1.0)).xyz;
+    world = apply_item_transform(info.aabb_min + q * info.aabb_scale, tid, live) - frame.origin.xyz;
+  }
+  // the facing split's reference point, only when that pass asks for it
+  o.centre = vec3f(0.0);
+  if (split) {
+    o.centre = (info.aabb_min - frame.origin.xyz) + vec3f(Q_MID) * info.aabb_scale;
+    if (tid != 0u || live) {
+      o.centre = apply_item_transform(info.aabb_min + vec3f(Q_MID) * info.aabb_scale, tid, live) - frame.origin.xyz;
     }
-    // live gizmo-drag preview on top, selected items only (native model_global)
-    if (live) {
-      abs_world = (model_uni.global * vec4f(abs_world, 1.0)).xyz;
-    }
-    world = abs_world - frame.origin.xyz;
   }
   // authored normal (generic GLB import): same global vertex index as qverts
   o.normal = vec3f(0.0);

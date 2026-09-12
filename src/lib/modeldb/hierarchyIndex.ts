@@ -133,7 +133,7 @@ export function buildIndexes(m: DbModel) {
 
 /** GPU upload layout: interleaved [flags, colorRGBA8, transform_idx] — the
  * 12-byte native MeshItem struct (item_state.rs). */
-export function interleaveStates(m: DbModel): Uint32Array {
+export function interleaveStates(m: DbModel): Uint32Array<ArrayBuffer> {
   const out = new Uint32Array(m.itemCount * 3);
   for (let i = 0; i < m.itemCount; i++) {
     out[i * 3] = m.states[i * 2];
@@ -143,10 +143,26 @@ export function interleaveStates(m: DbModel): Uint32Array {
   return out;
 }
 
+/** One model's full upload array, stamped with a new stateVersion. The
+ *  transfer mark goes on the value RETURNED across the worker boundary (see
+ *  transferUpdates) — Comlink never looks inside an array for marks. */
 export function packStates(m: DbModel, modelIdx: number): StateUpdate {
   m.stateVersion = (m.stateVersion ?? 0) + 1;
-  const states = interleaveStates(m);
-  return Comlink.transfer({ model: modelIdx, states }, [states.buffer]);
+  return { model: modelIdx, states: interleaveStates(m) };
+}
+
+/** Buffers of a StateUpdate list, for the transfer mark on a wrapper object
+ *  (`{ updates, … }`) — list them together with the wrapper's own buffers. */
+export function updateBuffers(updates: StateUpdate[]): ArrayBuffer[] {
+  return updates.map((u) => u.states.buffer);
+}
+
+/** Mark a StateUpdate list for zero-copy transfer. Every API that returns
+ *  updates goes through this at its return: Comlink reads the mark on the
+ *  returned value only, so without it each array is structured-cloned
+ *  (12 B per item of every touched model, copied on both threads). */
+export function transferUpdates(updates: StateUpdate[]): StateUpdate[] {
+  return Comlink.transfer(updates, updateBuffers(updates));
 }
 
 /** Collect all dense items under an entry (subtree walk over the CSR). */

@@ -109,7 +109,7 @@ export class ItemPickPass {
           storeOp: 'store',
         },
       ],
-      timestampWrites: timings.writes(10),
+      timestampWrites: timings.writes(11),
       depthStencilAttachment: {
         view: this.pickDepthTex!.createView(),
         depthClearValue: 0,

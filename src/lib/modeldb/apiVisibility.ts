@@ -5,7 +5,7 @@ import { quatAxes } from '../math/quat';
 import { type ColorUndoRecord, captureColorRuns, pushColorUndo } from './colorUndo';
 import { type DbModel, IS_HIDDEN, isEffectivelyHidden, models, NO_ITEM_EDGES, type StateUpdate } from './dbState';
 import { DenseBoxAccumulator } from './denseBox';
-import { packStates } from './hierarchyIndex';
+import { packStates, transferUpdates } from './hierarchyIndex';
 import { itemWorldBounds, transforms } from './transformPool';
 
 export const visibilityApi = {
@@ -113,7 +113,7 @@ export const visibilityApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Item-boundary edge lines on/off for every selected item (undoable,
@@ -137,7 +137,7 @@ export const visibilityApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Isolate: hide everything that is NOT selected. */
@@ -163,7 +163,7 @@ export const visibilityApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   unhideSelection(): StateUpdate[] {
@@ -183,7 +183,7 @@ export const visibilityApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Unhide every HIDDEN item whose world AABB (transform-aware, same corner
@@ -262,7 +262,7 @@ export const visibilityApi = {
       }
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   /** Unhide every hidden item whose world AABB intersects ANY selected item's
@@ -358,7 +358,7 @@ export const visibilityApi = {
       }
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 
   unhideAll(): StateUpdate[] {
@@ -385,6 +385,6 @@ export const visibilityApi = {
       updates.push(packStates(m, idx));
     });
     pushColorUndo(step);
-    return updates;
+    return transferUpdates(updates);
   },
 };

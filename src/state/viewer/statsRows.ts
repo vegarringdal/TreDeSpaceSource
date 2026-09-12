@@ -36,7 +36,7 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
   const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0;
   const vram = r.vramBuffers + r.vramTextures;
   const culls = r.cullMode !== 'full';
-  const drawn = r.drawnPass1 + r.drawnPass2;
+  const drawn = r.drawnPass1 + r.drawnPass2 + r.drawnBlend;
   const culledPct = s.meshlets > 0 ? (100 * (1 - drawn / s.meshlets)).toFixed(1) : '0.0';
   const res = vramBudgetMb(st) > 0 ? residency.statsSummary() : null;
   const rows: StatRow[] = [
@@ -51,8 +51,10 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
     },
     {
       key: 'drawn',
-      label: 'drawn p1 / p2',
-      value: culls ? `${r.drawnPass1.toLocaleString()} / ${r.drawnPass2.toLocaleString()}` : NONE,
+      label: 'drawn p1 / p2 / blend',
+      value: culls
+        ? `${r.drawnPass1.toLocaleString()} / ${r.drawnPass2.toLocaleString()} / ${r.drawnBlend.toLocaleString()}`
+        : NONE,
     },
     {
       key: 'culled',

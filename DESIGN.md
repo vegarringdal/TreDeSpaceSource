@@ -94,11 +94,11 @@ own. Key facts, kept here so the port history isn't lost:
   BOTH triangles (a surface merely hidden behind the hit one cannot fake it).
   Priority: corner > seam corner > edge > seam edge > face. Ribbon: Snapping →
   Seams. Pure math in `measureSnap.ts` (`seamProbe`, unit-tested).
-- **Transparency**: alpha-hash (converges under TAA) or unsorted blend pass;
-  per-item opacity overrides. An effective opacity of 0 is not transparency
-  but invisibility: the cull drops such items exactly like the hide flag
-  (`isEffectivelyHidden`, mirrored in cull / snap WGSL) and they do not enable
-  the blend pass. A third mode, **background** (2026-09-04),
+- **Transparency**: alpha-hash (converges under TAA) or a depth-sorted blend
+  pass; per-item opacity overrides. An effective opacity of 0 is not
+  transparency but invisibility: the cull drops such items exactly like the
+  hide flag (`isEffectivelyHidden`, mirrored in cull / snap WGSL) and they do
+  not enable the blend pass. A third mode, **background** (2026-09-04),
   renders the items set transparent SOLID as a backdrop layer: the same
   transparent-item pass, but unblended and writing depth, with the pass
   viewport squeezing its depths into (0, 1e-9] so every foreground fragment
@@ -111,6 +111,48 @@ own. Key facts, kept here so the port history isn't lost:
   backdrop is faded toward the canvas colour by a global amount (Settings →
   Transparency → Background fade, default 70 %) carried in the Frame uniform's
   `backdrop` vec4, so the context recedes and what is left opaque stands out.
+- **Sorted blend pass** (2026-09-12, review 5b.1 + 5b.4). Blend mode used to
+  replay the ENTIRE visible draw list through the blend pipeline with the
+  vertex shader degenerating whichever half did not belong (every visible
+  meshlet ran the VS twice), and drew glass in emission order — model load
+  order, then cull slot order — so a pipe behind a tank could blend on top of
+  it, and a pipe's own far wall over its near wall. Now the cull routes: with
+  `sort_mode` on (blend mode + any transparency + culling) `emit()` sends a
+  transparent meshlet (explicit opacity / override alpha / baked cg alpha < 1,
+  mirroring `item_opacity`) to a per-model candidate list `[meshlet, bucket]`
+  and bumps a 2048-bucket histogram; the bucket is the bounding-sphere
+  centre's view depth, log-mapped between the near plane and the farthest
+  scene corner (linear over the ortho slab), bucket 0 = farthest. After cull 2
+  a one-workgroup scan per model turns the histogram into exclusive bases and
+  publishes the count (vertex-pull args `[372, 2n, 0, 0]` + the plain count
+  at word 4 of the model's third count slot) plus the scatter's dispatch args
+  (their own 16 B indirect buffer, in a second compute pass: a buffer cannot
+  be writable storage and an indirect source within one pass), then the
+  indirect-dispatched scatter writes the list back-to-front into
+  `recordBufT`. The blend pass
+  draws only that list; the opaque passes draw opaque-only records. Same on
+  MDI and vertex-pull (`cullMode: 'full'`, no culling at all, keeps the old
+  VS routing over its static list). **Facing split** (5b.4): each transparent
+  meshlet draws twice, adjacent in the list — MDI records carry
+  `instanceCount 2`, `firstInstance 2i` (every record now uses `2i`; the VS
+  reads `instance_index >> 1`), vertex-pull lists two entries `i` and
+  `i | 1<<31`. Instance 0 keeps back faces, instance 1 front faces, decided in
+  the FS from the flat normal oriented away from the meshlet's AABB centre
+  (winding is not enforced anywhere in the cook path, so `cullMode` cannot do
+  it); the two-sided lighting flip stays. Keeping a meshlet's halves adjacent
+  (rather than all back faces, then all front faces) makes a wall patch whose
+  centre lies on the wall harmless — its arbitrary facing never interleaves
+  with other meshlets — and orders side-by-side pipes correctly; nested
+  single-meshlet parts with the same centre remain arbitrary. Pick and
+  outline replay the transparent list too (their frame slots have routing
+  off; the second instance degenerates outside the split blend pass), and
+  the residency counts include it. Cost: `N + 2T` vertex work instead of
+  `2N`; +28 B per meshlet (`MESHLET_RECORD_BYTES` 116 → 144) and ~8 KB per
+  model. Not done: cross-model interleaving (draws are per model, so glass of
+  an earlier-loaded model stays under a later one's where they overlap) and a
+  "front faces only" variant that would show the true slider opacity at the
+  price of the far wall; freeze-cull keeps whatever list the last cull built,
+  so switching modes while frozen shows stale routing.
 - **Marker spheres** (2026-09-04): labels and measurement points can carry a
   sphere drawn in the scene, depth tested — wireframe rings through the
   clip-helper line list, or `solid` fills as instances of one unit sphere

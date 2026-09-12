@@ -37,8 +37,11 @@ export function isEffectivelyHidden(flags: number, color: number): boolean {
 }
 
 export interface DbModel {
-  /** Tombstoned by removeModels — hidden everywhere, slot kept for index stability. */
+  /** Tombstoned by forgetModels — hidden everywhere, slot kept for index stability. */
   removed?: boolean;
+  /** Tables released by forgetModelTables (explicit unload): reviveModel must
+   *  rebuild them from the fresh parse instead of reusing them. */
+  forgotten?: boolean;
   name: string;
   /** import group (the folder the model came from) — the tree root label */
   group: string;
@@ -107,20 +110,48 @@ export interface TreeNode {
   selectedUnder: number;
 }
 
-export type StateUpdate = { model: number; states: Uint32Array };
+export type StateUpdate = { model: number; states: Uint32Array<ArrayBuffer> };
 
-/** Put every item of a model back to its load-time state: no flags (hidden,
- *  selected, color / opacity override, item edges off), the color group's
- *  color, the identity transform, nothing selected. Bumps `stateVersion` so
- *  the tree's hidden / selected aggregates recompute. */
-export function resetItemStates(m: DbModel): void {
-  m.states.fill(0);
-  for (let i = 0; i < m.itemCount; i++) {
-    m.states[i * 2 + 1] = m.baseColor[i];
-  }
-  m.tidx.fill(0);
+function emptyHierarchy(): Hierarchy {
+  return {
+    namePool: new Uint8Array(0),
+    entryId: new Uint32Array(0),
+    entryNameOffset: new Uint32Array(0),
+    entryParent: new Uint32Array(0),
+    entryNameLen: new Uint16Array(0),
+    idItemIds: new Uint32Array(0),
+    idItemItems: new Uint32Array(0),
+  };
+}
+
+/** EXPLICIT unload only (GUI / API remove, a recovery slot whose file is
+ *  gone): release every table that scales with the model — hierarchy, name
+ *  pool, indexes, per-item state, colors, transforms, bounds — so a removed
+ *  model costs nothing but its slot until the scene is cleared. Identity and
+ *  `itemCount` stay (slot alignment and item bases depend on them) and
+ *  `forgotten` tells reviveModel to rebuild from the fresh parse, which also
+ *  makes a later load of the same file start clean. NEVER for a residency
+ *  evict: that path keeps the DbModel live so the revive restores state. */
+export function forgetModelTables(m: DbModel): void {
+  m.forgotten = true;
+  m.hierarchy = emptyHierarchy();
+  m.childStart = new Uint32Array(0);
+  m.childList = new Uint32Array(0);
+  m.roots = new Uint32Array(0);
+  m.itemToEntry = new Uint32Array(0);
+  m.itemsUnder = undefined;
+  m.hiddenUnder = undefined;
+  m.selectedUnder = undefined;
+  m.hiddenAggVersion = undefined;
+  m.namesLower = null;
+  m.states = new Uint32Array(0);
+  m.tidx = new Uint32Array(0);
+  m.baseColor = new Uint32Array(0);
+  m.hashIndex = undefined;
+  m.itemBounds = new Float32Array(0);
   m.selected = new Uint32Array(0);
-  m.stateVersion = (m.stateVersion ?? 0) + 1;
+  m.bfsOrder = undefined;
+  m.entryDepth = undefined;
 }
 
 export const models: DbModel[] = [];

@@ -24,7 +24,7 @@ describe('search skips unloaded (tombstoned) models', () => {
   });
 
   it('finds nothing from the model after it is removed', () => {
-    modelsApi.removeModels([mi]);
+    modelsApi.forgetModels([mi]);
     const hits = treeApi.search('qzx', 'contains', 10);
     expect(hits.filter((h) => h.model === mi)).toEqual([]);
     expect(hits.some((h) => h.group === 'QZXFOLDER')).toBe(false);

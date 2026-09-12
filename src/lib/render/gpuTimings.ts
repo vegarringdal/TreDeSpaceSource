@@ -8,6 +8,7 @@ const TS_PASSES = [
   'scene 1',
   'hzb',
   'cull 2',
+  'sort',
   'scene 2',
   'blend',
   'ao',

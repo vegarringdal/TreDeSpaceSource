@@ -14,6 +14,8 @@ import {
   postWgsl,
   renderVpWgsl,
   renderWgsl,
+  sortScanWgsl,
+  sortScatterWgsl,
   vbaoWgsl,
   viewCubeWgsl,
 } from '../src/lib/render/shaders';
@@ -29,6 +31,10 @@ describe('shader text pins', () => {
       for (const vp of [false, true]) {
         hashes[`cullWgsl(${pass2},${vp})`] = sha(cullWgsl(pass2, vp));
       }
+    }
+    hashes['sortScanWgsl()'] = sha(sortScanWgsl());
+    for (const vp of [false, true]) {
+      hashes[`sortScatterWgsl(${vp})`] = sha(sortScatterWgsl(vp));
     }
     for (const msaa of [false, true]) {
       hashes[`hzbWgsl(${msaa})`] = sha(hzbWgsl(msaa));
