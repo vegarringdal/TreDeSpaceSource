@@ -4,6 +4,7 @@ import * as Comlink from 'comlink';
 import { parseModel } from '../model/format';
 import { buildGlb, type ExportNode, type ExportPrimitive, writeGlb } from '../model/glbWrite';
 import { type IfcSink, writeIfc, writeIfcHierarchy } from '../model/ifcWrite';
+import { bakeMatrices, exportTreeToFlat, flatTransferables, type MergedFlatModel } from '../model/mergedFlat';
 import { packModel } from '../model/pack';
 import { opfsOpenByteStream, opfsOpenTextStream } from '../opfs/opfsSyncWrite';
 import { clipCulledSphere } from '../render/clipCull';
@@ -40,6 +41,26 @@ export interface FileGeom {
 }
 
 export type ExportGeom = GpuGeom | FileGeom;
+
+/** Multiplier that keeps (item, colour) bucket keys unique in one double:
+ *  colour keys are 32-bit, item counts stay far below 2^21. */
+const KEY_ITEM_STRIDE = 2 ** 32;
+/** Meshlet vertex cap (cook.rs MAX_VERTICES). */
+const MAX_MESHLET_VERTICES = 64;
+
+/** Exact vertex count of meshlet `mi`: the pack lays meshlet vertices out back
+ *  to back, so it is the next meshlet's base vertex minus this one's. The last
+ *  meshlet has no successor and takes the tight upper bound instead — its
+ *  index count (every meshlet vertex is referenced by a triangle) capped by
+ *  the meshlet vertex limit; any layout surprise falls back to that bound too. */
+function meshletVertexCount(cullU: Uint32Array, mi: number, meshletCount: number, indexCount: number): number {
+  const cap = Math.min(indexCount, MAX_MESHLET_VERTICES);
+  if (mi + 1 >= meshletCount) {
+    return cap;
+  }
+  const n = cullU[(mi + 1) * 9 + 8] - cullU[mi * 9 + 8];
+  return n > 0 && n <= cap ? n : cap;
+}
 
 /** The views the decoder walks — the same pack.ts layouts whichever source
  *  the geometry came from. */
@@ -164,8 +185,9 @@ export const exportApi = {
           (Math.round(c[3] * 255) << 24)) >>>
         0;
 
-      // pass 1 — index counts per bucket (merged: color; hierarchy: item+color).
-      // Vertex caps use the index count as an upper bound (transient overshoot).
+      // pass 1 — exact vertex/index totals per bucket (merged: color;
+      // hierarchy: item+color) and the bucket of every meshlet, so pass 2
+      // never re-derives colours and allocations are exact, not index-sized.
       interface Bucket {
         pos: Float32Array;
         idx: Uint32Array;
@@ -174,49 +196,60 @@ export const exportApi = {
         min: [number, number, number];
         max: [number, number, number];
         color: [number, number, number, number];
+        item: number;
       }
-      const bucketKeyOf = (item: number, ck: number) => (mode === 'merged' ? String(ck) : `${item}:${ck}`);
-      const counts = new Map<string, { n: number; color: [number, number, number, number]; item: number }>();
+      interface BucketSize {
+        index: number;
+        nv: number;
+        ni: number;
+        color: [number, number, number, number];
+        item: number;
+      }
+      const keyOf = (item: number, ck: number) => (mode === 'merged' ? ck : item * KEY_ITEM_STRIDE + ck);
+      const sizes = new Map<number, BucketSize>();
+      const order: BucketSize[] = [];
+      const bucketOf = new Int32Array(g.meshletCount).fill(-1);
       for (let mi = 0; mi < g.meshletCount; mi++) {
         const item = infoU[mi * 8 + 7];
         const color = itemColor(item, infoU[mi * 8 + 3]);
         if (!color) {
           continue;
         }
-        const key = bucketKeyOf(item, colorKey(color));
-        const c = counts.get(key);
-        const n = cullU[mi * 9 + 5];
-        if (c) {
-          c.n += n;
-        } else {
-          counts.set(key, { n, color, item });
+        const key = keyOf(item, colorKey(color));
+        const ni = cullU[mi * 9 + 5];
+        let bs = sizes.get(key);
+        if (!bs) {
+          bs = { index: order.length, nv: 0, ni: 0, color, item };
+          sizes.set(key, bs);
+          order.push(bs);
         }
+        bs.nv += meshletVertexCount(cullU, mi, g.meshletCount, ni);
+        bs.ni += ni;
+        bucketOf[mi] = bs.index;
       }
-      if (counts.size === 0) {
+      if (order.length === 0) {
         continue;
       }
-      const buckets = new Map<string, Bucket>();
-      for (const [key, c] of counts) {
-        buckets.set(key, {
-          pos: new Float32Array(c.n * 3),
-          idx: new Uint32Array(c.n),
-          nv: 0,
-          ni: 0,
-          min: [Infinity, Infinity, Infinity],
-          max: [-Infinity, -Infinity, -Infinity],
-          color: c.color,
-        });
-      }
+      const buckets: Bucket[] = order.map((bs) => ({
+        pos: new Float32Array(bs.nv * 3),
+        idx: new Uint32Array(bs.ni),
+        nv: 0,
+        ni: 0,
+        min: [Infinity, Infinity, Infinity],
+        max: [-Infinity, -Infinity, -Infinity],
+        color: bs.color,
+        item: bs.item,
+      }));
 
       // pass 2 — dequantize + (merged) bake transforms + fill buckets
       const bakeTransforms = mode === 'merged';
       for (let mi = 0; mi < g.meshletCount; mi++) {
-        const item = infoU[mi * 8 + 7];
-        const color = itemColor(item, infoU[mi * 8 + 3]);
-        if (!color) {
+        const bi = bucketOf[mi];
+        if (bi < 0) {
           continue;
         }
-        const b = buckets.get(bucketKeyOf(item, colorKey(color)))!;
+        const item = infoU[mi * 8 + 7];
+        const b = buckets[bi];
         const o = mi * 8;
         const mnx = infoF[o + 0],
           mny = infoF[o + 1],
@@ -286,15 +319,15 @@ export const exportApi = {
       });
 
       if (mode === 'merged') {
-        modelRoots.push({ name: m.name, primitives: [...buckets.values()].map(toPrimitive) });
+        modelRoots.push({ name: m.name, primitives: buckets.map(toPrimitive) });
         continue;
       }
 
       // hierarchy mode: primitives grouped per item; entry tree pruned to
       // ancestors of visible items; item transforms become node matrices
       const itemPrims = new Map<number, ExportPrimitive[]>();
-      for (const [key, b] of buckets) {
-        const item = Number(key.split(':')[0]);
+      for (const b of buckets) {
+        const item = b.item;
         const list = itemPrims.get(item);
         if (list) {
           list.push(toPrimitive(b));
@@ -483,6 +516,28 @@ export const exportApi = {
     return Comlink.transfer({ glb, tris, size: glb.byteLength }, [glb]);
   },
 
+  /** `.tdp` export: the decoded tree as the cooker's FLAT merged model —
+   *  positions world-space Z-up with item transforms baked, one cooker node
+   *  per final colour, one draw range per primitive, hierarchy entries per
+   *  node and a leaf per primitive (the scheme the generic cook applied to
+   *  the export GLB). The buffers are transferred and nothing is written
+   *  here: the cooker worker cooks them straight into OPFS, so no GLB is
+   *  built or read back in between. */
+  async exportMergedModel(
+    mode: 'merged' | 'hierarchy',
+    geoms: ExportGeom[],
+    opts: ExportDecodeOpts = {},
+  ): Promise<{ model: MergedFlatModel; tris: number }> {
+    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms, { clip: opts.clip });
+    if (tris === 0) {
+      throw new Error('nothing visible to export');
+    }
+    bakeMatrices(roots);
+    const root = roots.length === 1 ? roots[0] : { name: 'export', children: roots };
+    const model = exportTreeToFlat(root);
+    return Comlink.transfer({ model, tris }, flatTransferables(model));
+  },
+
   /** IFC4 export (Export panel): TRIANGULATED face sets + surface styles under
    *  one default building. merged = one proxy per final color; hierarchy = the
    *  app's tree as nested IfcRelAggregates with named proxies. IFC is natively
@@ -514,29 +569,7 @@ export const exportApi = {
     } else {
       // IFC placements cannot carry arbitrary matrices — bake the item
       // transforms the hierarchy decode left as node matrices into positions
-      const bake = (node: ExportNode) => {
-        if (node.matrix && node.primitives) {
-          const t = node.matrix;
-          for (const p of node.primitives) {
-            const pos = p.positions;
-            for (let i = 0; i < pos.length; i += 3) {
-              const x = pos[i],
-                y = pos[i + 1],
-                z = pos[i + 2];
-              pos[i] = t[0] * x + t[4] * y + t[8] * z + t[12];
-              pos[i + 1] = t[1] * x + t[5] * y + t[9] * z + t[13];
-              pos[i + 2] = t[2] * x + t[6] * y + t[10] * z + t[14];
-            }
-          }
-          node.matrix = undefined;
-        }
-        for (const c of node.children ?? []) {
-          bake(c);
-        }
-      };
-      for (const r of roots) {
-        bake(r);
-      }
+      bakeMatrices(roots);
       emit = (sink) => writeIfcHierarchy(roots, sink);
     }
     // Streamed into OPFS in ~8 MB flushes — the STEP text (which can be

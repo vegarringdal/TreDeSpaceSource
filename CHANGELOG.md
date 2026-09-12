@@ -4,6 +4,54 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.12** (>0.0.116):
+  Chunk uploads over the postMessage API can no longer wedge the viewer
+  (review 1.1): a session is owned by the window that began it and watched
+  — when that window says `client.bye` or is found closed, or after 2
+  minutes without a chunk, the viewer aborts it itself (import lock released,
+  staging file deleted, overlay down, a Console warning says why). Before,
+  only `uploadFinish` / `uploadAbort` released, so a host closed mid-upload
+  left every tab's imports failing with "another import is already running"
+  for the rest of the session. Chunk / finish / abort from another window
+  answer `not-found`. New pure `uploadSessions.ts` (unit-tested) and an
+  `onClientGone` hook on the client registry.
+  EVENTS.md now states the external-app trust model explicitly: a
+  configured app's origin gets the full command table and every event,
+  same as the hosting page, and the allowlist is per origin, not per URL.
+  Review 6.1 (per-client capability scoping) marked BY DESIGN — panels and
+  host are both full-trust on purpose; the grant is the configuration step.
+  Import no longer hashes on the main thread (review 3.1): the MD5 the asset
+  index records is computed in the cooker worker that receives the bytes —
+  merged GLB, standard GLB and `.tdp` alike — so a folder import of GB-scale
+  files no longer stacks freezes per file. `.tdp` imports are written by that
+  worker through a sync access handle too, with the delivered coarse sibling
+  or one rebuilt from the file; a delivered-but-unreadable coarse variant now
+  falls back to the rebuilt one instead of none. Converter-fed `.tdp` batches
+  (RVM / IFC / STEP) go through the pool too — the no-worker bypass is gone —
+  and the pool spawns no more workers than there are files.
+  GLB/IFC export sizes its vertex buckets exactly (review 3.2): pass 1 sums
+  each meshlet's real vertex count (consecutive base-vertex offsets in the
+  cull record) instead of its index count — which over-allocated up to ~6× and
+  could fail outright on a large merged export — caches the bucket per meshlet
+  so pass 2 never re-derives colours, and keys buckets numerically.
+  `.tdp` export cooks with the wasm cooker (review 3.3): the modeldb worker
+  hands the cooker worker the viewer's geometry as the cooker's flat merged
+  model (typed arrays, transferred), so no GLB is written to and read back
+  from OPFS and the TS generic cook — plain-array byte pools, 4× slower — is
+  off the export path (its export-only Z-up option is gone). Output is the
+  same v9 format imports produce (dense bounds, cell-ordered items); ids and
+  hierarchy keep the generic cook's scheme. New cooker-core `flat.rs` +
+  `cookMergedModel` wasm entry; a golden test pins GLB → flat → cook as
+  byte-identical.
+  Merged-GLB import cooks the coarse variant from the same parse as the full
+  one (review 3.4): cooker-core `cook_model_both` shares colour groups, item
+  boxes, spatial order, bounds and every table between the two variants and
+  coarsens the same buffers in place, where before the GLB was parsed and
+  the model built twice (the RVM and IFC converters cloned every position and
+  index buffer for it). Output is byte-identical to two separate cooks (golden
+  test); the wasm `cook` returns both, the RVM/IFC bridges use it, STEP was
+  already single-parse.
+
 - **2026.09.12** (>0.0.115):
   Blend transparency is now depth-sorted and no longer replays the whole
   scene (review 5b.1 + 5b.4, MDI and vertex-pull alike). The cull routes

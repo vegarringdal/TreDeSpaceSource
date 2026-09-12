@@ -5,13 +5,16 @@
 //! wrapper (cooker-wasm) and a future CLI wrap this.
 
 pub mod cook;
+pub mod flat;
 pub mod glb;
 pub mod tdp;
 
 pub use cook::{
-    cook, cook_model, cook_model_with_progress, CoarsenOptions, CookOptions, CookOutput,
+    cook, cook_both, cook_model, cook_model_both, cook_model_both_with_progress,
+    cook_model_with_progress, merged_model_from_glb, CoarsenOptions, CookOptions, CookOutput,
     CookProgress, MergedHierarchyEntry, MergedModel, MergedNode, MergedRange,
 };
+pub use flat::model_from_flat;
 pub use tdp::{coarsen_tdp, coarsen_tdp_with_progress};
 
 /// Bumped whenever the cooked output changes — part of the cache key, so stale

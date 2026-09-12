@@ -2,6 +2,7 @@
 // chunked upload session, remove/load/unload. See EVENTS.md for the payload
 // contracts.
 import { dialogs } from '../../components/dialogs/dialogs.actions';
+import { consoleActions } from '../../components/panels/console/console.actions';
 import { acquireImportLock, assetsActions, loadIdsPooled } from '../../state/assets/assets.actions';
 import { type AssetEntry, assetsState, groupOf } from '../../state/assets/assets.state';
 import { sqlAssetsActions } from '../../state/sqlAssets/sqlAssets.actions';
@@ -11,9 +12,11 @@ import { normalizeStoreName, storeExists, storesState } from '../../state/stores
 import { db } from '../../state/viewer/db';
 import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { deleteFile, uploadsTempDir } from '../opfs/opfs';
+import { onClientGone } from './clients';
 import { applyCameraPayload } from './handlersViewer';
 import { ApiError, type ApiHandler, isRecord, records, requireStoreOpt, strings } from './protocol';
 import { emitApiEvent } from './transport';
+import { createUploadRegistry } from './uploadSessions';
 
 /** Run a `File` through the right importer for `format` and report the assets it
  *  produced (shared by the single-shot `assets.import` and the chunked
@@ -354,18 +357,59 @@ async function importUrlBatch(
   return { imported, failed: total - imported, results };
 }
 
-/** In-flight chunk uploads: uploadId → staging file name + next expected byte. */
-const uploads = new Map<
-  string,
-  {
-    fileName: string;
-    received: number;
-    total: number;
-    handle: FileSystemFileHandle;
-    writable: FileSystemWritableFileStream;
-    release: () => Promise<void>;
+/** One in-flight chunk upload: the staging file, the open writable and the
+ *  import lock it holds. */
+interface UploadData {
+  fileName: string;
+  received: number;
+  total: number;
+  handle: FileSystemFileHandle;
+  writable: FileSystemWritableFileStream;
+  release: () => Promise<void>;
+}
+
+/** A session with no chunk for this long is abandoned — the SDK feeds
+ *  chunks from a local Blob, so even a host reading from a slow source has
+ *  ample room. */
+const UPLOAD_IDLE_MS = 120_000;
+const UPLOAD_WATCH_MS = 5_000;
+const UPLOAD_NOT_FOUND = "unknown, finished, expired or another window's uploadId";
+
+/** In-flight chunk uploads, owned by the window that began them. The
+ *  registry's watchdog aborts a session whose owner closed or that saw no
+ *  chunk for UPLOAD_IDLE_MS, so a host that dies mid-upload never leaves the
+ *  cross-tab import lock, the OPFS writable and the loading overlay stuck
+ *  (they only ever released through uploadFinish / uploadAbort before). */
+const uploads = createUploadRegistry<UploadData>({
+  idleMs: UPLOAD_IDLE_MS,
+  watchMs: UPLOAD_WATCH_MS,
+  onExpire: (uploadId, sess, reason) => {
+    consoleActions.log(
+      'warn',
+      `Assets: upload of ${sess.fileName} aborted — ${
+        reason === 'idle' ? `no chunk for ${UPLOAD_IDLE_MS / 1000} s` : 'the uploading window went away'
+      }`,
+    );
+    void discardUpload(uploadId, sess);
+  },
+});
+onClientGone((win) => uploads.dropOwner(win));
+
+/** Tear a session down: abort the writable, release the import lock, drop the
+ *  staging file and the overlay. Safe for an already-gone session (`sess`
+ *  undefined): only the file and the overlay are cleaned up. */
+async function discardUpload(uploadId: string, sess: UploadData | undefined): Promise<void> {
+  if (sess) {
+    try {
+      await sess.writable.abort();
+    } catch {
+      /* already closed */
+    }
+    await sess.release();
   }
->();
+  await deleteFile(await uploadsTempDir(), `${uploadId}.part`);
+  dialogs.hideLoading();
+}
 
 /** Load ids for the API, pooled, reporting `assets.load:progress` per model.
  *  `progress: true` (the SDK sets it when a host passes onProgress) means the
@@ -502,7 +546,8 @@ export const assetHandlers: Record<string, ApiHandler> = {
   // chunk upload (large files: the SDK splits a File into transfers). The
   // cross-tab import lock is held for the whole upload (begin..finish) so no
   // other tab/window imports meanwhile, and a blocking dialog shows progress.
-  'assets.uploadBegin': async ({ p }) => {
+  // The session belongs to the sending window — see `uploads`.
+  'assets.uploadBegin': async ({ p, source }) => {
     const fileName = typeof p.fileName === 'string' ? p.fileName : '';
     if (!fileName) {
       throw new ApiError('bad-payload', 'fileName is required');
@@ -519,7 +564,7 @@ export const assetHandlers: Record<string, ApiHandler> = {
       // -> NotReadableError at finish). createWritable() truncates to fresh.
       const handle = await (await uploadsTempDir()).getFileHandle(`${uploadId}.part`, { create: true });
       const writable = await handle.createWritable();
-      uploads.set(uploadId, { fileName, received: 0, total, handle, writable, release });
+      uploads.begin(uploadId, source ?? null, { fileName, received: 0, total, handle, writable, release });
       dialogs.loading('Receiving 0 %', `Uploading ${fileName}`);
       return { uploadId };
     } catch (e) {
@@ -528,16 +573,17 @@ export const assetHandlers: Record<string, ApiHandler> = {
     }
   },
 
-  'assets.uploadChunk': async ({ p, bytes }) => {
+  'assets.uploadChunk': async ({ p, bytes, source }) => {
     const uploadId = typeof p.uploadId === 'string' ? p.uploadId : '';
-    const sess = uploads.get(uploadId);
+    const sess = uploads.get(uploadId, source);
     if (!sess) {
-      throw new ApiError('not-found', 'unknown or finished uploadId');
+      throw new ApiError('not-found', UPLOAD_NOT_FOUND);
     }
     if (!(bytes instanceof ArrayBuffer) && !(bytes instanceof Blob)) {
       throw new ApiError('bad-payload', 'chunk bytes must be an ArrayBuffer or Blob');
     }
     await sess.writable.write(bytes); // sequential append to the open stream
+    uploads.touch(uploadId);
     sess.received += bytes instanceof Blob ? bytes.size : bytes.byteLength;
     if (sess.total > 0) {
       dialogs.loading(`Receiving ${Math.floor((sess.received / sess.total) * 100)} %`, `Uploading ${sess.fileName}`);
@@ -545,17 +591,18 @@ export const assetHandlers: Record<string, ApiHandler> = {
     return { received: sess.received };
   },
 
-  'assets.uploadFinish': async ({ p }) => {
+  'assets.uploadFinish': async ({ p, source }) => {
     const uploadId = typeof p.uploadId === 'string' ? p.uploadId : '';
-    const sess = uploads.get(uploadId);
+    // taken out of the registry here: the cook below may run for minutes and
+    // must not trip the idle watchdog
+    const sess = uploads.take(uploadId, source);
     if (!sess) {
-      throw new ApiError('not-found', 'unknown or finished uploadId');
+      throw new ApiError('not-found', UPLOAD_NOT_FOUND);
     }
     const folder = typeof p.folder === 'string' ? p.folder : '';
     const store = requireStoreOpt(p.store) ?? 'main';
     const replace = p.replace === true;
     const opts = isRecord(p.options) ? p.options : {};
-    uploads.delete(uploadId);
     let released = false;
     const releaseOnce = async () => {
       if (!released) {
@@ -587,20 +634,9 @@ export const assetHandlers: Record<string, ApiHandler> = {
     }
   },
 
-  'assets.uploadAbort': async ({ p }) => {
+  'assets.uploadAbort': async ({ p, source }) => {
     const uploadId = typeof p.uploadId === 'string' ? p.uploadId : '';
-    const sess = uploads.get(uploadId);
-    uploads.delete(uploadId);
-    if (sess) {
-      try {
-        await sess.writable.abort();
-      } catch {
-        /* already closed */
-      }
-      await sess.release();
-    }
-    await deleteFile(await uploadsTempDir(), `${uploadId}.part`);
-    dialogs.hideLoading();
+    await discardUpload(uploadId, uploads.take(uploadId, source));
     return {};
   },
 

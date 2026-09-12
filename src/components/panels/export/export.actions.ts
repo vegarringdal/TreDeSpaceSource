@@ -7,6 +7,7 @@
 // or unloaded is read from its full cook on disk instead of the GPU slot.
 import * as Comlink from 'comlink';
 import type { CookerApi } from '../../../lib/cooker/cookerWorker';
+import { flatTransferables, type MergedFlatModel } from '../../../lib/model/mergedFlat';
 import type { ExportGeom } from '../../../lib/modeldb/modeldbWorker';
 import { clearDir, exportTempDir, modelStoreDir, readFile } from '../../../lib/opfs/opfs';
 import type { Renderer } from '../../../lib/render/renderer';
@@ -159,7 +160,9 @@ export const exportActions = {
    *  — per-file cooks stay the size the import pipeline already handles, so
    *  huge scenes export fine. TRUE world coordinates on purpose — Z-up, no
    *  transforms, no wrapper root node — so a re-import lands exactly where the
-   *  source models are. Cooks run in a cooker worker, OPFS-to-OPFS. */
+   *  source models are. The modeldb worker hands the cooker worker the
+   *  viewer's geometry as the cooker's flat merged model (transferred, no GLB
+   *  in between) and the cook lands in OPFS. */
   async exportTdp(mode: 'merged' | 'hierarchy') {
     const t0 = performance.now();
     const r = getRenderer();
@@ -206,22 +209,21 @@ export const exportActions = {
         }
         const geom = g.geom;
         dialogs.loading(`${label}: building…`, 'Export TDP', (i + 0.35) / N);
-        const tmpGlb = `${TMP}/model-${i}.glb`;
         let tris: number;
+        let model: MergedFlatModel;
         try {
-          ({ tris } = await db.exportGlb(mode, transfer([geom], geomTransfers([geom])), {
-            zUp: true,
-            bareRoot: true,
-            recenter: false,
+          ({ model, tris } = await db.exportMergedModel(mode, transfer([geom], geomTransfers([geom])), {
             clip: clipOption(r),
-            opfsOut: tmpGlb,
           }));
         } catch {
           continue; // fully hidden model — nothing visible to export
         }
         dialogs.loading(`${label}: cooking…`, 'Export TDP', (i + 0.6) / N);
         const tmpTdp = `model-${i}.tdp`;
-        const { size } = await cooker.cookOpfsGlbToTdp(tmpGlb, `${TMP}/${tmpTdp}`);
+        const { size } = await cooker.cookMergedModelToOpfs(
+          transfer(model, flatTransferables(model)),
+          `${TMP}/${tmpTdp}`,
+        );
         dialogs.loading(`${label}: writing…`, 'Export TDP', (i + 0.9) / N);
         // mirror the loaded folder structure; dedupe same-named models
         let dir = root;

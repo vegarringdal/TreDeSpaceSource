@@ -4,11 +4,15 @@
 // node trees and EXT_mesh_gpu_instancing, with authored normals. The cooked
 // bytes are written straight into OPFS from here with a SYNCHRONOUS access
 // handle (createSyncAccessHandle is worker-only), so the main thread never
-// touches the payload.
+// touches the payload. The source MD5 the asset index records is computed
+// here too — the bytes were transferred in anyway, and a scalar hash over a
+// GB-scale file is exactly the stall the main thread must not take.
 import * as Comlink from 'comlink';
-import { opfsReadFromRoot, opfsWriteFromRoot } from '../opfs/opfsSyncWrite';
+import { md5Hex } from '../md5';
+import type { MergedFlatModel } from '../model/mergedFlat';
+import { opfsWriteFromRoot } from '../opfs/opfsSyncWrite';
 import { cookGenericGlb } from './cook';
-import init, { coarsenTdp, cook } from './wasm/cooker_wasm.js';
+import init, { coarsenTdp, cook, cookMergedModel } from './wasm/cooker_wasm.js';
 
 const ready = init();
 
@@ -25,9 +29,20 @@ export interface CookOutcome {
   kind: 'merged' | 'standard';
   /** the cooked file carries an authored-normal stream */
   hasNormals: boolean;
+  /** MD5 (lowercase hex) of the source bytes as delivered. */
+  md5: string;
   /** size of the coarse variant written next to the full cook (absent when
    * not requested, unsupported by the wasm build, or the coarse cook failed) */
   coarseSize?: number;
+}
+
+/** What `storeTdpToOpfs` reports back: the source hash plus the coarse
+ *  sibling's fate — a coarse failure only costs VRAM headroom, so it is a
+ *  message for the console, never an error. */
+export interface StoreTdpOutcome {
+  md5: string;
+  coarseSize?: number;
+  coarseError?: string;
 }
 
 const api = {
@@ -35,71 +50,107 @@ const api = {
    *  model_assets/<outFileName> (callers pass `<store>/<id>.tdp`, and the
    *  store directory is created on the way). Standard files are rejected here — the
    *  dedicated single-file import (cookStandardToOpfs) handles those, so the
-   *  bulk folder flow stays strict. `coarsePath` additionally cooks + writes
-   *  the aggressive low-detail variant (VRAM-budget residency swap) from the
-   *  same GLB — it must happen here because the bytes were transferred into
-   *  this worker. A coarse failure never fails the import. */
+   *  bulk folder flow stays strict. `coarsePath` additionally writes the
+   *  aggressive low-detail variant (VRAM-budget residency swap), produced by
+   *  the SAME cook call from one parse of the GLB. A coarse failure never
+   *  fails the import: the cook is retried full-only. */
   async cookToOpfs(glbBytes: ArrayBuffer, outFileName: string, coarsePath?: string): Promise<CookOutcome> {
     await ready;
     const u8 = new Uint8Array(glbBytes);
-    const res = cook(u8, false, false);
+    const md5 = md5Hex(u8);
+    let res = coarsePath ? tryCookBoth(u8, coarsePath) : null;
+    res ??= cook(u8, false, false);
     const bytes = res.bytes; // getter copies out of wasm memory
+    const coarseBytes = res.coarse;
     const rootName = res.rootName;
     const bounds = Array.from(res.bounds);
     const dense = Array.from(res.dense);
     res.free();
     await opfsSyncWrite(outFileName, bytes);
     let coarseSize: number | undefined;
-    if (coarsePath) {
+    if (coarsePath && coarseBytes) {
       try {
-        const cres = cook(u8, false, true);
-        const cbytes = cres.bytes;
-        cres.free();
-        await opfsSyncWrite(coarsePath, cbytes);
-        coarseSize = cbytes.byteLength;
+        await opfsSyncWrite(coarsePath, coarseBytes);
+        coarseSize = coarseBytes.byteLength;
       } catch (e) {
-        console.warn(`coarse cook failed for ${coarsePath} (full cook unaffected):`, e);
+        console.warn(`coarse write failed for ${coarsePath} (full cook unaffected):`, e);
       }
     }
-    return { rootName, size: bytes.byteLength, bounds, dense, kind: 'merged', hasNormals: false, coarseSize };
+    return { rootName, size: bytes.byteLength, bounds, dense, kind: 'merged', hasNormals: false, md5, coarseSize };
   },
 
   /** Cook a STANDARD glTF (plain node tree or EXT_mesh_gpu_instancing) via
    *  the TS generic cook. `normals` = keep authored normals (smooth shading;
    *  off = flat shading with the full edge detection). */
   async cookStandardToOpfs(glbBytes: ArrayBuffer, outFileName: string, normals: boolean): Promise<CookOutcome> {
+    const md5 = md5Hex(new Uint8Array(glbBytes));
     const { bytes, hasNormals } = await cookGenericGlb(glbBytes, { normals });
     const u8 = new Uint8Array(bytes);
     const dv = new DataView(bytes);
     const bounds = [0, 1, 2, 3, 4, 5].map((k) => dv.getFloat32(48 + k * 4, true));
     await opfsSyncWrite(outFileName, u8);
-    return { rootName: '', size: bytes.byteLength, bounds, dense: null, kind: 'standard', hasNormals };
+    return { rootName: '', size: bytes.byteLength, bounds, dense: null, kind: 'standard', hasNormals, md5 };
   },
 
-  /** Export-panel .tdp: read a GLB the modeldb worker left in OPFS, generic-cook
-   *  it, and stream the result back to OPFS. Paths are from the OPFS root
-   *  (temp/export/…) — nothing large ever crosses to the main thread. */
-  async cookOpfsGlbToTdp(inPath: string, outPath: string): Promise<{ size: number }> {
-    const glb = await opfsReadFromRoot(inPath);
-    // no computed normals (exports mirror the app's flat-shaded look); the
-    // export GLB is already Z-up with no wrapper — cook it without rotating
-    const { bytes } = await cookGenericGlb(glb, { normals: false, zUpInput: true });
-    await opfsWriteFromRoot(outPath, new Uint8Array(bytes));
+  /** Store an ALREADY-COOKED `.tdp` as model_assets/<outFileName> and give it
+   *  its coarse sibling at model_assets/<coarsePath>: the one delivered with
+   *  it (`coarseBytes`, the converters cook full + coarse in one pass) or,
+   *  for a bare file, one rebuilt from the cooked geometry itself — so every
+   *  import lands residency-swap ready. The caller validates the header before
+   *  handing the bytes over (they are transferred). */
+  async storeTdpToOpfs(
+    tdpBytes: ArrayBuffer,
+    outFileName: string,
+    coarsePath: string,
+    coarseBytes?: ArrayBuffer,
+  ): Promise<StoreTdpOutcome> {
+    await ready;
+    const u8 = new Uint8Array(tdpBytes);
+    const md5 = md5Hex(u8);
+    await opfsSyncWrite(outFileName, u8);
+    try {
+      const coarse = coarseBytes ? new Uint8Array(coarseBytes) : coarsenTdp(u8);
+      await opfsSyncWrite(coarsePath, coarse);
+      return { md5, coarseSize: coarse.byteLength };
+    } catch (e) {
+      return { md5, coarseError: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  /** Export-panel .tdp: cook the viewer's own geometry, handed over as the
+   *  cooker's flat merged model (built in the modeldb worker from the export
+   *  tree — no GLB in between), and write the result to `outPath` (from the
+   *  OPFS root, temp/export/…). No computed normals: exports mirror the app's
+   *  flat-shaded look. */
+  async cookMergedModelToOpfs(model: MergedFlatModel, outPath: string): Promise<{ size: number }> {
+    await ready;
+    const res = cookMergedModel(
+      model.positions,
+      model.indices,
+      model.nodes,
+      model.colors,
+      model.ranges,
+      model.hierarchyJson,
+      false,
+    );
+    const bytes = res.bytes;
+    res.free();
+    await opfsWriteFromRoot(outPath, bytes);
     return { size: bytes.byteLength };
   },
-
-  /** Build the coarse variant of an already-cooked `.tdp` (no source needed —
-   *  geometry is rebuilt from the packed meshlet streams, the item table and
-   *  hierarchy are carried over verbatim) and store it as
-   *  model_assets/<outFileName> (callers pass `<store>/<id>.coarse.tdp`).
-   *  Throws on a non-CADM input. */
-  async coarsenTdpToOpfs(tdpBytes: ArrayBuffer, outFileName: string): Promise<{ size: number }> {
-    await ready;
-    const coarse = coarsenTdp(new Uint8Array(tdpBytes));
-    await opfsSyncWrite(outFileName, coarse);
-    return { size: coarse.byteLength };
-  },
 };
+
+/** Full + coarse from one parse; null when the coarse pass failed so the
+ *  caller can fall back to a full-only cook (the old behaviour — a coarse
+ *  failure never fails the import). */
+function tryCookBoth(u8: Uint8Array, coarsePath: string): ReturnType<typeof cook> | null {
+  try {
+    return cook(u8, false, true);
+  } catch (e) {
+    console.warn(`coarse cook failed for ${coarsePath} (retrying full only):`, e);
+    return null;
+  }
+}
 
 export type CookerApi = typeof api;
 Comlink.expose(api);

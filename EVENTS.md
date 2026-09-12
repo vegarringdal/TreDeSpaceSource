@@ -621,6 +621,16 @@ temp file and returns the `uploadId`; each `uploadChunk` appends its bytes
 cook completes. `uploadAbort` discards a partial upload and releases the lock
 (best-effort cleanup).
 
+A session belongs to the window that began it: `uploadChunk`, `uploadFinish`
+and `uploadAbort` from any other window answer `not-found`, the same as a
+guessed id. The viewer also abandons a session on its own — the lock is
+released, the staging file deleted and every later call answers `not-found` —
+when the owning window says `client.bye` or is found closed, or after
+**2 minutes without a chunk**, so a host that dies mid-upload never leaves
+the import lock (and with it every other tab's imports) stuck. A host feeding
+chunks from a slow source must keep them coming within that window; the SDK
+reads them from a local Blob and never comes close.
+
 ```js
 payload:  { fileName: 'plant.rvm', size: 2147483648 }      // assets.uploadBegin
 response: { uploadId: '9f4e…' }
@@ -1857,6 +1867,15 @@ A hosting page can additionally supply SESSION-ONLY entries through
 but never persisted and not editable in Settings (the tab notes how many are
 host-set). The intended flow: embed the viewer → wait for `app.ready` → set
 the apps for the current context.
+
+**Trust.** Adding an app — in Settings or through `externalApps.set` — puts
+its origin on the postMessage allowlist with the same rights as the hosting
+page: the full command table (`sql.*`, `settings.*.set`, `externalApps.set`,
+`assets.remove`, all of it) and every event. There is no per-app scoping; the
+grant is the configuration step, so add an app the way you would install an
+extension. The allowlist is per ORIGIN, not per URL — every page served from
+that origin shares the grant, so avoid hosting a tool on an origin you share
+with pages you do not control.
 
 The config JSON doubles as the modal's initial-size source — `width` and
 `height` accept px or % of the viewport (`{"width": "600px", "height": "60%"}`;

@@ -10,14 +10,13 @@ import * as Comlink from 'comlink';
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
 import {
-  type CoarsenTdpToOpfs,
   type CookStandardToOpfs,
   type CookToOpfs,
+  type StoreTdpToOpfs,
   withCookerPool,
 } from '../../lib/cooker/cookerPool';
 import type { CookerApi } from '../../lib/cooker/cookerWorker';
 import type { Ifc2GlbApi } from '../../lib/ifc2glb/ifc2glbWorker';
-import { md5Hex } from '../../lib/md5';
 import {
   clearDir,
   deleteFile,
@@ -525,7 +524,6 @@ export const assetsActions = {
           worker.addEventListener('error', (e) => reject(new Error(e.message || 'cooker worker crashed')));
         });
         const bytes = await file.arrayBuffer();
-        const md5 = md5Hex(new Uint8Array(bytes)); // before the cook transfers the buffer
         const id = uid();
         const cooked = await Promise.race([
           cookerApi.cookStandardToOpfs(Comlink.transfer(bytes, [bytes]), `${store}/${id}.tdp`, normals),
@@ -537,7 +535,7 @@ export const assetsActions = {
           name: file.name.replace(/\.glb$/i, ''),
           folder: opts.folder,
           fileName: file.name,
-          md5,
+          md5: cooked.md5,
           size: cooked.size,
           importedAt: Date.now(),
           bounds: { full: cooked.bounds, dense: cooked.dense },
@@ -598,7 +596,6 @@ export const assetsActions = {
     // temp imports never ask for a store — they land in the reserved 'temp'
     // store (own section in the Model Assets panel, purged on next start)
     const store = temp ? TEMP_STORE : resolveStore(opts.store);
-    const dir = await modelStoreDir(store);
     const pool = Math.max(1, opts.concurrency ?? assetsState.get().pool);
     const added: AssetEntry[] = [];
     // entries by source index — the batch's per-file result map
@@ -609,13 +606,13 @@ export const assetsActions = {
     const pending = new Set<string>();
     let done = 0;
     let failed = 0;
-    const runBatch = async (cook: CookToOpfs, coarsenTdp: CoarsenTdpToOpfs, cookStandard: CookStandardToOpfs) => {
+    const runBatch = async (cook: CookToOpfs, storeTdp: StoreTdpToOpfs, cookStandard: CookStandardToOpfs) => {
       const work = sources.map((src, index) => async () => {
         try {
           const bytes = await src.bytes();
-          // hash BEFORE the cook (the cooker transfers/detaches the buffer)
-          const md5 = md5Hex(new Uint8Array(bytes));
           const id = uid(pending);
+          // the worker that takes the bytes (they are transferred) hashes them
+          let md5 = '';
           let rootName = '';
           let size = bytes.byteLength;
           let bounds: AssetBounds | undefined;
@@ -633,6 +630,7 @@ export const assetsActions = {
             const cooked = src.standardGlb
               ? await cookStandard(bytes, `${store}/${id}.tdp`, src.stdOptions?.normals ?? stdDefaults.normals)
               : await cook(bytes, `${store}/${id}.tdp`, `${store}/${id}.coarse.tdp`);
+            md5 = cooked.md5;
             rootName = cooked.rootName;
             size = cooked.size;
             bounds = { full: cooked.bounds, dense: cooked.dense };
@@ -663,27 +661,27 @@ export const assetsActions = {
                 hasNormals = true;
               }
             }
-            await writeFile(dir, `${id}.tdp`, bytes);
+            // The worker hashes and writes the file and gives it its coarse
+            // sibling: the delivered one (converters cook full + coarse in one
+            // pass) or, for a bare .tdp (exported, hosted, or panel-imported
+            // without its sibling), one rebuilt from the cooked file itself —
+            // so every import lands residency-swap ready. A missing/broken
+            // coarse variant only costs VRAM headroom. NOTE: storeTdp transfers
+            // `bytes` — they are detached past this point.
+            let coarseBytes: ArrayBuffer | undefined;
             if (src.coarseBytes) {
               try {
-                const cb = await src.coarseBytes();
-                await writeFile(dir, `${id}.coarse.tdp`, cb);
-                coarse = { size: cb.byteLength };
+                coarseBytes = await src.coarseBytes();
               } catch (e) {
-                // a missing/broken coarse variant only costs VRAM headroom
-                consoleActions.log('error', `Assets: coarse variant for ${src.name} skipped: ${e}`);
+                consoleActions.log('error', `Assets: coarse variant for ${src.name} unreadable, rebuilding: ${e}`);
               }
+            }
+            const stored = await storeTdp(bytes, `${store}/${id}.tdp`, `${store}/${id}.coarse.tdp`, coarseBytes);
+            md5 = stored.md5;
+            if (stored.coarseSize !== undefined) {
+              coarse = { size: stored.coarseSize };
             } else {
-              // bare .tdp (exported, hosted, or panel-imported without its
-              // sibling): rebuild the coarse variant from the cooked file
-              // itself, so every import lands residency-swap ready. NOTE:
-              // coarsenTdp transfers `bytes` — it is detached past this point.
-              try {
-                const { size: coarseSize } = await coarsenTdp(bytes, `${store}/${id}.coarse.tdp`);
-                coarse = { size: coarseSize };
-              } catch (e) {
-                consoleActions.log('error', `Assets: coarse cook for ${src.name} skipped: ${e}`);
-              }
+              consoleActions.log('error', `Assets: coarse variant for ${src.name} skipped: ${stored.coarseError}`);
             }
           }
           // merged GLBs are stored under their hierarchy ROOT name, verbatim
@@ -732,24 +730,11 @@ export const assetsActions = {
       );
     };
     try {
-      // the pool is needed to cook GLBs AND to rebuild the coarse variant of
-      // any .tdp arriving without its pre-cooked sibling
-      if (sources.some((src) => /\.glb$/i.test(src.name) || !src.coarseBytes)) {
-        await withCookerPool(pool, runBatch);
-      } else {
-        // converter-fed .tdp batch (full + coarse pre-cooked) — no worker needed
-        await runBatch(
-          async () => {
-            throw new Error('unexpected GLB in a pre-cooked .tdp batch');
-          },
-          async () => {
-            throw new Error('unexpected coarsen in a pre-cooked .tdp batch');
-          },
-          async () => {
-            throw new Error('unexpected standard GLB in a pre-cooked .tdp batch');
-          },
-        );
-      }
+      // every source goes through a pool worker: GLBs are cooked there, and a
+      // .tdp — converter-fed with its coarse sibling or bare — is hashed,
+      // written and given its coarse variant there, so the main thread never
+      // touches the bytes. No more workers than files.
+      await withCookerPool(Math.min(pool, sources.length), runBatch);
     } finally {
       if (!quiet) {
         dialogs.hideLoading();

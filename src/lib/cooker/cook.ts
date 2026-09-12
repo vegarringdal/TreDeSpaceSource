@@ -76,11 +76,11 @@ export async function cookGlb(glbBytes: ArrayBuffer): Promise<CookResult> {
  *  The importer falls back to this when the merged cook rejects a file. */
 export async function cookGenericGlb(
   glbBytes: ArrayBuffer,
-  opts: { normals?: boolean; zUpInput?: boolean } = {},
+  opts: { normals?: boolean } = {},
 ): Promise<{ bytes: ArrayBuffer; hasNormals: boolean }> {
   await Promise.all([MeshoptClusterizer.ready, MeshoptEncoder.ready]);
   const { gltf, bin } = parseGlb(glbBytes);
-  return cookGeneric(gltf, bin, opts.normals !== false, opts.zUpInput === true);
+  return cookGeneric(gltf, bin, opts.normals !== false);
 }
 
 // -----------------------------------------------------------------------------
@@ -202,7 +202,6 @@ async function cookGeneric(
   gltf: Gltf,
   bin: Uint8Array,
   includeNormals: boolean,
-  zUpInput = false,
 ): Promise<{ bytes: ArrayBuffer; hasNormals: boolean }> {
   const nodes = gltf.nodes ?? [];
   const sceneRoots = gltf.scenes?.[gltf.scene ?? 0]?.nodes ?? [];
@@ -318,10 +317,7 @@ async function cookGeneric(
   };
   // glTF is Y-up, the app is Z-up: (x, y, z) → (x, -z, y), fed in as the root
   // matrix so baked positions AND normals both convert (same as cookMerged).
-  // zUpInput (this app's own .tdp export GLBs): already Z-up — no rotation.
-  const rootMatrix = zUpInput
-    ? Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
-    : Float64Array.from([1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1]);
+  const rootMatrix = Float64Array.from([1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1]);
   for (const r of sceneRoots) {
     visit(r, 0xffffffff, rootMatrix);
   }

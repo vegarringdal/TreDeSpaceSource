@@ -40,6 +40,22 @@ const byWindow = new WeakMap<Window, ClientEntry>();
 const entries: ClientEntry[] = [];
 let nextId = 1;
 
+type ClientGoneListener = (win: Window) => void;
+const goneListeners: ClientGoneListener[] = [];
+
+/** Run `cb` whenever a client window is forgotten — it said `client.bye` or
+ *  was found closed — the hook for state a window owns, like an upload
+ *  session, so nothing outlives the page that started it. */
+export function onClientGone(cb: ClientGoneListener): void {
+  goneListeners.push(cb);
+}
+
+function notifyGone(win: Window): void {
+  for (const cb of goneListeners) {
+    cb(win);
+  }
+}
+
 /** The `ui.dialogs` id of the external-app panel or modal whose iframe is
  *  `win`, or null when the window is not one of ours. */
 export function panelIdOfWindow(win: Window | null | undefined): string | null {
@@ -82,6 +98,7 @@ function prune(): boolean {
       byWindow.delete(e.win);
       entries.splice(i, 1);
       lostSubscriber ||= e.info.subscribed;
+      notifyGone(e.win);
     }
   }
   return lostSubscriber;
@@ -117,6 +134,7 @@ export function dropClient(win: Window): void {
   }
   byWindow.delete(win);
   entries.splice(entries.indexOf(e), 1);
+  notifyGone(win);
   if (e.info.subscribed) {
     emitClientsChanged();
   }

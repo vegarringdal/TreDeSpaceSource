@@ -37,6 +37,19 @@ export class CookResult {
         return v1;
     }
     /**
+     * The coarse variant — present only when the cook asked for one.
+     * @returns {Uint8Array | undefined}
+     */
+    get coarse() {
+        const ret = wasm.cookresult_coarse(this.__wbg_ptr);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
      * 10th–90th percentile dense bounds, same layout.
      * @returns {Float32Array}
      */
@@ -88,9 +101,10 @@ export function coarsenTdp(tdp) {
 
 /**
  * Cook one merged GLB. Throws (JS exception) with the cooker's error message
- * on non-merged input or malformed GLBs. `coarsen` produces the aggressive
- * low-detail variant for the VRAM-budget residency swap (same item table as
- * the full cook — only geometry shrinks).
+ * on non-merged input or malformed GLBs. `coarsen` additionally produces the
+ * aggressive low-detail variant for the VRAM-budget residency swap (same item
+ * table as the full cook — only geometry shrinks) from the SAME parse, so the
+ * GLB is decoded once for both.
  * @param {Uint8Array} glb
  * @param {boolean} compute_normals
  * @param {boolean} coarsen
@@ -100,6 +114,40 @@ export function cook(glb, compute_normals, coarsen) {
     const ptr0 = passArray8ToWasm0(glb, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.cook(ptr0, len0, compute_normals, coarsen);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return CookResult.__wrap(ret[0]);
+}
+
+/**
+ * Cook a model handed over as flat typed arrays (see cooker-core `flat.rs`
+ * for the layout) — the `.tdp` export path, which builds the arrays from the
+ * viewer's own geometry instead of writing a GLB first. Same cook settings as
+ * `cook`; no coarse variant (a re-import derives it from the file).
+ * @param {Float32Array} positions
+ * @param {Uint32Array} indices
+ * @param {Uint32Array} nodes
+ * @param {Float32Array} colors
+ * @param {Uint32Array} ranges
+ * @param {string} hierarchy_json
+ * @param {boolean} compute_normals
+ * @returns {CookResult}
+ */
+export function cookMergedModel(positions, indices, nodes, colors, ranges, hierarchy_json, compute_normals) {
+    const ptr0 = passArrayF32ToWasm0(positions, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray32ToWasm0(indices, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArray32ToWasm0(nodes, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passArrayF32ToWasm0(colors, wasm.__wbindgen_malloc);
+    const len3 = WASM_VECTOR_LEN;
+    const ptr4 = passArray32ToWasm0(ranges, wasm.__wbindgen_malloc);
+    const len4 = WASM_VECTOR_LEN;
+    const ptr5 = passStringToWasm0(hierarchy_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len5 = WASM_VECTOR_LEN;
+    const ret = wasm.cookMergedModel(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, compute_normals);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -196,6 +244,14 @@ function getStringFromWasm0(ptr, len) {
     return decodeText(ptr >>> 0, len);
 }
 
+let cachedUint32ArrayMemory0 = null;
+function getUint32ArrayMemory0() {
+    if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
+        cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32ArrayMemory0;
+}
+
 let cachedUint8ArrayMemory0 = null;
 function getUint8ArrayMemory0() {
     if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
@@ -204,9 +260,23 @@ function getUint8ArrayMemory0() {
     return cachedUint8ArrayMemory0;
 }
 
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
@@ -290,6 +360,7 @@ function __wbg_finalize_init(instance, module) {
     wasmModule = module;
     cachedDataViewMemory0 = null;
     cachedFloat32ArrayMemory0 = null;
+    cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

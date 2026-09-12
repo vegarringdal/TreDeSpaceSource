@@ -480,3 +480,77 @@ fn coarsen_tdp_matches_glb_coarse_structure() {
         );
     }
 }
+
+/// `cook_both` shares one parse and one prepare pass between the full and the
+/// coarse variant. Both outputs must be byte-identical to what two separate
+/// cooks produce — that is the contract the import pipeline relies on when it
+/// stops cooking every merged GLB twice.
+#[test]
+fn cook_both_matches_separate_cooks() {
+    let Some(glbs) = huldra_glbs() else { return };
+    let coarse_opts = cooker_core::CookOptions {
+        coarsen: Some(cooker_core::CoarsenOptions::default()),
+        ..Default::default()
+    };
+    for (name, glb) in &glbs {
+        let full = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("full cook {name}: {e}"));
+        let coarse = cooker_core::cook(glb, coarse_opts)
+            .unwrap_or_else(|e| panic!("coarse cook {name}: {e}"));
+        let (both_full, both_coarse) = cooker_core::cook_both(glb, coarse_opts)
+            .unwrap_or_else(|e| panic!("cook_both {name}: {e}"));
+        assert!(both_full.bytes == full.bytes, "{name}: full variant differs");
+        assert!(both_coarse.bytes == coarse.bytes, "{name}: coarse variant differs");
+        assert_eq!(both_full.root_name, full.root_name, "{name}: root name");
+        assert_eq!(both_coarse.root_name, coarse.root_name, "{name}: coarse root name");
+    }
+    eprintln!("cook_both: {} site(s) byte-identical", glbs.len());
+}
+
+/// The flat typed-array form (`model_from_flat`, the `.tdp` export path) must
+/// round-trip a model without changing the cook: GLB → model → flat arrays →
+/// model cooks to the same bytes as the GLB itself.
+#[test]
+fn flat_model_round_trips_byte_identical() {
+    let Some(glbs) = huldra_glbs() else { return };
+    for (name, glb) in &glbs {
+        let model = cooker_core::merged_model_from_glb(glb)
+            .unwrap_or_else(|e| panic!("decode {name}: {e}"));
+        let mut positions: Vec<f32> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
+        let mut nodes: Vec<u32> = Vec::new();
+        let mut colors: Vec<f32> = Vec::new();
+        let mut ranges: Vec<u32> = Vec::new();
+        for n in &model.nodes {
+            nodes.extend_from_slice(&[
+                (positions.len() / 3) as u32,
+                n.positions.len() as u32,
+                indices.len() as u32,
+                n.indices.len() as u32,
+                (ranges.len() / 3) as u32,
+                n.draw_ranges.len() as u32,
+            ]);
+            positions.extend(n.positions.iter().flatten());
+            indices.extend_from_slice(&n.indices);
+            colors.extend_from_slice(&n.base_color);
+            for r in &n.draw_ranges {
+                ranges.extend_from_slice(&[r.id, r.index_start, r.index_count]);
+            }
+        }
+        let hier: Vec<(u32, &str, Option<u32>)> = model
+            .hierarchy
+            .iter()
+            .map(|h| (h.id, h.name.as_str(), h.parent_id))
+            .collect();
+        let hier_json = serde_json::to_string(&hier).unwrap();
+        let flat = cooker_core::model_from_flat(&positions, &indices, &nodes, &colors, &ranges, &hier_json)
+            .unwrap_or_else(|e| panic!("model_from_flat {name}: {e}"));
+        let via_glb = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("cook {name}: {e}"));
+        let via_flat = cooker_core::cook_model(flat, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("cook flat {name}: {e}"));
+        assert!(via_flat.bytes == via_glb.bytes, "{name}: flat path differs");
+        assert_eq!(via_flat.root_name, via_glb.root_name, "{name}: root name");
+    }
+    eprintln!("flat: {} site(s) byte-identical", glbs.len());
+}

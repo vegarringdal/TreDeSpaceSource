@@ -226,11 +226,11 @@ pub struct MergedHierarchyEntry {
 /// Decodes the GLB into a [`MergedModel`] and defers to [`cook_model`]; the
 /// converters (RVM / IFC / STEP) skip this and build the model directly.
 pub fn cook(glb_bytes: &[u8], opts: CookOptions) -> Result<CookOutput> {
-    cook_model(model_from_merged_glb(glb_bytes)?, opts)
+    cook_model(merged_model_from_glb(glb_bytes)?, opts)
 }
 
 /// Decode a merged GLB (`web3dversion: 2`) into the cooker's in-memory model.
-fn model_from_merged_glb(glb_bytes: &[u8]) -> Result<MergedModel> {
+pub fn merged_model_from_glb(glb_bytes: &[u8]) -> Result<MergedModel> {
     let glb = glb::parse_glb(glb_bytes)?;
 
     // 1. Extras (draw_ranges + hierarchy) — also the merged magic check.
@@ -294,15 +294,90 @@ pub fn cook_model_with_progress(
     opts: CookOptions,
     progress: CookProgress,
 ) -> Result<CookOutput> {
-    let MergedModel {
-        nodes,
-        mut hierarchy,
-    } = model;
-    let ranges: u64 = nodes.iter().map(|n| n.draw_ranges.len() as u64).sum();
+    let ranges = range_count(&model);
     let mut ticker = RangeTicker::new(
         ranges * if opts.coarsen.is_some() { 2 } else { 1 },
         progress,
     );
+    let mut p = prepare(model, opts, opts.coarsen.is_some())?;
+    if let Some(c) = opts.coarsen {
+        coarsen_prepared(&mut p, c, &mut ticker);
+    }
+    finish(&mut p, opts.compute_normals, &mut ticker)
+}
+
+/// Cook the FULL and the COARSE variant of one merged GLB from a single parse
+/// — see [`cook_model_both`].
+pub fn cook_both(glb_bytes: &[u8], opts: CookOptions) -> Result<(CookOutput, CookOutput)> {
+    cook_model_both(merged_model_from_glb(glb_bytes)?, opts)
+}
+
+/// Cook the FULL and the COARSE variant of one model in a single pass over its
+/// geometry. Colour groups, item boxes, spatial order, bounds and every table
+/// are computed once and shared, so the caller never clones the model (two
+/// `cook_model` calls cloned every position and index buffer, and re-parsed a
+/// GLB). The full variant is packed first; the coarse pass then rewrites the
+/// same colour groups' indices in place — positions, and with them the bounds
+/// and tables, are untouched, which is what keeps the two files swap partners.
+/// Output is byte-identical to two separate `cook_model` calls. `opts.coarsen`
+/// supplies the coarse settings (default when `None`) and is ignored for the
+/// full variant.
+pub fn cook_model_both(
+    model: MergedModel,
+    opts: CookOptions,
+) -> Result<(CookOutput, CookOutput)> {
+    cook_model_both_with_progress(model, opts, &mut |_, _| {})
+}
+
+/// [`cook_model_both`] reporting progress per draw range over the three heavy
+/// passes (full meshletize, simplify, coarse meshletize).
+pub fn cook_model_both_with_progress(
+    model: MergedModel,
+    opts: CookOptions,
+    progress: CookProgress,
+) -> Result<(CookOutput, CookOutput)> {
+    let ranges = range_count(&model);
+    let mut ticker = RangeTicker::new(ranges * 3, progress);
+    let mut p = prepare(model, opts, true)?;
+    let full = finish(&mut p, opts.compute_normals, &mut ticker)?;
+    coarsen_prepared(&mut p, opts.coarsen.unwrap_or_default(), &mut ticker);
+    let coarse = finish(&mut p, opts.compute_normals, &mut ticker)?;
+    Ok((full, coarse))
+}
+
+fn range_count(model: &MergedModel) -> u64 {
+    model.nodes.iter().map(|n| n.draw_ranges.len() as u64).sum()
+}
+
+/// Everything a packed file needs besides the meshlet streams: the colour
+/// groups (positions, indices, ordered draw ranges), the item, cell and
+/// hierarchy tables and the header bounds. None of it depends on
+/// meshletization or coarsening — both leave positions and draw-range ids
+/// alone — so the full and the coarse variant share one of these.
+struct Prepared {
+    color_groups: Vec<ColorGroup>,
+    root_name: String,
+    all_items: Vec<(u32, u16, u32)>,
+    cell_table: Vec<CellEntry>,
+    fmt_hier_entries: Vec<FmtHierEntry>,
+    name_pool: Vec<u8>,
+    id_item_table: Vec<IdItemEntry>,
+    bounds: ([f32; 3], [f32; 3]),
+    /// Header dense bounds (v8+); `None` keeps the v7 layout.
+    dense: Option<([f32; 3], [f32; 3])>,
+    /// Diagonal of the dense box — the coarsen pass's tiny-item cut scale.
+    /// Only computed when a coarse variant was requested.
+    dense_diag: f32,
+}
+
+/// Steps 1–5 of the cook: normalise the hierarchy, build colour groups, bin
+/// items spatially and derive every table. `want_coarse` makes sure the dense
+/// box (the coarsen cut scale) is computed even when the header omits it.
+fn prepare(model: MergedModel, opts: CookOptions, want_coarse: bool) -> Result<Prepared> {
+    let MergedModel {
+        nodes,
+        mut hierarchy,
+    } = model;
     anyhow::ensure!(
         nodes.iter().any(|n| !n.draw_ranges.is_empty()),
         "merged model has no draw ranges"
@@ -358,7 +433,7 @@ pub fn cook_model_with_progress(
         });
     }
 
-    // 3.2 Per-item world AABBs, taken from the FULL geometry before the
+    // 3.2 Per-item world AABBs, taken from the FULL geometry before any
     // coarsen pass rewrites indices — the coarse cook must bin items exactly
     // as the full cook does, or the two item tables would diverge.
     let mut item_boxes = opts.spatial_order.then(|| item_boxes_of(&color_groups));
@@ -382,35 +457,6 @@ pub fn cook_model_with_progress(
             *cg_boxes = order.iter().map(|&d| cg_boxes[d]).collect();
             cell_of_item.push(cg_boxes.iter().map(|b| cell_of(b, bmin, extent)).collect());
         }
-    }
-
-    // 3.25 Coarse variant: simplify/cull per draw range BEFORE meshletizing.
-    // Runs on the same color groups the full cook sees, so items/hierarchy
-    // below are untouched and both variants' tables match exactly.
-    if let Some(c) = opts.coarsen {
-        // Tiny-item cut threshold scales with the DENSE (10th–90th pct)
-        // diagonal, not the full box: one outlier item inflates the full box
-        // by an order of magnitude (observed: 165 m dense vs 866 m full), and
-        // with it the cut threshold — gutting the coarse variant of every
-        // normal-sized item in the zone. Dense ≤ full always, so this only
-        // ever cuts fewer items.
-        let (bmin, bmax) = compute_dense_bounds(&color_groups);
-        let model_diag = ((bmax[0] - bmin[0]).powi(2)
-            + (bmax[1] - bmin[1]).powi(2)
-            + (bmax[2] - bmin[2]).powi(2))
-        .sqrt();
-        for cg in &mut color_groups {
-            coarsen_cg(cg, model_diag, c, &mut |_| ticker.tick());
-        }
-    }
-
-    // 3.5 Meshletize + (optional) normals + quantize.
-    for cg in &mut color_groups {
-        meshletize_cg(cg, &mut |_| ticker.tick())?;
-        if opts.compute_normals {
-            cg.normals = compute_vertex_normals(&cg.positions, &cg.indices);
-        }
-        build_quantized_streams(cg);
     }
 
     // 4. Global item list (all draw ranges sorted by id).
@@ -458,7 +504,6 @@ pub fn cook_model_with_progress(
     } else {
         all_items.sort_by_key(|(id, ..)| *id);
     }
-    let item_count = all_items.len() as u32;
 
     // 5. Hierarchy section data.
     let id_to_hier_idx: std::collections::HashMap<u32, u32> = hierarchy
@@ -498,25 +543,87 @@ pub fn cook_model_with_progress(
         .collect();
     id_item_table.sort_by_key(|e| e.id);
 
-    // 6. Pack.
-    let dense = if opts.dense_bounds {
-        Some(compute_dense_bounds(&color_groups))
-    } else {
-        None
-    };
+    // 6. Header bounds. The dense box also scales the coarsen pass's tiny-item
+    // cut: one outlier item inflates the full box by an order of magnitude
+    // (observed: 165 m dense vs 866 m full), and with it the cut threshold —
+    // gutting the coarse variant of every normal-sized item in the zone.
+    // Dense ≤ full always, so this only ever cuts fewer items.
+    let bounds = compute_bounds(&color_groups);
+    let dense_box = (opts.dense_bounds || want_coarse).then(|| compute_dense_bounds(&color_groups));
+    let dense_diag = dense_box
+        .map(|(mn, mx)| {
+            ((mx[0] - mn[0]).powi(2) + (mx[1] - mn[1]).powi(2) + (mx[2] - mn[2]).powi(2)).sqrt()
+        })
+        .unwrap_or(0.0);
+
+    Ok(Prepared {
+        color_groups,
+        root_name,
+        all_items,
+        cell_table,
+        fmt_hier_entries,
+        name_pool,
+        id_item_table,
+        bounds,
+        dense: dense_box.filter(|_| opts.dense_bounds),
+        dense_diag,
+    })
+}
+
+/// Rewrite the prepared colour groups for the coarse variant: simplify and
+/// cull per draw range BEFORE meshletizing. Runs on the same colour groups the
+/// full cook packed, so items and hierarchy are untouched and both variants'
+/// tables match exactly. Meshlet streams from an earlier [`finish`] are
+/// released first.
+fn coarsen_prepared(p: &mut Prepared, c: CoarsenOptions, ticker: &mut RangeTicker) {
+    let model_diag = p.dense_diag;
+    for cg in &mut p.color_groups {
+        clear_streams(cg);
+        coarsen_cg(cg, model_diag, c, &mut |_| ticker.tick());
+    }
+}
+
+/// Meshletize, quantize and pack the prepared model. Any meshlet streams left
+/// by a previous call are rebuilt from scratch.
+fn finish(p: &mut Prepared, compute_normals: bool, ticker: &mut RangeTicker) -> Result<CookOutput> {
+    for cg in &mut p.color_groups {
+        clear_streams(cg);
+        meshletize_cg(cg, &mut |_| ticker.tick())?;
+        if compute_normals {
+            cg.normals = compute_vertex_normals(&cg.positions, &cg.indices);
+        }
+        build_quantized_streams(cg);
+    }
     let bytes = pack_binary(
-        compute_bounds(&color_groups),
-        dense,
-        &color_groups,
-        &all_items,
-        item_count,
-        &fmt_hier_entries,
-        &name_pool,
-        &id_item_table,
-        &root_name,
-        &cell_table,
+        p.bounds,
+        p.dense,
+        &p.color_groups,
+        &p.all_items,
+        p.all_items.len() as u32,
+        &p.fmt_hier_entries,
+        &p.name_pool,
+        &p.id_item_table,
+        &p.root_name,
+        &p.cell_table,
     )?;
-    Ok(CookOutput { bytes, root_name })
+    Ok(CookOutput {
+        bytes,
+        root_name: p.root_name.clone(),
+    })
+}
+
+/// Drop every per-meshlet stream (and the normals derived for them) so the
+/// colour group is back to positions + indices + draw ranges.
+fn clear_streams(cg: &mut ColorGroup) {
+    cg.dr_meshlet_starts = Vec::new();
+    cg.dr_meshlet_counts = Vec::new();
+    cg.meshlet_descs = Vec::new();
+    cg.meshlet_verts = Vec::new();
+    cg.meshlet_tris = Vec::new();
+    cg.meshlet_bounds = Vec::new();
+    cg.normals = Vec::new();
+    cg.meshlet_positions = Vec::new();
+    cg.meshlet_normals = Vec::new();
 }
 
 // ── Coarse-variant simplification ─────────────────────────────────────────────

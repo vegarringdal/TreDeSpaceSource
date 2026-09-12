@@ -439,17 +439,11 @@ pub fn cook_merged(
         coarsen: None,
         spatial_order: true,
     };
-    let coarse = if coarsen {
-        let c = cooker_core::CookOptions {
-            coarsen: Some(cooker_core::CoarsenOptions::default()),
-            ..opts
-        };
-        cooker_core::cook_model(model.clone(), c)
-            .map(|o| Some(o.bytes))
-            .map_err(|e| e.to_string())?
-    } else {
-        None
-    };
-    let full = cooker_core::cook_model(model, opts).map_err(|e| e.to_string())?;
-    Ok((full.bytes, coarse))
+    if !coarsen {
+        let full = cooker_core::cook_model(model, opts).map_err(|e| e.to_string())?;
+        return Ok((full.bytes, None));
+    }
+    // one pass for both variants — no clone of the model's buffers
+    let (full, coarse) = cooker_core::cook_model_both(model, opts).map_err(|e| e.to_string())?;
+    Ok((full.bytes, Some(coarse.bytes)))
 }

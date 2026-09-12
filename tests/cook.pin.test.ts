@@ -124,8 +124,8 @@ describe('cook output pins', () => {
     expect(sha(r.bytes)).toMatchSnapshot();
   });
 
-  it('cooks a generic GLB flat-shaded and Z-up', async () => {
-    const r = await cookGenericGlb(genericGlb(), { normals: false, zUpInput: true });
+  it('cooks a generic GLB flat-shaded', async () => {
+    const r = await cookGenericGlb(genericGlb(), { normals: false });
     expect(r.hasNormals).toBe(false);
     expect(sha(r.bytes)).toMatchSnapshot();
   });

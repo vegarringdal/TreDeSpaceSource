@@ -11,6 +11,10 @@ export class CookResult {
     readonly bounds: Float32Array;
     readonly bytes: Uint8Array;
     /**
+     * The coarse variant — present only when the cook asked for one.
+     */
+    readonly coarse: Uint8Array | undefined;
+    /**
      * 10th–90th percentile dense bounds, same layout.
      */
     readonly dense: Float32Array;
@@ -29,11 +33,20 @@ export function coarsenTdp(tdp: Uint8Array): Uint8Array;
 
 /**
  * Cook one merged GLB. Throws (JS exception) with the cooker's error message
- * on non-merged input or malformed GLBs. `coarsen` produces the aggressive
- * low-detail variant for the VRAM-budget residency swap (same item table as
- * the full cook — only geometry shrinks).
+ * on non-merged input or malformed GLBs. `coarsen` additionally produces the
+ * aggressive low-detail variant for the VRAM-budget residency swap (same item
+ * table as the full cook — only geometry shrinks) from the SAME parse, so the
+ * GLB is decoded once for both.
  */
 export function cook(glb: Uint8Array, compute_normals: boolean, coarsen: boolean): CookResult;
+
+/**
+ * Cook a model handed over as flat typed arrays (see cooker-core `flat.rs`
+ * for the layout) — the `.tdp` export path, which builds the arrays from the
+ * viewer's own geometry instead of writing a GLB first. Same cook settings as
+ * `cook`; no coarse variant (a re-import derives it from the file).
+ */
+export function cookMergedModel(positions: Float32Array, indices: Uint32Array, nodes: Uint32Array, colors: Float32Array, ranges: Uint32Array, hierarchy_json: string, compute_normals: boolean): CookResult;
 
 /**
  * Cooker version — part of any future cache key.
@@ -47,9 +60,11 @@ export interface InitOutput {
     readonly __wbg_cookresult_free: (a: number, b: number) => void;
     readonly coarsenTdp: (a: number, b: number) => [number, number, number, number];
     readonly cook: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly cookMergedModel: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => [number, number, number];
     readonly cookerVersion: () => number;
     readonly cookresult_bounds: (a: number) => [number, number];
     readonly cookresult_bytes: (a: number) => [number, number];
+    readonly cookresult_coarse: (a: number) => [number, number];
     readonly cookresult_dense: (a: number) => [number, number];
     readonly cookresult_rootName: (a: number) => [number, number];
     readonly meshopt_wasm_alloc: (a: number) => number;

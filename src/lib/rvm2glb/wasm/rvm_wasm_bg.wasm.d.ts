@@ -1,9 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
-export const _ZdaPv: (a: number) => void;
-export const _ZdaPvm: (a: number, b: number) => void;
-export const _Znam: (a: number) => number;
 export const __wbg_convertresult_free: (a: number, b: number) => void;
 export const __wbg_get_options_align_segments: (a: number) => number;
 export const __wbg_get_options_cleanup_position: (a: number) => number;
@@ -44,9 +41,6 @@ export const convertresult_name: (a: number, b: number) => [number, number];
 export const options_new: () => number;
 export const version: () => [number, number];
 export const start: () => void;
-export const _ZdlPv: (a: number) => void;
-export const _Znwm: (a: number) => number;
-export const _ZdlPvm: (a: number, b: number) => void;
 export const meshopt_wasm_alloc: (a: number) => number;
 export const meshopt_wasm_free: (a: number) => void;
 export const __wbindgen_free: (a: number, b: number, c: number) => void;
