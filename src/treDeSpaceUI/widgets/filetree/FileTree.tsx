@@ -186,7 +186,9 @@ export function FileTree({
           return;
         }
         e.preventDefault();
-        const rowEl = e.target instanceof HTMLElement ? e.target.closest('[data-dir]') : null;
+        // Element, not HTMLElement: a right-click on a row's icon targets an
+        // SVGElement, which would otherwise lose the row it came from
+        const rowEl = e.target instanceof Element ? e.target.closest('[data-dir]') : null;
         setMenu({
           x: e.clientX,
           y: e.clientY,

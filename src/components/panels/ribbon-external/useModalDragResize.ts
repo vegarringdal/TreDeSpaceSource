@@ -51,7 +51,9 @@ export function useModalDragResize(initial: { width: string; height: string }): 
 
   const handleBarDown = (e: ReactPointerEvent<HTMLElement>) => {
     const box = boxRef.current;
-    if (!box || (e.target instanceof HTMLElement && e.target.closest('button'))) {
+    // Element, not HTMLElement: a press lands on the ✕'s <svg> / <path>, which
+    // is an SVGElement — narrowing to HTMLElement let the drag swallow it
+    if (!box || (e.target instanceof Element && e.target.closest('button'))) {
       return;
     }
     const r = box.getBoundingClientRect();

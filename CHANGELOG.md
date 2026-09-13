@@ -4,6 +4,17 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.13** (>0.0.119):
+  Fixed the ✕ of an external modal doing nothing: the title bar starts a drag
+  on pointer-down and skipped presses on its buttons with an
+  `e.target instanceof HTMLElement` guard — but the ✕ is a Tabler icon, so a
+  press lands on its `<svg>` / `<path>`, an SVGElement, and the guard never
+  matched. Pressing close started a drag instead. Narrowing to `Element` (which
+  is what `closest()` needs) fixes it.
+  Same cause, same fix in the FileTree context menu: right-clicking a row's
+  folder / file icon lost the row, so "add folder" targeted the root instead of
+  the folder under the cursor.
+
 - **2026.09.13** (>0.0.118):
   Tooltips fixed where they meet a menu. The bubble and `Menu` were both at
   z-index 3000 and both children of `document.body`, so the menu — portaled in
