@@ -2,6 +2,7 @@ import { IconFolderPlus } from '@tabler/icons-react';
 import { Button, Collapsible, NumberInput } from '@treDeSpaceUI/widgets';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
+import { workerPoolCap } from '../../../state/assets/workerPoolCap';
 import { NO_IMPORTABLE_FILES } from '../model-assets/scanDirectory';
 import {
   ExtLink,
@@ -17,6 +18,7 @@ import type { StagedImport } from './useStagedImport';
 /** Import Manager → merged rvm2glb files (cooked to .tdp on import). */
 export function MergedGlbSection({ si }: { si: StagedImport }) {
   const { pool } = assetsState.use();
+  const poolCap = workerPoolCap();
 
   return (
     <Collapsible
@@ -48,13 +50,16 @@ export function MergedGlbSection({ si }: { si: StagedImport }) {
             <StagingTree si={si} emptyText={NO_IMPORTABLE_FILES} />
             <ImportOptionsRows />
             <FolderField value={si.folder} onChange={si.setFolder} />
-            <label className="flex items-center gap-2 text-slate-400 text-xs">
+            <label
+              className="flex items-center gap-2 text-slate-400 text-xs"
+              data-tooltip={`Cooker workers run at once (max ${poolCap} on this machine: one per core, one left for the UI). Each holds a whole GLB while it cooks.`}
+            >
               <span className="w-14 shrink-0">Pool</span>
               <div className="w-24">
                 <NumberInput
                   value={pool}
                   min={1}
-                  max={10}
+                  max={poolCap}
                   step={1}
                   onChange={act.setPool}
                   decShortcut="assets.pool.dec"

@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { workerPoolCap } from './workerPoolCap';
 
 /** One imported model asset — the file lives in OPFS
  *  `model_assets/<store>/<id>.tdp`; this metadata lives in
@@ -65,9 +66,10 @@ export interface AssetsState {
   assets: AssetEntry[];
   /** index.json has been read from OPFS. */
   ready: boolean;
-  /** Import cook concurrency (worker pool, 1–10). */
+  /** Import cook concurrency (worker pool, 1..workerPoolCap()). */
   pool: number;
-  /** Load concurrency for "Load selected" (1–10). */
+  /** Load concurrency for "Load selected" (1..workerPoolCap()) — models
+   *  whose bytes are in flight at once, not worker threads. */
   loadPool: number;
   /** Don't move the camera when loading additional models. */
   keepCamera: boolean;
@@ -143,8 +145,8 @@ export const assetsState = createStore<AssetsState>({
   importStore: '',
   assets: [],
   ready: false,
-  pool: 10,
-  loadPool: 10,
+  pool: workerPoolCap(),
+  loadPool: workerPoolCap(),
   keepCamera: false,
   loadAfterImport: true,
   importTemp: true,

@@ -2,8 +2,10 @@
 // assigns (a client-chosen id could impersonate another window) — and the
 // custom-event bus between them (custom.*): subscriptions, targeted delivery
 // and the presence event. Identity is the sending window; a reloaded page is
-// a new client.
-import { PROTOCOL } from './protocol';
+// a new client. Also each client's app-event subscription and the owner of
+// an in-flight batch, which is where transport.ts routes app events.
+import { isLifecycleEvent } from './apiEvents';
+import { PROTOCOL } from './wire';
 
 // -----------------------------------------------------------------------------
 // types
@@ -28,8 +30,12 @@ export interface ClientInfo {
 export interface ClientEntry {
   readonly win: Window;
   readonly info: ClientInfo;
-  /** subscribed event names; null = every event, [] = presence only */
+  /** custom-bus filter: subscribed event names; null = every event, [] = presence only */
   events: string[] | null;
+  /** app-event filter (`events.subscribe`): null = everything (a client that
+   *  never subscribed — hand-rolled hosts), else exactly these; `app.*`
+   *  lifecycle events always go through. */
+  appEvents: Set<string> | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -115,6 +121,7 @@ export function touchClient(win: Window, origin: string): ClientEntry {
     win,
     info: { id: `c${nextId++}`, origin, ...kindOf(win), subscribed: false },
     events: null,
+    appEvents: null,
   };
   byWindow.set(win, entry);
   entries.push(entry);
@@ -123,6 +130,18 @@ export function touchClient(win: Window, origin: string): ClientEntry {
 
 export function clientOf(win: Window | null | undefined): ClientEntry | null {
   return win ? (byWindow.get(win) ?? null) : null;
+}
+
+export function isKnownClient(win: Window): boolean {
+  return byWindow.has(win);
+}
+
+/** Every registered client whose window is still open (prunes the rest). */
+export function liveClients(): ClientEntry[] {
+  if (prune()) {
+    emitClientsChanged();
+  }
+  return [...entries];
 }
 
 /** The SDK's client.bye (dispose / pagehide): forget the window now rather
@@ -148,10 +167,46 @@ export function listClients(): ClientInfo[] {
 }
 
 // -----------------------------------------------------------------------------
+// app events: per-client subscription + batch ownership
+// -----------------------------------------------------------------------------
+
+/** Add event types to a client's app-event subscription. The first call
+ *  turns the client from "everything" into "exactly these" (an empty list
+ *  keeps only `app.*`); later calls add, never replace — a relayed window's
+ *  subscription arrives under its relaying client and must not wipe it.
+ *  Returns the subscription as it now stands. */
+export function subscribeAppEvents(e: ClientEntry, names: readonly string[]): string[] {
+  e.appEvents = new Set([...(e.appEvents ?? []), ...names]);
+  return [...e.appEvents].sort();
+}
+
+export function wantsAppEvent(e: ClientEntry, type: string): boolean {
+  return isLifecycleEvent(type) || e.appEvents === null || e.appEvents.has(type);
+}
+
+const batchOwners = new Map<string, Window>();
+
+/** A command carrying a `batchId` owns that batch for its duration: its
+ *  progress events go to this window alone. */
+export function noteBatchOwner(batchId: string, win: Window): void {
+  batchOwners.set(batchId, win);
+}
+
+export function forgetBatchOwner(batchId: string): void {
+  batchOwners.delete(batchId);
+}
+
+export function batchOwnerClient(batchId: string): ClientEntry | null {
+  const win = batchOwners.get(batchId);
+  return win ? (byWindow.get(win) ?? null) : null;
+}
+
+// -----------------------------------------------------------------------------
 // the bus
 // -----------------------------------------------------------------------------
 
-function post(e: ClientEntry, type: string, payload: unknown): void {
+/** One unsolicited message to one client, at its exact origin. */
+export function postToClient(e: ClientEntry, type: string, payload: unknown): void {
   try {
     e.win.postMessage(
       { tredespace: PROTOCOL, id: null, type, ok: true, payload },
@@ -168,7 +223,7 @@ function emitClientsChanged(): void {
   const clients = entries.map((e) => ({ ...e.info }));
   for (const e of entries) {
     if (e.info.subscribed) {
-      post(e, 'custom.clients.changed', { clients });
+      postToClient(e, 'custom.clients.changed', { clients });
     }
   }
 }
@@ -226,7 +281,7 @@ export function deliverCustomEvent(
     if (e.events && !e.events.includes(event)) {
       continue;
     }
-    post(e, 'custom.event', payload);
+    postToClient(e, 'custom.event', payload);
     hit.add(e.info.id);
   }
   return { delivered: hit.size, missed: to ? to.filter((id) => !hit.has(id)) : [] };

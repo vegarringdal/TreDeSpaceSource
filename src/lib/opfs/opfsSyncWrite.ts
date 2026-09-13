@@ -140,8 +140,9 @@ export async function opfsOpenTextStream(relPath: string): Promise<{
   };
 }
 
-/** Read a whole file at `relPath` from the OPFS root. */
-export async function opfsReadFromRoot(relPath: string): Promise<ArrayBuffer> {
+/** The `File` at `relPath` from the OPFS root — size and lastModified
+ *  without reading the bytes (a cache key), `.arrayBuffer()` when needed. */
+export async function opfsFileFromRoot(relPath: string): Promise<File> {
   const parts = relPath.split('/');
   const fileName = parts.pop();
   if (!fileName) {
@@ -149,5 +150,10 @@ export async function opfsReadFromRoot(relPath: string): Promise<ArrayBuffer> {
   }
   const dir = await opfsDirFromRoot(parts, false);
   const fh = await dir.getFileHandle(fileName);
-  return (await fh.getFile()).arrayBuffer();
+  return fh.getFile();
+}
+
+/** Read a whole file at `relPath` from the OPFS root. */
+export async function opfsReadFromRoot(relPath: string): Promise<ArrayBuffer> {
+  return (await opfsFileFromRoot(relPath)).arrayBuffer();
 }

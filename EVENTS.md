@@ -58,7 +58,10 @@ under a path (`https://portal.example.com/tredespace`) works as written.
   there) and then sends `app.ready` to the opener. A top-level window nobody
   opened ignores it. `*` is possible in an iframe but discouraged, and is never
   granted through the prompt. Responses are posted back with the sender's
-  origin as `targetOrigin` — never `*`.
+  origin as `targetOrigin`. The one exception is a sandboxed sender whose
+  origin is the literal `null` (an `<iframe sandbox>` without
+  `allow-same-origin`): `*` is the only way to reach it, and only its own
+  replies and events go that way.
 - **postMessage is the ONLY channel.** Cross-origin frames can never touch
   the app's DOM, globals, or storage — the browser isolates them. The attack
   surface is exactly the validated command list below; there is no eval, no
@@ -93,7 +96,8 @@ App → host (exactly one per request):
 ```
 
 Error codes: `bad-payload`, `not-ready`, `busy` (import lock held),
-`not-found`, `internal`.
+`not-found`, `internal`, `unknown-command` (no such command in this viewer —
+`app.info` lists the ones it has; the SDK's `supports()` answers from it).
 
 ## Handshake
 
@@ -103,11 +107,27 @@ assets index read):
 ```js
 // app → host, unsolicited, id: null
 { tredespace: 1, id: null, type: 'app.ready', ok: true,
-  payload: { version: '0.0.10', api: 1 } }
+  payload: { version: '0.0.118', api: 1,
+             commands: ['app.info', 'assets.import', /* … every command */],
+             events: ['app.ready', 'tree.select', /* … every event */],
+             gpu: 'booting' } }
 ```
 
+`commands` and `events` are what THIS viewer has, so a host can feature-detect
+across viewer versions (SDK: `client.supports('sql.execute')`); an unknown
+command answers `unknown-command`. `gpu` is the viewport's state as far as
+the API knows — the renderer boots in parallel with the API, so `app.ready`
+usually says `booting`; `app.info` returns the same payload on demand with
+the current value, and `app.error` reports a failure (see Events).
+
 Hosts should queue commands until `app.ready` (commands before it get
-`{ code: 'not-ready' }`).
+`{ code: 'not-ready' }`). The SDK does this itself: a command sent early
+waits for `app.ready` (up to its own timeout; `waitForReady: false` posts at
+once). `ready()` takes `{ timeoutMs }` and REJECTS — a `TredespaceClientError`
+with code `timeout` — when no `app.ready` arrives in time, which is what a
+missing viewer or an origin that is not on the allowlist looks like from the
+host (the viewer never reports a rejected origin). It also rejects (code
+`transport`) when the client is disposed or its target window closes first.
 
 The app also says goodbye. On `pagehide` — a reload, a navigation, its tab
 closing, or the page going into the back-forward cache — it posts `app.bye`
@@ -142,6 +162,38 @@ AFTER boot (an External-app panel or dialog, a tab the viewer opened) resolves
 > these (and the SDK's JSDoc), and `vite build` fails if a command is missing
 > one. A heading may list sibling commands (`a.set / a.add`); they share the
 > example. See CLAUDE.md → "postMessage API".
+
+### app.info
+The `app.ready` payload on demand: the viewer version, the protocol number,
+every command and event this viewer has, and the CURRENT GPU state
+(`booting` / `ok` / `failed` — `app.ready` itself usually says `booting`).
+For a page that connects late, or wants to know whether the viewport boot
+went through. SDK: `appInfo()`; `supports(name)` answers from the lists
+without a round trip.
+
+```js
+payload:  {}
+response: { version: '0.0.118', api: 1,
+            commands: ['app.info', 'assets.import', '…'],
+            events: ['app.ready', 'tree.select', '…'],
+            gpu: 'ok' }
+```
+
+### events.subscribe
+Which unsolicited events the viewer should post THIS client (see "Events").
+Adds to the client's subscription: the first call turns "everything" into
+"exactly these" (`[]` keeps only the `app.*` lifecycle events, which always
+arrive); later calls add, never replace, so a relayed window's list unions
+into its relaying client's. Unknown names come back in `unknown`, not as an
+error. The SDK calls this itself — on every `app.ready` with every type it
+has an `on()` handler for, and again the first time a new type is
+subscribed — so hosts using the SDK never need it; a hand-rolled host that
+never calls it keeps receiving everything, as before.
+
+```js
+payload:  { events: ['tree.select', 'sql.execute:progress', 'nope'] }
+response: { events: ['sql.execute:progress', 'tree.select'], unknown: ['nope'] }
+```
 
 ### selection.set
 Replace the selection by fullnames (reveals the first hit in the tree —
@@ -556,7 +608,9 @@ between merged and standard, so nothing is inferred on the wire). `store`
 (default 'main', must be known) and `replace` apply to every file.
 
 The whole batch takes the app's import lock ONCE. `concurrent` (default 3,
-clamped 1..8) files are then processed at a time **end-to-end**: for
+clamped 1..8 and never above the viewer's worker cap — one fewer than the
+client's logical cores, at most 10) files are then processed at a time
+**end-to-end**: for
 `glb-merged` / `glb-standard` / `tdp` each slot downloads AND cooks on a
 cooker-pool worker, so downloads and conversions overlap and a slow download
 never stalls a cook that is ready to run. The `rvm` / `ifc` / `step`
@@ -616,7 +670,9 @@ commands, documented here so a non-SDK host can implement the same flow.
 `uploadBegin` acquires the cross-tab import lock (held for the whole
 begin..finish window — `busy` error if another import runs), stages an OPFS
 temp file and returns the `uploadId`; each `uploadChunk` appends its bytes
-(the transferable) sequentially; `uploadFinish` takes the same fields as
+(the transferable) sequentially — its optional `offset` must equal the bytes
+staged so far, or the chunk is rejected with `bad-payload` (a lost or
+reordered chunk surfaces here, not as a corrupt cook); `uploadFinish` takes the same fields as
 `assets.import` (minus `bytes`) and responds like `assets.import` when the
 cook completes. `uploadAbort` discards a partial upload and releases the lock
 (best-effort cleanup).
@@ -691,7 +747,9 @@ something that just arrived. Either way the command responds after the camera
 has settled.
 
 Models load in PARALLEL (`concurrent`, default the viewer's load-pool setting,
-clamped to 16) with VRAM-budget residency swaps paused for the batch. While it
+clamped to 16 and never above the viewer's worker cap — one fewer than the
+client's logical cores, at most 10) with VRAM-budget residency swaps paused for
+the batch. While it
 runs the viewer posts unsolicited `assets.load:progress` events —
 `{ batchId, completed, total, index, id, phase }`, `phase` one of `done` /
 `error` per model, `index` the model's slot in the `ids` you sent. Ticks
@@ -1737,10 +1795,22 @@ per-instance prefix, so multiple clients on one shared carrier never collide.
 ## Events (app → host, unsolicited)
 
 Beyond request/response, the app emits unsolicited events: same envelope with
-`id: null` (like `app.ready`). They are posted to the parent window, the
-opener, AND every embedded iframe on an allowed origin (external-app panels /
-dialogs) — so hosts work whether they host the viewer or are hosted by it.
-SDK: `client.on(type, handler)` or the typed helpers; handlers get the payload.
+`id: null` (like `app.ready`). Delivery, in order:
+
+- an event whose payload carries a `batchId` is progress for one command —
+  it goes to the window that issued that command and nobody else;
+- every connected client (any window that has sent a message — the SDK says
+  `client.hello` on construction) gets it ONCE, at its exact origin, if its
+  `events.subscribe` filter admits the type; `app.*` (ready / bye / error)
+  always goes through. A client that never subscribed gets everything;
+- the parent, the opener and the windows the viewer opened that have NOT
+  sent anything yet get it the old way — once per allowed origin — so a
+  host that only listens still hears everything.
+
+So hosts work whether they host the viewer or are hosted by it, and a page
+pays only for the events it listens to. SDK: `client.on(type, handler)` or
+the typed helpers (`on` is typed by event name); `once(type)` for the next
+one; handlers get the payload.
 
 Two more types are raised by the SDK client itself and never cross
 postMessage: `client.closed` (`onClosed`) and `relay.changed`
@@ -1752,6 +1822,20 @@ SDK: `onAppBye`; the matching reconnect hook is `onAppReady`.
 
 ```js
 { reason: 'unload' }
+```
+
+### app.error
+The viewport failed while the API keeps working: WebGPU did not initialise
+(`gpu-init`), the graphics device was lost (`gpu-lost`), or a recovery
+attempt failed (`gpu-recovery`). Commands that need the renderer answer with
+their own errors; SQL, assets and the bus are unaffected. Only a reload
+brings rendering back, and `app.info` says `gpu: 'failed'` until it does.
+`app.ready` still fires and `ready()` still resolves — the API IS up — so a
+page that connects late checks `app.info` rather than waiting for this.
+SDK: `onAppError`.
+
+```js
+{ code: 'gpu-init', message: 'WebGPU is not available in this browser' }
 ```
 
 ### tree.select
@@ -2202,8 +2286,8 @@ project — the proxy pattern is for staying current, not for pinning.
 - `export.glb` / `export.ifc` — return the exported bytes to the host
   instead of downloading.
 - More events (`selection.changed`, `model.loaded`) — `tree.select` sets the
-  pattern; a `subscribe` command is still not required (events are cheap and
-  hosts just ignore types they don't listen for).
+  pattern; `events.subscribe` already scopes delivery per client, so a new
+  event costs nothing for the hosts that do not listen for it.
 
 ## Implementation notes
 
@@ -2212,9 +2296,11 @@ project — the proxy pattern is for staying current, not for pinning.
   envelope check → per-command payload validation in the per-domain
   `handlers*.ts` → call the existing action → post result. Async commands hold
   the same Web-Locks import lock the UI uses.
-- `app.ready` fires after renderer init + `assetsActions.init()`.
+- `app.ready` fires from the app startup effect once the listener, kiosk
+  and panel control are installed; the viewport boots in parallel —
+  `app.info`'s `gpu` and the `app.error` event say how that went. Asset and
+  store commands load their OPFS index on first use.
 - Responses go to `event.source` (works for iframe parent AND `window.open`
   openers), `targetOrigin` = `event.origin`.
-- Size guard on `assets.import` (reject > ~2 GB, matching the buffer limits).
 - The command surface reuses ONLY exported actions — no new state paths, so
   UI and API can never drift apart.

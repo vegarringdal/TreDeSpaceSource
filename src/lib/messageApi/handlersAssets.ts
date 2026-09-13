@@ -582,6 +582,14 @@ export const assetHandlers: Record<string, ApiHandler> = {
     if (!(bytes instanceof ArrayBuffer) && !(bytes instanceof Blob)) {
       throw new ApiError('bad-payload', 'chunk bytes must be an ArrayBuffer or Blob');
     }
+    // `offset` is optional but, when given, must be where the stream is: a
+    // host that lost or reordered a chunk learns it here, not from a corrupt cook
+    if (p.offset !== undefined && p.offset !== sess.received) {
+      throw new ApiError(
+        'bad-payload',
+        `chunk offset ${String(p.offset)} does not match the ${sess.received} bytes staged so far`,
+      );
+    }
     await sess.writable.write(bytes); // sequential append to the open stream
     uploads.touch(uploadId);
     sess.received += bytes instanceof Blob ? bytes.size : bytes.byteLength;

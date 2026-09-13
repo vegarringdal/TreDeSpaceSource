@@ -4,7 +4,7 @@ import { storesState, TEMP_STORE } from '../../../state/stores/stores.state';
 import { db } from '../../../state/viewer/db';
 import { selectionState } from '../../../state/viewer/selection.state';
 import { registerHierarchyCollapse } from './hierarchy.actions';
-import { buildRows, groupKey, type HierarchyCaches, keyOf, type Row } from './hierarchyModel';
+import { buildRows, groupKey, type HierarchyCaches, keyOf, ROW_H, type Row, rowKey } from './hierarchyModel';
 
 export type HierarchyTree = Readonly<{
   rows: Row[];
@@ -14,7 +14,7 @@ export type HierarchyTree = Readonly<{
   rebuild: (exp: Set<string>) => Promise<void>;
   collapseAll: () => void;
   toggle: (r: Row) => void;
-  listRef: React.RefObject<HTMLUListElement | null>;
+  listRef: React.RefObject<HTMLDivElement | null>;
   modelGroupOf: (model: number) => string | undefined;
 }>;
 
@@ -38,7 +38,7 @@ export function useHierarchyTree(): HierarchyTree {
     storeOrder: [],
   });
   const { stores } = storesState.use();
-  const listRef = useRef<HTMLUListElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const pendingScroll = useRef(false);
 
   const setExp = useCallback((next: Set<string>) => {
@@ -57,7 +57,7 @@ export function useHierarchyTree(): HierarchyTree {
   }, [rebuild, setExp]);
 
   const toggle = (r: Row) => {
-    const k = r.model === -1 ? groupKey(r.group!, r.inStore) : keyOf(r.model, r.entry);
+    const k = rowKey(r);
     const exp = new Set(expanded);
     // a folder is open when EITHER its store-qualified or its plain key is in
     // the set (a reveal adds both) — so collapsing must drop both, or the
@@ -80,7 +80,12 @@ export function useHierarchyTree(): HierarchyTree {
   const revealKey = sel.reveal ? keyOf(sel.reveal.model, sel.reveal.path[sel.reveal.path.length - 1]) : null;
 
   // model list (re)load — modelsVersion is a deliberate refresh TRIGGER (a
-  // freshly loaded model must appear without any user interaction)
+  // freshly loaded model must appear without any user interaction). The
+  // expansion set is deliberately NOT a dependency: every path that changes
+  // it (toggle, reveal, collapseAll, the panel's own setExp) rebuilds itself,
+  // and re-running this effect on it would drop the children cache and
+  // refetch every open node on each click. The rebuild reads the synchronous
+  // mirror so a reload still honours the current expansion.
   // biome-ignore lint/correctness/useExhaustiveDependencies: modelsVersion is an intentional extra trigger
   useEffect(() => {
     let alive = true;
@@ -102,13 +107,13 @@ export function useHierarchyTree(): HierarchyTree {
         c.modelStore.set(index, store);
       }
       if (alive) {
-        await rebuild(expanded);
+        await rebuild(expandedRef.current);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [expanded, rebuild, sel.modelsVersion, stores]);
+  }, [rebuild, sel.modelsVersion, stores]);
 
   // viewport pick -> expand the path to the item and mark it for scroll.
   // MUST run before the actives effect so its rebuild sees the expanded path
@@ -168,20 +173,21 @@ export function useHierarchyTree(): HierarchyTree {
 
   // scroll AFTER React committed the rebuilt rows. The anchor row appears one
   // rebuild later than `reveal` (the active highlight arrives async), so keep
-  // the flag armed until the ref actually resolves — then center the row.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `rows` is the intentional trigger — retry the scroll after each rebuild until the anchor row exists
+  // the flag armed until the row exists — then center it. The list is
+  // virtualized, so the row is found by index in `rows` (it may have no DOM
+  // element yet) and the scroller is positioned by arithmetic; the scroll
+  // event that follows mounts the rows around it.
   useEffect(() => {
     if (!pendingScroll.current || !revealKey) {
       return;
     }
-    // find the row by its stable model:entry key — works whenever it's in the
-    // DOM, no matter which rebuild/render settled last.
-    const el = listRef.current?.querySelector(`[data-key="${CSS.escape(revealKey)}"]`);
-    if (!el) {
-      return; // not rendered yet — wait for the next rows/reveal change
+    const el = listRef.current;
+    const idx = rows.findIndex((r) => r.store == null && rowKey(r) === revealKey);
+    if (!el || idx < 0) {
+      return; // not in the rows yet — wait for the next rows/reveal change
     }
     pendingScroll.current = false;
-    el.scrollIntoView({ block: 'center' });
+    el.scrollTop = Math.max(0, idx * ROW_H - (el.clientHeight - ROW_H) / 2);
   }, [revealKey, rows]);
 
   return {

@@ -1,16 +1,11 @@
-// Shared protocol pieces for the postMessage host API: the wire version, the
-// typed command error, the handler shape, and payload validation helpers.
+// Shared protocol pieces for the postMessage host API: the handler shape and
+// payload validation helpers. The wire version, the typed command error and
+// the envelope routing live in wire.ts (no app imports, unit-tested) and are
+// re-exported here so handlers keep one import.
 import { storeExists } from '../../state/stores/stores.state';
+import { ApiError, isRecord } from './wire';
 
-export const PROTOCOL = 1;
-
-export class ApiError extends Error {
-  readonly code: 'bad-payload' | 'not-ready' | 'busy' | 'not-found' | 'internal';
-  constructor(code: 'bad-payload' | 'not-ready' | 'busy' | 'not-found' | 'internal', message: string) {
-    super(message);
-    this.code = code;
-  }
-}
+export { ApiError, type ApiErrorCode, isRecord, PROTOCOL } from './wire';
 
 /** One command implementation: gets the raw (validated-record) payload plus
  *  the command name (set/add pairs share one handler), the optional binary
@@ -25,8 +20,6 @@ export type ApiHandler = (ctx: {
 // -----------------------------------------------------------------------------
 // validation helpers
 // -----------------------------------------------------------------------------
-
-export const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
 export function strings(v: unknown, what: string): string[] {
   if (!Array.isArray(v) || v.some((x) => typeof x !== 'string')) {

@@ -11,6 +11,7 @@ import {
   markerWgsl,
   measureSnapWgsl,
   outlineWgsl,
+  pickDepthWgsl,
   postWgsl,
   renderVpWgsl,
   renderWgsl,
@@ -41,6 +42,7 @@ describe('shader text pins', () => {
       hashes[`vbaoWgsl(${msaa})`] = sha(vbaoWgsl(msaa));
       hashes[`postWgsl(${msaa})`] = sha(postWgsl(msaa));
       hashes[`outlineWgsl(${msaa})`] = sha(outlineWgsl(msaa));
+      hashes[`pickDepthWgsl(${msaa})`] = sha(pickDepthWgsl(msaa));
     }
     for (const quantized of [false, true]) {
       hashes[`renderWgsl(${quantized})`] = sha(renderWgsl(quantized));

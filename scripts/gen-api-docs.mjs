@@ -304,8 +304,12 @@ export function generateApiDocs() {
       });
     }
 
-    // TredespaceClient public methods
+    // TredespaceClient public methods. An overloaded method is several
+    // declarations: the first overload carries the JSDoc and the signature
+    // hosts see, the implementation (the one with a body) is where a command
+    // would be sent — merged into ONE entry.
     if (ts.isClassDeclaration(node) && node.name?.getText(sf) === 'TredespaceClient') {
+      const byName = new Map();
       for (const mem of node.members) {
         if (!ts.isMethodDeclaration(mem)) continue;
         const mods = mem.modifiers ?? [];
@@ -314,10 +318,15 @@ export function generateApiDocs() {
         );
         const name = mem.name.getText(sf);
         if (isPrivate || name === 'send') continue;
-
-        const params = mem.parameters.map((p) => cleanText(p.getText(sf)));
-        const ret = mem.type ? cleanText(mem.type.getText(sf)) : 'void';
-        const text = mem.getText(sf);
+        if (!byName.has(name)) byName.set(name, []);
+        byName.get(name).push(mem);
+      }
+      for (const [name, decls] of byName) {
+        const shown = decls[0];
+        const impl = decls.find((d) => d.body) ?? shown;
+        const params = shown.parameters.map((p) => cleanText(p.getText(sf)));
+        const ret = shown.type ? cleanText(shown.type.getText(sf)) : 'void';
+        const text = impl.getText(sf);
         const command = commandOf(text);
         const example = command ? (examples.get(command) ?? null) : null;
         methods.push({
@@ -325,7 +334,7 @@ export function generateApiDocs() {
           command,
           suspect: command ? null : suspectHelperOf(text),
           signature: formatSignature(name, params, ret),
-          doc: jsdocText(mem),
+          doc: decls.map(jsdocText).find((d) => d.trim()) ?? '',
           example,
           sample: example ? toSample(name, params, example) : null,
         });

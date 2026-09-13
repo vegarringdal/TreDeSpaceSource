@@ -57,9 +57,15 @@ export interface HierarchyCaches {
 }
 
 export const keyOf = (model: number, entry: number) => `${model}:${entry}`;
+/** Every row is exactly this tall (px): the list is virtualized by
+ *  arithmetic, so store bands and tree rows share one height. */
+export const ROW_H = 22;
 /** Expansion key for a folder row; store-qualified under a plant band so the
  *  same folder path expands independently per plant. */
 export const groupKey = (group: string, store?: string) => (store ? `g:${store}\0${group}` : `g:${group}`);
+/** The stable identity of an interactive row (expansion set + DOM key):
+ *  folders by group (store-qualified under a plant band), items by model:entry. */
+export const rowKey = (r: Row): string => (r.model === -1 ? groupKey(r.group!, r.inStore) : keyOf(r.model, r.entry));
 
 /**
  * Build the visible row list: the import folders as a nested tree (group names

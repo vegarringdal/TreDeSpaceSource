@@ -17,6 +17,8 @@ let pendingPrompt: ((value: string | null) => void) | null = null;
  *  holds the overlay so per-phase hide/show pairs don't blink it. */
 let loadingHold = 0;
 
+const clearLoading = () => dialogsState.set({ loading: null });
+
 /** Global dialog triggers — callable from anywhere, React or not. */
 export const dialogs = {
   error(message: string, title = 'Something went wrong') {
@@ -28,19 +30,32 @@ export const dialogs = {
 
   /** Show the blocking loading overlay. Returns a disposer, or use hideLoading().
    *  `progress` (0..1) renders a determinate bar under the label.
-   *  flushSync forces React to COMMIT the overlay to the DOM before the caller's
-   *  next synchronous work (e.g. `new Worker(...)`, wasm load) can block the main
-   *  thread — otherwise the commit batches behind it and the overlay appears
-   *  seconds late, leaving the UI clickable. */
+   *  On the hidden → shown transition flushSync forces React to COMMIT the
+   *  overlay to the DOM before the caller's next synchronous work (e.g.
+   *  `new Worker(...)`, wasm load) can block the main thread — otherwise the
+   *  commit batches behind it and the overlay appears seconds late, leaving
+   *  the UI clickable. Once the overlay is up, progress ticks are plain
+   *  batched updates (converter proxies and chunk uploads call this per tick;
+   *  a synchronous commit each time stalled the main thread), and a tick that
+   *  changes nothing is dropped before it reaches the store. */
   loading(label = 'Loading…', title = 'Please wait', progress?: number) {
-    flushSync(() => dialogsState.set({ loading: { title, label, progress: progress ?? null } }));
-    return () => dialogsState.set({ loading: null });
+    const next = { title, label, progress: progress ?? null };
+    const cur = dialogsState.get().loading;
+    if (cur && cur.title === next.title && cur.label === next.label && cur.progress === next.progress) {
+      return clearLoading;
+    }
+    if (cur) {
+      dialogsState.set({ loading: next });
+    } else {
+      flushSync(() => dialogsState.set({ loading: next }));
+    }
+    return clearLoading;
   },
   hideLoading() {
     if (loadingHold > 0) {
       return;
     }
-    dialogsState.set({ loading: null });
+    clearLoading();
   },
 
   /** Keep the loading overlay up across a multi-phase flow: intermediate

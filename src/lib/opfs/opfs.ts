@@ -44,6 +44,12 @@ export async function removeViewerOpfsEntries(): Promise<void> {
   }
 }
 
+/** OPFS path (from the root) of one cooked model variant — what a worker
+ *  reads by itself instead of the main thread reading and transferring. */
+export function modelAssetPath(store: string, id: string, variant: 'full' | 'coarse'): string {
+  return `model_assets/${store}/${id}${variant === 'coarse' ? '.coarse' : ''}.tdp`;
+}
+
 /** The real directory holding one store's cooked models. */
 export async function modelStoreDir(store: string): Promise<FileSystemDirectoryHandle> {
   return (await modelAssetsDir()).getDirectoryHandle(store, { create: true });

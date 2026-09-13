@@ -48,6 +48,7 @@ import {
   type StdGlbImportOptions,
   type StepImportOptions,
 } from './assets.state';
+import { workerPoolCap } from './workerPoolCap';
 
 const INDEX = 'index.json';
 
@@ -325,7 +326,7 @@ export async function loadIdsPooled(
   if (ids.length === 0) {
     return okIds;
   }
-  const pool = Math.max(1, opts.concurrency ?? assetsState.get().loadPool);
+  const pool = Math.max(1, Math.min(workerPoolCap(), opts.concurrency ?? assetsState.get().loadPool));
   let done = 0;
   if (!opts.quiet) {
     dialogs.loading(`File 0 of ${ids.length}`, 'Loading assets');
@@ -473,7 +474,7 @@ export const assetsActions = {
   },
 
   setPool(pool: number) {
-    assetsState.set({ pool: Math.max(1, Math.min(10, Math.round(pool))) });
+    assetsState.set({ pool: Math.max(1, Math.min(workerPoolCap(), Math.round(pool))) });
   },
 
   setKeepCamera(v: boolean) {
@@ -485,7 +486,7 @@ export const assetsActions = {
   },
 
   setLoadPool(n: number) {
-    assetsState.set({ loadPool: Math.max(1, Math.min(10, Math.round(n))) });
+    assetsState.set({ loadPool: Math.max(1, Math.min(workerPoolCap(), Math.round(n))) });
   },
 
   setRvmOptions(patch: Partial<RvmImportOptions>) {
@@ -596,7 +597,9 @@ export const assetsActions = {
     // temp imports never ask for a store — they land in the reserved 'temp'
     // store (own section in the Model Assets panel, purged on next start)
     const store = temp ? TEMP_STORE : resolveStore(opts.store);
-    const pool = Math.max(1, opts.concurrency ?? assetsState.get().pool);
+    // the cap also bounds an explicit API `concurrent`: a host cannot know the
+    // client's core count, and the failure mode is a tab OOM, not a slow import
+    const pool = Math.max(1, Math.min(workerPoolCap(), opts.concurrency ?? assetsState.get().pool));
     const added: AssetEntry[] = [];
     // entries by source index — the batch's per-file result map
     const perSource = new Map<number, AssetEntry>();

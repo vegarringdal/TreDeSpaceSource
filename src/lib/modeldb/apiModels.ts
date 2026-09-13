@@ -12,12 +12,14 @@ import {
   packModel,
   packModelMixed,
 } from '../model/pack';
+import { opfsFileFromRoot } from '../opfs/opfsSyncWrite';
 import { clipCulledSphere } from '../render/clipCull';
 import { resetTransformUndo } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
 import { type DbModel, forgetModelTables, isEffectivelyHidden, models, type StateUpdate } from './dbState';
 import { dropModelFromGlobalIndex, indexRevivedModel, resetGlobalIndex } from './globalNameIndex';
 import { buildIndexes, packStates, transferUpdates } from './hierarchyIndex';
+import { parsedCache } from './parsedCache';
 import { itemWorldBounds, resetTransformPool } from './transformPool';
 
 /** Mark the packed geometry arrays for zero-copy transfer to the main thread. */
@@ -167,15 +169,35 @@ async function parseVariant(index: number, bytes: ArrayBuffer): Promise<ParsedMo
   return parsed;
 }
 
-/** Parse+pack variant bytes for an already-registered LIVE model. The DbModel
+/** Parse a variant file of an already-registered slot straight from OPFS in
+ * this worker — no main-thread read, no transfer — through the parsed LRU,
+ * so a repeat repack of the same file (the residency loop re-centres a
+ * zone's mixed pack on every few metres of camera travel) skips the meshopt
+ * decode. The entry is keyed by path and validated by size + mtime, so a
+ * re-import under the same id parses afresh. Same `itemcount-mismatch:`
+ * check as parseVariant. */
+async function parseFromOpfs(index: number, relPath: string): Promise<ParsedModel> {
+  const m = models[index];
+  if (!m) {
+    throw new Error(`repack: no model at index ${index}`);
+  }
+  const file = await opfsFileFromRoot(relPath);
+  let parsed = parsedCache.get(relPath, file.size, file.lastModified);
+  if (!parsed) {
+    parsed = await parseModel(m.name, await file.arrayBuffer());
+    parsedCache.put(relPath, file.size, file.lastModified, index, parsed);
+  }
+  if (parsed.itemCount !== m.itemCount) {
+    throw new Error(`itemcount-mismatch: model ${index} has ${m.itemCount} items, variant has ${parsed.itemCount}`);
+  }
+  return parsed;
+}
+
+/** Pack a parsed variant for an already-registered LIVE model. The DbModel
  * keeps its finite itemBounds — a variant's degraded bounds never overwrite
  * them — but non-finite entries (initial coarse load whose cooker cut the
  * item) adopt the incoming bounds; see healItemBounds. */
-async function repackForModel(
-  index: number,
-  bytes: ArrayBuffer,
-): Promise<Omit<PackedModel, 'itemBounds'> & { packDropped: number }> {
-  const parsed = await parseVariant(index, bytes);
+function packVariant(index: number, parsed: ParsedModel): Omit<PackedModel, 'itemBounds'> & { packDropped: number } {
   const m = models[index];
   const { itemBounds, ...packed } = packModel(parsed);
   healItemBounds(m.itemBounds, itemBounds);
@@ -242,13 +264,23 @@ export const modelsApi = {
   },
 
   /** Parse+pack a geometry variant of an already-registered LIVE model (full↔
-   * coarse swap). No DbModel mutation — hierarchy/states/selection stay as-is.
-   * Throws `itemcount-mismatch:` if the variant's item table differs. */
+   * coarse swap) from bytes the caller read (GPU recovery). No DbModel
+   * mutation — hierarchy/states/selection stay as-is. Throws
+   * `itemcount-mismatch:` if the variant's item table differs. */
   async repackModel(
     index: number,
     bytes: ArrayBuffer,
   ): Promise<Omit<PackedModel, 'itemBounds'> & { packDropped: number }> {
-    return repackForModel(index, bytes);
+    return packVariant(index, await parseVariant(index, bytes));
+  },
+
+  /** repackModel reading the variant file itself from `relPath` (an OPFS path
+   * from the root, see modelAssetPath) through the parsed LRU. */
+  async repackModelFromOpfs(
+    index: number,
+    relPath: string,
+  ): Promise<Omit<PackedModel, 'itemBounds'> & { packDropped: number }> {
+    return packVariant(index, await parseFromOpfs(index, relPath));
   },
 
   /** Un-tombstone a removed model with fresh bytes (reload / promote from
@@ -280,12 +312,14 @@ export const modelsApi = {
    * budget on IN-FRUSTUM items, nearest first — out-of-view items ALWAYS
    * come from the coarse parse (outside the frustum, coarse is the default
    * level), as do in-view items past the budget. Hidden items never spend
-   * full-detail budget. No DbModel mutation; throws `itemcount-mismatch:`
-   * if either variant's item table differs from the registered model. */
+   * full-detail budget. Both variants are read from OPFS here (paths from
+   * the root) through the parsed LRU. No DbModel mutation; throws
+   * `itemcount-mismatch:` if either variant's item table differs from the
+   * registered model. */
   async repackModelMixed(
     index: number,
-    fullBytes: ArrayBuffer,
-    coarseBytes: ArrayBuffer,
+    fullPath: string,
+    coarsePath: string,
     eye: readonly [number, number, number],
     targetBytes: number,
     cuts: ResidencyCuts,
@@ -296,13 +330,8 @@ export const modelsApi = {
     if (!m) {
       throw new Error(`repackModelMixed: no model at index ${index}`);
     }
-    const full = await parseModel(m.name, fullBytes);
-    const coarse = await parseModel(m.name, coarseBytes);
-    if (full.itemCount !== m.itemCount || coarse.itemCount !== m.itemCount) {
-      throw new Error(
-        `itemcount-mismatch: model ${index} has ${m.itemCount}, variants have ${full.itemCount}/${coarse.itemCount}`,
-      );
-    }
+    const full = await parseFromOpfs(index, fullPath);
+    const coarse = await parseFromOpfs(index, coarsePath);
 
     // estimated full-detail GPU bytes per item — the same terms the renderer
     // allocates, normal stream included when the pack will carry one
@@ -370,10 +399,11 @@ export const modelsApi = {
   /** Coarse repack with the residency cuts applied: everything from the
    * coarse parse except tiny-and-far and (optionally) hidden items, which
    * are dropped entirely (out-of-frustum items cut harder). With the cuts
-   * disabled this equals repackModel of the coarse file. */
+   * disabled this equals repackModel of the coarse file. The coarse file is
+   * read from OPFS here (a path from the root) through the parsed LRU. */
   async repackModelCoarse(
     index: number,
-    coarseBytes: ArrayBuffer,
+    coarsePath: string,
     eye: readonly [number, number, number],
     cuts: ResidencyCuts,
     clip: Float32Array | null,
@@ -382,10 +412,7 @@ export const modelsApi = {
     if (!m) {
       throw new Error(`repackModelCoarse: no model at index ${index}`);
     }
-    const coarse = await parseModel(m.name, coarseBytes);
-    if (coarse.itemCount !== m.itemCount) {
-      throw new Error(`itemcount-mismatch: model ${index} has ${m.itemCount} items, variant has ${coarse.itemCount}`);
-    }
+    const coarse = await parseFromOpfs(index, coarsePath);
     const wb = worldBoundsOf(m);
     const keep = new Uint8Array(m.itemCount).fill(1);
     for (let i = 0; i < m.itemCount; i++) {
@@ -429,6 +456,7 @@ export const modelsApi = {
 
   clear() {
     models.length = 0;
+    parsedCache.clear();
     resetGlobalIndex();
     resetColorUndo();
     resetTransformUndo();
@@ -631,6 +659,7 @@ export const modelsApi = {
       m.removed = true;
       forgetModelTables(m);
       dropModelFromGlobalIndex(i);
+      parsedCache.forgetOwner(i);
     }
   },
 

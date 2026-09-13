@@ -26,6 +26,7 @@ function measureSnap() {
 }
 
 import type { PanelDefinition } from '@treDeSpaceUI/dockable';
+import { emitApiEvent, setGpuState } from '../../../lib/messageApi/transport';
 import { ViewGizmo } from '../../../lib/overlay/ViewGizmo';
 import { Renderer } from '../../../lib/render/renderer';
 import { buildViewCubeGeometry } from '../../../lib/render/viewCubeGpu';
@@ -268,6 +269,7 @@ export const viewport: PanelDefinition = {
     let labelOverlay: LabelOverlay | null = null;
     let residencyBoxes: ResidencyBoxOverlay | null = null;
     let removeMeasureKeys: (() => void) | null = null;
+    let unsubLabels: (() => void) | null = null;
     // selection-gizmo drag bookkeeping: the live preview matrix (gizmo rides
     // along) and the pivot position frozen at pivot-drag start
     let liveMatrix: Float32Array | null = null;
@@ -535,6 +537,10 @@ export const viewport: PanelDefinition = {
         setError(String(e));
         consoleActions.log('error', String(e));
         consoleActions.markStartupDone();
+        // the API is up regardless (SQL, assets…) — hosts learn here that the
+        // viewport is not, app.info says `gpu: 'failed'` from now on
+        setGpuState('failed');
+        emitApiEvent('app.error', { code: 'gpu-init', message: String(e) });
         settleBoot?.(null);
         settleBoot = null;
         return;
@@ -544,6 +550,7 @@ export const viewport: PanelDefinition = {
         return;
       }
       registerRenderer(renderer);
+      setGpuState('ok');
       renderer.onLost = (message) => {
         cancelAnimationFrame(frame);
         setError(`GPU ERROR: ${message}`);
@@ -590,10 +597,9 @@ export const viewport: PanelDefinition = {
         },
       });
       renderer.setViewCubeLabels({ ...gizmoLabelsState.get().labels });
-      const unsubLabels = gizmoLabelsState.subscribe(() => {
+      unsubLabels = gizmoLabelsState.subscribe(() => {
         renderer.setViewCubeLabels({ ...gizmoLabelsState.get().labels });
       });
-      void unsubLabels; // released with the panel below
       const cubeHoverId = () => cubeHover;
 
       // dev auto-load: ?auto=/@fs/abs/path/a.model,...
@@ -926,6 +932,7 @@ export const viewport: PanelDefinition = {
       labelOverlay?.dispose();
       residencyBoxes?.dispose();
       removeMeasureKeys?.();
+      unsubLabels?.();
       for (const off of unsubOptions) {
         off();
       }

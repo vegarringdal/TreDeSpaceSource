@@ -7,6 +7,7 @@
 // and the transform pool, and re-seats the camera where it was.
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
+import { emitApiEvent, setGpuState } from '../../lib/messageApi/transport';
 import type { Renderer } from '../../lib/render/renderer';
 import { readAssetBytes } from '../assets/assetBytes';
 import { type AssetEntry, assetsState, groupOf } from '../assets/assets.state';
@@ -68,6 +69,8 @@ export async function onGpuDeviceLost(dead: Renderer, message: string): Promise<
   }
   const pose = capturePose(dead);
   consoleActions.log('error', `GPU device lost — ${message}`);
+  setGpuState('failed'); // a successful remount sets it back to 'ok'
+  emitApiEvent('app.error', { code: 'gpu-lost', message });
   const ok = await dialogs.confirm(LOST_MESSAGE, {
     title: 'Oh no, the GPU crashed',
     okLabel: 'Recover',
@@ -86,6 +89,7 @@ export async function onGpuDeviceLost(dead: Renderer, message: string): Promise<
 async function recoverGpu(pose: CameraPose): Promise<void> {
   if (!remountViewport) {
     dialogs.error('The viewport is not mounted — reload the page.', 'GPU recovery failed');
+    emitApiEvent('app.error', { code: 'gpu-recovery', message: 'the viewport is not mounted' });
     return;
   }
   isRecovering = true;
@@ -95,6 +99,7 @@ async function recoverGpu(pose: CameraPose): Promise<void> {
     const renderer = await remountViewport();
     if (!renderer) {
       dialogs.error('WebGPU could not be re-initialised. Reload the page once the GPU is back.', 'GPU recovery failed');
+      emitApiEvent('app.error', { code: 'gpu-recovery', message: 'WebGPU could not be re-initialised' });
       return;
     }
     residency.reset();

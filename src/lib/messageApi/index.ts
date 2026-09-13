@@ -13,7 +13,8 @@ import { apiSecurityActions } from '../../state/apiSecurity.actions';
 import { apiSecurityState } from '../../state/apiSecurity.state';
 import { assetsActions } from '../../state/assets/assets.actions';
 import { storesActions } from '../../state/stores/stores.actions';
-import { dropClient, touchClient } from './clients';
+import { dropClient, forgetBatchOwner, noteBatchOwner, touchClient } from './clients';
+import { appHandlers } from './handlersApp';
 import { assetHandlers } from './handlersAssets';
 import { consoleHandlers } from './handlersConsole';
 import { customHandlers } from './handlersCustom';
@@ -23,7 +24,7 @@ import { settingsHandlers } from './handlersSettings';
 import { sqlHandlers } from './handlersSql';
 import { installDialogEvents, uiHandlers } from './handlersUi';
 import { viewerHandlers } from './handlersViewer';
-import { ApiError, type ApiHandler, isRecord, PROTOCOL } from './protocol';
+import { ApiError, type ApiHandler } from './protocol';
 import {
   allowApiOrigins,
   announceReady,
@@ -32,12 +33,15 @@ import {
   isApiReady,
   markApiReady,
   originAllowed,
+  registerCommandList,
 } from './transport';
+import { answerCommand, classifyInbound, replyOrigin, resultEnvelope } from './wire';
 
 export { registerKiosk, registerPanelControl } from './registry';
 export { allowApiOrigins, emitApiEvent, markApiReady };
 
 const handlers: Record<string, ApiHandler> = {
+  ...appHandlers,
   ...sceneHandlers,
   ...viewerHandlers,
   ...settingsHandlers,
@@ -48,6 +52,7 @@ const handlers: Record<string, ApiHandler> = {
   ...consoleHandlers,
   ...customHandlers,
 };
+registerCommandList(Object.keys(handlers));
 
 let installed = false;
 export function initMessageApi() {
@@ -124,66 +129,27 @@ async function requestOriginConsent(origins: string[]) {
 }
 
 async function onMessage(e: MessageEvent) {
-  if (!originAllowed(e.origin)) {
-    return;
-  }
-  const d = e.data as {
-    tredespace?: number;
-    id?: unknown;
-    type?: unknown;
-    payload?: unknown;
-    bytes?: unknown;
-  };
-  if (d?.tredespace !== PROTOCOL || typeof d.type !== 'string') {
-    return;
-  }
   const source = e.source as Window | null;
-  if (!source) {
+  const inbound = classifyInbound(e.data, originAllowed(e.origin), source !== null);
+  if (inbound.kind === 'ignore' || !source) {
     return;
   }
-  // every sender is a client from its first message (custom.* identity)
+  // every sender is a client from its first message (custom.* identity,
+  // app-event subscription, batch ownership)
   touchClient(source, e.origin);
   // the SDK's id-less notes: hello gets app.ready (a late-arriving page —
   // panel, dialog, a tab we opened — resolves ready() on it); bye (dispose /
   // page unload) forgets the client — its bus subscription with it
-  if (d.id === null && d.type === 'client.hello') {
+  if (inbound.kind === 'hello') {
     announceReadyTo(source, e.origin);
     return;
   }
-  if (d.id === null && d.type === 'client.bye') {
+  if (inbound.kind === 'bye') {
     dropClient(source);
     return;
   }
-  if (typeof d.id !== 'string') {
-    return;
-  }
-  if (d.type.endsWith(':result') || d.type === 'app.ready') {
-    return; // our own traffic
-  }
-  const reply = (ok: boolean, body: unknown) =>
-    source.postMessage(
-      {
-        tredespace: PROTOCOL,
-        id: d.id,
-        type: `${d.type}:result`,
-        ok,
-        ...(ok ? { payload: body } : { error: body }),
-      },
-      e.origin === 'null' ? '*' : e.origin,
-    );
-  if (!isApiReady()) {
-    reply(false, { code: 'not-ready', message: 'app is still booting — wait for app.ready' });
-    return;
-  }
-  try {
-    reply(true, await dispatch(d.type, isRecord(d.payload) ? d.payload : {}, d.bytes, source));
-  } catch (err) {
-    if (err instanceof ApiError) {
-      reply(false, { code: err.code, message: err.message });
-    } else {
-      reply(false, { code: 'internal', message: err instanceof Error ? err.message : String(err) });
-    }
-  }
+  const answer = await answerCommand(inbound, isApiReady(), (type, p, bytes) => dispatch(type, p, bytes, source));
+  source.postMessage(resultEnvelope(inbound.id, inbound.type, answer), replyOrigin(e.origin));
 }
 
 async function dispatch(type: string, p: Record<string, unknown>, bytes: unknown, source?: Window): Promise<unknown> {
@@ -201,7 +167,19 @@ async function dispatch(type: string, p: Record<string, unknown>, bytes: unknown
   }
   const handler = handlers[type];
   if (!handler) {
-    throw new ApiError('bad-payload', `unknown command ${type}`);
+    throw new ApiError('unknown-command', `unknown command ${type} — app.info lists what this viewer has`);
   }
-  return await handler({ type, p, bytes, source });
+  // a command with a batchId owns that batch while it runs: its progress
+  // events reach the issuing window only (transport.ts emitApiEvent)
+  const batchId = typeof p.batchId === 'string' && source ? p.batchId : null;
+  if (batchId && source) {
+    noteBatchOwner(batchId, source);
+  }
+  try {
+    return await handler({ type, p, bytes, source });
+  } finally {
+    if (batchId) {
+      forgetBatchOwner(batchId);
+    }
+  }
 }

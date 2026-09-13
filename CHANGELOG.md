@@ -4,6 +4,91 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.12** (>0.0.117):
+  postMessage API (review 6.2, 6.3, 6.6, 6.7, 6.8):
+  Discovery — `app.ready` (and a new `app.info` command) now carry the
+  viewer's command list, event list and GPU state; a command the viewer does
+  not have answers `unknown-command` instead of `bad-payload`, and the SDK's
+  `supports(name)` answers from the ready payload.
+  Lifecycle — `ready({ timeoutMs })` rejects (a `TredespaceClientError`) when
+  no `app.ready` arrives, or when the client is disposed / its window closes
+  first; it used to hang forever. Commands sent before ready now wait for it
+  (`waitForReady: false` opts out). A new `app.error` event (`onAppError`)
+  reports a WebGPU init failure, a lost device or a failed recovery — the API
+  keeps working, only rendering is gone — and `app.info` says `gpu: 'failed'`
+  from then on.
+  Events — delivery goes through the client registry: each connected window
+  gets an event ONCE at its exact origin, filtered by a new `events.subscribe`
+  command (the SDK subscribes to exactly the types it has `on()` handlers
+  for, on every `app.ready` and on each new type; `app.*` always arrives; a
+  hand-rolled host that never subscribes keeps getting everything). A
+  progress event with a `batchId` goes only to the window that issued the
+  command. The parent / opener / opened windows that never sent a message
+  keep the old per-origin broadcast, and the per-emit iframe scan is gone.
+  SDK ergonomics — `on()` is typed by event name (`TredespaceEventMap`),
+  `once(type)` awaits the next event, `colorRulesApplyList` mirrors its
+  command (`colorApplyList` stays, deprecated).
+  Docs / tests — `assets.uploadChunk` now honours `offset` (a mismatch is
+  `bad-payload`) as EVENTS.md always said; the "never `*`" and 2 GB size-guard
+  claims and the `app.ready` timing note were wrong and are fixed. The
+  envelope routing moved to a pure `wire.ts`; new tests cover it, an SDK round
+  trip against a fake window (ids, timeouts, ready before / after hello,
+  app.bye, transfers, subscription sync, once), and a three-way parity check
+  of EVENTS.md's catalog, the handler table and the SDK's command strings, plus
+  the event list against what the viewer emits and what the SDK types. The
+  doc generator merges overloaded SDK methods into one entry.
+  Depth pick reads the real scene depth (review 4.6): a one-workgroup compute
+  pass reads the cursor texel of the depth target — MSAA or not, culling or
+  not — and takes the nearest sample. It used to copy HZB mip 0, a half-res
+  min over a 2×2 block (the FARTHEST surface), so a click on a silhouette
+  landed on what was behind it and slanted faces were off by a pixel plus
+  depth slope; move-to-click, Alt-pivot, Space-fly and label placement all
+  read this. The MSAA-without-culling case, which had no pick at all, now
+  works too.
+  Residency swaps no longer read `.tdp` files on the main thread (review
+  3.5): the three repack commands take OPFS paths and the modeldb worker
+  reads the variant itself, through a small parsed LRU (4 entries, 256 MB,
+  validated by file size + mtime) so the repeated mixed repacks of the zone
+  the camera moves through skip the meshopt decode instead of re-parsing
+  both variants every time. GPU recovery keeps its byte path.
+  Hierarchy rows are virtualized (review 1.5): only the rows in and around
+  the viewport are mounted, at a fixed 22 px per row (store bands share the
+  height), so a tree with thousands of open rows re-renders a screenful per
+  state bump. The reveal scroll now positions by row index instead of
+  looking for the row's element.
+  Live resize is debounced (review 4.4): the backing size and every render
+  target follow the CSS size only once it has held still for 80 ms, so a
+  dock-splitter drag no longer rebuilds depth, MSAA colour, G-buffer,
+  history, AO and the HZB on every animation frame (the canvas stretches
+  meanwhile). Toggling AO, edges or a debug view now rebuilds only the
+  history and AO textures and their bind groups, not the scene targets.
+  Rendering: with MSAA on, the 4x colour target is now resolved once, on the
+  last scene pass of the frame (review 4.1). Pass 1, pass 2 and the blend pass
+  each resolved the full-resolution target before; nothing read those
+  intermediate resolves, so under the default config every frame did one
+  redundant 4-sample resolve, two when transparency blending ran.
+  Hierarchy: expanding or collapsing a node no longer re-runs the model-list
+  reload (review 1.4). That effect keyed on the expansion set, so every click
+  dropped the children cache, re-fetched groups and stores, and rebuilt the
+  tree twice. It now keys on model changes only; toggles, reveals and
+  collapse-all own their single rebuild.
+  Loading overlay: `dialogs.loading` does a synchronous React commit only on
+  the hidden-to-shown transition (review 1.7). Progress ticks from the STEP /
+  IFC proxies and chunk uploads were each a `flushSync`; they are now batched
+  updates, and a tick that changes neither title, label nor progress is
+  dropped before reaching the store.
+  Import / load pools are capped by the machine (review 3.8): a new
+  `workerPoolCap()` — logical cores minus one, floored at 1, at most 10, 4
+  cores assumed when the browser hides the count — is the default for both
+  pools, the setters' and steppers' max, and a hard ceiling in the batch
+  runners, so an explicit API `concurrent` cannot push a laptop into a tab
+  OOM (EVENTS.md updated). The Model Assets load-pool stepper also gained the
+  existing `assets.loadPool` hotkeys and a tooltip.
+  Viewport: the view-cube label subscription is released on dispose (review
+  1.8); a GPU-recovery remount used to leave a subscriber closing over the
+  dead renderer. Deleted the unreferenced `panels/toolbar/Toolbar.tsx`
+  (review 2b.5).
+
 - **2026.09.12** (>0.0.116):
   Chunk uploads over the postMessage API can no longer wedge the viewer
   (review 1.1): a session is owned by the window that began it and watched

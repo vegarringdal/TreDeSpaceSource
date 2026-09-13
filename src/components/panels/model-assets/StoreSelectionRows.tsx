@@ -1,6 +1,7 @@
 import { Button, NumberInput, TextInput } from '@treDeSpaceUI/widgets';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
+import { workerPoolCap } from '../../../state/assets/workerPoolCap';
 
 type StoreSelectionRowsProps = Readonly<{
   visibleAssetIds: string[];
@@ -26,6 +27,7 @@ export function StoreSelectionRows({
   onSelect,
 }: StoreSelectionRowsProps) {
   const { loadPool, keepCamera } = assetsState.use();
+  const poolCap = workerPoolCap();
 
   return (
     <>
@@ -57,10 +59,21 @@ export function StoreSelectionRows({
           <input type="checkbox" checked={keepCamera} onChange={(e) => act.setKeepCamera(e.target.checked)} />
           Keep camera
         </label>
-        <label className="flex flex-1 shrink-0 items-center gap-1 text-slate-400 text-xs">
+        <label
+          className="flex flex-1 shrink-0 items-center gap-1 text-slate-400 text-xs"
+          data-tooltip={`Models loaded at once (max ${poolCap} on this machine). Each keeps its whole file in memory until it is on the GPU.`}
+        >
           Pool
           <div className="w-20">
-            <NumberInput value={loadPool} min={1} max={10} step={1} onChange={act.setLoadPool} />
+            <NumberInput
+              value={loadPool}
+              min={1}
+              max={poolCap}
+              step={1}
+              onChange={act.setLoadPool}
+              decShortcut="assets.loadPool.dec"
+              incShortcut="assets.loadPool.inc"
+            />
           </div>
         </label>
       </div>

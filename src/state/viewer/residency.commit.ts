@@ -1,12 +1,12 @@
 // The swap path of the residency manager, split in two: an async PREPARE
-// (every fallible, slow step — the OPFS read, the worker repack, and the
-// item-state fetch) and a synchronous COMMIT (`apply`: tombstone the slot,
+// (every fallible, slow step — the worker's OPFS read + repack, and the
+// item-state fetch; the variant files never touch the main thread) and a
+// synchronous COMMIT (`apply`: tombstone the slot,
 // rebuild it, re-push states, update the record). residency.ts queues
 // prepared commits and applies a whole batch in one tick, so N swaps cost
 // one accumulation reset instead of N, and the slot never renders with a
 // zero-initialised state buffer — the states are in hand before it dies.
-import { transfer } from 'comlink';
-import { modelStoreDir, readFile } from '../../lib/opfs/opfs';
+import { modelAssetPath } from '../../lib/opfs/opfs';
 import type { Renderer } from '../../lib/render/renderer';
 import { db } from './db';
 import type { Cuts } from './residency.plan';
@@ -59,8 +59,7 @@ function resetPackInfo(rec: ResidencyRecord): void {
 
 /** Promote (or restore) to the FULL variant. */
 export async function prepareFull(rec: ResidencyRecord, cooldownMs: number): Promise<ReadyCommit> {
-  const bytes = await readFile(await modelStoreDir(rec.store), `${rec.assetId}.tdp`);
-  const packed = await db.repackModel(rec.slot, transfer(bytes, [bytes]));
+  const packed = await db.repackModelFromOpfs(rec.slot, modelAssetPath(rec.store, rec.assetId, 'full'));
   const states = await db.statesFor([rec.slot]);
   return {
     slot: rec.slot,
@@ -94,13 +93,10 @@ export async function prepareMixed(
   cuts: Cuts,
   cooldownMs: number,
 ): Promise<ReadyCommit> {
-  const dir = await modelStoreDir(rec.store);
-  const fullBytes = await readFile(dir, `${rec.assetId}.tdp`);
-  const coarseBytes = await readFile(dir, `${rec.assetId}.coarse.tdp`);
   const packed = await db.repackModelMixed(
     rec.slot,
-    transfer(fullBytes, [fullBytes]),
-    transfer(coarseBytes, [coarseBytes]),
+    modelAssetPath(rec.store, rec.assetId, 'full'),
+    modelAssetPath(rec.store, rec.assetId, 'coarse'),
     eye,
     targetBytes,
     cuts,
@@ -146,8 +142,13 @@ export async function prepareCoarse(
   let packed: Awaited<ReturnType<typeof db.repackModelCoarse>>;
   let states: StateUpdates;
   try {
-    const bytes = await readFile(await modelStoreDir(rec.store), `${rec.assetId}.coarse.tdp`);
-    packed = await db.repackModelCoarse(rec.slot, transfer(bytes, [bytes]), eye, cuts, r.clipData);
+    packed = await db.repackModelCoarse(
+      rec.slot,
+      modelAssetPath(rec.store, rec.assetId, 'coarse'),
+      eye,
+      cuts,
+      r.clipData,
+    );
     states = await db.statesFor([rec.slot]);
   } catch (e) {
     noteCoarseFailure(rec, e, performance.now());

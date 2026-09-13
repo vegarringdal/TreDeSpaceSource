@@ -69,6 +69,7 @@ import {
   lineWgsl,
   markerWgsl,
   measureSnapWgsl,
+  pickDepthWgsl,
   postWgsl,
   renderVpWgsl,
   renderWgsl,
@@ -80,6 +81,11 @@ import { ViewCubePass } from './viewCubePass';
 import { type AdapterHints, readDeviceMemoryGb } from './vramHint';
 
 export type { MeasureProbe, MeasureSnap } from './measureSnap';
+
+/** A live resize (dock-splitter drag) changes the CSS size on every rAF;
+ *  the backing size — and with it every render target — follows only once
+ *  the CSS size has held still this long. */
+const RESIZE_SETTLE_MS = 80;
 
 interface PendingPick {
   x: number; // full-res pixel (for unprojection)
@@ -248,6 +254,8 @@ export class Renderer {
   private hzbDownPipeline!: GPUComputePipeline;
   private hzbFirstPipeline!: GPUComputePipeline;
   private hzbFirstMsPipeline!: GPUComputePipeline;
+  private pickDepthPipeline!: GPUComputePipeline;
+  private pickDepthMsPipeline!: GPUComputePipeline;
   private renderPipeline1x!: GPURenderPipeline;
   private pickPipeline!: GPURenderPipeline; // id-only pick pass (opacity rule)
   private pickVpPipeline!: GPURenderPipeline;
@@ -511,8 +519,17 @@ export class Renderer {
   // the raw depth buffer otherwise (only possible without MSAA — multisampled
   // depth cannot be copied to a buffer).
   private pickBuf: GPUBuffer | null = null;
+  /** Cursor pixel for the pick shader (vec4u) and its one-word result. */
+  private pickParamsBuf!: GPUBuffer;
+  private pickOutBuf!: GPUBuffer;
+  /** Depth target + pick buffers; rebuilt with the targets. */
+  private pickDepthBind: GPUBindGroup | null = null;
   private pendingPick: PendingPick | null = null;
   private pickInFlight = false;
+  /** Last CSS-derived backing size seen and when it last changed (4.4). */
+  private pendingW = 0;
+  private pendingH = 0;
+  private pendingSizeT = 0;
   private lastVP = new Float32Array(16);
   /** world position of the last successful click pick (native last_click_world) */
   lastClickWorld: [number, number, number] | null = null;
@@ -950,6 +967,18 @@ export class Renderer {
     this.hzbDownPipeline = compute(hzbWgsl(false));
     this.hzbFirstPipeline = this.hzbDownPipeline; // non-MS depth binds as texture_2d<f32>
     this.hzbFirstMsPipeline = compute(hzbWgsl(true));
+    this.pickDepthPipeline = compute(pickDepthWgsl(false));
+    this.pickDepthMsPipeline = compute(pickDepthWgsl(true));
+    this.pickParamsBuf = dev.createBuffer({
+      label: 'pickParamsBuf',
+      size: 16,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    this.pickOutBuf = dev.createBuffer({
+      label: 'pickOutBuf',
+      size: 16,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
     this.vbaoPipeline = compute(vbaoWgsl(false));
     this.vbaoMsPipeline = compute(vbaoWgsl(true));
     // measurement snap (native measure_snap.slang port): one module, two passes
@@ -1954,16 +1983,14 @@ export class Renderer {
     this.lastKey = ''; // force a re-render (clears the viewport)
   }
 
-  // Read back the picked depth, unproject to world space, re-pivot the camera.
-  // (sx, sy) index the copied texture (HZB mip 0 is half-res); (x, y) is the
-  // full-res pixel used for unprojection.
-  private async resolvePick(p: PendingPick, sx: number, sy: number, rowWords: number) {
+  // Read back the picked depth (the nearest sample under the full-res cursor
+  // pixel), unproject to world space, re-pivot the camera.
+  private async resolvePick(p: PendingPick) {
     const buf = this.pickBuf!;
     await buf.mapAsync(GPUMapMode.READ);
-    const depths = new Float32Array(buf.getMappedRange()).slice(); // copy before unmap
+    const depth = new Float32Array(buf.getMappedRange())[0];
     buf.unmap();
     this.pickInFlight = false;
-    const depth = depths[sy * rowWords + sx];
     const probeDone = (pt: [number, number, number] | null) => {
       this.probeResolve?.(pt);
       this.probeResolve = null;
@@ -2195,7 +2222,9 @@ export class Renderer {
   }
 
   // (Re)create depth / offscreen color / MSAA targets, the HZB pyramid and the
-  // dependent bind groups for the current canvas size and MSAA setting.
+  // dependent bind groups for the current canvas size and MSAA setting. The
+  // post-side targets (AO, TAA history) come along via rebuildPostTargets,
+  // which frame() also calls ALONE when only a post option flipped.
   private rebuildTargets(w: number, h: number, msaa: boolean, wantPost: boolean, wantAo: boolean) {
     const dev = this.device;
     this.depth?.destroy();
@@ -2203,15 +2232,10 @@ export class Renderer {
     this.msColor?.destroy();
     this.normalTex?.destroy();
     this.idTex?.destroy();
-    this.histA?.destroy();
-    this.histB?.destroy();
     this.msColor = null;
     this.normalTex = null;
     this.idTex = null;
     this.targetsMsaa = msaa;
-    this.targetsPost = wantPost;
-    this.targetsAo = wantAo;
-    this.accumIdx = 0;
 
     this.depth = dev.createTexture({
       label: 'depthTex',
@@ -2253,6 +2277,32 @@ export class Renderer {
     this.normalTex = mkGbuf(false);
     this.idTex = mkGbuf(true); // item picking reads single pixels back
 
+    this.pickDepthBind = dev.createBindGroup({
+      label: 'pickDepthBind',
+      layout: (msaa ? this.pickDepthMsPipeline : this.pickDepthPipeline).getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: this.depth.createView() },
+        { binding: 1, resource: { buffer: this.pickParamsBuf } },
+        { binding: 2, resource: { buffer: this.pickOutBuf } },
+      ],
+    });
+
+    this.rebuildPostTargets(w, h, msaa, wantPost, wantAo);
+    this.rebuildHzb(w, h, msaa); // used by both the MDI and vertex-pull cull
+  }
+
+  // The post-side targets only: VBAO output + history and the TAA history
+  // pair, plus the bind groups that read them together with the scene
+  // targets. Toggling AO / edges / debug used to recreate depth, MSAA colour,
+  // the G-buffer and the HZB as well, although none of those change.
+  private rebuildPostTargets(w: number, h: number, msaa: boolean, wantPost: boolean, wantAo: boolean) {
+    const dev = this.device;
+    this.histA?.destroy();
+    this.histB?.destroy();
+    this.targetsPost = wantPost;
+    this.targetsAo = wantAo;
+    this.accumIdx = 0;
+
     // VBAO output + temporal history (always single-sample; reads depth sample 0)
     this.aoTex?.destroy();
     this.aoHist?.destroy();
@@ -2272,7 +2322,7 @@ export class Renderer {
       label: 'aoBind',
       layout: (msaa ? this.vbaoMsPipeline : this.vbaoPipeline).getBindGroupLayout(0),
       entries: [
-        { binding: 0, resource: this.depth.createView() },
+        { binding: 0, resource: this.depth!.createView() },
         { binding: 1, resource: this.aoTex.createView() },
         { binding: 2, resource: this.aoHist.createView() },
         { binding: 3, resource: { buffer: this.aoParamsBuf } },
@@ -2311,8 +2361,6 @@ export class Renderer {
     };
     this.postBindEven = mkPostBind(this.histA);
     this.postBindOdd = mkPostBind(this.histB);
-
-    this.rebuildHzb(w, h, msaa); // used by both the MDI and vertex-pull cull
   }
 
   private rebuildHzb(w: number, h: number, msaa: boolean) {
@@ -2375,7 +2423,18 @@ export class Renderer {
 
     const w = (canvas.clientWidth * this.dpr * this.captureScale) | 0;
     const h = (canvas.clientHeight * this.dpr * this.captureScale) | 0;
-    const sizeChanged = canvas.width !== w || canvas.height !== h;
+    // Live resize: hold the backing size (and every target) until the CSS
+    // size has been stable for RESIZE_SETTLE_MS — the canvas is 100% wide
+    // and high, so it stretches meanwhile. The first frame and a rebuild
+    // after device loss apply at once. This sits above the idle skip, so a
+    // pending size is applied on a later tick even after the loop went idle.
+    if (w !== this.pendingW || h !== this.pendingH) {
+      this.pendingW = w;
+      this.pendingH = h;
+      this.pendingSizeT = t0;
+    }
+    const sizeSettled = !this.depth || t0 - this.pendingSizeT >= RESIZE_SETTLE_MS;
+    const sizeChanged = sizeSettled && (canvas.width !== w || canvas.height !== h);
     if (sizeChanged) {
       canvas.width = w;
       canvas.height = h;
@@ -2386,14 +2445,10 @@ export class Renderer {
     const usePost = opt.fastAA || anyEdges || opt.msaa4x || opt.debugBuf > 0 || opt.aoMode !== 0;
     // debug view 5 dispatches VBAO for display even with aoMode off
     const needAo = opt.aoMode !== 0 || opt.debugBuf === 5;
-    if (
-      sizeChanged ||
-      !this.depth ||
-      this.targetsMsaa !== opt.msaa4x ||
-      this.targetsPost !== usePost ||
-      this.targetsAo !== needAo
-    ) {
+    if (sizeChanged || !this.depth || this.targetsMsaa !== opt.msaa4x) {
       this.rebuildTargets(canvas.width, canvas.height, opt.msaa4x, usePost, needAo);
+    } else if (this.targetsPost !== usePost || this.targetsAo !== needAo) {
+      this.rebuildPostTargets(canvas.width, canvas.height, opt.msaa4x, usePost, needAo);
     }
 
     const now0 = performance.now();
@@ -2717,15 +2772,20 @@ export class Renderer {
     const clearColor = { r: opt.bgColor[0], g: opt.bgColor[1], b: opt.bgColor[2], a: 1 };
     const renderPipeline = opt.msaa4x ? this.renderPipeline4x : this.renderPipeline1x;
 
+    // The blend pass is the last scene pass when it runs; the same predicate
+    // gates its early return below so `resolve` and the pass agree.
+    const hasBlendPass = opt.transparencyBlend && opt.hasTransparency && this.models.length > 0 && !opt.sketch;
     // Scene pass attachments: with MSAA render into the 4x target and resolve
     // into the post input; without MSAA also write the G-buffer (normal + id)
-    // consumed by the edge pass.
-    const sceneAttachments = (clear: boolean): GPURenderPassColorAttachment[] => {
+    // consumed by the edge pass. `resolve` is set on the LAST scene pass only:
+    // the 4x target is kept ('store') between passes and nothing reads
+    // sceneColor before the post pass, so earlier resolves were pure cost.
+    const sceneAttachments = (clear: boolean, resolve: boolean): GPURenderPassColorAttachment[] => {
       const load: GPULoadOp = clear ? 'clear' : 'load';
       const color: GPURenderPassColorAttachment = opt.msaa4x
         ? {
             view: this.msColor!.createView(),
-            resolveTarget: sceneView,
+            ...(resolve ? { resolveTarget: sceneView } : {}),
             clearValue: clearColor,
             loadOp: load,
             storeOp: 'store',
@@ -2811,11 +2871,11 @@ export class Renderer {
     // opaque pass already leaves them out in blend mode) — so they are simply
     // not drawn, edges included
     const drawBlendPass = (enc2: GPUCommandEncoder) => {
-      if (!opt.transparencyBlend || !opt.hasTransparency || this.models.length === 0 || opt.sketch) {
+      if (!hasBlendPass) {
         return;
       }
       const pass = enc2.beginRenderPass({
-        colorAttachments: sceneAttachments(false),
+        colorAttachments: sceneAttachments(false, true),
         depthStencilAttachment: depthAttachment(false),
         timestampWrites: this.timings.writes(6),
       });
@@ -2863,7 +2923,7 @@ export class Renderer {
 
       // render pass 1 (frozen: replay last frozen records)
       const pass1 = enc.beginRenderPass({
-        colorAttachments: sceneAttachments(true),
+        colorAttachments: sceneAttachments(true, false),
         depthStencilAttachment: depthAttachment(true),
         timestampWrites: this.timings.writes(1),
       });
@@ -2927,7 +2987,7 @@ export class Renderer {
 
       // render pass 2: newly visible meshlets on top of pass 1
       const pass2 = enc.beginRenderPass({
-        colorAttachments: sceneAttachments(false),
+        colorAttachments: sceneAttachments(false, !hasBlendPass),
         depthStencilAttachment: depthAttachment(false),
         timestampWrites: this.timings.writes(5),
       });
@@ -2940,7 +3000,7 @@ export class Renderer {
     } else {
       // no culling available: one static full vertex-pull draw per model
       const pass = enc.beginRenderPass({
-        colorAttachments: sceneAttachments(true),
+        colorAttachments: sceneAttachments(true, !hasBlendPass),
         depthStencilAttachment: depthAttachment(true),
         timestampWrites: this.timings.writes(1),
       });
@@ -3016,7 +3076,7 @@ export class Renderer {
       this.timings,
     );
 
-    const pickJob = this.encodeDepthPick(enc, dev, canvas, opt, cullMode);
+    const pickJob = this.encodeDepthPick(enc, dev);
 
     // the first still frame after any scene change reads counts too, so a
     // residency commit's effect is known before the next decision
@@ -3070,54 +3130,33 @@ export class Renderer {
     }
   }
 
-  /** Encode the depth-pick copy (Space/Alt/probe/measure aim). Returns the
-   *  post-submit resolve job, or null. */
-  private encodeDepthPick(
-    enc: GPUCommandEncoder,
-    dev: GPUDevice,
-    canvas: HTMLCanvasElement,
-    opt: Renderer['options'],
-    cullMode: 'mdi' | 'vp' | 'full',
-  ): (() => void) | null {
-    // Depth pick: HZB mip 0 in MDI mode (always copyable), raw depth otherwise.
-    // Only the ONE texel under the cursor is copied — resolvePick reads a
-    // single depth, and measure hover fires this per mousemove, so a
-    // full-surface copy here was megabytes of readback traffic per event.
-    let pickJob: (() => void) | null = null;
-    if (this.pendingPick && !this.pickInFlight) {
-      const pick = this.pendingPick;
-      this.pendingPick = null;
-      // pick.x/y were clamped against the canvas at queue time; a resize since
-      // then can shrink the source texture, so clamp again at encode time.
-      let src: { texture: GPUTexture; mipLevel: number; origin: [number, number] } | null = null;
-      if (cullMode !== 'full' && this.hzb) {
-        const [pw, ph] = this.hzbMipSizes[0]; // half-res: cursor px >> 1
-        src = {
-          texture: this.hzb,
-          mipLevel: 0,
-          origin: [Math.min(pick.x >> 1, pw - 1), Math.min(pick.y >> 1, ph - 1)],
-        };
-      } else if (!opt.msaa4x) {
-        src = {
-          texture: this.depth!,
-          mipLevel: 0,
-          origin: [Math.min(pick.x, canvas.width - 1), Math.min(pick.y, canvas.height - 1)],
-        };
-      }
-      // fallback + MSAA: multisampled depth is not copyable; pick unsupported
-      if (src) {
-        this.pickBuf ??= dev.createBuffer({
-          label: 'pickBuf',
-          size: 256, // one f32 texel; 256 keeps the copy/map alignment rules trivial
-          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-        });
-        enc.copyTextureToBuffer(src, { buffer: this.pickBuf }, [1, 1]);
-        this.pickInFlight = true;
-        pickJob = () => this.resolvePick(pick, 0, 0, 1).catch(() => (this.pickInFlight = false));
-      }
+  /** Encode the depth pick (Space/Alt/probe/measure aim): one compute
+   *  workgroup reads the cursor texel of the scene depth target — MSAA or not,
+   *  culling or not — into pickOutBuf, copied to the readback buffer. Returns
+   *  the post-submit resolve job, or null. Only that ONE texel crosses to the
+   *  CPU. */
+  private encodeDepthPick(enc: GPUCommandEncoder, dev: GPUDevice): (() => void) | null {
+    if (!this.pendingPick || this.pickInFlight || !this.pickDepthBind) {
+      return null;
     }
-
-    return pickJob;
+    const pick = this.pendingPick;
+    this.pendingPick = null;
+    // pick.x/y were clamped against the canvas at queue time; the shader
+    // clamps again against the target, which a resize since may have shrunk
+    dev.queue.writeBuffer(this.pickParamsBuf, 0, new Uint32Array([pick.x, pick.y, 0, 0]));
+    const pass = enc.beginComputePass({ label: 'pickDepth' });
+    pass.setPipeline(this.targetsMsaa ? this.pickDepthMsPipeline : this.pickDepthPipeline);
+    pass.setBindGroup(0, this.pickDepthBind);
+    pass.dispatchWorkgroups(1);
+    pass.end();
+    this.pickBuf ??= dev.createBuffer({
+      label: 'pickBuf',
+      size: 256, // one f32; 256 keeps the copy/map alignment rules trivial
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    enc.copyBufferToBuffer(this.pickOutBuf, 0, this.pickBuf, 0, 4);
+    this.pickInFlight = true;
+    return () => this.resolvePick(pick).catch(() => (this.pickInFlight = false));
   }
 
   /** Encode the one-shot frame snapshot copy — the presented swapchain, once

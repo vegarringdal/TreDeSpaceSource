@@ -14,6 +14,8 @@ exports[`shader text pins > produces byte-identical WGSL for every entry point a
   "measureSnapWgsl()": "5329bd4fac7ae6612453b6d380c90400515f987084d558efe30921b5c6145c97",
   "outlineWgsl(false)": "dbcd52754e366bd11b1bc7587f52e2106e37a3e6a88db6ff04c783872ca5d2a7",
   "outlineWgsl(true)": "d1157817b219a6252c7fdde18d90fccf42355260a2dfcfbeceb1c8befef10ce0",
+  "pickDepthWgsl(false)": "010dd1c8f4a17efa1811636905db599b91330ebf6dc96bc002d2d8fe511abd5d",
+  "pickDepthWgsl(true)": "428033173c950cb0dc06c7c9c7b6f6daad6864788a6a79f75c390bc464ca8197",
   "postWgsl(false)": "8c08f2979abf9522bbe8f6a55baff71610354b3f22804a0e97e8c9178bcdd118",
   "postWgsl(true)": "b1197320a10d1fe4abbb958c5c255bc298d7be27ee9f7ea3c4b13ee967931ff2",
   "renderVpWgsl()": "d48ffb343a3185bf3b71552a526c58a4daf08303debb66972393748e565fcda5",

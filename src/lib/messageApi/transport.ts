@@ -1,8 +1,11 @@
 // Transport layer of the postMessage host API: the live origin allowlist and
-// the app → host message paths (unsolicited events + the app.ready announce).
+// the app → host message paths (unsolicited events + the app.ready announce),
+// plus what the handshake advertises (command list, event list, GPU state).
 import { apiSecurityState } from '../../state/apiSecurity.state';
 import { externalAppOrigins } from '../../state/externalApps.state';
-import { PROTOCOL } from './protocol';
+import { API_EVENTS } from './apiEvents';
+import { batchOwnerClient, isKnownClient, liveClients, postToClient, wantsAppEvent } from './clients';
+import { isRecord, PROTOCOL } from './wire';
 
 // -----------------------------------------------------------------------------
 // origin allowlist, consulted LIVE on every message: master switch +
@@ -80,46 +83,88 @@ function allowedOriginCandidates(): string[] {
   ];
 }
 
-/** Unsolicited app → host event (id: null): posted to the parent window, the
- *  opener, AND every embedded iframe on an allowed origin (external-app
- *  panels/dialogs) — so both "hosted" and "hosting" setups can listen. */
-export function emitApiEvent(type: string, payload: unknown) {
-  if (!apiSecurityState.get().enabled) {
-    return;
-  }
-  const msg = { tredespace: PROTOCOL, id: null, type, ok: true, payload };
-  const origins = allowedOriginCandidates();
-  const targets = new Set<Window>();
-  if (window.parent !== window) {
-    targets.add(window.parent);
-  }
-  if (window.opener) {
-    targets.add(window.opener as Window);
-  }
-  for (const w of liveOpenedWindows()) {
-    targets.add(w);
-  }
-  for (const f of document.querySelectorAll('iframe')) {
+/** The windows that get app → host traffic without ever having sent a
+ *  message: the parent, the opener and the windows this viewer opened. */
+function legacyTargets(): Window[] {
+  const targets: (Window | null)[] = [
+    window.parent !== window ? window.parent : null,
+    window.opener as Window | null,
+    ...liveOpenedWindows(),
+  ];
+  return targets.filter((t): t is Window => t !== null);
+}
+
+/** Post one envelope to a window once per allowed origin — the only way to
+ *  reach a window whose origin is not known yet. */
+function broadcast(t: Window, msg: unknown, origins: string[]): void {
+  for (const o of origins) {
     try {
-      if (f.contentWindow && origins.includes(new URL(f.src, location.href).origin)) {
-        targets.add(f.contentWindow);
-      }
+      t.postMessage(msg, o);
     } catch {
-      // unparsable src — skip
-    }
-  }
-  for (const t of targets) {
-    for (const o of origins) {
-      try {
-        t.postMessage(msg, o);
-      } catch {
-        // cross-origin target that doesn't match this origin — expected
-      }
+      // cross-origin target that doesn't match this origin — expected
     }
   }
 }
 
+/** Unsolicited app → host event (id: null). Delivery, in order:
+ *  - a payload with a `batchId` is progress for one command — it goes to the
+ *    window that issued it and nobody else;
+ *  - every registered client (anything that has sent a message: the SDK says
+ *    hello on construction) gets it ONCE at its exact origin, if its
+ *    `events.subscribe` filter admits the type (`app.*` always does);
+ *  - the parent / opener / opened windows that never sent a message keep the
+ *    old broadcast — once per allowed origin — so a hand-rolled host that
+ *    only listens still hears everything. */
+export function emitApiEvent(type: string, payload: unknown) {
+  if (!apiSecurityState.get().enabled) {
+    return;
+  }
+  const batchId = isRecord(payload) && typeof payload.batchId === 'string' ? payload.batchId : null;
+  const owner = batchId ? batchOwnerClient(batchId) : null;
+  if (owner) {
+    postToClient(owner, type, payload);
+    return;
+  }
+  for (const c of liveClients()) {
+    if (wantsAppEvent(c, type)) {
+      postToClient(c, type, payload);
+    }
+  }
+  const msg = { tredespace: PROTOCOL, id: null, type, ok: true, payload };
+  const origins = allowedOriginCandidates();
+  for (const t of legacyTargets()) {
+    if (!isKnownClient(t)) {
+      broadcast(t, msg, origins);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// what the handshake advertises
+// -----------------------------------------------------------------------------
+
 let readyVersion = '';
+let commandNames: string[] = [];
+
+/** The renderer's state as far as the API can tell a host: the viewport
+ *  boots in parallel with the API, so `app.ready` usually says `booting`;
+ *  `app.info` gives the current answer and `app.error` reports a failure. */
+export type GpuState = 'booting' | 'ok' | 'failed';
+let gpu: GpuState = 'booting';
+
+/** index.ts registers its command table here so the handshake can list it. */
+export function registerCommandList(names: readonly string[]) {
+  commandNames = [...names].sort();
+}
+
+export function setGpuState(state: GpuState) {
+  gpu = state;
+}
+
+/** The `app.ready` payload — also `app.info`'s response. */
+export function readyPayload() {
+  return { version: readyVersion, api: PROTOCOL, commands: commandNames, events: [...API_EVENTS], gpu };
+}
 
 /** Boot complete: answer commands and announce app.ready to parent/opener. */
 export function markApiReady(version: string) {
@@ -129,13 +174,7 @@ export function markApiReady(version: string) {
 }
 
 function readyEnvelope() {
-  return {
-    tredespace: PROTOCOL,
-    id: null,
-    type: 'app.ready',
-    ok: true,
-    payload: { version: readyVersion, api: PROTOCOL },
-  };
+  return { tredespace: PROTOCOL, id: null, type: 'app.ready', ok: true, payload: readyPayload() };
 }
 
 /** Post app.ready to the parent/opener for every allowed origin. Also re-run
@@ -146,23 +185,9 @@ export function announceReady() {
     return;
   }
   const ready = readyEnvelope();
-  const targets: (Window | null)[] = [
-    window.parent !== window ? window.parent : null,
-    window.opener as Window | null,
-    ...liveOpenedWindows(),
-  ];
   const origins = allowedOriginCandidates();
-  for (const t of targets) {
-    if (!t) {
-      continue;
-    }
-    for (const o of origins) {
-      try {
-        t.postMessage(ready, o);
-      } catch {
-        // cross-origin target that doesn't match this origin — expected
-      }
-    }
+  for (const t of legacyTargets()) {
+    broadcast(t, ready, origins);
   }
 }
 

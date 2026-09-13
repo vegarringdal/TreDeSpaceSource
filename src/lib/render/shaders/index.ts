@@ -3,6 +3,7 @@
 // shader changes.
 export { cullWgsl, hzbWgsl, sortScanWgsl, sortScatterWgsl } from './cull';
 export { markerWgsl } from './marker';
+export { pickDepthWgsl } from './pick';
 export { outlineWgsl, postWgsl, vbaoWgsl } from './post';
 export { lineWgsl, renderVpWgsl, renderWgsl } from './scene';
 export { measureSnapWgsl } from './snap';

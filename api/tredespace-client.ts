@@ -195,7 +195,7 @@
 //   Colour from data:     sqlColor / sqlSelect run the query INSIDE the viewer
 //     and hand the packed fullnames straight to the model DB — nothing but a
 //     row count comes back, so million-row results are one message. For a list
-//     your own backend produced, encodeNameList() + colorApplyList /
+//     your own backend produced, encodeNameList() + colorRulesApplyList /
 //     selectionSetList take the same packed path.
 //   Sync hosted SQL dbs:  sqlList (md5 = hash of the bytes you delivered) →
 //     sqlImportUrl only what changed (GB-safe: streamed straight into OPFS).
@@ -213,15 +213,17 @@
 
 export const TREDESPACE_PROTOCOL = 1;
 
-/** Failure codes: the five protocol codes the viewer can return, plus two
+/** Failure codes: the six protocol codes the viewer can return, plus two
  *  host-side ones — a request that timed out, or a dead transport (disposed
- *  client / no viewer window). */
+ *  client / no viewer window). `unknown-command` means this viewer version
+ *  has no such command — feature-detect with {@link TredespaceClient.supports}. */
 export type TredespaceErrorCode =
   | 'bad-payload'
   | 'not-ready'
   | 'busy'
   | 'not-found'
   | 'internal'
+  | 'unknown-command'
   | 'timeout'
   | 'transport';
 
@@ -247,9 +249,30 @@ export interface Result<T> {
   error?: TredespaceError;
 }
 
+/** The viewer's GPU state as far as the API can tell: the viewport boots in
+ *  parallel with the API, so `app.ready` usually reports `booting`;
+ *  {@link TredespaceClient.appInfo} gives the current answer and `app.error`
+ *  reports a failure. */
+export type GpuState = 'booting' | 'ok' | 'failed';
+
+/** Payload of `app.ready` and response of `app.info`: the viewer version, the
+ *  protocol number, every command and event this viewer has (what
+ *  {@link TredespaceClient.supports} answers from) and the GPU state. */
 export interface AppReady {
   version: string;
   api: number;
+  commands: string[];
+  events: string[];
+  gpu: GpuState;
+}
+
+/** Payload of `app.error`: the viewer keeps answering commands (SQL, assets,
+ *  the bus…) but its viewport is gone — WebGPU failed to initialise
+ *  (`gpu-init`), the device was lost (`gpu-lost`), or a recovery attempt
+ *  failed (`gpu-recovery`). Only a reload brings rendering back. */
+export interface AppErrorEvent {
+  code: 'gpu-init' | 'gpu-lost' | 'gpu-recovery';
+  message: string;
 }
 
 /** Payload of `app.bye`: the viewer page is unloading (reload, navigation,
@@ -1369,6 +1392,10 @@ export interface TredespaceClientOptions {
   timeoutMs?: number;
   /** Timeout for assets.import (conversions can be long). Default 600 000. */
   importTimeoutMs?: number;
+  /** A command sent before `app.ready` waits for it (up to the command's own
+   *  timeout) instead of being answered `not-ready`. Default true; `false`
+   *  posts at once, as earlier SDKs did. */
+  waitForReady?: boolean;
 }
 
 /** Payload of the local `client.closed` event — this client's link ended and
@@ -1495,9 +1522,57 @@ export interface DialogClosingOptions extends SubscribeOptions {
   timeoutMs?: number;
 }
 
+/** Every event {@link TredespaceClient.on} can subscribe to, with its payload.
+ *  The viewer posts all but the last two; `client.closed` and `relay.changed`
+ *  are raised by this client itself and never cross postMessage. */
+export interface TredespaceEventMap {
+  'app.ready': AppReady;
+  'app.bye': AppByeEvent;
+  'app.error': AppErrorEvent;
+  'theme.changed': { theme: 'dark' | 'light' };
+  'tree.select': TreeSelectEvent;
+  'instance.changed': { data: Record<string, unknown> };
+  'dialog.changed': DialogChangedEvent;
+  'viewpoints.bookmark': ViewpointsBookmarkEvent;
+  'assets.importUrl:progress': ImportUrlProgress;
+  'assets.load:progress': LoadProgress;
+  'sql.importUrl:progress': SqlImportProgress;
+  'sql.execute:progress': SqlExecuteProgress;
+  'sql.color:progress': { rows: number };
+  'sql.select:progress': { rows: number };
+  'sql.table:progress': { rows: number };
+  'custom.event': CustomEventPayload;
+  'custom.clients.changed': ClientsChangedEvent;
+  'client.closed': ClientClosedEvent;
+  'relay.changed': RelayChangedEvent;
+}
+
+/** Raised by this client, never posted by the viewer — `on()` does not ask
+ *  the viewer to send them. */
+const LOCAL_EVENTS: ReadonlySet<string> = new Set(['client.closed', 'relay.changed']);
+
+/** What {@link TredespaceClient.ready} and {@link TredespaceClient.once}
+ *  reject with: `timeout` (the wait ran out) or `transport` (the client
+ *  closed first). Command methods never throw — they resolve a
+ *  {@link Result}. */
+export class TredespaceClientError extends Error {
+  readonly code: 'timeout' | 'transport';
+  constructor(code: 'timeout' | 'transport', message: string) {
+    super(message);
+    this.name = 'TredespaceClientError';
+    this.code = code;
+  }
+}
+
 interface Pending {
   settle: (r: Result<unknown>) => void;
   timer: ReturnType<typeof setTimeout>;
+}
+
+interface ReadyWaiter {
+  resolve: (r: AppReady) => void;
+  reject: (e: TredespaceClientError) => void;
+  timer: ReturnType<typeof setTimeout> | null;
 }
 
 interface RelayEntry {
@@ -1576,7 +1651,11 @@ export class TredespaceClient {
   private readonly idPrefix = `ts-${Math.random().toString(36).slice(2, 10)}`;
   private nextId = 1;
   private readyPayload: AppReady | null = null;
-  private readyWaiters: ((r: AppReady) => void)[] = [];
+  private readyWaiters: ReadyWaiter[] = [];
+  /** Viewer event types this client listens for — what `events.subscribe`
+   *  asks the viewer to send, re-sent after every `app.ready`. */
+  private readonly wireTypes = new Set<string>();
+  private readonly waitForReady: boolean;
   private readonly closingHandlers = new Set<(e: DialogChangedEvent) => unknown>();
   private closingOff: (() => void) | null = null;
   // windows this client relays for, keyed by the window so an incoming
@@ -1602,6 +1681,7 @@ export class TredespaceClient {
     this.origin = normalizeOrigin(opts.targetOrigin, 'targetOrigin');
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.importTimeoutMs = opts.importTimeoutMs ?? 600_000;
+    this.waitForReady = opts.waitForReady ?? true;
     window.addEventListener('message', this.onMessage);
     window.addEventListener('pagehide', this.onPageHide);
     window.addEventListener('pageshow', this.onPageShow);
@@ -1616,12 +1696,65 @@ export class TredespaceClient {
     this.sayHello();
   }
 
-  /** Resolves once the viewer has announced app.ready (queues until then). */
-  ready(): Promise<AppReady> {
+  /** Resolves once the viewer has announced app.ready (queues until then).
+   *  With `timeoutMs` it rejects — a {@link TredespaceClientError}, code
+   *  `timeout` — when no app.ready arrives in time: the viewer is not there,
+   *  or this page's origin is not on its allowlist (which it never reports).
+   *  It also rejects (code `transport`) when the client is disposed or its
+   *  target window closes before ready. Without a timeout it waits for as
+   *  long as the client lives. */
+  ready(opts: { timeoutMs?: number } = {}): Promise<AppReady> {
     if (this.readyPayload) {
       return Promise.resolve(this.readyPayload);
     }
-    return new Promise((resolve) => this.readyWaiters.push(resolve));
+    if (this.isClosed) {
+      return Promise.reject(new TredespaceClientError('transport', 'client closed before app.ready'));
+    }
+    return new Promise((resolve, reject) => {
+      const waiter: ReadyWaiter = { resolve, reject, timer: null };
+      if (opts.timeoutMs !== undefined) {
+        waiter.timer = setTimeout(() => {
+          this.readyWaiters = this.readyWaiters.filter((w) => w !== waiter);
+          reject(new TredespaceClientError('timeout', `app.ready did not arrive within ${opts.timeoutMs} ms`));
+        }, opts.timeoutMs);
+      }
+      this.readyWaiters.push(waiter);
+    });
+  }
+
+  /** Whether this viewer has a command (`'sql.execute'`) or posts an event
+   *  (`'tree.select'`), from the `app.ready` payload — so `false` until
+   *  {@link ready} has resolved. Feature-detect before calling something a
+   *  newer viewer added; an unsupported command answers `unknown-command`. */
+  supports(name: string): boolean {
+    const r = this.readyPayload;
+    if (!r) {
+      return false;
+    }
+    return (
+      (Array.isArray(r.commands) && r.commands.includes(name)) || (Array.isArray(r.events) && r.events.includes(name))
+    );
+  }
+
+  /** The `app.ready` payload on demand: version, protocol, the command and
+   *  event lists and the CURRENT GPU state (`app.ready` itself usually says
+   *  `booting`, this says how the viewport boot went). */
+  appInfo(): Promise<Result<AppReady>> {
+    return this.send('app.info', {});
+  }
+
+  /** Tell the viewer which events to send this client. {@link on} does this
+   *  for you, so call it only from a hand-rolled event path. Adds to the
+   *  current subscription: the first call turns "everything" into "exactly
+   *  these" (`[]` keeps only `app.*`, which always arrives). Unknown names
+   *  come back in `unknown`, not as an error. */
+  eventsSubscribe(events: string[]): Promise<Result<{ events: string[]; unknown: string[] }>> {
+    for (const e of events) {
+      if (!LOCAL_EVENTS.has(e)) {
+        this.wireTypes.add(e);
+      }
+    }
+    return this.send('events.subscribe', { events });
   }
 
   /** Detach the message listener and settle every in-flight request with a
@@ -1782,12 +1915,22 @@ export class TredespaceClient {
    *  `{ type: 'custom-color', base: 'none' }` to paint the list over the model
    *  as it is. Names carrying no colour of their own get the mode's colour
    *  (yellow by default). */
-  colorApplyList(list: ArrayBuffer, opts?: { mode?: ColorMode }): Promise<Result<NameListResult & { mode: string }>> {
+  colorRulesApplyList(
+    list: ArrayBuffer,
+    opts?: { mode?: ColorMode },
+  ): Promise<Result<NameListResult & { mode: string }>> {
     return this.send(
       'colorRules.applyList',
       { mode: opts?.mode ?? { type: 'default-white' } },
       { bytes: list, timeoutMs: this.importTimeoutMs },
     );
+  }
+  /** The old name of {@link colorRulesApplyList} — same call, kept so existing
+   *  hosts keep working.
+   *  @deprecated Renamed {@link colorRulesApplyList}, which mirrors the command
+   *  name like every other method. */
+  colorApplyList(list: ArrayBuffer, opts?: { mode?: ColorMode }): Promise<Result<NameListResult & { mode: string }>> {
+    return this.colorRulesApplyList(list, opts);
   }
   /** Every colour NAME the viewer accepts wherever a colour token is read — a
    *  query's `fullname_color`, a Multi rule row, a {@link ColorMode}'s
@@ -2841,7 +2984,19 @@ export class TredespaceClient {
 
   /** Listen for an app event (`id: null` messages) — the event types are
    *  listed in the file header ("EVENTS"). Returns an unsubscribe function. */
-  on(type: string, handler: (payload: unknown) => void, opts?: SubscribeOptions): () => void {
+  /** Subscribe to a viewer event, or one of the client's own — typed by
+   *  name through {@link TredespaceEventMap}; a name not in the map gets
+   *  `unknown`. The first handler for a viewer event type also tells the
+   *  viewer to send it (`events.subscribe`): the viewer posts a client only
+   *  what it listens for, and re-learns the list after every `app.ready`.
+   *  Returns the unsubscribe; aborting `signal` does the same. */
+  on<K extends keyof TredespaceEventMap>(
+    type: K,
+    handler: (payload: TredespaceEventMap[K]) => void,
+    opts?: SubscribeOptions,
+  ): () => void;
+  on(type: string, handler: (payload: unknown) => void, opts?: SubscribeOptions): () => void;
+  on(type: string, handler: (payload: never) => void, opts?: SubscribeOptions): () => void {
     if (opts?.signal?.aborted) {
       return () => undefined; // never subscribed — same as addEventListener
     }
@@ -2850,10 +3005,62 @@ export class TredespaceClient {
       set = new Set();
       this.eventHandlers.set(type, set);
     }
-    set.add(handler);
-    const off = () => void set.delete(handler);
+    const h = handler as (payload: unknown) => void;
+    set.add(h);
+    if (!LOCAL_EVENTS.has(type) && !this.wireTypes.has(type)) {
+      this.wireTypes.add(type);
+      if (this.readyPayload) {
+        this.subscribeWire([type]);
+      }
+    }
+    const off = () => void set.delete(h);
     opts?.signal?.addEventListener('abort', off, { once: true });
     return off;
+  }
+
+  /** The next event of a type as a promise — `await client.once('tree.select')`.
+   *  Rejects with a {@link TredespaceClientError} after `timeoutMs`, when
+   *  `signal` aborts, or when the client closes first. */
+  once<K extends keyof TredespaceEventMap>(
+    type: K,
+    opts?: { timeoutMs?: number; signal?: AbortSignal },
+  ): Promise<TredespaceEventMap[K]>;
+  once(type: string, opts?: { timeoutMs?: number; signal?: AbortSignal }): Promise<unknown>;
+  once(type: string, opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      if (this.isClosed) {
+        reject(new TredespaceClientError('transport', `once(${type}): client closed`));
+        return;
+      }
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const fail = (e: TredespaceClientError) => {
+        done();
+        reject(e);
+      };
+      const onAbort = () => fail(new TredespaceClientError('transport', `once(${type}): aborted`));
+      const off = this.on(type, (p) => {
+        done();
+        resolve(p);
+      });
+      const offClosed = this.on('client.closed', () =>
+        fail(new TredespaceClientError('transport', `once(${type}): client closed`)),
+      );
+      const done = () => {
+        off();
+        offClosed();
+        opts.signal?.removeEventListener('abort', onAbort);
+        if (timer) {
+          clearTimeout(timer);
+        }
+      };
+      opts.signal?.addEventListener('abort', onAbort, { once: true });
+      if (opts.timeoutMs !== undefined) {
+        timer = setTimeout(
+          () => fail(new TredespaceClientError('timeout', `once(${type}): no event within ${opts.timeoutMs} ms`)),
+          opts.timeoutMs,
+        );
+      }
+    });
   }
 
   /** Typed convenience for the tree-click event. */
@@ -2983,6 +3190,15 @@ export class TredespaceClient {
     return this.on('app.ready', (p) => handler(p as AppReady), opts);
   }
 
+  /** `app.error`: the viewport failed — WebGPU did not initialise, the device
+   *  was lost, or a recovery failed. The API keeps working (SQL, assets, the
+   *  bus); only rendering is gone until the user reloads. `ready()` still
+   *  resolves, so a page that connects late checks {@link appInfo}'s `gpu`
+   *  instead. */
+  onAppError(handler: (e: AppErrorEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('app.error', handler, opts);
+  }
+
   /** Typed convenience for the local `relay.changed` event — per window passed
    *  to `relay()`: `connected` when its page's client says hello (again after
    *  each navigation), `disconnected` when that client disposes or the page
@@ -3073,8 +3289,22 @@ export class TredespaceClient {
       this.close('target');
       return Promise.resolve({ error: { code: 'transport', msg: 'target window closed' } });
     }
-    const id = `${this.idPrefix}-${this.nextId++}`;
     const timeoutMs = extra?.timeoutMs ?? this.timeoutMs;
+    if (!this.readyPayload && this.waitForReady) {
+      // queue behind app.ready rather than collect a `not-ready`; the wait
+      // counts against the command's own timeout
+      return this.ready({ timeoutMs }).then(
+        () => this.send<T>(type, payload, extra),
+        (e: unknown) => ({
+          error: {
+            code: e instanceof TredespaceClientError ? e.code : 'transport',
+            msg: `${type}: ${e instanceof Error ? e.message : String(e)}`,
+            err: e,
+          },
+        }),
+      );
+    }
+    const id = `${this.idPrefix}-${this.nextId++}`;
     return new Promise<Result<T>>((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
@@ -3124,11 +3354,19 @@ export class TredespaceClient {
       return;
     }
     if (d.type === 'app.ready') {
-      this.readyPayload = d.payload as AppReady;
-      for (const w of this.readyWaiters) {
-        w(this.readyPayload);
-      }
+      const ready = d.payload as AppReady;
+      this.readyPayload = ready;
+      const waiters = this.readyWaiters;
       this.readyWaiters = [];
+      for (const w of waiters) {
+        if (w.timer) {
+          clearTimeout(w.timer);
+        }
+        w.resolve(ready);
+      }
+      // a fresh viewer (boot, reload, bfcache) knows nothing about this
+      // client: tell it which events to send — an empty list silences all but app.*
+      this.subscribeWire([...this.wireTypes]);
       this.emit('app.ready', d.payload);
       this.fanOut(d);
       return;
@@ -3249,7 +3487,22 @@ export class TredespaceClient {
       this.post(this.target, this.origin, this.note('client.bye'));
     }
     this.target = null;
+    const waiters = this.readyWaiters;
+    this.readyWaiters = [];
+    for (const w of waiters) {
+      if (w.timer) {
+        clearTimeout(w.timer);
+      }
+      w.reject(new TredespaceClientError('transport', `${msg} before app.ready`));
+    }
     this.emit('client.closed', { reason });
+  }
+
+  /** Ask the viewer for these event types (see {@link eventsSubscribe}); the
+   *  result is of no interest — an older viewer answers with an error and
+   *  keeps sending everything. */
+  private subscribeWire(events: string[]): void {
+    void this.eventsSubscribe(events);
   }
 
   private sayHello() {
