@@ -1,14 +1,14 @@
 import type { SelectOption } from './Select';
 
 /** Multi-select trigger summary: one chip per selected option with remove ×. */
-export function SelectChips({
+export function SelectChips<T extends string = string>({
   values,
   known,
   onRemove,
 }: {
-  values: string[];
-  known: (v: string) => SelectOption;
-  onRemove: (v: string) => void;
+  values: readonly T[];
+  known: (v: T) => SelectOption<T>;
+  onRemove: (v: T) => void;
 }) {
   return (
     <span className="flex min-w-0 flex-1 flex-wrap gap-1">

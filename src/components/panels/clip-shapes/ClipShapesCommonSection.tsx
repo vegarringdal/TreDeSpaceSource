@@ -1,10 +1,11 @@
 import { IconPlus } from '@tabler/icons-react';
-import { Button, Collapsible, readFileText, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, readFileText, SegmentedControl, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useEffect } from 'react';
 import { clipShapesActions as act } from '../../../state/viewer/clipShapes.actions';
 import { clipShapesState, MAX_CLIP_SHAPES, supportsRotate } from '../../../state/viewer/clipShapes.state';
 import { dialogs } from '../../dialogs/dialogs.actions';
 import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
+import { GIZMO_MODES } from './clipShapeOptions';
 import { registerClipShapesLoad } from './clipShapesPanel';
 import { ribbonClipShapesActions as ribbon } from './ribbonClipShapes.actions';
 
@@ -17,9 +18,9 @@ export function ClipShapesCommonSection() {
     readFileText(f, (text) => {
       try {
         const n = act.importJson(text);
-        void dialogs.confirm(`Loaded ${n} clip shape(s).`, { okLabel: 'OK' });
+        dialogs.success(`Loaded ${n} clip shape(s).`);
       } catch (e) {
-        void dialogs.confirm(`Import failed: ${e instanceof Error ? e.message : String(e)}`, { okLabel: 'OK' });
+        dialogs.warn(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     }),
   );
@@ -123,19 +124,17 @@ export function ClipShapesCommonSection() {
 
       <div className="grid grid-cols-5 items-center gap-1.5">
         <span className="px-1 text-[11px] text-slate-400">Gizmo</span>
-        {(['move', 'rotate', 'scale'] as const).map((m) => (
-          <Button
-            key={m}
-            className="w-full"
-            active={gizmoMode === m && armed != null}
-            disabled={armed == null || (m === 'rotate' && !supportsRotate(armed.kind))}
-            onClick={() => act.setGizmoMode(m)}
-            tooltip={`Shape gizmo: ${m} (arm a shape with its Gizmo button)`}
-            shortcut={`clip.shape.gizmo.${m}`}
-          >
-            {m[0].toUpperCase() + m.slice(1)}
-          </Button>
-        ))}
+        <SegmentedControl
+          grow
+          className="col-span-3"
+          disabled={armed == null}
+          value={gizmoMode}
+          options={GIZMO_MODES.map((o) => ({
+            ...o,
+            disabled: armed != null && o.value === 'rotate' && !supportsRotate(armed.kind),
+          }))}
+          onChange={act.setGizmoMode}
+        />
         <Button
           className="w-full"
           active={sixAxis}

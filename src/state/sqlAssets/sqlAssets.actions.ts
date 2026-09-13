@@ -114,6 +114,8 @@ export interface SqlImportOpts {
   /** Drive no dialogs — for a caller reporting progress itself. */
   quiet?: boolean;
   onProgress?: (p: SqlImportProgress) => void;
+  /** Abort the downloads and stop starting new ones (host API cancellation). */
+  signal?: AbortSignal;
 }
 
 export const sqlAssetsActions = {
@@ -291,6 +293,10 @@ export const sqlAssetsActions = {
       });
     try {
       for (const [index, f] of files.entries()) {
+        if (opts.signal?.aborted) {
+          result.failed.push({ url: f.url, error: 'cancelled' });
+          continue;
+        }
         const existed = existing.has(f.fileName);
         if (existed && !opts.replace) {
           result.skipped.push(f.fileName);
@@ -300,7 +306,7 @@ export const sqlAssetsActions = {
         }
         const path = sqlDbPath(store, f.fileName);
         try {
-          const res = await fetch(f.url);
+          const res = await fetch(f.url, opts.signal ? { signal: opts.signal } : undefined);
           if (!res.ok) {
             throw new Error(`HTTP ${res.status} ${res.statusText}`);
           }

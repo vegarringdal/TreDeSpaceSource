@@ -59,6 +59,9 @@ export interface DbModel {
   roots: Uint32Array;
   /** dense item -> hierarchy entry (leaves), 0xFFFFFFFF when unmapped. */
   itemToEntry: Uint32Array;
+  /** hierarchy entry -> dense item, -1 when the entry owns no geometry. Built
+   *  once with the indexes so nothing re-runs the id binary search per entry. */
+  entryToItem: Int32Array;
   /** Per-entry subtree aggregates for the tree's visibility badges: items in
    *  the subtree (built once with the indexes) and how many of them are
    *  hidden (recomputed lazily — see hiddenAggregate). */
@@ -139,6 +142,7 @@ export function forgetModelTables(m: DbModel): void {
   m.childList = new Uint32Array(0);
   m.roots = new Uint32Array(0);
   m.itemToEntry = new Uint32Array(0);
+  m.entryToItem = new Int32Array(0);
   m.itemsUnder = undefined;
   m.hiddenUnder = undefined;
   m.selectedUnder = undefined;

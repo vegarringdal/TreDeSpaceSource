@@ -1,52 +1,65 @@
+import { usePointerDrag } from '@treDeSpaceUI/lib/usePointerDrag';
 import { type PointerEvent as ReactPointerEvent, type RefObject, useRef, useState } from 'react';
 
 const MIN_W = 256;
 const MIN_H = 160;
+/** Keep this much of the box reachable when it is dragged off-screen. */
+const EDGE_KEEP = 8;
+const BAR_KEEP = 30;
+const RIGHT_KEEP = 40;
 
-/** Move/resize state for an external modal box. Both drags use pointer
- *  CAPTURE so they survive crossing the hosted iframe — a native CSS resize
- *  grabber sits under the iframe and gets swallowed. `pos` stays null
- *  (overlay-centered) until the box is first dragged or resized. */
+/** Move/resize state for an external modal box. Both gestures run on
+ *  usePointerDrag, which uses pointer CAPTURE — so they survive crossing the
+ *  hosted iframe (a native CSS resize grabber sits under it and gets
+ *  swallowed). `pos` stays null (overlay-centered) until the box is first
+ *  dragged or resized. */
 export function useModalDragResize(initial: { width: string; height: string }): {
   pos: { x: number; y: number } | null;
   size: { w: string; h: string };
   boxRef: RefObject<HTMLDivElement | null>;
-  handleBarDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  handleBarMove: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  handleResizeDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  handleResizeMove: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  clearDrag: () => void;
+  handleBarDown: (e: ReactPointerEvent<HTMLElement>) => void;
+  handleResizeDown: (e: ReactPointerEvent<HTMLElement>) => void;
 } {
   // null pos = centered by the overlay's flex; set once dragged or resized
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ w: string; h: string }>({ w: initial.width, h: initial.height });
   const boxRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ dx: number; dy: number } | null>(null);
-  const rez = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const grab = useRef({ dx: 0, dy: 0 });
+  const from = useRef({ w: 0, h: 0 });
 
-  const handleBarDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+  const move = usePointerDrag({
+    onMove: ({ x, y }) => {
+      const r = boxRef.current?.getBoundingClientRect();
+      if (!r) {
+        return;
+      }
+      setPos({
+        x: Math.min(Math.max(x - grab.current.dx, EDGE_KEEP - r.width), window.innerWidth - RIGHT_KEEP),
+        y: Math.min(Math.max(y - grab.current.dy, 0), window.innerHeight - BAR_KEEP),
+      });
+    },
+  });
+
+  const resize = usePointerDrag({
+    onMove: ({ dx, dy }) => {
+      setSize({
+        w: `${Math.max(MIN_W, from.current.w + dx)}px`,
+        h: `${Math.max(MIN_H, from.current.h + dy)}px`,
+      });
+    },
+  });
+
+  const handleBarDown = (e: ReactPointerEvent<HTMLElement>) => {
     const box = boxRef.current;
-    if (!box || (e.target as HTMLElement).closest('button')) {
+    if (!box || (e.target instanceof HTMLElement && e.target.closest('button'))) {
       return;
     }
     const r = box.getBoundingClientRect();
-    drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const handleBarMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    const box = boxRef.current;
-    if (!d || !box) {
-      return;
-    }
-    const r = box.getBoundingClientRect();
-    setPos({
-      x: Math.min(Math.max(e.clientX - d.dx, 8 - r.width), window.innerWidth - 40),
-      y: Math.min(Math.max(e.clientY - d.dy, 0), window.innerHeight - 30),
-    });
+    grab.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    move.start(e);
   };
 
-  const handleResizeDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+  const handleResizeDown = (e: ReactPointerEvent<HTMLElement>) => {
     const box = boxRef.current;
     if (!box) {
       return;
@@ -56,23 +69,9 @@ export function useModalDragResize(initial: { width: string; height: string }): 
     if (!pos) {
       setPos({ x: r.left, y: r.top });
     }
-    rez.current = { x: e.clientX, y: e.clientY, w: r.width, h: r.height };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const handleResizeMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const z = rez.current;
-    if (!z) {
-      return;
-    }
-    setSize({
-      w: `${Math.max(MIN_W, z.w + e.clientX - z.x)}px`,
-      h: `${Math.max(MIN_H, z.h + e.clientY - z.y)}px`,
-    });
-  };
-  const clearDrag = () => {
-    drag.current = null;
-    rez.current = null;
+    from.current = { w: r.width, h: r.height };
+    resize.start(e);
   };
 
-  return { pos, size, boxRef, handleBarDown, handleBarMove, handleResizeDown, handleResizeMove, clearDrag };
+  return { pos, size, boxRef, handleBarDown, handleResizeDown };
 }

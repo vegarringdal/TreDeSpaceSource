@@ -39,8 +39,8 @@ export function SelectDemo() {
   return (
     <Section
       title="Select"
-      note="Single or multi select with optional search and full keyboard support. loadOptions switches it to async search (debounced 250 ms; rejections render in the list — try the query 'error')."
-      props={['SingleSelectProps', 'MultiSelectProps', 'SelectOption']}
+      note="Single or multi select with optional search and full keyboard support. Generic over the value union, so a typed option list makes onChange hand back your own literal type instead of a bare string. Takes the shared label props (top / left / split) and its own tooltip + shortcut, so a panel never wraps it in a labelled div. loadOptions switches it to async search (debounced 250 ms; rejections render in the list — try the query 'error')."
+      props={['SingleSelectProps', 'MultiSelectProps', 'SelectOption', 'LabelledProps']}
       code={`function MeshTags() {
   const [shape, setShape] = useState<string | null>('knot');
   const [tags, setTags] = useState<string[]>([]);

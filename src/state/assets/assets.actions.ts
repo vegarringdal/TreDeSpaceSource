@@ -511,62 +511,64 @@ export const assetsActions = {
   async importStandardGlb(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
     const temp = opts.temp ?? assetsState.get().importTemp;
     const store = temp ? TEMP_STORE : resolveStore(opts.store);
-    await withImportLock(async () => {
-      const t0 = performance.now();
-      const before = assetsState.get().assets;
-      const { normals, edges } = assetsState.get().stdGlb;
-      // show the overlay FIRST — before the (slow) worker spin-up — so the UI
-      // is blocked the instant Import is clicked, not seconds later
-      phaseLoading(opts, `Cooking ${file.name}…`, 'Importing standard GLB');
-      const worker = new Worker(new URL('../../lib/cooker/cookerWorker.ts', import.meta.url), { type: 'module' });
-      try {
-        const cookerApi = Comlink.wrap<CookerApi>(worker);
-        const workerDied = new Promise<never>((_, reject) => {
-          worker.addEventListener('error', (e) => reject(new Error(e.message || 'cooker worker crashed')));
-        });
-        const bytes = await file.arrayBuffer();
-        const id = uid();
-        const cooked = await Promise.race([
-          cookerApi.cookStandardToOpfs(Comlink.transfer(bytes, [bytes]), `${store}/${id}.tdp`, normals),
-          workerDied,
-        ]);
-        const entry: AssetEntry = {
-          id,
-          store,
-          name: file.name.replace(/\.glb$/i, ''),
-          folder: opts.folder,
-          fileName: file.name,
-          md5: cooked.md5,
-          size: cooked.size,
-          importedAt: Date.now(),
-          bounds: { full: cooked.bounds, dense: cooked.dense },
-          kind: 'standard',
-          hasNormals: cooked.hasNormals,
-          edges,
-          ...(opts.meta ? { meta: opts.meta } : {}),
-          ...(temp ? { temp: true } : {}),
-        };
-        assetsState.set((s) => ({ assets: [...s.assets, entry] }));
-        await persistIndex();
-        const { replaced } = await finishImport(before, [entry], opts);
-        consoleActions.log(
-          'info',
-          `Assets: imported ${file.name} (standard${cooked.hasNormals ? ', normals' : ''}${
-            replaced ? `, replaced ${replaced}` : ''
-          }) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
-        );
-      } finally {
-        worker.terminate();
-        phaseHideLoading(opts);
-      }
-    });
+    return (
+      (await withImportLock(async () => {
+        const t0 = performance.now();
+        const before = assetsState.get().assets;
+        const { normals, edges } = assetsState.get().stdGlb;
+        // show the overlay FIRST — before the (slow) worker spin-up — so the UI
+        // is blocked the instant Import is clicked, not seconds later
+        phaseLoading(opts, `Cooking ${file.name}…`, 'Importing standard GLB');
+        const worker = new Worker(new URL('../../lib/cooker/cookerWorker.ts', import.meta.url), { type: 'module' });
+        try {
+          const cookerApi = Comlink.wrap<CookerApi>(worker);
+          const workerDied = new Promise<never>((_, reject) => {
+            worker.addEventListener('error', (e) => reject(new Error(e.message || 'cooker worker crashed')));
+          });
+          const bytes = await file.arrayBuffer();
+          const id = uid();
+          const cooked = await Promise.race([
+            cookerApi.cookStandardToOpfs(Comlink.transfer(bytes, [bytes]), `${store}/${id}.tdp`, normals),
+            workerDied,
+          ]);
+          const entry: AssetEntry = {
+            id,
+            store,
+            name: file.name.replace(/\.glb$/i, ''),
+            folder: opts.folder,
+            fileName: file.name,
+            md5: cooked.md5,
+            size: cooked.size,
+            importedAt: Date.now(),
+            bounds: { full: cooked.bounds, dense: cooked.dense },
+            kind: 'standard',
+            hasNormals: cooked.hasNormals,
+            edges,
+            ...(opts.meta ? { meta: opts.meta } : {}),
+            ...(temp ? { temp: true } : {}),
+          };
+          assetsState.set((s) => ({ assets: [...s.assets, entry] }));
+          await persistIndex();
+          const { replaced } = await finishImport(before, [entry], opts);
+          consoleActions.log(
+            'info',
+            `Assets: imported ${file.name} (standard${cooked.hasNormals ? ', normals' : ''}${
+              replaced ? `, replaced ${replaced}` : ''
+            }) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+          );
+        } finally {
+          worker.terminate();
+          phaseHideLoading(opts);
+        }
+      })) !== null
+    );
   },
 
   /** Copy sources into OPFS with `pool`-way concurrency. Merged GLBs are named
    *  by their hierarchy root (verbatim, "/" included); .tdp files by their
    *  file name. */
   async importSources(sources: ImportSource[], opts: { folder: string; store?: string } & ImportBehaviour) {
-    await withImportLock(() => this.importSourcesLocked(sources, opts));
+    return (await withImportLock(() => this.importSourcesLocked(sources, opts))) !== null;
   },
 
   /** The importSources body — call only with the import lock held. */
@@ -774,17 +776,19 @@ export const assetsActions = {
    *  (2) those land in the store like any cooked file. Temp is cleared before
    *  and after, so the user never sees the intermediates. */
   async importRvm(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
-    await withImportLock(() => this.importRvmLocked(file, opts));
+    return (await withImportLock(() => this.importRvmLocked(file, opts))) !== null;
   },
 
   /** Import SEVERAL .rvm files in one lock window; each file lands in its own
    *  folder named after the file (the UI disables the folder field for this). */
   async importRvmFiles(files: File[], opts: { store?: string } & ImportBehaviour = {}) {
-    await withImportLock(async () => {
-      for (const file of files) {
-        await this.importRvmLocked(file, { ...opts, folder: file.name });
-      }
-    });
+    return (
+      (await withImportLock(async () => {
+        for (const file of files) {
+          await this.importRvmLocked(file, { ...opts, folder: file.name });
+        }
+      })) !== null
+    );
   },
 
   /** One RVM convert+cook; the caller holds the import lock. */
@@ -890,76 +894,80 @@ export const assetsActions = {
    *  the cooked buffers pass straight to importSourcesLocked. */
   async importIfc(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
     const store = resolveStore(opts.store);
-    await withImportLock(async () => {
-      const t0 = performance.now();
-      // overlay first — before the worker spin-up — so the UI blocks on click
-      phaseLoading(opts, `Converting ${file.name}…`, 'Importing IFC — phase 1 of 2');
-      const ifcOpts = assetsState.get().ifc;
-      const worker = new Worker(new URL('../../lib/ifc2glb/ifc2glbWorker.ts', import.meta.url), { type: 'module' });
-      try {
-        const ifc = Comlink.wrap<Ifc2GlbApi>(worker);
-        // a wasm trap kills the worker without rejecting the Comlink call — race it
-        const workerDied = new Promise<never>((_, reject) => {
-          worker.addEventListener('error', (e) => reject(new Error(e.message || 'ifc2glb worker crashed')));
-        });
-        const bytes = await file.arrayBuffer();
-        const { files, status } = await Promise.race([
-          ifc.convert(
-            Comlink.transfer(bytes, [bytes]),
-            file.name,
-            { ...ifcOpts },
-            Comlink.proxy((f: number) =>
-              phaseLoading(opts, `${Math.round(f * 100)}% converted`, 'Importing IFC — phase 1 of 2'),
+    return (
+      (await withImportLock(async () => {
+        const t0 = performance.now();
+        // overlay first — before the worker spin-up — so the UI blocks on click
+        phaseLoading(opts, `Converting ${file.name}…`, 'Importing IFC — phase 1 of 2');
+        const ifcOpts = assetsState.get().ifc;
+        const worker = new Worker(new URL('../../lib/ifc2glb/ifc2glbWorker.ts', import.meta.url), { type: 'module' });
+        try {
+          const ifc = Comlink.wrap<Ifc2GlbApi>(worker);
+          // a wasm trap kills the worker without rejecting the Comlink call — race it
+          const workerDied = new Promise<never>((_, reject) => {
+            worker.addEventListener('error', (e) => reject(new Error(e.message || 'ifc2glb worker crashed')));
+          });
+          const bytes = await file.arrayBuffer();
+          const { files, status } = await Promise.race([
+            ifc.convert(
+              Comlink.transfer(bytes, [bytes]),
+              file.name,
+              { ...ifcOpts },
+              Comlink.proxy((f: number) =>
+                phaseLoading(opts, `${Math.round(f * 100)}% converted`, 'Importing IFC — phase 1 of 2'),
+              ),
             ),
-          ),
-          workerDied,
-        ]);
-        if (files.length === 0) {
-          consoleActions.log('error', `Assets: ${file.name} produced no geometry — nothing imported`);
-          return;
-        }
-        if (status) {
-          try {
-            const st = JSON.parse(status) as { warnings?: string[] };
-            for (const w of st.warnings ?? []) {
-              consoleActions.log('error', `IFC: ${w}`);
-            }
-          } catch {
-            /* non-fatal */
+            workerDied,
+          ]);
+          if (files.length === 0) {
+            consoleActions.log('error', `Assets: ${file.name} produced no geometry — nothing imported`);
+            return;
           }
-        }
-        const coarseByName = new Map(files.filter((f) => /\.coarse\.tdp$/i.test(f.name)).map((f) => [f.name, f.bytes]));
-        const cooked = files.filter((f) => !/\.coarse\.tdp$/i.test(f.name));
-        consoleActions.log(
-          'info',
-          `Assets: ${file.name} → ${cooked.length} cooked file(s) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
-        );
-        const sources: ImportSource[] = cooked.map((f) => {
-          const c = coarseByName.get(f.name.replace(/\.tdp$/i, '.coarse.tdp'));
-          return {
-            name: f.name,
-            bytes: () => Promise.resolve(f.bytes),
-            ...(c ? { coarseBytes: () => Promise.resolve(c) } : {}),
+          if (status) {
+            try {
+              const st = JSON.parse(status) as { warnings?: string[] };
+              for (const w of st.warnings ?? []) {
+                consoleActions.log('error', `IFC: ${w}`);
+              }
+            } catch {
+              /* non-fatal */
+            }
+          }
+          const coarseByName = new Map(
+            files.filter((f) => /\.coarse\.tdp$/i.test(f.name)).map((f) => [f.name, f.bytes]),
+          );
+          const cooked = files.filter((f) => !/\.coarse\.tdp$/i.test(f.name));
+          consoleActions.log(
+            'info',
+            `Assets: ${file.name} → ${cooked.length} cooked file(s) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+          );
+          const sources: ImportSource[] = cooked.map((f) => {
+            const c = coarseByName.get(f.name.replace(/\.tdp$/i, '.coarse.tdp'));
+            return {
+              name: f.name,
+              bytes: () => Promise.resolve(f.bytes),
+              ...(c ? { coarseBytes: () => Promise.resolve(c) } : {}),
+              folder: opts.folder,
+            };
+          });
+          await this.importSourcesLocked(sources, {
             folder: opts.folder,
-          };
-        });
-        await this.importSourcesLocked(sources, {
-          folder: opts.folder,
-          store,
-          title: 'Importing IFC — final phase',
-          replace: opts.replace,
-          load: opts.load,
-          temp: opts.temp,
-          // the rest of the behaviour must travel too — `quiet` keeps the
-          // final phase's overlay down for a host, `meta` tags every asset
-          quiet: opts.quiet,
-          meta: opts.meta,
-        });
-      } finally {
-        worker.terminate();
-        phaseHideLoading(opts);
-      }
-    });
+            store,
+            title: 'Importing IFC — final phase',
+            replace: opts.replace,
+            load: opts.load,
+            temp: opts.temp,
+            // the rest of the behaviour must travel too — `quiet` keeps the
+            // final phase's overlay down for a host, `meta` tags every asset
+            quiet: opts.quiet,
+            meta: opts.meta,
+          });
+        } finally {
+          worker.terminate();
+          phaseHideLoading(opts);
+        }
+      })) !== null
+    );
   },
 
   /** STEP import, two phases under one lock: (1) the file is staged into OPFS
@@ -970,77 +978,79 @@ export const assetsActions = {
    *  cleared before and after. */
   async importStep(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
     const store = resolveStore(opts.store);
-    await withImportLock(async () => {
-      const t0 = performance.now();
-      const title = 'Importing STEP — phase 1 of 2';
-      // overlay first — before OPFS staging + worker spin-up — so the UI
-      // blocks on click
-      phaseLoading(opts, `Staging ${file.name}…`, title);
-      const stepOpts = assetsState.get().step;
-      const temp = await stepTempDir();
-      await clearDir(temp);
-      const worker = new Worker(new URL('../../lib/step2glb/step2glbWorker.ts', import.meta.url), { type: 'module' });
-      try {
-        await writeFile(temp, 'input.step', file);
-        const step = Comlink.wrap<Step2GlbApi>(worker);
-        // if the wasm traps, the worker dies WITHOUT rejecting the Comlink
-        // call — race against the worker's error event so we don't hang
-        const workerDied = new Promise<never>((_, reject) => {
-          worker.addEventListener('error', (e) => reject(new Error(e.message || 'step2glb worker crashed')));
-        });
-        const { files, info } = await Promise.race([
-          step.convert(
-            file.name,
-            { ...stepOpts },
-            Comlink.proxy((p: StepProgress) => phaseLoading(opts, describeStepProgress(p), title)),
-          ),
-          workerDied,
-        ]);
+    return (
+      (await withImportLock(async () => {
+        const t0 = performance.now();
+        const title = 'Importing STEP — phase 1 of 2';
+        // overlay first — before OPFS staging + worker spin-up — so the UI
+        // blocks on click
+        phaseLoading(opts, `Staging ${file.name}…`, title);
+        const stepOpts = assetsState.get().step;
+        const temp = await stepTempDir();
+        await clearDir(temp);
+        const worker = new Worker(new URL('../../lib/step2glb/step2glbWorker.ts', import.meta.url), { type: 'module' });
         try {
-          const rep = JSON.parse(info) as { warnings?: string[] };
-          for (const w of rep.warnings ?? []) {
-            consoleActions.log('error', `STEP: ${w}`);
+          await writeFile(temp, 'input.step', file);
+          const step = Comlink.wrap<Step2GlbApi>(worker);
+          // if the wasm traps, the worker dies WITHOUT rejecting the Comlink
+          // call — race against the worker's error event so we don't hang
+          const workerDied = new Promise<never>((_, reject) => {
+            worker.addEventListener('error', (e) => reject(new Error(e.message || 'step2glb worker crashed')));
+          });
+          const { files, info } = await Promise.race([
+            step.convert(
+              file.name,
+              { ...stepOpts },
+              Comlink.proxy((p: StepProgress) => phaseLoading(opts, describeStepProgress(p), title)),
+            ),
+            workerDied,
+          ]);
+          try {
+            const rep = JSON.parse(info) as { warnings?: string[] };
+            for (const w of rep.warnings ?? []) {
+              consoleActions.log('error', `STEP: ${w}`);
+            }
+          } catch {
+            /* non-fatal */
           }
-        } catch {
-          /* non-fatal */
-        }
-        const cooked = files.filter((f) => !/\.coarse\.tdp$/i.test(f.name));
-        if (cooked.length === 0) {
-          consoleActions.log('error', `Assets: ${file.name} produced no geometry — nothing imported`);
-          return;
-        }
-        const names = new Set(files.map((f) => f.name));
-        const sources: ImportSource[] = cooked.map((f) => {
-          const coarseName = f.name.replace(/\.tdp$/i, '.coarse.tdp');
-          return {
-            name: f.name,
-            bytes: () => readFile(temp, f.name),
+          const cooked = files.filter((f) => !/\.coarse\.tdp$/i.test(f.name));
+          if (cooked.length === 0) {
+            consoleActions.log('error', `Assets: ${file.name} produced no geometry — nothing imported`);
+            return;
+          }
+          const names = new Set(files.map((f) => f.name));
+          const sources: ImportSource[] = cooked.map((f) => {
+            const coarseName = f.name.replace(/\.tdp$/i, '.coarse.tdp');
+            return {
+              name: f.name,
+              bytes: () => readFile(temp, f.name),
+              folder: opts.folder,
+              ...(names.has(coarseName) ? { coarseBytes: () => readFile(temp, coarseName) } : {}),
+            };
+          });
+          await this.importSourcesLocked(sources, {
             folder: opts.folder,
-            ...(names.has(coarseName) ? { coarseBytes: () => readFile(temp, coarseName) } : {}),
-          };
-        });
-        await this.importSourcesLocked(sources, {
-          folder: opts.folder,
-          store,
-          title: 'Importing STEP — final phase',
-          replace: opts.replace,
-          load: opts.load,
-          temp: opts.temp,
-          // the rest of the behaviour must travel too — `quiet` keeps the
-          // final phase's overlay down for a host, `meta` tags every asset
-          quiet: opts.quiet,
-          meta: opts.meta,
-        });
-        consoleActions.log(
-          'info',
-          `Assets: ${file.name} imported in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
-        );
-      } finally {
-        worker.terminate();
-        await clearDir(temp).catch(() => undefined);
-        phaseHideLoading(opts);
-      }
-    });
+            store,
+            title: 'Importing STEP — final phase',
+            replace: opts.replace,
+            load: opts.load,
+            temp: opts.temp,
+            // the rest of the behaviour must travel too — `quiet` keeps the
+            // final phase's overlay down for a host, `meta` tags every asset
+            quiet: opts.quiet,
+            meta: opts.meta,
+          });
+          consoleActions.log(
+            'info',
+            `Assets: ${file.name} imported in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+          );
+        } finally {
+          worker.terminate();
+          await clearDir(temp).catch(() => undefined);
+          phaseHideLoading(opts);
+        }
+      })) !== null
+    );
   },
 
   /** Load one asset into the viewer. */

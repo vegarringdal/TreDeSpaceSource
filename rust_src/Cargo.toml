@@ -21,6 +21,11 @@ anyhow = "1"
 bytemuck = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Fast, NON-cryptographic hasher for the hot keyed maps (vertex dedup, per-node
+# bucketing). std's SipHash is a real cost when a map is probed per index; none
+# of these maps are exposed to untrusted keys, and none is iterated in a way
+# that could leak into output ordering.
+rustc-hash = "2"
 
 # IFC front end: one call `process_geometry(&bytes)` runs parse → geometry →
 # colour → void subtraction → world placement, yielding world-space `MeshData`.

@@ -10,7 +10,9 @@ export class ConvertResult {
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * The GLB bytes (a `Uint8Array` in JS).
+     * The GLB bytes, **moved** out (a `Uint8Array` in JS): wasm-bindgen copies
+     * the `Vec` across on its own, so cloning first held two. A second read
+     * yields an empty array.
      */
     readonly glb: Uint8Array;
     /**
@@ -29,9 +31,13 @@ export class CookedResult {
     [Symbol.dispose](): void;
     /**
      * The coarse `.tdp`, or `undefined` when not requested / not produced.
+     * Moved out like `tdp`.
      */
     readonly coarse: Uint8Array | undefined;
     readonly info: string;
+    /**
+     * The cooked bytes, **moved** out (see `ConvertResult::glb`).
+     */
     readonly tdp: Uint8Array;
 }
 
@@ -136,7 +142,6 @@ export interface InitOutput {
     readonly convertresult_info: (a: number) => [number, number];
     readonly cookedresult_coarse: (a: number) => [number, number];
     readonly cookedresult_info: (a: number) => [number, number];
-    readonly cookedresult_tdp: (a: number) => [number, number];
     readonly stepsession_faceCount: (a: number) => number;
     readonly stepsession_finish: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => [number, number, number, number];
     readonly stepsession_fromIndexFile: (a: any, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
@@ -149,6 +154,7 @@ export interface InitOutput {
     readonly stepsession_writeIndex: (a: number, b: number, c: number) => [number, number];
     readonly version: () => [number, number];
     readonly start: () => void;
+    readonly cookedresult_tdp: (a: number) => [number, number];
     readonly meshopt_wasm_alloc: (a: number) => number;
     readonly meshopt_wasm_free: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;

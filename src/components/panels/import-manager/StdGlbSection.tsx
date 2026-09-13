@@ -1,5 +1,5 @@
 import { IconFolderPlus, IconUpload } from '@tabler/icons-react';
-import { Button, Collapsible, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Collapsible, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
@@ -56,31 +56,21 @@ export function StdGlbSection() {
         {file && (
           <>
             <ImportOptionsRows />
-            <FolderField value={folder} onChange={setFolder} labelWidth="w-16" />
-            <label
-              className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
-              data-shortcut="assets.stdglb.normals"
-              data-tooltip="Keep authored normals (smooth shading). Off = flat shading — which also restores the full facet edge lines"
-            >
-              <input
-                type="checkbox"
-                checked={stdGlb.normals}
-                onChange={(e) => act.setStdGlbOptions({ normals: e.target.checked })}
-              />
-              Import normals
-            </label>
-            <label
-              className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
-              data-shortcut="assets.stdglb.edges"
-              data-tooltip="Draw edge lines on this model when loaded — off for meshes where edges would fight the surface (stored per asset)"
-            >
-              <input
-                type="checkbox"
-                checked={stdGlb.edges}
-                onChange={(e) => act.setStdGlbOptions({ edges: e.target.checked })}
-              />
-              Edge lines
-            </label>
+            <FolderField value={folder} onChange={setFolder} labelWidth={64} />
+            <Checkbox
+              label="Import normals"
+              checked={stdGlb.normals}
+              onChange={(normals) => act.setStdGlbOptions({ normals })}
+              shortcut="assets.stdglb.normals"
+              tooltip="Keep authored normals (smooth shading). Off = flat shading — which also restores the full facet edge lines"
+            />
+            <Checkbox
+              label="Edge lines"
+              checked={stdGlb.edges}
+              onChange={(edges) => act.setStdGlbOptions({ edges })}
+              shortcut="assets.stdglb.edges"
+              tooltip="Draw edge lines on this model when loaded — off for meshes where edges would fight the surface (stored per asset)"
+            />
             <div className="flex gap-2">
               <Button
                 icon={<IconUpload size={14} />}

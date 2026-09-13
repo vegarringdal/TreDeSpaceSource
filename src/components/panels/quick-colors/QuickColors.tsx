@@ -1,6 +1,6 @@
 import { IconPencil, IconRestore } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { Button, Collapsible, ColorSelect, InfoButton, NumberInput } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, ColorSelect, InfoButton, NumberInput, PanelHeader } from '@treDeSpaceUI/widgets';
 import { selectionState } from '../../../state/viewer/selection.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { ribbonSelectionColorActions as colorAct } from '../ribbon-selection-color/ribbonSelectionColor.actions';
@@ -17,13 +17,15 @@ export function QuickColors() {
 
   return (
     <PanelBody className="panel-body flex flex-col gap-1.5 p-2">
-      <div className="flex shrink-0 items-center gap-1 border-slate-800 border-b pb-1 text-slate-400 text-xs">
-        <span className="flex-1">Colors</span>
-        <InfoButton label="About coloring">
-          Quick and manual coloring of the current selection — every apply uses the opacity set below. Colors override
-          an item's original look until you clear them, and are persisted locally per browser.
-        </InfoButton>
-      </div>
+      <PanelHeader
+        title="Colors"
+        actions={
+          <InfoButton label="About coloring">
+            Quick and manual coloring of the current selection — every apply uses the opacity set below. Colors override
+            an item's original look until you clear them, and are persisted locally per browser.
+          </InfoButton>
+        }
+      />
 
       <Collapsible
         title="Manual color"

@@ -1,6 +1,7 @@
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
 import { cn } from '@treDeSpaceUI/lib/cn';
 import { useVirtualRows } from '@treDeSpaceUI/lib/useVirtualRows';
+import { EmptyState } from '@treDeSpaceUI/widgets';
 import { useEffect, useRef } from 'react';
 import { ConsoleToolbar } from './ConsoleToolbar';
 import { CONSOLE_KEEP, consolePinned } from './console.actions';
@@ -78,7 +79,7 @@ export function Console() {
         canClear={state.lines.length > consolePinned(state)}
       />
       <div ref={scroller} className="min-h-0 flex-1 overflow-auto font-mono text-xs" onScroll={handleScroll}>
-        {rows.length === 0 && <p className="note p-1">{empty}</p>}
+        {rows.length === 0 && <EmptyState className="p-1">{empty}</EmptyState>}
         <div style={{ height: virtual.totalH, position: 'relative' }}>
           {rows.slice(virtual.first, virtual.last).map((r, k) => {
             const i = virtual.first + k;

@@ -1,10 +1,7 @@
-import { Button, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
-import { useState } from 'react';
+import { Button, Checkbox, CopyButton, NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
 import { residency } from '../../../../state/viewer/residency';
 import { getRenderer, viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
-import { Row } from '../Row';
 import { SettingsSection } from '../SettingsSection';
 import { VramSuggestedRow } from './VramSuggestedRow';
 
@@ -14,20 +11,10 @@ const swapSpeeds = [
   { value: 'fast', label: 'Fast', hint: 'shortest idle wait', shortcut: 'render.vramSwap.fast' },
 ];
 
-const COPIED_RESET_MS = 1200;
-
 /** Rendering → VRAM budget: an Enabled switch and the max GPU memory footprint. */
 export function VramBudgetSection() {
   const v = useViewer();
   const act = viewerActions;
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyLog = () => {
-    void navigator.clipboard?.writeText(residency.debugDump(getRenderer())).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), COPIED_RESET_MS);
-    });
-  };
 
   return (
     <SettingsSection
@@ -53,77 +40,77 @@ export function VramBudgetSection() {
         </>
       }
     >
-      <Check
+      <Checkbox
         label="Enabled"
         tooltip="Keep tracked GPU memory under Max VRAM by holding far zones coarse while the camera rests. Off: everything loads at full detail"
         shortcut="render.vramEnabled"
         checked={v.vramBudgetOn}
         onChange={(x) => act.update({ vramBudgetOn: x })}
       />
-      <Row label="Max VRAM">
-        <NumberInput
-          value={v.maxVramMb}
-          min={256}
-          max={65536}
-          step={256}
-          unit="MB"
-          decShortcut="render.maxVram.dec"
-          incShortcut="render.maxVram.inc"
-          onChange={(x) => act.update({ maxVramMb: x })}
-        />
-      </Row>
+      <NumberInput
+        label="Max VRAM"
+        labelPosition="split"
+        value={v.maxVramMb}
+        min={256}
+        max={65536}
+        step={256}
+        unit="MB"
+        decShortcut="render.maxVram.dec"
+        incShortcut="render.maxVram.inc"
+        onChange={(x) => act.update({ maxVramMb: x })}
+      />
       <VramSuggestedRow current={v.maxVramMb} enabled={v.vramBudgetOn} />
       <RadioGroup
         options={swapSpeeds}
         value={v.vramSwapSpeed}
         onChange={(x) => act.update({ vramSwapSpeed: x === 'relaxed' || x === 'fast' ? x : 'normal' })}
       />
-      <Row label="Cut size">
-        <NumberInput
-          value={v.vramCutSizeM}
-          min={0}
-          max={10}
-          step={0.1}
-          precision={1}
-          unit="m"
-          decShortcut="render.vramCutSize.dec"
-          incShortcut="render.vramCutSize.inc"
-          onChange={(x) => act.update({ vramCutSizeM: x })}
-        />
-      </Row>
-      <Row label="Cut distance">
-        <NumberInput
-          value={v.vramCutDistM}
-          min={0}
-          step={25}
-          unit="m"
-          decShortcut="render.vramCutDist.dec"
-          incShortcut="render.vramCutDist.inc"
-          onChange={(x) => act.update({ vramCutDistM: x })}
-        />
-      </Row>
-      <Check
+      <NumberInput
+        label="Cut size"
+        labelPosition="split"
+        value={v.vramCutSizeM}
+        min={0}
+        max={10}
+        step={0.1}
+        precision={1}
+        unit="m"
+        decShortcut="render.vramCutSize.dec"
+        incShortcut="render.vramCutSize.inc"
+        onChange={(x) => act.update({ vramCutSizeM: x })}
+      />
+      <NumberInput
+        label="Cut distance"
+        labelPosition="split"
+        value={v.vramCutDistM}
+        min={0}
+        step={25}
+        unit="m"
+        decShortcut="render.vramCutDist.dec"
+        incShortcut="render.vramCutDist.inc"
+        onChange={(x) => act.update({ vramCutDistM: x })}
+      />
+      <Checkbox
         label="Drop hidden items"
         tooltip="Hidden items are dropped from budget packs entirely — their VRAM goes to visible detail instead; they re-pack in when unhidden"
         shortcut="render.vramDropHidden"
         checked={v.vramDropHidden}
         onChange={(x) => act.update({ vramDropHidden: x })}
       />
-      <Check
+      <Checkbox
         label="Pause AO / TAA while optimizing"
         tooltip="While a burst of swaps lands, render single-sample frames (no TAA history, no AO) and converge once at the end — instead of re-converging a picture every commit throws away. Edges look aliased for those seconds."
         shortcut="render.vramHoldAccum"
         checked={v.vramHoldAccum}
         onChange={(x) => act.update({ vramHoldAccum: x })}
       />
-      <Check
+      <Checkbox
         label="Show activity indicator"
         tooltip="Small top-right viewport chip while the budget is active: blue = swapping, green check = settled (done what's possible for this spot), grey = waiting for the camera to rest"
         shortcut="render.vramActivityHud"
         checked={v.vramActivityHud}
         onChange={(x) => act.update({ vramActivityHud: x })}
       />
-      <Check
+      <Checkbox
         label="Show residency boxes"
         tooltip="Debug: draw each zone's visible-bounds box colored by residency — green full, purple mixed (near items sharp), orange coarse, red unloaded, blue while swapping"
         shortcut="render.vramBoxes"
@@ -131,15 +118,14 @@ export function VramBudgetSection() {
         onChange={(x) => act.update({ vramDebugBoxes: x })}
       />
       <div className="flex gap-1.5">
-        <Button
-          className="h-6 px-2 text-[11px]"
+        <CopyButton
+          value={() => residency.debugDump(getRenderer())}
           tooltip="Copy the current per-zone residency state and the recent swap events (with reasons) to the clipboard"
           shortcut="render.vramCopyLog"
-          onClick={handleCopyLog}
         >
-          {copied ? 'Copied' : 'Copy event log'}
-        </Button>
-        <Button className="h-6 px-2 text-[11px]" tooltip="Clear the residency event log" onClick={residency.clearLog}>
+          Copy event log
+        </CopyButton>
+        <Button tooltip="Clear the residency event log" onClick={residency.clearLog}>
           Clear
         </Button>
       </div>

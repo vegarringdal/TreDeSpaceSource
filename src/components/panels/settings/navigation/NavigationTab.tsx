@@ -1,13 +1,11 @@
-import { NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
-import { navActions, navState } from '../../../../state/viewer/nav.state';
+import { Checkbox, NumberInput, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
+import { type NavState, navActions, navState } from '../../../../state/viewer/nav.state';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
-import { Row } from '../Row';
 import { SettingsSection } from '../SettingsSection';
 import { buildSpeedRows } from './navigationSpeedRows';
 
-const NAV_MODES = [
+const NAV_MODES: readonly RadioOption<NavState['mode']>[] = [
   {
     value: 'orbit',
     label: 'Orbit',
@@ -47,32 +45,29 @@ export function NavigationTab() {
       }
     >
       <div className="text-slate-400 text-xs">Mode (TAB toggles)</div>
-      <RadioGroup
-        options={NAV_MODES}
-        value={nav.mode}
-        onChange={(x) => navActions.setMode(x as 'orbit' | 'fly' | 'walk')}
-      />
-      <Check
+      <RadioGroup options={NAV_MODES} value={nav.mode} onChange={navActions.setMode} />
+      <Checkbox
         label="Walk when movement keys are used"
         checked={nav.keysDefaultWalk}
         shortcut="nav.keysDefaultWalk"
         onChange={(x) => navActions.update({ keysDefaultWalk: x })}
       />
       {speedRows.map((r) => (
-        <Row key={r.shortcutBase} label={r.label}>
-          <NumberInput
-            value={r.value}
-            min={r.min}
-            max={r.max}
-            step={r.step}
-            unit={r.unit}
-            decShortcut={`${r.shortcutBase}.dec`}
-            incShortcut={`${r.shortcutBase}.inc`}
-            onChange={r.onChange}
-          />
-        </Row>
+        <NumberInput
+          key={r.shortcutBase}
+          label={r.label}
+          labelPosition="split"
+          value={r.value}
+          min={r.min}
+          max={r.max}
+          step={r.step}
+          unit={r.unit}
+          decShortcut={`${r.shortcutBase}.dec`}
+          incShortcut={`${r.shortcutBase}.inc`}
+          onChange={r.onChange}
+        />
       ))}
-      <Check
+      <Checkbox
         label="Frame dense bounds on load"
         checked={v.fitDense}
         shortcut="nav.fitDense"

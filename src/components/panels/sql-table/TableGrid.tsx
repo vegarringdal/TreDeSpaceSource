@@ -1,12 +1,18 @@
 import { PanelBody } from '@treDeSpaceUI/dockable';
-import { Button } from '@treDeSpaceUI/widgets';
-import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from 'react';
+import { Badge, Button, PanelHeader } from '@treDeSpaceUI/widgets';
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { createGridExport } from './gridExport';
-import { registerTableActions, type TablePayload } from './sqlTablePanel';
+import {
+  getTableClearOnClose,
+  registerTableActions,
+  setTableClearOnClose,
+  subscribeTablePayload,
+  type TablePayload,
+} from './sqlTablePanel';
 import { TableBody } from './TableBody';
 import { TableHeader } from './TableHeader';
 import { TableMenu, type TableMenuState } from './TableMenu';
-import { OVERSCAN, ROW_H, useTableLayout } from './useTableLayout';
+import { useTableLayout } from './useTableLayout';
 import { useTableSelection } from './useTableSelection';
 import { useTableView } from './useTableView';
 
@@ -15,15 +21,14 @@ import { useTableView } from './useTableView';
  *  export/copy menu — behavior state lives in the layout/view/selection hooks. */
 export function TableGrid({ payload }: { payload: TablePayload }) {
   const { columns, rows } = payload;
-  const layout = useTableLayout(columns, rows.length);
   const view = useTableView(columns, rows);
+  const layout = useTableLayout(columns, rows.length, view.viewIdx.length);
   const selection = useTableSelection(columns, view.viewIdx);
   const [menu, setMenu] = useState<TableMenuState | null>(null);
+  const clearOnClose = useSyncExternalStore(subscribeTablePayload, getTableClearOnClose);
   const closeMenu = useCallback(() => setMenu(null), []);
   const gridExport = createGridExport(payload, view, selection);
 
-  const first = Math.max(0, Math.floor(layout.scrollTop / ROW_H) - OVERSCAN);
-  const last = Math.min(view.viewIdx.length, Math.ceil((layout.scrollTop + layout.viewH) / ROW_H) + OVERSCAN);
   const filtered = view.viewIdx.length !== rows.length;
   const selectedCount = selection.selected.size;
 
@@ -41,41 +46,64 @@ export function TableGrid({ payload }: { payload: TablePayload }) {
       ...gridExport,
       toggleSelectAll: selection.toggleAll,
       loadAll: () => payload.reload?.(),
+      toggleClearOnClose: () => setTableClearOnClose(!getTableClearOnClose()),
     });
     return () => registerTableActions(null);
   });
 
   return (
     <PanelBody className="panel-body flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center gap-2 border-slate-800 border-b p-1.5 text-slate-400 text-xs">
-        <span className="flex-1 truncate font-medium text-slate-200">{payload.title}</span>
-        {selectedCount > 0 && <span className="text-blue-400">{selectedCount.toLocaleString()} selected</span>}
-        <span>
-          {filtered
-            ? `${view.viewIdx.length.toLocaleString()} of ${rows.length.toLocaleString()} rows`
-            : `${rows.length.toLocaleString()} rows`}
-        </span>
-        {payload.truncated && payload.reload && (
-          <Button
-            className="h-auto min-h-5 py-0.5"
-            shortcut="sql.table.loadAll"
-            tooltip="Re-run this report without the 50-row cap (max 250,000)"
-            onClick={payload.reload}
-          >
-            Load all
-          </Button>
-        )}
-      </div>
+      <PanelHeader
+        variant="title"
+        title={payload.title}
+        aside={
+          <>
+            {selectedCount > 0 && <Badge tone="info">{selectedCount.toLocaleString()} selected</Badge>}
+            <span>
+              {filtered
+                ? `${view.viewIdx.length.toLocaleString()} of ${rows.length.toLocaleString()} rows`
+                : `${rows.length.toLocaleString()} rows`}
+            </span>
+          </>
+        }
+        actions={
+          <>
+            {payload.truncated && payload.reload && (
+              <Button
+                size="sm"
+                shortcut="sql.table.loadAll"
+                tooltip="Re-run this report without the 50-row cap (max 250,000)"
+                onClick={payload.reload}
+              >
+                Load all
+              </Button>
+            )}
+            <Button
+              size="sm"
+              active={!clearOnClose}
+              shortcut="sql.table.clearOnClose"
+              tooltip={
+                clearOnClose
+                  ? 'Clear on close is ON: closing this panel throws the result away and frees its rows. Click to KEEP it instead — reopening the panel then shows the same rows without re-running the report.'
+                  : 'Keep is ON: the result survives closing the panel (its rows stay in memory). Click to clear it on close instead.'
+              }
+              onClick={() => setTableClearOnClose(!clearOnClose)}
+            >
+              {clearOnClose ? 'Clear on close' : 'Keep'}
+            </Button>
+          </>
+        }
+      />
 
       <div
         ref={layout.scroller}
         className="min-h-0 flex-1 overflow-auto font-mono text-[11px]"
-        onScroll={(e) => layout.setScrollTop(e.currentTarget.scrollTop)}
+        onScroll={layout.virtual.onScroll}
         onContextMenu={handleContextMenu}
       >
         <div style={{ width: layout.totalW, minWidth: '100%' }}>
           <TableHeader columns={columns} view={view} layout={layout} selection={selection} />
-          <TableBody rows={rows} view={view} layout={layout} selection={selection} first={first} last={last} />
+          <TableBody rows={rows} view={view} layout={layout} selection={selection} />
         </div>
       </div>
 

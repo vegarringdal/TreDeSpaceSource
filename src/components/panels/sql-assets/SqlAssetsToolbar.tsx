@@ -34,23 +34,21 @@ export function SqlAssetsToolbar() {
   return (
     <>
       {picker.element}
-      <label
-        className="flex shrink-0 items-center gap-2 text-slate-300 text-xs"
-        data-tooltip="Which store (plant) Import Database copies files into"
-      >
-        <span className="w-14 shrink-0 text-slate-400">Import to</span>
-        <div className="min-w-0 flex-1">
-          <Select
-            options={stores.map((s) => ({ value: s.name, label: s.name }))}
-            value={importStore}
-            onChange={(v) => setImportStore(v ?? MAIN_STORE)}
-          />
-        </div>
-      </label>
+      <Select
+        label="Import to"
+        labelPosition="left"
+        labelWidth={56}
+        className="shrink-0"
+        tooltip="Which store (plant) Import Database copies files into"
+        options={stores.map((s) => ({ value: s.name, label: s.name }))}
+        value={importStore}
+        onChange={(v) => setImportStore(v ?? MAIN_STORE)}
+      />
       <div className="flex shrink-0 items-center gap-2">
         <Button
           icon={<IconUpload size={14} />}
-          className="h-auto min-h-6 flex-1 py-1 leading-tight"
+          wrap
+          grow
           disabled={busy}
           shortcut="sql.import"
           onClick={picker.open}
@@ -60,7 +58,8 @@ export function SqlAssetsToolbar() {
         </Button>
         <Button
           icon={<IconTrash size={14} />}
-          className="h-auto min-h-6 flex-1 py-1 leading-tight"
+          wrap
+          grow
           disabled={busy || selCount === 0}
           shortcut="sql.deleteSelected"
           onClick={handleDelete}

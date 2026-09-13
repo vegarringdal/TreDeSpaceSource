@@ -213,15 +213,24 @@
 
 export const TREDESPACE_PROTOCOL = 1;
 
-/** Failure codes: the six protocol codes the viewer can return, plus two
+/** Failure codes: the eight protocol codes the viewer can return, plus two
  *  host-side ones — a request that timed out, or a dead transport (disposed
  *  client / no viewer window). `unknown-command` means this viewer version
- *  has no such command — feature-detect with {@link TredespaceClient.supports}. */
+ *  has no such command — feature-detect with {@link TredespaceClient.supports}.
+ *  `busy` means the command never ran (the import lock was held) so a retry is
+ *  sensible; `download` and `sql` are caller errors — a URL that could not be
+ *  fetched and a statement SQLite rejected — which used to arrive as
+ *  `internal` and look like viewer bugs; `cancelled` answers a command the
+ *  caller aborted (an `AbortSignal`, or a timeout — both tell the viewer to
+ *  stop). */
 export type TredespaceErrorCode =
   | 'bad-payload'
   | 'not-ready'
   | 'busy'
   | 'not-found'
+  | 'download'
+  | 'sql'
+  | 'cancelled'
   | 'internal'
   | 'unknown-command'
   | 'timeout'
@@ -742,6 +751,24 @@ export interface AssetsImportResult {
   entries: AssetInfo[];
   /** how many prior assets were removed by `replace` (0 unless replace was set) */
   replaced: number;
+}
+
+/** {@link TredespaceClient.viewScreenshot} by default: the PNG as raw bytes,
+ *  transferred (never copied, never base64). */
+export interface ScreenshotBytes {
+  bytes: ArrayBuffer;
+  /** always `image/png` today */
+  mime: string;
+  width: number;
+  height: number;
+}
+
+/** {@link TredespaceClient.viewScreenshot} with `{ dataUrl: true }`. */
+export interface ScreenshotDataUrl {
+  dataUrl: string;
+  mime: string;
+  width: number;
+  height: number;
 }
 
 /** One file for {@link TredespaceClient.assetsImportUrl}: a URL the VIEWER
@@ -2083,10 +2110,15 @@ export class TredespaceClient {
 
   /** Capture the current viewport as a PNG — the converged frame (edges, AA,
    *  AO, view cube) plus the label and measurement overlays, exactly as shown.
-   *  Returns a `data:image/png;base64,…` URL (drop it straight into an `<img>`
-   *  src or a download link) and the pixel size. */
-  viewScreenshot(): Promise<Result<{ dataUrl: string; width: number; height: number }>> {
-    return this.send('view.screenshot', {});
+   *  The bytes arrive TRANSFERRED (zero copy, no base64), so wrap them for
+   *  display: `URL.createObjectURL(new Blob([bytes], { type: mime }))`. Pass
+   *  `{ dataUrl: true }` for the `data:image/png;base64,…` string instead —
+   *  handy as an `<img>` src, but a third larger and copied through a JS
+   *  string on both sides. */
+  viewScreenshot(opts?: { dataUrl?: false }): Promise<Result<ScreenshotBytes>>;
+  viewScreenshot(opts: { dataUrl: true }): Promise<Result<ScreenshotDataUrl>>;
+  viewScreenshot(opts?: { dataUrl?: boolean }): Promise<Result<ScreenshotBytes | ScreenshotDataUrl>> {
+    return this.send('view.screenshot', opts?.dataUrl ? { dataUrl: true } : {});
   }
 
   /** List the stores (projects). Fetch this first to know valid `store` names
@@ -2218,6 +2250,9 @@ export class TredespaceClient {
       replace?: boolean;
       /** per-file progress; also suppresses the viewer's own import dialogs. */
       onProgress?: (p: ImportUrlProgress) => void;
+      /** Abort the batch: the viewer stops its downloads and starts no more
+       *  files (whatever already landed stays imported). Resolves `cancelled`. */
+      signal?: AbortSignal;
     },
   ): Promise<Result<AssetsImportUrlResult>> {
     const batchId = `${this.idPrefix}-batch-${this.nextId++}`;
@@ -2242,7 +2277,7 @@ export class TredespaceClient {
         ...(opts?.store ? { store: opts.store } : {}),
         ...(opts?.replace ? { replace: opts.replace } : {}),
       },
-      { timeoutMs },
+      { timeoutMs, ...(opts?.signal ? { signal: opts.signal } : {}) },
     ).finally(() => off?.());
   }
 
@@ -2471,10 +2506,16 @@ export class TredespaceClient {
      *  download percentage from `loaded`/`totalBytes`. Passing it also
      *  silences the viewer's own import dialogs. */
     onProgress?: (p: SqlImportProgress) => void;
+    /** Abort the batch: the viewer stops its downloads and starts no more
+     *  files (whatever already landed stays imported). Resolves `cancelled`. */
+    signal?: AbortSignal;
   }): Promise<Result<SqlImportUrlResult>> {
-    const { onProgress, ...rest } = input;
+    const { onProgress, signal, ...rest } = input;
     const { payload, done } = this.sqlProgress(rest, onProgress);
-    return this.send<SqlImportUrlResult>('sql.importUrl', payload, { timeoutMs: this.importTimeoutMs }).finally(done);
+    return this.send<SqlImportUrlResult>('sql.importUrl', payload, {
+      timeoutMs: this.importTimeoutMs,
+      ...(signal ? { signal } : {}),
+    }).finally(done);
   }
 
   /** Pre-flight a SQL script WITHOUT running it: which databases does it
@@ -2861,10 +2902,17 @@ export class TredespaceClient {
     /** rows between `row` ticks (default 1000); smaller = more ticks, slower */
     progressSize?: number;
     onProgress?: (p: SqlExecuteProgress) => void;
+    /** Give up on the result. A statement already running inside the SQLite
+     *  worker cannot be stopped (that would abort every tab's query), so this
+     *  stops one that has not started and resolves `cancelled` either way. */
+    signal?: AbortSignal;
   }): Promise<Result<SqlExecuteResult>> {
-    const { onProgress, ...rest } = input;
+    const { onProgress, signal, ...rest } = input;
     const { payload, done } = this.progressFor('sql.execute:progress', rest, onProgress);
-    return this.send<SqlExecuteResult>('sql.execute', payload, { timeoutMs: this.importTimeoutMs }).finally(done);
+    return this.send<SqlExecuteResult>('sql.execute', payload, {
+      timeoutMs: this.importTimeoutMs,
+      ...(signal ? { signal } : {}),
+    }).finally(done);
   }
 
   /** Subscribe to one batch's ticks on `eventType` and tag the payload with
@@ -3279,7 +3327,7 @@ export class TredespaceClient {
   private send<T>(
     type: string,
     payload: Record<string, unknown>,
-    extra?: { bytes?: ArrayBuffer | Blob; timeoutMs?: number },
+    extra?: { bytes?: ArrayBuffer | Blob; timeoutMs?: number; signal?: AbortSignal },
   ): Promise<Result<T>> {
     const target = this.target;
     if (!target) {
@@ -3304,13 +3352,41 @@ export class TredespaceClient {
         }),
       );
     }
+    if (extra?.signal?.aborted) {
+      return Promise.resolve({ error: { code: 'cancelled', msg: `${type}: signal already aborted` } });
+    }
     const id = `${this.idPrefix}-${this.nextId++}`;
     return new Promise<Result<T>>((resolve) => {
+      // Giving up locally is not enough: without this the viewer keeps
+      // downloading / cooking / querying and posts a result nobody reads.
+      const stopViewer = () => {
+        try {
+          target.postMessage(
+            { tredespace: TREDESPACE_PROTOCOL, id: null, type: 'command.cancel', payload: { id } },
+            this.origin,
+          );
+        } catch {
+          // the window went away — nothing left to cancel
+        }
+      };
       const timer = setTimeout(() => {
         this.pending.delete(id);
+        extra?.signal?.removeEventListener('abort', onAbort);
+        stopViewer();
         resolve({ error: { code: 'timeout', msg: `${type} timed out after ${timeoutMs} ms` } });
       }, timeoutMs);
-      this.pending.set(id, { settle: resolve as (r: Result<unknown>) => void, timer });
+      const onAbort = () => {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        stopViewer();
+        resolve({ error: { code: 'cancelled', msg: `${type} was cancelled` } });
+      };
+      extra?.signal?.addEventListener('abort', onAbort, { once: true });
+      const settle = (r: Result<unknown>) => {
+        extra?.signal?.removeEventListener('abort', onAbort);
+        (resolve as (x: Result<unknown>) => void)(r);
+      };
+      this.pending.set(id, { settle, timer });
       const msg: Record<string, unknown> = { tredespace: TREDESPACE_PROTOCOL, id, type, payload };
       if (extra?.bytes !== undefined) {
         msg.bytes = extra.bytes;

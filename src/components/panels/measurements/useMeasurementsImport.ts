@@ -12,9 +12,9 @@ export function useMeasurementsImport(): { openPicker: () => void; pickerElement
     readFileText(f, (text) => {
       try {
         const n = act.importJson(text);
-        void dialogs.confirm(`Loaded ${n} measurement(s).`, { okLabel: 'OK' });
+        dialogs.success(`Loaded ${n} measurement(s).`);
       } catch (e) {
-        void dialogs.confirm(`Import failed: ${e instanceof Error ? e.message : String(e)}`, { okLabel: 'OK' });
+        dialogs.warn(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     }),
   );

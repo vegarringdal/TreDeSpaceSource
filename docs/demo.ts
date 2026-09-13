@@ -208,12 +208,14 @@ $('btnKiosk').onclick = () =>
 
 $('btnScreenshot').onclick = () =>
   run('Taking a screenshot', async () => {
-    const { dataUrl, width, height } = must(await client.viewScreenshot());
-    // the viewer hands back a PNG data URL — download it from the host
+    const { bytes, mime, width, height } = must(await client.viewScreenshot());
+    // the PNG arrives as transferred bytes — wrap them to download from the host
+    const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
     const a = document.createElement('a');
-    a.href = dataUrl;
+    a.href = url;
     a.download = 'tredespace-demo.png';
     a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
     setStatus(`Screenshot captured (${width}×${height}) and downloaded.`, 'ok');
   });
 

@@ -25,7 +25,9 @@ export function ConsoleToolbar({ counts, shown, canClear }: ConsoleToolbarProps)
         <Button
           key={level}
           active={shown[level]}
-          className="h-auto min-h-5 py-0.5 uppercase"
+          wrap
+          size="sm"
+          className="uppercase"
           shortcut={LEVEL_HOTKEY[level]}
           tooltip={`Show / hide ${level} lines`}
           onClick={() => consoleActions.toggleLevel(level)}

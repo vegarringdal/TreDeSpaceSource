@@ -4,4 +4,5 @@
 // store pattern without pulling the widgets in.
 export * from './cn';
 export * from './createStore';
+export * from './usePointerDrag';
 export * from './useVirtualRows';

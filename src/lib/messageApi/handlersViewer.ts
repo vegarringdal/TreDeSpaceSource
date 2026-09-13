@@ -11,12 +11,25 @@ import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-
 import { ribbonHomeActions } from '../../components/panels/ribbon-home/ribbonHome.actions';
 import { sqlReportsActions } from '../../state/sqlReports/sqlReports.actions';
 import { clipShapesActions } from '../../state/viewer/clipShapes.actions';
+import type { ClipShape } from '../../state/viewer/clipShapes.state';
 import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { viewerState } from '../../state/viewer/viewer.state';
 import { packedFromBytes } from '../color/packedNames';
 import { obbWorldBounds } from '../math/obb';
 import { apiRules, colorNameTable, parseColorMode } from './colorMode';
-import { ApiError, type ApiHandler, nameListBytes, records } from './protocol';
+import {
+  ApiError,
+  type ApiHandler,
+  boolOpt,
+  nameListBytes,
+  numOpt,
+  oneOf,
+  quatOpt,
+  records,
+  strOpt,
+  vec3Opt,
+} from './protocol';
+import { withTransfer } from './wire';
 
 /** Run mode from a set/add payload: an explicit 'reset' | 'append' | 'hide'
  *  wins, 'keep' returns the panel's current mode, anything else the
@@ -122,6 +135,28 @@ export async function applyCameraPayload(p: Record<string, unknown>): Promise<Ca
   return pose;
 }
 
+const CLIP_SHAPE_KINDS = ['sphere', 'cylinder', 'box'] as const;
+
+/** One `clip.shapes.add` entry, fully validated. Every field is checked here
+ *  rather than defaulted downstream: a `center: 'x'` or a `radius: '5'` used to
+ *  land in the state and reach the clip uniforms as NaN, which silently clips
+ *  the whole scene away. Omitted fields keep the same defaults as before. */
+function readClipShape(x: Record<string, unknown>): Partial<ClipShape> {
+  return {
+    kind: oneOf(x.kind, 'shapes[].kind', CLIP_SHAPE_KINDS),
+    label: strOpt(x.label, 'shapes[].label', '', 256),
+    center: vec3Opt(x.center, 'shapes[].center', [0, 0, 0]),
+    axis: vec3Opt(x.axis, 'shapes[].axis', [0, 0, 1]),
+    radius: numOpt(x.radius, 'shapes[].radius', 5, { min: 0 }),
+    height: numOpt(x.height, 'shapes[].height', 10, { min: 0 }),
+    halfExtents: vec3Opt(x.halfExtents, 'shapes[].halfExtents', [1, 1, 1]),
+    rotation: quatOpt(x.rotation, 'shapes[].rotation', [0, 0, 0, 1]),
+    enabled: boolOpt(x.enabled, 'shapes[].enabled', true),
+    inverted: boolOpt(x.inverted, 'shapes[].inverted', false),
+    showHelper: boolOpt(x.showHelper, 'shapes[].showHelper', true),
+  };
+}
+
 export const viewerHandlers: Record<string, ApiHandler> = {
   'colorRules.set': setOrAddColorRules,
   'colorRules.add': setOrAddColorRules,
@@ -175,20 +210,26 @@ export const viewerHandlers: Record<string, ApiHandler> = {
     return { sketch: on };
   },
 
-  'view.screenshot': async () => {
-    // capture the converged frame + overlays and hand the host a PNG data URL
-    // (usable straight as an <img> src or download href — no bytes to detach)
+  // Capture the converged frame + overlays. The PNG rides back as raw
+  // TRANSFERRED bytes (zero copy, and no base64 — which inflated it by a third
+  // and built a multi-megabyte JS string on both sides). `dataUrl: true` keeps
+  // the old string form for hosts that want an <img> src directly.
+  'view.screenshot': async ({ p }) => {
     const shot = await ribbonHomeActions.captureScreenshotBlob();
     if (!shot) {
       throw new ApiError('internal', 'no renderer to capture');
     }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result as string);
-      fr.onerror = () => reject(fr.error ?? new Error('failed to encode PNG'));
-      fr.readAsDataURL(shot.blob);
-    });
-    return { dataUrl, width: shot.width, height: shot.height };
+    if (p.dataUrl === true) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result as string);
+        fr.onerror = () => reject(fr.error ?? new Error('failed to encode PNG'));
+        fr.readAsDataURL(shot.blob);
+      });
+      return { dataUrl, mime: shot.blob.type, width: shot.width, height: shot.height };
+    }
+    const bytes = await shot.blob.arrayBuffer();
+    return withTransfer({ bytes, mime: shot.blob.type, width: shot.width, height: shot.height }, [bytes]);
   },
 
   // the default clipping box; `enabled` is what the renderer honours (global
@@ -217,7 +258,7 @@ export const viewerHandlers: Record<string, ApiHandler> = {
   },
 
   'clip.shapes.add': ({ p }) => {
-    const shapes = records(p.shapes, 'shapes') as Parameters<typeof clipShapesActions.addShapes>[0];
+    const shapes = records(p.shapes, 'shapes').map(readClipShape);
     return { added: clipShapesActions.addShapes(shapes) };
   },
 

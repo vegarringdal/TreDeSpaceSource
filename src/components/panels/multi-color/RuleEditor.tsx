@@ -1,16 +1,26 @@
 import { IconArrowDown, IconArrowUp, IconPlus, IconRowInsertTop, IconX } from '@tabler/icons-react';
-import { Button, Collapsible, ColorSelect, NumberInput, Select, TextInput } from '@treDeSpaceUI/widgets';
+import {
+  Button,
+  Collapsible,
+  ColorSelect,
+  NumberInput,
+  SegmentedControl,
+  Select,
+  TextInput,
+} from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
 import { useLoadedStores } from '../../../state/viewer/storeScope';
 import { FilterRowEditor } from './FilterRowEditor';
 import type { ColorRule } from './multiColor.state';
 import { MultiColorCtx } from './multiColorContext';
-import { Tip } from './Tip';
 
 const COLOR_OPTIONS = [
-  { value: 'default', label: 'Default' },
-  { value: 'custom', label: 'Custom' },
-];
+  { value: 'default', label: 'Default', tooltip: 'Restore the original mesh color' },
+  { value: 'custom', label: 'Custom', tooltip: 'Apply the picked color' },
+] as const;
+
+/** First custom colour a rule gets when switched off Default. */
+const DEFAULT_RULE_COLOR = '#ff8800';
 
 /** One color rule: name/order/enable controls, color + opacity, filter rows. */
 export function RuleEditor({
@@ -84,13 +94,13 @@ export function RuleEditor({
 
       <div className="flex items-center gap-1.5">
         <span className="w-14 shrink-0 text-neutral-400 text-xs">Color</span>
-        <Tip className="w-28 shrink-0" tip="Default restores the original mesh color; Custom applies the picked color">
-          <Select
-            options={COLOR_OPTIONS}
-            value={rule.color == null ? 'default' : 'custom'}
-            onChange={(v) => act.updateRule(idx, { color: v === 'default' ? null : (rule.color ?? '#ff8800') })}
-          />
-        </Tip>
+        <SegmentedControl
+          className="w-28 shrink-0"
+          grow
+          options={COLOR_OPTIONS}
+          value={rule.color == null ? 'default' : 'custom'}
+          onChange={(v) => act.updateRule(idx, { color: v === 'default' ? null : (rule.color ?? DEFAULT_RULE_COLOR) })}
+        />
         {rule.color != null && (
           <div className="min-w-0 flex-1">
             <ColorSelect value={rule.color} onChange={(c) => act.updateRule(idx, { color: c })} />
@@ -128,12 +138,13 @@ export function RuleEditor({
       </div>
       <div className="flex items-center gap-1.5">
         <span className="w-14 shrink-0 text-neutral-400 text-xs">Store</span>
-        <Tip
+        <Select
           className="w-28 shrink-0"
-          tip="Scope this rule to models loaded from one store — All stores matches every loaded model"
-        >
-          <Select options={storeOptions} value={rule.store} onChange={(v) => act.updateRule(idx, { store: v ?? '' })} />
-        </Tip>
+          tooltip="Scope this rule to models loaded from one store — All stores matches every loaded model"
+          options={storeOptions}
+          value={rule.store}
+          onChange={(v) => act.updateRule(idx, { store: v ?? '' })}
+        />
         {rule.store !== '' && <span className="text-neutral-500 text-xs">only models from this store</span>}
       </div>
 

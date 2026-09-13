@@ -1,6 +1,5 @@
-import { Button, ColorSelect } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, ColorSelect } from '@treDeSpaceUI/widgets';
 import { pickerSwatchesActions, pickerSwatchesState } from '../../../../state/pickerSwatches.state';
-import { Check } from '../Check';
 import { SettingsSection } from '../SettingsSection';
 import { settingsActions } from '../settings.actions';
 import { settingsState } from '../settings.state';
@@ -43,7 +42,7 @@ export function EditorTab() {
       >
         Reset swatches
       </Button>
-      <Check
+      <Checkbox
         label="Use dark theme"
         checked={s.theme === 'dark'}
         shortcut="view.theme.toggle"

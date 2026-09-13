@@ -1,10 +1,9 @@
 import { IconFolderPlus, IconUpload } from '@tabler/icons-react';
-import { Button, Collapsible, useMultiFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Collapsible, NumberInput, Select, useMultiFilePicker } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
 import { FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
-import { OptionCheckRow, OptionNumberRow, OptionSelectRow } from './optionRows';
 
 /** Import Manager → AVEVA RVM (converted and cooked in one wasm pass). */
 export function RvmSection() {
@@ -65,20 +64,19 @@ export function RvmSection() {
         {files.length > 0 && (
           <>
             <ImportOptionsRows />
-            <div
-              data-tooltip={
+            <FolderField
+              value={folder}
+              onChange={setFolder}
+              disabled={multi}
+              placeholder={multi ? '(a folder is created per file)' : '(none)'}
+              tooltip={
                 multi ? 'With several files, each one imports into its own folder named after the file' : undefined
               }
-            >
-              <FolderField
-                value={folder}
-                onChange={setFolder}
-                disabled={multi}
-                placeholder={multi ? '(a folder is created per file)' : '(none)'}
-              />
-            </div>
-            <OptionSelectRow
+            />
+            <Select
               label="Split"
+              labelPosition="left"
+              labelWidth={56}
               shortcut="assets.rvm.split"
               tooltip="Split the model into one file per SITE, ZONE or EQUIPMENT (hierarchy depth 0/1/2)"
               value={String(rvm.level)}
@@ -89,17 +87,20 @@ export function RvmSection() {
               ]}
               onChange={(v) => act.setRvmOptions({ level: Number(v ?? 0) })}
             />
-            <OptionNumberRow
+            <NumberInput
               label="Tolerance"
+              labelPosition="left"
+              labelWidth={56}
               tooltip="Tessellation chord-height tolerance — smaller = smoother curves, more triangles"
               value={rvm.tolerance}
               min={0.001}
               max={1}
               step={0.001}
-              shortcutBase="assets.rvm.tolerance"
+              decShortcut="assets.rvm.tolerance.dec"
+              incShortcut="assets.rvm.tolerance.inc"
               onChange={(v) => act.setRvmOptions({ tolerance: v })}
             />
-            <OptionCheckRow
+            <Checkbox
               label="Include lines"
               shortcut="assets.rvm.includeLines"
               tooltip="Include RVM Line primitives (drawn as small crosses — numerous, adds visual noise)"
@@ -107,18 +108,21 @@ export function RvmSection() {
               onChange={(v) => act.setRvmOptions({ includeLines: v })}
             />
             {rvm.includeLines && (
-              <OptionNumberRow
+              <NumberInput
                 label="Line width"
+                labelPosition="left"
+                labelWidth={56}
                 tooltip="Width of the crosses drawn for Line primitives"
                 value={rvm.lineWidth}
                 min={0.001}
                 max={1}
                 step={0.001}
-                shortcutBase="assets.rvm.lineWidth"
+                decShortcut="assets.rvm.lineWidth.dec"
+                incShortcut="assets.rvm.lineWidth.inc"
                 onChange={(v) => act.setRvmOptions({ lineWidth: v })}
               />
             )}
-            <OptionCheckRow
+            <Checkbox
               label="Align elements"
               shortcut="assets.rvm.align"
               tooltip="Round circle tessellation to multiples of 4 segments for better flat shading"

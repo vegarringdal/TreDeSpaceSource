@@ -32,6 +32,18 @@ function exportModelIndices(r: Renderer): number[] {
   return [...indices].sort((a, b) => a - b);
 }
 
+/** Start reading model `indices[i]` (or nothing, past the end). The returned
+ *  promise is awaited by the caller, so a failure still surfaces there; the
+ *  no-op catch only keeps an early exit from logging an unhandled rejection. */
+function prefetchGeom(r: Renderer, indices: number[], i: number) {
+  if (i >= indices.length) {
+    return Promise.resolve(null);
+  }
+  const p = geomFor(r, indices[i]);
+  p.catch(() => {});
+  return p;
+}
+
 /** One model's geometry for the export: the GPU readback when the slot holds
  *  full detail (or is not budget-managed), else the zone's full cook from
  *  OPFS — the budget's cuts must never reach an export. */
@@ -49,20 +61,25 @@ async function geomFor(r: Renderer, index: number): Promise<{ geom: ExportGeom; 
   return { geom: { model: index, ...geom }, fromDisk: false };
 }
 
-/** Read every model's packed geometry (shared by all exports; must run on
- *  the main thread — the renderer owns the device). Fills the progress bar's
- *  first half. Returns null (after an error dialog) when empty. */
-async function readGeoms(title: string): Promise<ExportGeom[] | null> {
+/** Read every model's packed geometry and hand it to the worker ONE AT A TIME,
+ *  so only the model being read is ever in main-thread memory — the worker
+ *  accumulates the decoded tree (see beginExport / addExportGeoms). Must run
+ *  on the main thread: the renderer owns the device. Fills the progress bar's
+ *  first half. False (after an error dialog) when there is nothing to export. */
+async function feedGeoms(title: string, mode: 'merged' | 'hierarchy', clip: Float32Array | null): Promise<boolean> {
   const r = getRenderer();
   if (!r) {
-    return null;
+    return false;
   }
   const indices = exportModelIndices(r);
   if (indices.length === 0) {
     dialogs.error('No models are loaded — nothing to export.', 'Export');
-    return null;
+    return false;
   }
-  const geoms: ExportGeom[] = [];
+  await db.beginExport(mode, { clip });
+  // read i+1 while the worker decodes i — the GPU readback and the decode are
+  // on different threads, so the two overlap for free
+  let next = prefetchGeom(r, indices, 0);
   for (let i = 0; i < indices.length; i++) {
     const fromDisk = residency.exportSource(indices[i]) !== null;
     dialogs.loading(
@@ -70,12 +87,14 @@ async function readGeoms(title: string): Promise<ExportGeom[] | null> {
       title,
       (0.5 * i) / indices.length,
     );
-    const g = await geomFor(r, indices[i]);
+    const g = await next;
+    next = prefetchGeom(r, indices, i + 1);
     if (g) {
-      geoms.push(g.geom);
+      const one = [g.geom];
+      await db.addExportGeoms(transfer(one, geomTransfers(one)));
     }
   }
-  return geoms;
+  return true;
 }
 
 /** The clip uniform to export against: a compact copy of the renderer's
@@ -127,17 +146,15 @@ export const exportActions = {
     residency.pause(); // no swap may land between listing a zone and reading it
     try {
       await clearDir(await exportTempDir());
-      const geoms = await readGeoms('Export GLB');
-      if (!geoms) {
+      if (!(await feedGeoms('Export GLB', mode, clipOption(r)))) {
         return;
       }
       dialogs.loading('Building the GLB (visibility, colors, transforms)…', 'Export GLB', 0.6);
       const { zUp, recenter } = exportState.get();
       const out = `export-${mode}.glb`;
-      const { tris, size } = await db.exportGlb(mode, transfer(geoms, geomTransfers(geoms)), {
+      const { tris, size } = await db.finishExportGlb({
         zUp,
         recenter,
-        clip: clipOption(r),
         opfsOut: `${TMP}/${out}`,
       });
       dialogs.loading('Starting the download…', 'Export GLB', 0.95);
@@ -149,6 +166,8 @@ export const exportActions = {
     } catch (e) {
       reportError(e);
     } finally {
+      // drops a half-built tree if the readback or the write threw
+      void db.abortExport();
       residency.resume();
       dialogs.hideLoading();
     }
@@ -195,6 +214,9 @@ export const exportActions = {
       let totalSize = 0;
       let written = 0;
       const N = indices.length;
+      // read model i+1 while i is being built and cooked: the readback is the
+      // renderer's, the build and cook are two other workers
+      let next = prefetchGeom(r, indices, 0);
       for (let i = 0; i < N; i++) {
         const label = `Model ${i + 1} of ${N} — ${metas[i].name}`;
         const fromDisk = residency.exportSource(indices[i]) !== null;
@@ -203,7 +225,8 @@ export const exportActions = {
           'Export TDP',
           i / N,
         );
-        const g = await geomFor(r, indices[i]);
+        const g = await next;
+        next = prefetchGeom(r, indices, i + 1);
         if (!g) {
           continue;
         }
@@ -270,16 +293,12 @@ export const exportActions = {
     residency.pause(); // no swap may land between listing a zone and reading it
     try {
       await clearDir(await exportTempDir());
-      const geoms = await readGeoms('Export IFC');
-      if (!geoms) {
+      if (!(await feedGeoms('Export IFC', mode, clipOption(r)))) {
         return;
       }
       dialogs.loading(`Building the IFC (triangulated, ${mode})…`, 'Export IFC', 0.6);
       const out = `export-${mode}.ifc`;
-      const { tris, size } = await db.exportIfc(mode, transfer(geoms, geomTransfers(geoms)), {
-        clip: clipOption(r),
-        opfsOut: `${TMP}/${out}`,
-      });
+      const { tris, size } = await db.finishExportIfc({ opfsOut: `${TMP}/${out}` });
       dialogs.loading('Starting the download…', 'Export IFC', 0.95);
       await downloadFromTemp(out);
       consoleActions.log(
@@ -289,6 +308,7 @@ export const exportActions = {
     } catch (e) {
       reportError(e);
     } finally {
+      void db.abortExport();
       residency.resume();
       dialogs.hideLoading();
     }

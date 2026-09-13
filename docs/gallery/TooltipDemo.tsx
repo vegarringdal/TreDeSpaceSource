@@ -11,7 +11,10 @@ export function TooltipDemo() {
           Attribute-driven: put <code className="text-slate-300">data-tooltip</code> on any element — no wrapper
           component, works in React and plain DOM alike. One document-level listener drives everything; call{' '}
           <code className="text-slate-300">initTooltips()</code> once at startup (this page does). Elements with{' '}
-          <code className="text-slate-300">data-shortcut</code> get a combo footer from the hotkeys registry.
+          <code className="text-slate-300">data-shortcut</code> get a combo footer from the hotkeys registry. The bubble
+          draws above every other floating layer, sits below its element and flips above when there is no room — except
+          inside a menu or listbox, where it moves beside the whole list so it never covers the entries you are about to
+          pick.
         </>
       }
       code={`initTooltips(); // once, at startup — returns a disposer

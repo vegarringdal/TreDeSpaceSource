@@ -1,9 +1,7 @@
-import { NumberInput } from '@treDeSpaceUI/widgets';
+import { Checkbox, NumberInput } from '@treDeSpaceUI/widgets';
 import { isMobileDevice } from '../../../../lib/render/device';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
-import { Row } from '../Row';
 import { SettingsSection } from '../SettingsSection';
 
 /** Rendering → Antialiasing: TAA accumulation, MSAA and pixel-ratio control. */
@@ -23,25 +21,25 @@ export function AntialiasingSection() {
         </>
       }
     >
-      <Check
+      <Checkbox
         label="AA fast (accumulation TAA)"
         checked={v.fastAA}
         shortcut="render.aaFast"
         onChange={(x) => act.update({ fastAA: x })}
       />
-      <Row label="AA samples">
-        <NumberInput
-          value={v.aaSamples}
-          min={4}
-          max={128}
-          step={4}
-          decShortcut="render.aaSamples.dec"
-          incShortcut="render.aaSamples.inc"
-          onChange={(x) => act.update({ aaSamples: x })}
-        />
-      </Row>
-      <Check label="MSAA 4x" checked={v.msaa4x} shortcut="render.msaa" onChange={(x) => act.update({ msaa4x: x })} />
-      <Check
+      <NumberInput
+        label="AA samples"
+        labelPosition="split"
+        value={v.aaSamples}
+        min={4}
+        max={128}
+        step={4}
+        decShortcut="render.aaSamples.dec"
+        incShortcut="render.aaSamples.inc"
+        onChange={(x) => act.update({ aaSamples: x })}
+      />
+      <Checkbox label="MSAA 4x" checked={v.msaa4x} shortcut="render.msaa" onChange={(x) => act.update({ msaa4x: x })} />
+      <Checkbox
         label={`Smart pixel ratio (this device: ${isMobileDevice() ? '1' : `native ${window.devicePixelRatio}`})`}
         checked={v.smartPixelRatio}
         shortcut="render.smartPixelRatio"
@@ -54,19 +52,19 @@ export function AntialiasingSection() {
           </>
         }
       />
-      <Row label="Pixel ratio">
-        <NumberInput
-          value={v.pixelRatio}
-          min={0.25}
-          max={4}
-          step={0.1}
-          disabled={v.smartPixelRatio || v.useDevicePixelRatio}
-          decShortcut="render.pixelRatio.dec"
-          incShortcut="render.pixelRatio.inc"
-          onChange={(x) => act.update({ pixelRatio: x })}
-        />
-      </Row>
-      <Check
+      <NumberInput
+        label="Pixel ratio"
+        labelPosition="split"
+        value={v.pixelRatio}
+        min={0.25}
+        max={4}
+        step={0.1}
+        disabled={v.smartPixelRatio || v.useDevicePixelRatio}
+        decShortcut="render.pixelRatio.dec"
+        incShortcut="render.pixelRatio.inc"
+        onChange={(x) => act.update({ pixelRatio: x })}
+      />
+      <Checkbox
         label={`Use device pixel ratio (${window.devicePixelRatio})`}
         checked={v.useDevicePixelRatio}
         disabled={v.smartPixelRatio}

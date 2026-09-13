@@ -437,10 +437,12 @@ pub struct ConvertResult {
 
 #[wasm_bindgen]
 impl ConvertResult {
-    /// The GLB bytes (a `Uint8Array` in JS).
+    /// The GLB bytes, **moved** out (a `Uint8Array` in JS): wasm-bindgen copies
+    /// the `Vec` across on its own, so cloning first held two. A second read
+    /// yields an empty array.
     #[wasm_bindgen(getter)]
-    pub fn glb(&self) -> Vec<u8> {
-        self.glb.clone()
+    pub fn glb(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.glb)
     }
     /// The JSON diagnostics report.
     #[wasm_bindgen(getter)]
@@ -500,14 +502,16 @@ pub struct CookedResult {
 
 #[wasm_bindgen]
 impl CookedResult {
+    /// The cooked bytes, **moved** out (see `ConvertResult::glb`).
     #[wasm_bindgen(getter)]
-    pub fn tdp(&self) -> Vec<u8> {
-        self.tdp.clone()
+    pub fn tdp(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.tdp)
     }
     /// The coarse `.tdp`, or `undefined` when not requested / not produced.
+    /// Moved out like `tdp`.
     #[wasm_bindgen(getter)]
-    pub fn coarse(&self) -> Option<Vec<u8>> {
-        self.coarse.clone()
+    pub fn coarse(&mut self) -> Option<Vec<u8>> {
+        self.coarse.take()
     }
     #[wasm_bindgen(getter)]
     pub fn info(&self) -> String {

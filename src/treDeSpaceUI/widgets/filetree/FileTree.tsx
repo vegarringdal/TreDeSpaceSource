@@ -6,9 +6,10 @@
 import { IconFile3d } from '@tabler/icons-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../../lib/cn';
-import { FileTreeMenu, type FileTreeMenuState } from './FileTreeMenu';
-import { FileTreeRow } from './FileTreeRow';
-import { dirPaths, type TreeDir, visibleRows } from './fileTreeModel';
+import { Menu, type MenuEntry } from '../menu/Menu';
+import { type TreeRowExtras, TreeView, type TreeViewRow } from '../tree/TreeView';
+import { dirPaths, type TreeDir, type TreeRow, visibleRows } from './fileTreeModel';
+import { toTreeRows } from './fileTreeRows';
 import { useFileTreeSelection } from './useFileTreeSelection';
 
 export type { TreeDir, TreeFile, TreeNode } from './fileTreeModel';
@@ -43,6 +44,8 @@ export interface FileTreeProps {
   /** Overrides the default max-h-64 scroll box (e.g. `min-h-0 flex-1` to fill). */
   className?: string;
 }
+
+type MenuState = { x: number; y: number; dirPath: string | null; section: boolean };
 
 /** Controlled tree: `selected` is a set of file paths owned by the parent.
  *  Optional extras: `onMove` enables dragging the selected files onto a folder
@@ -81,15 +84,20 @@ export function FileTree({
     }
   }, [expandAllSignal]);
   const [dropDir, setDropDir] = useState<string | null>(null);
-  const [menu, setMenu] = useState<FileTreeMenuState | null>(null);
+  const [menu, setMenu] = useState<MenuState | null>(null);
 
   /** Paths that travel in a drag: the whole selection when dragging a selected
    *  row, else just the dragged row. */
   const dragPaths = (path: string): string[] => (selected.has(path) ? [...selected] : [path]);
 
   const rows = useMemo(() => visibleRows(root, collapsed, expandAll), [root, collapsed, expandAll]);
+  const byKey = useMemo(() => new Map(rows.map((r) => [r.node.path || r.node.name, r])), [rows]);
   const visibleFiles = rows.filter((r) => r.node.kind === 'file').map((r) => r.node.path);
   const { click } = useFileTreeSelection(selected, onSelect, visibleFiles);
+  const treeRows = useMemo(
+    () => toTreeRows(rows, selected, collapsed, expandAll, fileIcon),
+    [rows, selected, collapsed, expandAll, fileIcon],
+  );
 
   const toggleExpand = (path: string) => {
     setCollapsed((c) => {
@@ -103,15 +111,82 @@ export function FileTree({
     });
   };
 
+  const nodeOf = (row: TreeViewRow): TreeRow | undefined => byKey.get(row.key);
+
+  /** Drag-and-drop and the data-dir markers the container's menu handler reads. */
+  const rowExtras = (row: TreeViewRow): TreeRowExtras | undefined => {
+    const r = nodeOf(row);
+    if (!r) {
+      return undefined;
+    }
+    const n = r.node;
+    const isSection = n.kind === 'dir' && n.variant === 'section';
+    return {
+      draggable: (onMove != null && n.kind === 'file') || (onMoveFolder != null && n.kind === 'dir' && !isSection),
+      className: cn(onMove && n.kind === 'dir' && dropDir === n.path && 'bg-blue-900 text-blue-100'),
+      data: { 'data-dir': n.kind === 'dir' ? n.path : undefined, 'data-section': isSection ? '1' : undefined },
+      onDragStart: (e) => {
+        if (n.kind === 'file') {
+          e.dataTransfer.setData('text/x-asset-paths', JSON.stringify(dragPaths(n.path)));
+        } else {
+          e.dataTransfer.setData('text/x-asset-dir', n.path);
+        }
+      },
+      onDragOver: (e) => {
+        if ((onMove || onMoveFolder) && n.kind === 'dir') {
+          e.preventDefault();
+          e.stopPropagation();
+          setDropDir(n.path);
+        }
+      },
+      onDrop: (e) => {
+        if (n.kind !== 'dir') {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        const paths = e.dataTransfer.getData('text/x-asset-paths');
+        const dir = e.dataTransfer.getData('text/x-asset-dir');
+        if (paths && onMove) {
+          onMove(JSON.parse(paths), n.path);
+        } else if (dir && onMoveFolder && dir !== n.path) {
+          onMoveFolder(dir, n.path);
+        }
+        setDropDir(null);
+      },
+    };
+  };
+
+  const menuItems = (m: MenuState): MenuEntry[] => {
+    const dir = m.dirPath;
+    const editable = dir != null && !m.section;
+    return [
+      {
+        id: 'add',
+        label: dir != null ? 'New folder inside…' : 'New folder…',
+        onSelect: () => onAddFolder?.(dir),
+      },
+      editable &&
+        onRenameFolder != null && { id: 'rename', label: 'Rename folder…', onSelect: () => onRenameFolder(dir) },
+      editable &&
+        onDeleteFolder != null && {
+          id: 'delete',
+          label: 'Delete folder…',
+          danger: true,
+          onSelect: () => onDeleteFolder(dir),
+        },
+    ];
+  };
+
   return (
     <div
-      className={cn('relative select-none overflow-y-auto border border-slate-800', className ?? 'max-h-64')}
+      className={cn('relative flex select-none flex-col border border-slate-800', className ?? 'max-h-64')}
       onContextMenu={(e) => {
         if (!onAddFolder) {
           return;
         }
         e.preventDefault();
-        const rowEl = (e.target as HTMLElement).closest('[data-dir]');
+        const rowEl = e.target instanceof HTMLElement ? e.target.closest('[data-dir]') : null;
         setMenu({
           x: e.clientX,
           y: e.clientY,
@@ -139,34 +214,22 @@ export function FileTree({
       onDragLeave={() => setDropDir(null)}
     >
       {menu && onAddFolder && (
-        <FileTreeMenu
-          menu={menu}
-          onClose={() => setMenu(null)}
-          onAddFolder={onAddFolder}
-          onRenameFolder={onRenameFolder}
-          onDeleteFolder={onDeleteFolder}
-        />
+        <Menu anchor={menu} items={menuItems(menu)} minWidth={144} onClose={() => setMenu(null)} />
       )}
-      {rows.map((r) => (
-        <FileTreeRow
-          key={r.node.path || r.node.name}
-          r={r}
-          selected={selected}
-          collapsed={collapsed}
-          dropDir={dropDir}
-          setDropDir={setDropDir}
-          toggleExpand={toggleExpand}
-          onRowClick={(row, e) => {
-            setMenu(null);
-            click(row, e);
-          }}
-          dragPaths={dragPaths}
-          onMove={onMove}
-          onMoveFolder={onMoveFolder}
-          fileIcon={fileIcon}
-        />
-      ))}
-      {rows.length === 0 && <p className="mt-3.5 mb-0 p-2 text-slate-400 text-xs">{emptyText}</p>}
+      <TreeView
+        rows={treeRows}
+        className="min-h-0 flex-1"
+        emptyText={emptyText}
+        rowProps={rowExtras}
+        onToggle={(row) => toggleExpand(row.key)}
+        onRowClick={(row, e) => {
+          setMenu(null);
+          const r = nodeOf(row);
+          if (r) {
+            click(r, e);
+          }
+        }}
+      />
     </div>
   );
 }

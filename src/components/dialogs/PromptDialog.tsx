@@ -7,5 +7,8 @@ export function PromptDialog() {
   if (!prompt) {
     return null;
   }
-  return <PromptDialogCore {...prompt} onChange={dialogs.setPromptValue} onResult={dialogs.resolvePrompt} />;
+
+  // keyed by the ask, so the next queued prompt remounts and takes focus
+  const { seq, ...props } = prompt;
+  return <PromptDialogCore key={seq} {...props} onChange={dialogs.setPromptValue} onResult={dialogs.resolvePrompt} />;
 }

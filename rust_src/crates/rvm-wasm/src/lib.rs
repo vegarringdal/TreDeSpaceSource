@@ -273,9 +273,11 @@ impl ConvertResult {
     pub fn name(&self, i: usize) -> Option<String> {
         self.files.get(i).map(|f| f.0.clone())
     }
-    /// Bytes of file `i`.
-    pub fn bytes(&self, i: usize) -> Option<Vec<u8>> {
-        self.files.get(i).map(|f| f.1.clone())
+    /// Bytes of file `i`, **moved** out (wasm-bindgen copies the `Vec` into a
+    /// JS `Uint8Array` anyway, so cloning first held two copies). Reading the
+    /// same index twice yields an empty array.
+    pub fn bytes(&mut self, i: usize) -> Option<Vec<u8>> {
+        self.files.get_mut(i).map(|f| std::mem::take(&mut f.1))
     }
     /// Small JSON summary (`{"files":N,"warnings":M}`).
     #[wasm_bindgen(getter)]

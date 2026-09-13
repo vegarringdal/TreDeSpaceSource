@@ -13,6 +13,10 @@ export interface TextAreaProps extends LabelledProps {
   resizable?: boolean;
   /** Lower bound for the field height in px — also the floor while resizing. */
   minHeight?: number;
+  /** Styled tooltip (data-tooltip). */
+  tooltip?: string;
+  /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
+  shortcut?: string;
   /** Show the in-field clear (✕) button (default true). */
   clearable?: boolean;
   /** What ✕ does. Default clears the content; provide this to override. */
@@ -30,6 +34,8 @@ export function TextArea({
   spellCheck = false,
   resizable = true,
   minHeight,
+  tooltip,
+  shortcut,
   clearable = true,
   onClear,
   disabled = false,
@@ -39,7 +45,7 @@ export function TextArea({
 
   return (
     <Labelled {...labelled} disabled={disabled} multiline>
-      <div className="relative">
+      <div className="relative" data-tooltip={tooltip} data-shortcut={shortcut}>
         <textarea
           value={value}
           placeholder={placeholder}

@@ -1,5 +1,5 @@
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { Collapsible } from '@treDeSpaceUI/widgets';
+import { Collapsible, EmptyState } from '@treDeSpaceUI/widgets';
 import { clipShapesState, MAX_CLIP_SHAPES } from '../../../state/viewer/clipShapes.state';
 import { ClipShapesCommonSection } from './ClipShapesCommonSection';
 import { ShapeRow } from './ShapeRow';
@@ -26,9 +26,9 @@ export function ClipShapes() {
         }
       >
         {shapes.length === 0 ? (
-          <p className="note px-1 py-4 text-center text-slate-500">
+          <EmptyState layout="center">
             No clip shapes yet — add one in Common ({shapes.length}/{MAX_CLIP_SHAPES}).
-          </p>
+          </EmptyState>
         ) : (
           <div className="flex flex-col gap-2">
             {shapes.map((s) => (

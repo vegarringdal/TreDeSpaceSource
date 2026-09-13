@@ -35,7 +35,7 @@ import {
   originAllowed,
   registerCommandList,
 } from './transport';
-import { answerCommand, classifyInbound, replyOrigin, resultEnvelope } from './wire';
+import { answerCommand, classifyInbound, replyOrigin, resultEnvelope, transfersOf } from './wire';
 
 export { registerKiosk, registerPanelControl } from './registry';
 export { allowApiOrigins, emitApiEvent, markApiReady };
@@ -128,6 +128,62 @@ async function requestOriginConsent(origins: string[]) {
   announceReady();
 }
 
+/**
+ * Per-client command queue. Commands from ONE window run in the ORDER THEY
+ * ARRIVED — a host can fire `selection.set` then `view.screenshot` without
+ * awaiting the first and still get the selection in the shot. Without this
+ * every message dispatched on its own, so a fast command could overtake a
+ * slower one sent before it. Different clients stay fully concurrent.
+ *
+ * A command with `parallel: true` skips the queue: that is the escape hatch
+ * for a read a host wants answered WHILE a long import or query runs.
+ */
+const commandQueues = new WeakMap<Window, Promise<unknown>>();
+
+/**
+ * In-flight commands per client, so `command.cancel` can abort one by its id
+ * (and a client going away aborts everything it started). The signal reaches
+ * the handlers that can honour it — the ones that download or loop over a
+ * batch; a command already inside a synchronous wasm call cannot be stopped,
+ * it just answers `cancelled` instead of a result nobody is listening for.
+ */
+const inFlight = new WeakMap<Window, Map<string, AbortController>>();
+
+function beginInFlight(source: Window, id: string): AbortController {
+  const ctl = new AbortController();
+  let forWindow = inFlight.get(source);
+  if (!forWindow) {
+    forWindow = new Map();
+    inFlight.set(source, forWindow);
+  }
+  forWindow.set(id, ctl);
+  return ctl;
+}
+
+function endInFlight(source: Window, id: string): void {
+  inFlight.get(source)?.delete(id);
+}
+
+/** The client is gone — stop whatever it started rather than let a download
+ *  run on for a page that will never read the answer. */
+function cancelAllFor(source: Window): void {
+  for (const ctl of inFlight.get(source)?.values() ?? []) {
+    ctl.abort();
+  }
+  inFlight.delete(source);
+}
+
+function runQueued<T>(source: Window, run: () => Promise<T>): Promise<T> {
+  // answerCommand never rejects, but chain defensively so one command can
+  // never wedge a client's queue
+  const next = (commandQueues.get(source) ?? Promise.resolve()).then(run, run);
+  commandQueues.set(
+    source,
+    next.catch(() => {}),
+  );
+  return next;
+}
+
 async function onMessage(e: MessageEvent) {
   const source = e.source as Window | null;
   const inbound = classifyInbound(e.data, originAllowed(e.origin), source !== null);
@@ -145,14 +201,48 @@ async function onMessage(e: MessageEvent) {
     return;
   }
   if (inbound.kind === 'bye') {
+    cancelAllFor(source);
     dropClient(source);
     return;
   }
-  const answer = await answerCommand(inbound, isApiReady(), (type, p, bytes) => dispatch(type, p, bytes, source));
-  source.postMessage(resultEnvelope(inbound.id, inbound.type, answer), replyOrigin(e.origin));
+  if (inbound.kind === 'cancel') {
+    // only the window that issued the command can cancel it
+    inFlight.get(source)?.get(inbound.cancelId)?.abort();
+    return;
+  }
+  const cmd = inbound;
+  const ctl = beginInFlight(source, cmd.id);
+  const answerNow = () =>
+    answerCommand(cmd, isApiReady(), (type, p, bytes) => dispatch(type, p, bytes, source, ctl.signal), ctl.signal);
+  let answer: Awaited<ReturnType<typeof answerCommand>>;
+  try {
+    answer = cmd.payload.parallel === true ? await answerNow() : await runQueued(source, answerNow);
+  } finally {
+    endInFlight(source, cmd.id);
+  }
+  const envelope = resultEnvelope(inbound.id, inbound.type, answer);
+  const origin = replyOrigin(e.origin);
+  const transfer = transfersOf(answer);
+  if (transfer.length === 0) {
+    source.postMessage(envelope, origin);
+    return;
+  }
+  try {
+    source.postMessage(envelope, origin, transfer);
+  } catch {
+    // a buffer that cannot be transferred (already detached, or a host whose
+    // engine refuses it) must not cost the caller its reply — send a copy
+    source.postMessage(envelope, origin);
+  }
 }
 
-async function dispatch(type: string, p: Record<string, unknown>, bytes: unknown, source?: Window): Promise<unknown> {
+async function dispatch(
+  type: string,
+  p: Record<string, unknown>,
+  bytes: unknown,
+  source?: Window,
+  signal?: AbortSignal,
+): Promise<unknown> {
   // asset commands need the OPFS index, which the Model Assets panel normally
   // reads on first mount — load it here so the API works before any panel open
   // (init is idempotent: it no-ops once the state is ready)
@@ -176,7 +266,7 @@ async function dispatch(type: string, p: Record<string, unknown>, bytes: unknown
     noteBatchOwner(batchId, source);
   }
   try {
-    return await handler({ type, p, bytes, source });
+    return await handler({ type, p, bytes, source, signal });
   } finally {
     if (batchId) {
       forgetBatchOwner(batchId);

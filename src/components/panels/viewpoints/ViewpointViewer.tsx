@@ -5,13 +5,13 @@ import { IconMapPinOff, IconRulerOff, IconUpload } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
 import { cn } from '@treDeSpaceUI/lib/cn';
 import { Button, InfoBox, readFileText, useFilePicker } from '@treDeSpaceUI/widgets';
-import { richTextHtml } from '../../../lib/richText';
 import { labelsActions } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
 import { measurementsActions } from '../../../state/viewer/measurements.actions';
 import { measurementsState } from '../../../state/viewer/measurements.state';
 import { viewpointsActions as act } from '../../../state/viewer/viewpoints.actions';
 import { viewpointsState } from '../../../state/viewer/viewpoints.state';
+import { RichText } from '../../shared/RichText';
 
 /** Minimal viewpoint list for reviewing/presenting — no editing. */
 export function ViewpointViewer() {
@@ -68,11 +68,10 @@ export function ViewpointViewer() {
             {vp.name}
           </button>
           {s.activeId === vp.id && vp.description.trim().length > 0 && (
-            <div
+            <RichText
+              block
+              text={vp.description}
               className="border border-slate-800 border-t-0 bg-slate-950/50 p-2 text-slate-300 text-xs leading-relaxed"
-              // richTextHtml HTML-escapes before adding <b>/<br> — no injection
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: escaped by richTextHtml
-              dangerouslySetInnerHTML={{ __html: richTextHtml(vp.description) }}
             />
           )}
         </div>

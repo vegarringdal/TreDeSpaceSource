@@ -1,5 +1,4 @@
 import { NumberInput } from '@treDeSpaceUI/widgets';
-import { Row } from '../Row';
 
 type ThresholdField = {
   value: number;
@@ -21,40 +20,40 @@ export function EdgeTuning({
 }) {
   return (
     <>
-      <Row label="Fade">
-        <NumberInput
-          value={fade.value}
-          min={0}
-          max={2}
-          step={0.05}
-          decShortcut={fade.decShortcut}
-          incShortcut={fade.incShortcut}
-          onChange={fade.onChange}
-        />
-      </Row>
-      <Row label="Depth thr.">
-        <NumberInput
-          value={depth.value}
-          min={0}
-          max={0.2}
-          step={0.005}
-          precision={3}
-          decShortcut={depth.decShortcut}
-          incShortcut={depth.incShortcut}
-          onChange={depth.onChange}
-        />
-      </Row>
-      <Row label="Normal thr.">
-        <NumberInput
-          value={normal.value}
-          min={0}
-          max={1}
-          step={0.05}
-          decShortcut={normal.decShortcut}
-          incShortcut={normal.incShortcut}
-          onChange={normal.onChange}
-        />
-      </Row>
+      <NumberInput
+        label="Fade"
+        labelPosition="split"
+        value={fade.value}
+        min={0}
+        max={2}
+        step={0.05}
+        decShortcut={fade.decShortcut}
+        incShortcut={fade.incShortcut}
+        onChange={fade.onChange}
+      />
+      <NumberInput
+        label="Depth thr."
+        labelPosition="split"
+        value={depth.value}
+        min={0}
+        max={0.2}
+        step={0.005}
+        precision={3}
+        decShortcut={depth.decShortcut}
+        incShortcut={depth.incShortcut}
+        onChange={depth.onChange}
+      />
+      <NumberInput
+        label="Normal thr."
+        labelPosition="split"
+        value={normal.value}
+        min={0}
+        max={1}
+        step={0.05}
+        decShortcut={normal.decShortcut}
+        incShortcut={normal.incShortcut}
+        onChange={normal.onChange}
+      />
     </>
   );
 }

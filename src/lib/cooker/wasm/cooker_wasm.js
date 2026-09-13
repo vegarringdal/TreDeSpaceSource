@@ -28,6 +28,9 @@ export class CookResult {
         return v1;
     }
     /**
+     * The cooked bytes, **moved** out of wasm memory: wasm-bindgen already
+     * copies the `Vec` into a JS `Uint8Array`, so cloning it first meant two
+     * copies of a whole model. Reading it a second time yields an empty array.
      * @returns {Uint8Array}
      */
     get bytes() {
@@ -37,7 +40,8 @@ export class CookResult {
         return v1;
     }
     /**
-     * The coarse variant — present only when the cook asked for one.
+     * The coarse variant — present only when the cook asked for one. Moved
+     * out like {@link CookResult::bytes}: a second read yields `undefined`.
      * @returns {Uint8Array | undefined}
      */
     get coarse() {

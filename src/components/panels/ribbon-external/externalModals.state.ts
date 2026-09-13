@@ -2,7 +2,9 @@
 // dialog"): which app iframes are open, plus their initial size parsed from
 // the app's config JSON: {"width": "600px", "height": "60%"} — px or % (of
 // the viewport), a number means px; default 70% × 70%.
+
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { dropClientsForDialog } from '../../../lib/messageApi/clients';
 import { externalAppIframePolicy, type IframePolicy } from '../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
 import { beginHeldClose, clearCloseHold } from '../../../state/externalCloseHold';
@@ -131,6 +133,9 @@ export function closeExternalModal(key: string, opts: { remove?: boolean } = {})
 }
 
 function removeExternalModal(key: string) {
+  // the dialog's iframe is going: forget its API client now — a removed iframe
+  // never reports `closed`, so the registry's prune would never catch it
+  dropClientsForDialog(key);
   externalModalsState.set((s) => ({ open: s.open.filter((m) => m.key !== key) }));
   clearCloseHold(key);
 }

@@ -1,15 +1,15 @@
 import { IconDownload, IconEraser, IconPlayerPlay, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { Button, Collapsible, readFileText, Select, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, readFileText, Select, type SelectOption, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
+import type { ColorRulesMode } from './multiColor.state';
 import { MultiColorCtx, MultiColorProvider } from './multiColorContext';
 import { RuleEditor } from './RuleEditor';
-import { Tip } from './Tip';
 
 export { MultiColorProvider };
 
-const MODE_OPTIONS = [
+const MODE_OPTIONS: readonly SelectOption<ColorRulesMode>[] = [
   { value: 'reset', label: 'Reset model' },
   { value: 'append', label: 'Append only' },
   { value: 'hide', label: 'Hide model' },
@@ -38,16 +38,17 @@ export function MultiColor() {
           }
         >
           <div className="flex items-center gap-1.5">
-            <Tip
+            <Select
               className="min-w-0 flex-1"
-              tip="Reset model clears every existing color/opacity override before the rules run; Append only layers the rules on top of what is already colored; Hide model hides EVERYTHING first — the rules unhide and color only what they match"
-            >
-              <Select
-                options={MODE_OPTIONS}
-                value={s.mode}
-                onChange={(v) => act.setMode(v as 'reset' | 'append' | 'hide')}
-              />
-            </Tip>
+              tooltip="Reset model clears every existing color/opacity override before the rules run; Append only layers the rules on top of what is already colored; Hide model hides EVERYTHING first — the rules unhide and color only what they match"
+              options={MODE_OPTIONS}
+              value={s.mode}
+              onChange={(mode) => {
+                if (mode) {
+                  act.setMode(mode);
+                }
+              }}
+            />
             <Button
               icon={<IconPlus size={14} />}
               tooltip="Add a new rule to the end of the sequence"

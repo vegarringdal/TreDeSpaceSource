@@ -1,10 +1,16 @@
-import { Button, RadioGroup } from '@treDeSpaceUI/widgets';
+import { Button, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
 import { useEffect, useState } from 'react';
 import { adapterLabel, probeAdapters } from '../../../../lib/render/gpuProbe';
 import { getRenderer } from '../../../../state/viewer/viewer.actions';
 import { SettingsSection } from '../SettingsSection';
 import { settingsActions } from '../settings.actions';
 import { bootGpu, type SettingsState, settingsState } from '../settings.state';
+
+const GPU_HINTS: readonly RadioOption<SettingsState['gpu']>[] = [
+  { value: 'high-performance', label: 'High performance' },
+  { value: 'low-power', label: 'Low power' },
+  { value: 'fallback', label: 'Software fallback' },
+];
 
 /** Which physical GPU each adapter hint resolves to on this machine, as
  *  radio hints (WebGPU can't list GPUs — see gpuProbe.ts). */
@@ -48,13 +54,9 @@ export function GpuTab() {
       }
     >
       <RadioGroup
-        options={[
-          { value: 'high-performance', label: 'High performance', hint: gpus['high-performance'] ?? '…' },
-          { value: 'low-power', label: 'Low power', hint: gpus['low-power'] ?? '…' },
-          { value: 'fallback', label: 'Software fallback', hint: gpus.fallback ?? '…' },
-        ]}
+        options={GPU_HINTS.map((o) => ({ ...o, hint: gpus[o.value] ?? '…' }))}
         value={s.gpu}
-        onChange={(x) => settingsActions.setGpu(x as SettingsState['gpu'])}
+        onChange={settingsActions.setGpu}
       />
       <div className="mt-1 flex gap-2">
         <Button

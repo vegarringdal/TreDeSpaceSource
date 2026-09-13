@@ -1,6 +1,6 @@
+import { Checkbox, InfoBox } from '@treDeSpaceUI/widgets';
 import { getRenderer, viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
 import { SettingsSection } from '../SettingsSection';
 import { StatsReadout } from './StatsReadout';
 
@@ -22,14 +22,14 @@ export function StatsTab() {
       }
     >
       <StatsReadout />
-      <Check
+      <Checkbox
         label="Show overlay in viewport"
         tooltip="Draw the stats list in the viewport corner; turning it on also turns on GPU pass timing. Untick rows above to leave them out of the overlay"
         shortcut="stats.overlay"
         checked={v.showStats}
         onChange={(x) => act.update(x ? { showStats: true, gpuTimings: true } : { showStats: false })}
       />
-      <Check
+      <Checkbox
         label="Dimmed background behind overlay"
         tooltip="Paint a dark translucent box behind the overlay text so it stays readable over bright models"
         shortcut="stats.backdrop"
@@ -37,18 +37,16 @@ export function StatsTab() {
         disabled={!v.showStats}
         onChange={(x) => act.update({ statsBackdrop: x })}
       />
-      <Check
+      <Checkbox
         label="Measure GPU pass times (timestamp query)"
         checked={v.gpuTimings}
         shortcut="stats.gpuTimings"
         onChange={(x) => act.update({ gpuTimings: x })}
       />
       {v.gpuTimings && getRenderer() && !getRenderer()?.gpuTimingSupported && (
-        <div className="text-amber-400 text-xs">
-          timestamp-query is not supported by this adapter — GPU times unavailable.
-        </div>
+        <InfoBox>timestamp-query is not supported by this adapter — GPU times unavailable.</InfoBox>
       )}
-      <Check
+      <Checkbox
         label="Verbose trace (phase timings → Console)"
         tooltip="Log per-phase performance timings for heavy operations (e.g. Set Color) to the Console — dev diagnostic"
         shortcut="stats.trace"

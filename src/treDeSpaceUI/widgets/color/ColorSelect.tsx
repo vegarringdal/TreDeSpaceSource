@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '../../lib/cn';
+import { Labelled, type LabelledProps } from '../fieldChrome';
 import { ColorSelectPopover } from './ColorSelectPopover';
 import { type HSV, hexToRgb, hsvToRgb, isHex, rgbToHex, rgbToHsv } from './colorConversions';
 import { getSwatches, subscribeSwatches } from './colorSelectSwatches';
@@ -11,13 +13,15 @@ export {
   setColorSelectSwatchesStore,
 } from './colorSelectSwatches';
 
-export interface ColorSelectProps {
+export interface ColorSelectProps extends LabelledProps {
   value: string;
   onChange: (color: string) => void;
   /** Quick-pick row at the bottom of the popover. */
   swatches?: string[];
-  disabled?: boolean;
-  className?: string;
+  /** Styled tooltip (data-tooltip). */
+  tooltip?: string;
+  /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
+  shortcut?: string;
   /** Fill the parent height exactly (ribbon slots) instead of the h-6 floor. */
   flush?: boolean;
 }
@@ -31,9 +35,12 @@ export function ColorSelect({
   value,
   onChange,
   swatches,
+  tooltip,
+  shortcut,
   disabled = false,
   className = '',
   flush = false,
+  ...labelled
 }: ColorSelectProps) {
   // default swatch grid comes from the injected store, if any (in this app:
   // user-editable via Settings → Editor)
@@ -65,42 +72,49 @@ export function ColorSelect({
   };
 
   return (
-    <div ref={rootRef} className={`relative text-xs ${className}`}>
-      <button
-        type="button"
-        disabled={disabled}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className={`flex h-full ${flush ? '' : 'min-h-6'} w-full cursor-pointer items-center gap-2 border px-2 py-0 text-left text-slate-200 ${
-          open ? 'border-blue-400 bg-slate-900' : 'border-slate-700 bg-slate-900 hover:border-slate-600'
-        } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="h-3.5 w-6 shrink-0 border border-black/40" style={{ background: value }} />
-        <span className="flex-1 truncate font-mono">{value}</span>
-        <svg
-          viewBox="0 0 8 8"
-          className={`h-2 w-2 shrink-0 fill-slate-500 transition-transform ${open ? 'rotate-180' : ''}`}
+    <Labelled {...labelled} disabled={disabled} className={className}>
+      <div ref={rootRef} className={cn('relative text-xs', flush && 'h-full')}>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          data-tooltip={tooltip}
+          data-shortcut={shortcut}
+          className={cn(
+            'flex h-full w-full cursor-pointer items-center gap-2 border px-2 py-0 text-left text-slate-200',
+            !flush && 'min-h-6',
+            open ? 'border-blue-400 bg-slate-900' : 'border-slate-700 bg-slate-900 hover:border-slate-600',
+            disabled && 'cursor-not-allowed opacity-50',
+          )}
+          onClick={() => setOpen((o) => !o)}
         >
-          <path d="M0 2l4 4 4-4z" />
-        </svg>
-      </button>
+          <span className="h-3.5 w-6 shrink-0 border border-black/40" style={{ background: value }} />
+          <span className="flex-1 truncate font-mono">{value}</span>
+          <svg
+            viewBox="0 0 8 8"
+            className={cn('h-2 w-2 shrink-0 fill-slate-500 transition-transform', open && 'rotate-180')}
+          >
+            <path d="M0 2l4 4 4-4z" />
+          </svg>
+        </button>
 
-      {open &&
-        createPortal(
-          <ColorSelectPopover
-            hsv={hsv}
-            rgb={rgb}
-            hex={hex}
-            apply={apply}
-            quickSwatches={quickSwatches}
-            pos={pos}
-            popRef={popRef}
-            svRef={svRef}
-            hueRef={hueRef}
-          />,
-          document.body,
-        )}
-    </div>
+        {open &&
+          createPortal(
+            <ColorSelectPopover
+              hsv={hsv}
+              rgb={rgb}
+              hex={hex}
+              apply={apply}
+              quickSwatches={quickSwatches}
+              pos={pos}
+              popRef={popRef}
+              svRef={svRef}
+              hueRef={hueRef}
+            />,
+            document.body,
+          )}
+      </div>
+    </Labelled>
   );
 }

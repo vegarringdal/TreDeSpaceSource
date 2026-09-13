@@ -16,10 +16,3 @@ export async function fitTarget(): Promise<{ mn: V3; mx: V3 } | null> {
 
   return null;
 }
-
-/** Copy `v` with one axis replaced. */
-export function setAxis(v: V3, ax: 0 | 1 | 2, x: number): V3 {
-  const out: V3 = [...v];
-  out[ax] = x;
-  return out;
-}

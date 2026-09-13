@@ -1,18 +1,9 @@
 import { IconUpload } from '@tabler/icons-react';
-import { Button, FileTree, Select, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, FileTree, Select, TextInput } from '@treDeSpaceUI/widgets';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
 import { storesState } from '../../../state/stores/stores.state';
 import type { StagedImport } from './useStagedImport';
-
-/** External link, styled for info-popover prose. */
-export function ExtLink({ href, children }: { href: string; children: string }) {
-  return (
-    <a href={href} target="_blank" rel="noreferrer" className="text-blue-400 underline hover:text-blue-300">
-      {children}
-    </a>
-  );
-}
 
 /** True when the import target is decided: temp imports need no store; a KEPT
  *  import requires an explicit store pick (no silent default to main). */
@@ -31,47 +22,38 @@ export function ImportOptionsRows() {
 
   return (
     <>
-      <label
-        className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
-        data-shortcut="assets.importTemp"
-        data-tooltip="Session-only import for temp files: always loaded into the viewer, not kept — purged from the store on the next app start"
-      >
-        <input type="checkbox" checked={importTemp} onChange={(e) => act.setImportTemp(e.target.checked)} />
-        Temp import (don’t keep in store)
-      </label>
-      <label
-        className={`flex items-center gap-2 text-xs ${importTemp ? 'text-slate-500' : 'cursor-pointer text-slate-300'}`}
-        data-shortcut="assets.loadAfterImport"
-        data-tooltip="Load whatever the import produced into the viewer as soon as it finishes — always on for temp imports"
-      >
-        <input
-          type="checkbox"
-          checked={importTemp || loadAfterImport}
-          disabled={importTemp}
-          onChange={(e) => act.setLoadAfterImport(e.target.checked)}
-        />
-        Load after import
-      </label>
-      <label
-        className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
-        data-shortcut="assets.keepCamera"
-        data-tooltip="Don’t move the camera when the imported models load — keep the current view instead of framing them"
-      >
-        <input type="checkbox" checked={keepCamera} onChange={(e) => act.setKeepCamera(e.target.checked)} />
-        Keep camera
-      </label>
-      <label className="flex items-center gap-2 text-slate-400 text-xs">
-        <span className="w-14 shrink-0">Store</span>
-        <div className="min-w-0 flex-1">
-          <Select
-            value={importTemp ? '' : importStore}
-            placeholder="Select store"
-            disabled={importTemp}
-            options={stores.map((s) => ({ value: s.name, label: s.name }))}
-            onChange={(v) => act.setImportStore(v ?? '')}
-          />
-        </div>
-      </label>
+      <Checkbox
+        label="Temp import (don’t keep in store)"
+        checked={importTemp}
+        onChange={act.setImportTemp}
+        shortcut="assets.importTemp"
+        tooltip="Session-only import for temp files: always loaded into the viewer, not kept — purged from the store on the next app start"
+      />
+      <Checkbox
+        label="Load after import"
+        checked={importTemp || loadAfterImport}
+        disabled={importTemp}
+        onChange={act.setLoadAfterImport}
+        shortcut="assets.loadAfterImport"
+        tooltip="Load whatever the import produced into the viewer as soon as it finishes — always on for temp imports"
+      />
+      <Checkbox
+        label="Keep camera"
+        checked={keepCamera}
+        onChange={act.setKeepCamera}
+        shortcut="assets.keepCamera"
+        tooltip="Don’t move the camera when the imported models load — keep the current view instead of framing them"
+      />
+      <Select
+        label="Store"
+        labelPosition="left"
+        labelWidth={56}
+        value={importTemp ? '' : importStore}
+        placeholder="Select store"
+        disabled={importTemp}
+        options={stores.map((s) => ({ value: s.name, label: s.name }))}
+        onChange={(v) => act.setImportStore(v ?? '')}
+      />
     </>
   );
 }
@@ -80,21 +62,31 @@ export function ImportOptionsRows() {
 export function FolderField({
   value,
   onChange,
-  labelWidth = 'w-14',
+  labelWidth = 56,
   disabled = false,
   placeholder = '(none)',
+  tooltip,
 }: {
   value: string;
   onChange: (v: string) => void;
-  labelWidth?: string;
+  /** Label column width in px — share one value across an option form. */
+  labelWidth?: number;
   disabled?: boolean;
   placeholder?: string;
+  /** Styled tooltip on the row (e.g. why the field is disabled). */
+  tooltip?: string;
 }) {
   return (
-    <label className="flex items-center gap-2 text-slate-400 text-xs">
-      <span className={`${labelWidth} shrink-0`}>Folder</span>
-      <TextInput value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} />
-    </label>
+    <TextInput
+      label="Folder"
+      labelPosition="left"
+      labelWidth={labelWidth}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      disabled={disabled}
+      tooltip={tooltip}
+    />
   );
 }
 
@@ -103,7 +95,8 @@ export function StagingSelectButtons({ si }: { si: StagedImport }) {
   return (
     <>
       <Button
-        className="h-auto min-h-6 flex-1 py-1 leading-tight"
+        wrap
+        grow
         onClick={() => si.setTreeSel(new Set(si.allPaths()))}
         tooltip="Select every staged file"
         shortcut="assets.staging.selectAll"
@@ -111,7 +104,8 @@ export function StagingSelectButtons({ si }: { si: StagedImport }) {
         Select all
       </Button>
       <Button
-        className="h-auto min-h-6 flex-1 py-1 leading-tight"
+        wrap
+        grow
         disabled={si.treeSel.size === 0}
         onClick={() => si.setTreeSel(new Set())}
         tooltip="Clear the staging selection"

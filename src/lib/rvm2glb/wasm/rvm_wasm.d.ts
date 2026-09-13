@@ -9,7 +9,9 @@ export class ConvertResult {
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * Bytes of file `i`.
+     * Bytes of file `i`, **moved** out (wasm-bindgen copies the `Vec` into a
+     * JS `Uint8Array` anyway, so cloning first held two copies). Reading the
+     * same index twice yields an empty array.
      */
     bytes(i: number): Uint8Array | undefined;
     /**
@@ -86,6 +88,9 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly _ZdaPv: (a: number) => void;
+    readonly _ZdaPvm: (a: number, b: number) => void;
+    readonly _Znam: (a: number) => number;
     readonly __wbg_convertresult_free: (a: number, b: number) => void;
     readonly __wbg_get_options_align_segments: (a: number) => number;
     readonly __wbg_get_options_cleanup_position: (a: number) => number;
@@ -126,6 +131,9 @@ export interface InitOutput {
     readonly options_new: () => number;
     readonly version: () => [number, number];
     readonly start: () => void;
+    readonly _ZdlPv: (a: number) => void;
+    readonly _Znwm: (a: number) => number;
+    readonly _ZdlPvm: (a: number, b: number) => void;
     readonly meshopt_wasm_alloc: (a: number) => number;
     readonly meshopt_wasm_free: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;

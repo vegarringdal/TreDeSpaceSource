@@ -130,7 +130,47 @@ export interface ExportDecodeOpts {
   clip?: Float32Array | null;
 }
 
+/** An export being assembled one model at a time. The tree accumulates here in
+ *  the worker so the MAIN thread only ever holds the packed geometry of the
+ *  model it is currently reading back — not every model's at once. */
+interface ExportSession {
+  mode: 'merged' | 'hierarchy';
+  clip: Float32Array | null;
+  roots: ExportNode[];
+  tris: number;
+}
+
+let session: ExportSession | null = null;
+
+function activeSession(): ExportSession {
+  if (!session) {
+    throw new Error('no export in progress — call beginExport first');
+  }
+  return session;
+}
+
 export const exportApi = {
+  /** Start assembling an export. Every `addExportGeoms` call decodes into the
+   *  same tree; one `finishExport*` writes it and clears the session. */
+  beginExport(mode: 'merged' | 'hierarchy', opts: ExportDecodeOpts = {}): void {
+    session = { mode, clip: opts.clip ?? null, roots: [], tris: 0 };
+  },
+
+  /** Decode one model's geometry (transferred in, released here) into the
+   *  session's tree. Returns the running triangle total. */
+  async addExportGeoms(geoms: ExportGeom[]): Promise<number> {
+    const s = activeSession();
+    const { roots, tris } = await exportApi.decodeExportTree(s.mode, geoms, { clip: s.clip });
+    s.roots.push(...roots);
+    s.tris += tris;
+    return s.tris;
+  },
+
+  /** Drop a session without writing anything (an error or a cancel). */
+  abortExport(): void {
+    session = null;
+  },
+
   /** Decode packed geometry (pack.ts layouts; read back from the GPU, or the
    *  full cook from disk) into an export node tree — visibility, color/opacity
    *  overrides, committed transforms and (optionally) the clip volume applied.
@@ -491,7 +531,18 @@ export const exportApi = {
     geoms: ExportGeom[],
     opts: { zUp?: boolean; bareRoot?: boolean; recenter?: boolean; opfsOut?: string } & ExportDecodeOpts = {},
   ): Promise<{ glb: ArrayBuffer | null; tris: number; size: number }> {
-    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms, { clip: opts.clip });
+    exportApi.beginExport(mode, { clip: opts.clip });
+    await exportApi.addExportGeoms(geoms);
+    return await exportApi.finishExportGlb(opts);
+  },
+
+  /** Write the session's tree as a GLB. See {@link exportApi.exportGlb} for
+   *  the options; `opfsOut` streams it straight into OPFS from this worker. */
+  async finishExportGlb(
+    opts: { zUp?: boolean; bareRoot?: boolean; recenter?: boolean; opfsOut?: string } = {},
+  ): Promise<{ glb: ArrayBuffer | null; tris: number; size: number }> {
+    const { roots, tris } = activeSession();
+    session = null;
     if (tris === 0) {
       throw new Error('nothing visible to export');
     }
@@ -549,7 +600,17 @@ export const exportApi = {
     geoms: ExportGeom[],
     opts: { opfsOut?: string } & ExportDecodeOpts = {},
   ): Promise<{ ifc: ArrayBuffer | null; tris: number; size: number }> {
-    const { roots, tris } = await exportApi.decodeExportTree(mode, geoms, { clip: opts.clip });
+    exportApi.beginExport(mode, { clip: opts.clip });
+    await exportApi.addExportGeoms(geoms);
+    return await exportApi.finishExportIfc(opts);
+  },
+
+  /** Write the session's tree as IFC4. See {@link exportApi.exportIfc}. */
+  async finishExportIfc(
+    opts: { opfsOut?: string } = {},
+  ): Promise<{ ifc: ArrayBuffer | null; tris: number; size: number }> {
+    const { mode, roots, tris } = activeSession();
+    session = null;
     if (tris === 0) {
       throw new Error('nothing visible to export');
     }

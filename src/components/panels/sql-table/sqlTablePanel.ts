@@ -18,13 +18,22 @@ export interface TablePayload {
 }
 
 let payload: TablePayload | null = null;
+/** Whether closing the panel throws the result away (the default) or keeps it,
+ *  so reopening the panel shows the same rows again. A big result is the
+ *  panel's own memory, so the default frees it; the toggle is there because
+ *  re-running a slow report just to look at it again is worse. */
+let clearOnClose = true;
 const subs = new Set<() => void>();
 
-export function setTablePayload(p: TablePayload) {
-  payload = p;
+function notify() {
   for (const fn of subs) {
     fn();
   }
+}
+
+export function setTablePayload(p: TablePayload) {
+  payload = p;
+  notify();
 }
 export function getTablePayload(): TablePayload | null {
   return payload;
@@ -32,6 +41,35 @@ export function getTablePayload(): TablePayload | null {
 export function subscribeTablePayload(fn: () => void): () => void {
   subs.add(fn);
   return () => void subs.delete(fn);
+}
+
+/** Drop the current result (its rows are the panel's whole memory footprint). */
+export function clearTablePayload(): void {
+  if (payload === null) {
+    return;
+  }
+  payload = null;
+  notify();
+}
+
+export function getTableClearOnClose(): boolean {
+  return clearOnClose;
+}
+
+export function setTableClearOnClose(on: boolean): void {
+  if (clearOnClose === on) {
+    return;
+  }
+  clearOnClose = on;
+  notify();
+}
+
+/** The panel definition's `onClose` — a REAL close only, never a layout swap,
+ *  so switching layouts does not throw the result away. */
+export function handleSqlTableClose(): void {
+  if (clearOnClose) {
+    clearTablePayload();
+  }
 }
 
 /** Grid-local abilities (export, copy, select-all, load-all) that hotkeys
@@ -43,6 +81,7 @@ export interface TableActions {
   copySelected: () => void;
   toggleSelectAll: () => void;
   loadAll: () => void;
+  toggleClearOnClose: () => void;
 }
 
 let tableActions: TableActions | null = null;

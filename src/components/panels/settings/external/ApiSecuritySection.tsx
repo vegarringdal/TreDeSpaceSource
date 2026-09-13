@@ -1,6 +1,5 @@
-import { Button, Collapsible, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Collapsible, TextInput } from '@treDeSpaceUI/widgets';
 import { apiSecurityState } from '../../../../state/apiSecurity.state';
-import { Check } from '../Check';
 
 /** External → API security: postMessage master switch + origin allowlist. */
 export function ApiSecuritySection() {
@@ -18,14 +17,14 @@ export function ApiSecuritySection() {
         </>
       }
     >
-      <Check
+      <Checkbox
         label="Enable postMessage API"
         tooltip="Master switch — when off, all API messages are ignored"
         shortcut="api.enabled"
         checked={apiSec.enabled}
         onChange={(x) => apiSecurityState.set({ enabled: x })}
       />
-      <Check
+      <Checkbox
         label="Allow ?apiOrigins= URL parameter"
         tooltip="Let the embedding URL allowlist its own origin; disable for a strict settings-only allowlist"
         shortcut="api.urlparam"

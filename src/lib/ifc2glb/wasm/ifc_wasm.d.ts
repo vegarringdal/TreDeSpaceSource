@@ -10,7 +10,10 @@ export class ConvertedFiles {
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * The file's bytes (copied out to JS as a `Uint8Array`).
+     * The file's bytes, **moved** out to JS as a `Uint8Array`: wasm-bindgen
+     * copies the `Vec` across on its own, so cloning it first held two copies
+     * of every cooked file at once. Reading the same index twice yields an
+     * empty array.
      */
     bytes(i: number): Uint8Array | undefined;
     name(i: number): string | undefined;

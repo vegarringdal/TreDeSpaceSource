@@ -7,6 +7,8 @@ import {
   replyOrigin,
   resultEnvelope,
   toWireError,
+  transfersOf,
+  withTransfer,
 } from '../src/lib/messageApi/wire';
 
 const envelope = (over: Record<string, unknown> = {}) => ({
@@ -129,5 +131,85 @@ describe('envelopes', () => {
   it('replies to a sandboxed null-origin sender with *, everyone else exactly', () => {
     expect(replyOrigin('null')).toBe('*');
     expect(replyOrigin('https://host.test')).toBe('https://host.test');
+  });
+});
+
+describe('command.cancel', () => {
+  it('classifies the id-less cancel note, carrying the command id', () => {
+    expect(classifyInbound({ tredespace: 1, id: null, type: 'command.cancel', payload: { id: 'req-42' } }, true, true))
+      .toEqual({ kind: 'cancel', cancelId: 'req-42' });
+  });
+
+  it('ignores a cancel that names no command', () => {
+    expect(classifyInbound({ tredespace: 1, id: null, type: 'command.cancel' }, true, true)).toEqual(ignore('no-id'));
+    expect(classifyInbound({ tredespace: 1, id: null, type: 'command.cancel', payload: { id: 7 } }, true, true)).toEqual(
+      ignore('no-id'),
+    );
+  });
+
+  it('is still origin-gated like everything else', () => {
+    expect(
+      classifyInbound({ tredespace: 1, id: null, type: 'command.cancel', payload: { id: 'x' } }, false, true),
+    ).toEqual(ignore('origin'));
+  });
+
+  it('answers cancelled when the signal aborted, whether the handler resolved or threw', async () => {
+    const cmd: Extract<Inbound, { kind: 'command' }> = {
+      kind: 'command',
+      id: 'req-1',
+      type: 'x.y',
+      payload: {},
+      bytes: undefined,
+    };
+    const ctl = new AbortController();
+    const resolved = await answerCommand(
+      cmd,
+      true,
+      async () => {
+        ctl.abort();
+        return { done: true };
+      },
+      ctl.signal,
+    );
+    expect(resolved).toEqual({ ok: false, error: { code: 'cancelled', message: 'x.y was cancelled' } });
+
+    const ctl2 = new AbortController();
+    const threw = await answerCommand(
+      cmd,
+      true,
+      async () => {
+        ctl2.abort();
+        throw new ApiError('internal', 'boom');
+      },
+      ctl2.signal,
+    );
+    expect(threw).toEqual({ ok: false, error: { code: 'cancelled', message: 'x.y was cancelled' } });
+  });
+
+  it('leaves a normal answer alone when nothing aborted', async () => {
+    const cmd: Extract<Inbound, { kind: 'command' }> = {
+      kind: 'command',
+      id: 'req-1',
+      type: 'x.y',
+      payload: {},
+      bytes: undefined,
+    };
+    const ctl = new AbortController();
+    expect(await answerCommand(cmd, true, async () => ({ n: 1 }), ctl.signal)).toEqual({ ok: true, payload: { n: 1 } });
+  });
+});
+
+describe('withTransfer', () => {
+  it('carries a transfer list beside the payload, never inside it', () => {
+    const bytes = new ArrayBuffer(8);
+    const payload = withTransfer({ bytes, width: 2 }, [bytes]);
+    expect(Object.keys(payload)).toEqual(['bytes', 'width']);
+    expect(transfersOf({ ok: true, payload })).toEqual([bytes]);
+  });
+
+  it('has no transfer list for a plain or failed answer', () => {
+    expect(transfersOf({ ok: true, payload: { a: 1 } })).toEqual([]);
+    expect(transfersOf({ ok: true, payload: null })).toEqual([]);
+    expect(transfersOf({ ok: false, error: { code: 'internal', message: 'x' } })).toEqual([]);
   });
 });

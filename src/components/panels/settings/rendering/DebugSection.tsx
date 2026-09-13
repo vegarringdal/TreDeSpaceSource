@@ -1,11 +1,14 @@
-import { Button, RadioGroup } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
-import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
+import { useViewer, type ViewerState } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
 import { logMeshletFill } from './fillStats';
 
-const debugBuffers = [
+/** The radio values are strings; this maps each back to the state's numeric
+ *  union, so the handler needs no assertion. */
+const DEBUG_BUFFERS: Record<string, ViewerState['debugBuf']> = { '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5 };
+
+const debugBuffers: readonly RadioOption[] = [
   { value: '0', label: 'Off', shortcut: 'render.debug.off' },
   { value: '1', label: 'Normal', shortcut: 'render.debug.normal' },
   { value: '2', label: 'Depth', shortcut: 'render.debug.depth' },
@@ -30,7 +33,7 @@ export function DebugSection() {
         </>
       }
     >
-      <Check
+      <Checkbox
         label="Meshlet colors"
         checked={v.meshletVis}
         shortcut="render.meshlet"
@@ -40,7 +43,7 @@ export function DebugSection() {
       <RadioGroup
         options={debugBuffers}
         value={String(v.debugBuf)}
-        onChange={(x) => act.update({ debugBuf: Number(x) as 0 | 1 | 2 | 3 | 4 | 5 })}
+        onChange={(x) => act.update({ debugBuf: DEBUG_BUFFERS[x] ?? 0 })}
       />
       <Button
         className="mt-2 self-start"

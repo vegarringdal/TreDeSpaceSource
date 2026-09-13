@@ -1,7 +1,9 @@
-// Minimal ZIP writer: STORED (uncompressed) entries only, no data descriptors,
-// no ZIP64 — enough for an .xlsx container without a dependency. Sizes stay
-// under 4 GB and entry counts under 65,535, which a query export never
-// approaches. Pure, so it is unit-tested without a browser.
+// Minimal ZIP writer: STORED or DEFLATED entries, no data descriptors, no
+// ZIP64 — enough for an .xlsx container without a dependency. Sizes stay under
+// 4 GB and entry counts under 65,535, which a query export never approaches.
+// `zipStored` is pure, so it is unit-tested without a browser; `zipDeflated`
+// adds compression through the platform's `CompressionStream`, which is the
+// only part that needs a browser (it falls back to STORED without one).
 
 export interface ZipEntry {
   /** Forward-slash path inside the archive, e.g. `xl/workbook.xml`. */
@@ -18,6 +20,8 @@ const EOCD_LEN = 22;
 /** "Version needed / made by" 2.0 — plain STORED entries. */
 const ZIP_VERSION = 20;
 const METHOD_STORED = 0;
+const METHOD_DEFLATE = 8;
+/** "Version needed" 2.0 covers deflate too. */
 /** General-purpose flag bit 11: entry names are UTF-8. */
 const FLAG_UTF8 = 0x0800;
 const CRC_POLY = 0xedb88320;
@@ -56,12 +60,128 @@ function dosDateTime(d: Date): { time: number; date: number } {
   };
 }
 
+/** One entry ready to be written: its stored bytes plus what the headers need
+ *  to describe them. */
+interface PackedEntry {
+  name: string;
+  method: number;
+  crc: number;
+  rawSize: number;
+  data: Uint8Array;
+}
+
 /** Pack the entries into one STORED zip archive: every local header + data,
  *  then the central directory, then the end record. */
 export function zipStored(entries: readonly ZipEntry[], modified = new Date()): Uint8Array<ArrayBuffer> {
+  return assemble(
+    entries.map((e) => ({
+      name: e.name,
+      method: METHOD_STORED,
+      crc: crc32(e.data),
+      rawSize: e.data.length,
+      data: e.data,
+    })),
+    modified,
+  );
+}
+
+/**
+ * A source whose bytes arrive in pieces — so a big part (a spreadsheet's sheet
+ * XML) is never held whole before it is compressed.
+ */
+export interface ZipSource {
+  name: string;
+  chunks: () => AsyncIterable<Uint8Array<ArrayBuffer>> | Iterable<Uint8Array<ArrayBuffer>>;
+}
+
+/** True when this runtime can deflate (every browser we target; not node's
+ *  test runner unless it has the web streams API). */
+function canDeflate(): boolean {
+  return typeof CompressionStream === 'function';
+}
+
+/** Run `chunks` through deflate-raw, returning the compressed bytes, the CRC
+ *  of the RAW bytes and the raw length — all computed in one pass. */
+async function deflateChunks(
+  chunks: AsyncIterable<Uint8Array<ArrayBuffer>> | Iterable<Uint8Array<ArrayBuffer>>,
+): Promise<{ crc: number; rawSize: number; parts: Uint8Array[]; rawParts: Uint8Array<ArrayBuffer>[] }> {
+  const cs = new CompressionStream('deflate-raw');
+  const writer = cs.writable.getWriter();
+  const parts: Uint8Array[] = [];
+  const rawParts: Uint8Array<ArrayBuffer>[] = [];
+  let crc = 0xffffffff;
+  let rawSize = 0;
+
+  // drain the compressed side concurrently, or a big input deadlocks on the
+  // stream's backpressure
+  const drain = (async () => {
+    const reader = cs.readable.getReader();
+    for (let r = await reader.read(); !r.done; r = await reader.read()) {
+      parts.push(r.value);
+    }
+  })();
+
+  for await (const chunk of chunks) {
+    rawParts.push(chunk);
+    rawSize += chunk.length;
+    for (let i = 0; i < chunk.length; i++) {
+      crc = CRC_TABLE[(crc ^ chunk[i]) & 0xff] ^ (crc >>> 8);
+    }
+    await writer.write(chunk);
+  }
+  await writer.close();
+  await drain;
+  return { crc: (crc ^ 0xffffffff) >>> 0, rawSize, parts, rawParts };
+}
+
+function concat(parts: readonly Uint8Array[], total: number): Uint8Array {
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
+/**
+ * Pack the sources into one DEFLATED zip archive. Each source is streamed
+ * through the platform deflater, so the caller can hand over a multi-megabyte
+ * part in pieces instead of building it as one string. An entry falls back to
+ * STORED when deflate is unavailable or did not actually shrink it.
+ */
+export async function zipDeflated(
+  sources: readonly ZipSource[],
+  modified = new Date(),
+): Promise<Uint8Array<ArrayBuffer>> {
+  const packed: PackedEntry[] = [];
+  for (const src of sources) {
+    if (!canDeflate()) {
+      const rawParts: Uint8Array<ArrayBuffer>[] = [];
+      let rawSize = 0;
+      for await (const chunk of src.chunks()) {
+        rawParts.push(chunk);
+        rawSize += chunk.length;
+      }
+      const data = concat(rawParts, rawSize);
+      packed.push({ name: src.name, method: METHOD_STORED, crc: crc32(data), rawSize, data });
+      continue;
+    }
+    const { crc, rawSize, parts, rawParts } = await deflateChunks(src.chunks());
+    const compressedSize = parts.reduce((n, p) => n + p.length, 0);
+    if (compressedSize < rawSize) {
+      packed.push({ name: src.name, method: METHOD_DEFLATE, crc, rawSize, data: concat(parts, compressedSize) });
+    } else {
+      packed.push({ name: src.name, method: METHOD_STORED, crc, rawSize, data: concat(rawParts, rawSize) });
+    }
+  }
+  return assemble(packed, modified);
+}
+
+/** Write the local headers + data, the central directory and the end record. */
+function assemble(entries: readonly PackedEntry[], modified: Date): Uint8Array<ArrayBuffer> {
   const enc = new TextEncoder();
   const names = entries.map((e) => enc.encode(e.name));
-  const crcs = entries.map((e) => crc32(e.data));
   const { time, date } = dosDateTime(modified);
 
   const localTotal = entries.reduce((n, e, i) => n + LOCAL_HEADER_LEN + names[i].length + e.data.length, 0);
@@ -88,12 +208,12 @@ export function zipStored(entries: readonly ZipEntry[], modified = new Date()): 
     u32(LOCAL_HEADER_SIG);
     u16(ZIP_VERSION);
     u16(FLAG_UTF8);
-    u16(METHOD_STORED);
+    u16(e.method);
     u16(time);
     u16(date);
-    u32(crcs[i]);
+    u32(e.crc);
     u32(e.data.length);
-    u32(e.data.length);
+    u32(e.rawSize);
     u16(names[i].length);
     u16(0); // extra field
     bytes(names[i]);
@@ -106,12 +226,12 @@ export function zipStored(entries: readonly ZipEntry[], modified = new Date()): 
     u16(ZIP_VERSION);
     u16(ZIP_VERSION);
     u16(FLAG_UTF8);
-    u16(METHOD_STORED);
+    u16(e.method);
     u16(time);
     u16(date);
-    u32(crcs[i]);
+    u32(e.crc);
     u32(e.data.length);
-    u32(e.data.length);
+    u32(e.rawSize);
     u16(names[i].length);
     u16(0); // extra field
     u16(0); // comment

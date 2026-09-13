@@ -1,6 +1,5 @@
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { formatSequence, hotkeysActions, hotkeysState } from '@treDeSpaceUI/hotkeys';
-import { Button, InfoButton, TextInput } from '@treDeSpaceUI/widgets';
+import { Badge, Button, Collapsible, EmptyState, TextInput } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { SettingsSection } from '../SettingsSection';
 import { CameraControlsSection } from './CameraControlsSection';
@@ -73,49 +72,40 @@ export function ShortcutsSettings() {
       </SettingsSection>
 
       <TextInput
+        type="search"
         value={query}
         onChange={setQuery}
         placeholder="Search shortcuts — name, description, key combo (e.g. END, ALT + 6)…"
       />
-      {needle && groups.length === 0 && <div className="text-slate-500 text-xs">No shortcut matches “{query}”.</div>}
+      {needle && groups.length === 0 && <EmptyState>No shortcut matches “{query}”.</EmptyState>}
 
       {groups.map(({ category, ids }) => {
         // collapsed by default; a search opens every group that has a hit
         const isCollapsed = needle ? false : (collapsed[category] ?? true);
         const customCount = ids.filter((id) => id in overrides).length;
         return (
-          <div key={category} className="border border-slate-800">
-            <div className="flex w-full items-center gap-1 bg-slate-800 px-2 py-1 font-medium text-slate-200 text-xs hover:bg-slate-700">
-              <button
-                type="button"
-                className="flex min-w-0 flex-1 items-center gap-1 text-left"
-                onClick={() => setCollapsed((c) => ({ ...c, [category]: !(c[category] ?? true) }))}
-              >
-                {isCollapsed ? (
-                  <IconChevronRight size={14} className="shrink-0" />
-                ) : (
-                  <IconChevronDown size={14} className="shrink-0" />
-                )}
-                {category}
-              </button>
-              <span className="text-slate-500">{customCount > 0 ? `${customCount} custom` : `${ids.length}`}</span>
-              <InfoButton>{SHORTCUTS_INFO}</InfoButton>
+          <Collapsible
+            key={category}
+            title={category}
+            open={!isCollapsed}
+            onToggle={(next) => setCollapsed((c) => ({ ...c, [category]: !next }))}
+            aside={customCount > 0 ? <Badge tone="warning">{customCount} custom</Badge> : <Badge>{ids.length}</Badge>}
+            info={SHORTCUTS_INFO}
+            bodyClassName="gap-0 p-0"
+          >
+            <div className="flex flex-col divide-y divide-slate-800">
+              {ids.map((id) => (
+                <ShortcutRow
+                  key={id}
+                  id={id}
+                  def={defs[id]}
+                  custom={id in overrides}
+                  recording={recordingId === id}
+                  onRecord={(x) => void record(x)}
+                />
+              ))}
             </div>
-            {!isCollapsed && (
-              <div className="flex flex-col divide-y divide-slate-800">
-                {ids.map((id) => (
-                  <ShortcutRow
-                    key={id}
-                    id={id}
-                    def={defs[id]}
-                    custom={id in overrides}
-                    recording={recordingId === id}
-                    onRecord={(x) => void record(x)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          </Collapsible>
         );
       })}
 

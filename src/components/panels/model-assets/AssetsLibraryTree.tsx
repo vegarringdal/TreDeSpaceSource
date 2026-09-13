@@ -99,13 +99,13 @@ export function AssetsLibraryTree({ m }: { m: AssetsLibraryModel }) {
         Click selects · Ctrl toggles · Shift ranges · drag onto a folder to move · right-click for New folder
       </div>
       {m.selectedOne && (
-        <label className="flex items-center gap-2 text-slate-400 text-xs">
-          <span className="w-14 shrink-0">Rename</span>
-          <TextInput
-            value={m.selectedOne.name}
-            onChange={(v) => m.selectedOne && void act.rename(m.selectedOne.id, v)}
-          />
-        </label>
+        <TextInput
+          label="Rename"
+          labelPosition="left"
+          labelWidth={56}
+          value={m.selectedOne.name}
+          onChange={(v) => m.selectedOne && void act.rename(m.selectedOne.id, v)}
+        />
       )}
     </>
   );

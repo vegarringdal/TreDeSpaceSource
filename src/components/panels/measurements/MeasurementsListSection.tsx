@@ -1,4 +1,4 @@
-import { Collapsible } from '@treDeSpaceUI/widgets';
+import { Collapsible, EmptyState } from '@treDeSpaceUI/widgets';
 import { measurementsState } from '../../../state/viewer/measurements.state';
 import { MeasurementRow } from './MeasurementRow';
 
@@ -19,7 +19,7 @@ export function MeasurementsListSection() {
       }
     >
       {items.length === 0 ? (
-        <p className="note px-1 py-4 text-center text-slate-500">No measurements yet.</p>
+        <EmptyState layout="center">No measurements yet.</EmptyState>
       ) : (
         <div className="flex flex-col gap-1.5">
           {items.map((m) => (

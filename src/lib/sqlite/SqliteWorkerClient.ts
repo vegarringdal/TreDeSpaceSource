@@ -66,15 +66,31 @@ export class SqliteWorkerClient {
 
         console.error('unknown response', data);
       };
+
+      // A wasm trap, an OOM or a module that fails to load kills the worker
+      // without ever sending a RESULT. Without this, every pending execute()
+      // stays unresolved — and with it the Web Lock callback holding the db
+      // files, so every later query in EVERY tab reports "files in use".
+      this.#workerThread.onerror = (e) => {
+        const msg = e.message || 'the SQLite worker stopped';
+        consoleActions.log('error', `SQL: worker crashed — ${msg}`);
+        this.#teardown(`SQLite worker crashed: ${msg}`);
+      };
+      // a reply that cannot be structured-cloned back is just as fatal
+      this.#workerThread.onmessageerror = () => {
+        consoleActions.log('error', 'SQL: worker sent a result that could not be read');
+        this.#teardown('SQLite worker sent a result that could not be read');
+      };
     }
     return this.#workerThread;
   }
 
   /**
-   * this will kill all sql running in worker..
+   * Terminate the worker and settle everything waiting on it: every pending
+   * execute() gets `msg` as its error, and every held Web Lock is released.
+   * The next execute() lazily starts a fresh worker.
    */
-  killWorkerThread() {
-    // terminate and cleanup/end
+  #teardown(msg: string) {
     this.#workerThread?.terminate();
     this.#workerThread = null;
     this.#filePromiseLocks.forEach((e) => {
@@ -86,7 +102,7 @@ export class SqliteWorkerClient {
         data: null,
         columns: [],
         logs: [],
-        err: { err: null, msg: 'worker killed' },
+        err: { err: null, msg },
         execTimeWorker: 0,
         execTime: 0,
       });
@@ -94,6 +110,14 @@ export class SqliteWorkerClient {
     this.#responses.clear();
     this.#internalId = 0;
     this.#progressCallback.clear();
+    this.#sharedModeEnabled = false;
+  }
+
+  /**
+   * this will kill all sql running in worker..
+   */
+  killWorkerThread() {
+    this.#teardown('worker killed');
   }
 
   #execute(
@@ -128,11 +152,6 @@ export class SqliteWorkerClient {
   constructor() {
     // init
     this.#getWorker();
-  }
-
-  postChannel(channel: string, message: unknown) {
-    const c = new BroadcastChannel(channel);
-    c.postMessage(message);
   }
 
   async execute(options: SqlExecuteOption, progressCallback?: ProgressCallback) {

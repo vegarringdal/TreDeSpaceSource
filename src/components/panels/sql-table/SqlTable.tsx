@@ -1,4 +1,5 @@
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
+import { EmptyState } from '@treDeSpaceUI/widgets';
 import { useSyncExternalStore } from 'react';
 import { getTablePayload, subscribeTablePayload } from './sqlTablePanel';
 import { TableGrid } from './TableGrid';
@@ -12,8 +13,8 @@ export function SqlTable() {
   const payload = useSyncExternalStore(subscribeTablePayload, getTablePayload);
   if (!payload) {
     return (
-      <PanelBody className="panel-body flex h-full items-center justify-center p-4 text-slate-500 text-xs">
-        No result yet — run a Table report from the SQL Reports panel.
+      <PanelBody className="panel-body flex h-full">
+        <EmptyState layout="center">No result yet — run a Table report from the SQL Reports panel.</EmptyState>
       </PanelBody>
     );
   }

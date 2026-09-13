@@ -1,10 +1,9 @@
 import { IconFolderPlus, IconUpload } from '@tabler/icons-react';
-import { Button, Collapsible, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Collapsible, Link, Select, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
-import { ExtLink, FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
-import { OptionCheckRow, OptionSelectRow } from './optionRows';
+import { FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
 
 const PART_OPTIONS = [
   { value: 'skip', label: 'Skip' },
@@ -37,7 +36,7 @@ export function IfcSection() {
       defaultOpen={false}
       info={
         <>
-          IFC building models are parsed with <ExtLink href="https://github.com/LTplus-AG/ifc-lite">ifc-lite</ExtLink>{' '}
+          IFC building models are parsed with <Link href="https://github.com/LTplus-AG/ifc-lite">ifc-lite</Link>{' '}
           converted and cooked entirely in memory — no intermediate file.
           <br />
           <br />
@@ -62,10 +61,11 @@ export function IfcSection() {
         {file && (
           <>
             <ImportOptionsRows />
-            <FolderField value={folder} onChange={setFolder} labelWidth="w-16" />
-            <OptionSelectRow
+            <FolderField value={folder} onChange={setFolder} labelWidth={64} />
+            <Select
               label="Split"
-              labelWidth="w-16"
+              labelPosition="left"
+              labelWidth={64}
               shortcut="assets.ifc.split"
               tooltip="Split into one file per spatial tier (Site / Building / Storey)"
               value={ifc.split}
@@ -77,9 +77,10 @@ export function IfcSection() {
               ]}
               onChange={(v) => act.setIfcOptions({ split: v ?? 'none' })}
             />
-            <OptionSelectRow
+            <Select
               label="Quality"
-              labelWidth="w-16"
+              labelPosition="left"
+              labelWidth={64}
               shortcut="assets.ifc.quality"
               tooltip="Tessellation quality — higher = smoother curves, more triangles"
               value={ifc.quality}
@@ -92,23 +93,25 @@ export function IfcSection() {
               ]}
               onChange={(v) => act.setIfcOptions({ quality: v ?? 'medium' })}
             />
-            <OptionSelectRow
+            <Select
               label="Spaces"
-              labelWidth="w-16"
+              labelPosition="left"
+              labelWidth={64}
               tooltip="IfcSpace handling — skip, include with geometry, or as separate files"
               value={ifc.spaces}
               options={PART_OPTIONS}
               onChange={(v) => act.setIfcOptions({ spaces: v ?? 'skip' })}
             />
-            <OptionSelectRow
+            <Select
               label="Openings"
-              labelWidth="w-16"
+              labelPosition="left"
+              labelWidth={64}
               tooltip="Opening (void) handling — skip, include, or as separate files"
               value={ifc.openings}
               options={PART_OPTIONS}
               onChange={(v) => act.setIfcOptions({ openings: v ?? 'skip' })}
             />
-            <OptionCheckRow
+            <Checkbox
               label="Recenter"
               shortcut="assets.ifc.recenter"
               tooltip="Recenter the model on its bounding box"

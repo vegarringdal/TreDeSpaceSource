@@ -22,7 +22,9 @@ export class ConvertResult {
         wasm.__wbg_convertresult_free(ptr, 0);
     }
     /**
-     * The GLB bytes (a `Uint8Array` in JS).
+     * The GLB bytes, **moved** out (a `Uint8Array` in JS): wasm-bindgen copies
+     * the `Vec` across on its own, so cloning first held two. A second read
+     * yields an empty array.
      * @returns {Uint8Array}
      */
     get glb() {
@@ -73,6 +75,7 @@ export class CookedResult {
     }
     /**
      * The coarse `.tdp`, or `undefined` when not requested / not produced.
+     * Moved out like `tdp`.
      * @returns {Uint8Array | undefined}
      */
     get coarse() {
@@ -100,6 +103,7 @@ export class CookedResult {
         }
     }
     /**
+     * The cooked bytes, **moved** out (see `ConvertResult::glb`).
      * @returns {Uint8Array}
      */
     get tdp() {

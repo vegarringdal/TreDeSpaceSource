@@ -1,14 +1,15 @@
-import { IconCube, IconDatabase, IconFolder } from '@tabler/icons-react';
-import { useVirtualRows } from '@treDeSpaceUI/lib/useVirtualRows';
-import type { MouseEvent as ReactMouseEvent, RefObject } from 'react';
-import { HiddenBadge } from './HiddenBadge';
-import { ROW_H, type Row, rowKey } from './hierarchyModel';
+import { TreeView } from '@treDeSpaceUI/widgets';
+import { type MouseEvent as ReactMouseEvent, type RefObject, useMemo } from 'react';
+import { ROW_H, type Row } from './hierarchyModel';
+import { toTreeRows } from './hierarchyTreeRows';
 
-/** The visible tree rows: expand carets, folder/mesh icons, selection
- *  highlight and the row click/context handlers. Virtualized: only the rows
- *  in (and just around) the scroller's viewport are mounted, absolutely
- *  positioned at `index * ROW_H` in a spacer of the full height, so a tree
- *  with thousands of open rows re-renders a screenful on every state bump. */
+/** Indent of a hierarchy level, in px. */
+const INDENT = 12;
+const PAD_LEFT = 8;
+
+/** The visible tree rows. Virtualized by TreeView: only the rows in (and just
+ *  around) the scroller's viewport are mounted, so a tree with thousands of
+ *  open rows re-renders a screenful on every state bump. */
 export function HierarchyRows({
   rows,
   expanded,
@@ -24,78 +25,37 @@ export function HierarchyRows({
   onSelect: (r: Row, e: ReactMouseEvent) => void;
   onContextMenu: (r: Row, e: ReactMouseEvent) => void;
 }) {
-  const virtual = useVirtualRows(listRef, rows.length, ROW_H);
-  const rowStyle = (i: number) => ({ top: i * ROW_H, height: ROW_H });
+  const treeRows = useMemo(() => toTreeRows(rows, expanded), [rows, expanded]);
+  // the tree hands back its own row shape; the index is the bridge back to the
+  // model row the callbacks need
+  const byKey = useMemo(() => new Map(treeRows.map((t, i) => [t.key, rows[i]])), [treeRows, rows]);
 
   return (
-    <div ref={listRef} className="tree scroll-slim min-h-0 flex-1" onScroll={virtual.onScroll}>
-      <div style={{ height: virtual.totalH, position: 'relative' }}>
-        {rows.slice(virtual.first, virtual.last).map((r, j) => {
-          const i = virtual.first + j;
-          if (r.store != null) {
-            // store (plant) band: pure grouping chrome — no expand, no select,
-            // no menu, and no indent (hierarchy levels are unaffected)
-            return (
-              <div
-                key={`s:${r.store}`}
-                className="absolute left-0 flex w-full min-w-0 select-none items-center gap-1 border-slate-800 border-t bg-slate-900/70 px-2 text-slate-500"
-                style={rowStyle(i)}
-              >
-                <IconDatabase size={12} className="shrink-0" />
-                <span className="min-w-0 truncate text-[10px] uppercase tracking-wider">{r.name}</span>
-                <HiddenBadge hidden={r.hidden} />
-              </div>
-            );
-          }
-          const k = rowKey(r);
-          return (
-            <button
-              key={k}
-              type="button"
-              data-key={k}
-              className={`tree-row ${r.selected ? 'is-selected' : ''} absolute left-0 flex w-full min-w-0 items-center`}
-              style={{ ...rowStyle(i), paddingLeft: `${8 + r.depth * 12}px` }}
-              onClick={(e) => onSelect(r, e)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                onContextMenu(r, e);
-              }}
-            >
-              {r.partial && !r.selected && (
-                // some (not all) items beneath this row are selected — shown
-                // without expanding; the bar itself carries the explanation
-                <span
-                  className="partial-bar"
-                  data-tooltip="Partly selected: some of the items below this row are selected (not all). The row highlights fully once everything beneath it is selected — no need to expand to see where the selection is"
-                />
-              )}
-              {r.hasChildren ? (
-                <span
-                  className="mr-1 inline-block w-3 shrink-0 cursor-pointer select-none text-slate-400"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggle(r);
-                  }}
-                >
-                  {expanded.has(k) ? '▾' : '▸'}
-                </span>
-              ) : (
-                <span className="mr-1 inline-block w-3 shrink-0" />
-              )}
-              {r.model === -1 ? (
-                <IconFolder size={14} className="mr-1 shrink-0 text-amber-400/80" />
-              ) : r.isRoot ? (
-                <IconCube size={14} className="mr-1 shrink-0 text-sky-400/80" />
-              ) : (
-                // dark cube on non-root rows so every level indents the same
-                <IconCube size={14} className="mr-1 shrink-0 text-slate-600" />
-              )}
-              <span className={`min-w-0 truncate ${r.hidden === 'all' ? 'text-slate-500 italic' : ''}`}>{r.name}</span>
-              <HiddenBadge hidden={r.hidden} />
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <TreeView
+      rows={treeRows}
+      rowHeight={ROW_H}
+      indent={INDENT}
+      padLeft={PAD_LEFT}
+      scrollerRef={listRef}
+      className="min-h-0 flex-1"
+      onToggle={(t) => {
+        const r = byKey.get(t.key);
+        if (r) {
+          onToggle(r);
+        }
+      }}
+      onRowClick={(t, e) => {
+        const r = byKey.get(t.key);
+        if (r) {
+          onSelect(r, e);
+        }
+      }}
+      onRowContextMenu={(t, e) => {
+        const r = byKey.get(t.key);
+        if (r) {
+          onContextMenu(r, e);
+        }
+      }}
+    />
   );
 }

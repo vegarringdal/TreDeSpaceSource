@@ -85,7 +85,8 @@ export function generateWidgetDocs() {
   // the props a caller can actually pass, and the meaningless private name
   // disappears from the heritage line.
   for (const t of interfaces.values()) {
-    const baseName = t.extends?.match(/^([A-Za-z_$][\w$]*)$/)?.[1];
+    // strip any type arguments: `BaseProps<T>` inlines like `BaseProps`
+    const baseName = t.extends?.match(/^([A-Za-z_$][\w$]*)(?:<.*>)?$/)?.[1];
     const base = baseName ? interfaces.get(baseName) : undefined;
     if (base && !base.exported) {
       t.fields = [...t.fields, ...base.fields];

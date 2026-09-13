@@ -1,3 +1,4 @@
+import { dropClientsForDialog } from '../../lib/messageApi/clients';
 import { externalPanelsState, type OpenPanel } from './externalPanels.state';
 
 export const externalPanelsActions = {
@@ -18,8 +19,11 @@ export const externalPanelsActions = {
     externalPanelsState.set((s) => ({ open: s.open.map((p) => (p.key === key ? { ...p, remove: true } : p)) }));
   },
 
-  /** The panel body unmounted — its page is gone, whatever closed it. */
+  /** The panel body unmounted — its page is gone, whatever closed it. The API
+   *  client registry is told here: a removed iframe never reports `closed`, so
+   *  without this its entry (and its event subscription) would outlive it. */
   close(key: string) {
+    dropClientsForDialog(key);
     externalPanelsState.set((s) => ({ open: s.open.filter((p) => p.key !== key) }));
   },
 

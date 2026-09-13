@@ -25,6 +25,7 @@ import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
 import { SqlEditor } from './components/panels/sql-editor/SqlEditor';
 import { SqlReports } from './components/panels/sql-reports/SqlReports';
 import { SqlTable } from './components/panels/sql-table/SqlTable';
+import { handleSqlTableClose } from './components/panels/sql-table/sqlTablePanel';
 import { Viewpoints } from './components/panels/viewpoints/Viewpoints';
 import {
   LabelsViewpoint,
@@ -63,7 +64,15 @@ export const panels: PanelDefinition[] = [
   definePanel({ id: 'sqlAssets', title: 'SQL Assets', home: 'left', component: SqlAssets }),
   definePanel({ id: 'sqlEditor', title: 'SQL Editor', home: 'bottom', component: SqlEditor }),
   definePanel({ id: 'sqlReports', title: 'SQL Reports', home: 'left', component: SqlReports }),
-  definePanel({ id: 'sqlTable', title: 'SQL Table', home: 'bottom', component: SqlTable }),
+  // onClose (a real close, not a layout swap) drops the result unless the
+  // panel's Keep toggle is on — see sqlTablePanel.ts
+  definePanel({
+    id: 'sqlTable',
+    title: 'SQL Table',
+    home: 'bottom',
+    component: SqlTable,
+    onClose: handleSqlTableClose,
+  }),
   definePanel({ id: 'sqlDetail', title: 'SQL Detail', home: 'right', component: SqlDetail }),
   definePanel({ id: 'multiColor', title: 'Set Color', home: 'right', component: MultiColor }),
   definePanel({ id: 'labels', title: 'Labels', home: 'right', component: Labels }),

@@ -24,12 +24,13 @@ export function DialogsDemo() {
   return (
     <Section
       title="Dialogs"
-      note="The dialog cores are pure: props in, onResult out, no store coupling — the app wraps them in its own dialogs helper. All render through the shared Modal shell (dimmed backdrop + centred window, portaled to the body) with a TitleBar — both exported, so a host can build its own dialogs in the same look (the Custom button shows the bare shell)."
+      note="The dialog cores are pure: props in, onResult out, no store coupling — the app wraps them in its own dialogs helper. All four are DialogFrame plus their content: one bordered window with a title bar (and its ✕), a body that scrolls within maxHeight, and a footer rule for the buttons. Escape and a backdrop press close the TOP dialog only. Modal + TitleBar stay exported for a host building something else in the same look (the Custom button shows the bare shell)."
       props={[
         'ConfirmDialogCoreProps',
         'PromptDialogCoreProps',
         'ErrorDialogCoreProps',
         'LoadingDialogCoreProps',
+        'DialogFrameProps',
         'ModalProps',
         'TitleBarProps',
       ]}

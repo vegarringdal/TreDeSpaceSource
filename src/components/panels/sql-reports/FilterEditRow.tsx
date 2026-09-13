@@ -18,10 +18,6 @@ type FilterEditRowProps = Readonly<{
   onMove: (dir: -1 | 1) => void;
 }>;
 
-/** Header buttons one notch smaller than the default, so the dense header
- *  stays a single tight line. */
-const ACTION_BUTTON = 'h-5 w-5';
-
 /** One filter's editor: a collapsible section titled by the filter's label
  *  (or "Filter #N"), with move up / down and remove in its header. Dropdown
  *  filters get a resizable SQL editor AND a live test dropdown driven by that
@@ -43,7 +39,7 @@ export function FilterEditRow({
     <>
       <Button
         iconOnly
-        className={ACTION_BUTTON}
+        size="sm"
         icon={<IconArrowUp size={13} />}
         disabled={isFirst}
         tooltip="Move this filter up (the inputs are shown in this order)"
@@ -51,19 +47,13 @@ export function FilterEditRow({
       />
       <Button
         iconOnly
-        className={ACTION_BUTTON}
+        size="sm"
         icon={<IconArrowDown size={13} />}
         disabled={isLast}
         tooltip="Move this filter down (the inputs are shown in this order)"
         onClick={() => onMove(1)}
       />
-      <Button
-        iconOnly
-        className={ACTION_BUTTON}
-        icon={<IconTrash size={13} />}
-        tooltip="Remove this filter"
-        onClick={onRemove}
-      />
+      <Button iconOnly size="sm" icon={<IconTrash size={13} />} tooltip="Remove this filter" onClick={onRemove} />
     </>
   );
   return (

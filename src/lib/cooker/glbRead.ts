@@ -81,6 +81,13 @@ export function readPositions(g: Gltf, bin: Uint8Array, accessor: number): Float
   }
   const stride = bv.byteStride ?? 12;
   const base = (bv.byteOffset ?? 0) + (a.byteOffset ?? 0);
+  const abs = bin.byteOffset + base;
+  // Fast path — tightly packed and 4-byte aligned, which is what every writer
+  // produces: one typed-array copy instead of three DataView reads per vertex.
+  // (glTF is little-endian and so is every platform the viewer runs on.)
+  if (stride === 12 && abs % 4 === 0) {
+    return new Float32Array(bin.buffer, abs, a.count * 3).slice();
+  }
   const out = new Float32Array(a.count * 3);
   const dv = new DataView(bin.buffer, bin.byteOffset, bin.byteLength);
   for (let i = 0; i < a.count; i++) {

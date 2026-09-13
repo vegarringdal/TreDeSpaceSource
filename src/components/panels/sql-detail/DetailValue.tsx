@@ -1,3 +1,4 @@
+import { Link } from '@treDeSpaceUI/widgets';
 import { type DetailField, isEmptyValue } from './detailFields';
 
 /** One field's value cell: a link for http(s) values (new tab, no opener —
@@ -6,15 +7,9 @@ import { type DetailField, isEmptyValue } from './detailFields';
 export function DetailValue({ field }: { field: DetailField }) {
   if (field.href) {
     return (
-      <a
-        href={field.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={field.href}
-        className="text-sky-400 underline decoration-sky-400/50 hover:text-sky-300"
-      >
+      <Link href={field.href} tooltip={field.href}>
         {field.linkLabel}
-      </a>
+      </Link>
     );
   }
   if (isEmptyValue(field.val)) {

@@ -1,5 +1,6 @@
 import { IconX } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
+import { cn } from '../lib/cn';
 
 /** The in-field clear button (shared by TextInput/TextArea). Floats over the
  *  right edge; clears content by default, or runs `onClear` when given. */
@@ -19,10 +20,17 @@ export function ClearButton({ onClick, className = '' }: { onClick: () => void; 
 
 export interface LabelledProps {
   label?: ReactNode;
-  /** Where the label sits relative to the field. */
-  labelPosition?: 'top' | 'left';
-  /** Label column width in px when labelPosition is 'left' — share one value across stacked fields so they align. */
+  /**
+   * Where the label sits relative to the field. `left` gives the LABEL a fixed
+   * column (`labelWidth`) and lets the field fill — stacked form fields line
+   * up. `split` is the settings-row inverse: the label takes the free space
+   * and the FIELD keeps a fixed width (`fieldWidth`).
+   */
+  labelPosition?: 'top' | 'left' | 'split';
+  /** Label column width in px for `left` — share one value across stacked fields so they align. */
   labelWidth?: number;
+  /** Field column width in px for `split` (default 112). */
+  fieldWidth?: number;
   disabled?: boolean;
   className?: string;
 }
@@ -42,11 +50,16 @@ export function pickerTriggerCls(open: boolean, disabled: boolean): string {
 export const pickerPopCls =
   'fixed z-[1000] border border-slate-700 bg-slate-900 text-slate-200 text-xs shadow-black/40 shadow-lg';
 
-/** Optional top/left label wrapper shared by the text fields. */
+const DEFAULT_FIELD_WIDTH = 112;
+
+/** Optional label wrapper shared by every field widget — the single place a
+ *  labelled row is laid out, so Select, NumberInput, ColorSelect and the text
+ *  fields all align in the same form. */
 export function Labelled({
   label,
   labelPosition = 'top',
   labelWidth = 60,
+  fieldWidth = DEFAULT_FIELD_WIDTH,
   multiline = false,
   className = '',
   children,
@@ -55,20 +68,31 @@ export function Labelled({
     return <div className={className}>{children}</div>;
   }
 
+  if (labelPosition === 'split') {
+    return (
+      <label className={cn('flex w-full min-w-0 items-center justify-between gap-2 text-xs', className)}>
+        <span className="min-w-0 truncate text-slate-400">{label}</span>
+        <span className="shrink-0" style={{ width: fieldWidth }}>
+          {children}
+        </span>
+      </label>
+    );
+  }
+
   if (labelPosition === 'left') {
     return (
       <label
-        className={`grid gap-x-1.5 text-xs ${multiline ? 'items-start' : 'items-center'} ${className}`}
+        className={cn('grid w-full min-w-0 gap-x-1.5 text-xs', multiline ? 'items-start' : 'items-center', className)}
         style={{ gridTemplateColumns: `${labelWidth}px 1fr` }}
       >
-        <span className={`truncate text-slate-400 ${multiline ? 'pt-1.5' : ''}`}>{label}</span>
+        <span className={cn('truncate text-slate-400', multiline && 'pt-1.5')}>{label}</span>
         {children}
       </label>
     );
   }
 
   return (
-    <label className={`block text-xs ${className}`}>
+    <label className={cn('block w-full min-w-0 text-xs', className)}>
       <span className="mb-1 block text-slate-400">{label}</span>
       {children}
     </label>

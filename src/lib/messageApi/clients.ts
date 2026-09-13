@@ -159,6 +159,18 @@ export function dropClient(win: Window): void {
   }
 }
 
+/**
+ * Forget every client hosted by one dialog — an external panel or a modal —
+ * because its iframe is going away. A removed iframe does NOT set
+ * `Window.closed`, so `prune` never catches it and the entry (a strong
+ * `Window` reference, plus its bus subscription) would live as long as the tab.
+ */
+export function dropClientsForDialog(dialogId: string): void {
+  for (const e of entries.filter((x) => x.info.dialog === dialogId)) {
+    dropClient(e.win);
+  }
+}
+
 export function listClients(): ClientInfo[] {
   if (prune()) {
     emitClientsChanged();

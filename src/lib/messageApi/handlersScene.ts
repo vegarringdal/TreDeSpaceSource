@@ -12,7 +12,18 @@ import { readSphereMarker } from '../../state/viewer/sphereMarker';
 import { viewerActions } from '../../state/viewer/viewer.actions';
 import { viewpointsActions } from '../../state/viewer/viewpoints.actions';
 import { packedFromBytes } from '../color/packedNames';
-import { ApiError, type ApiHandler, isRecord, nameListBytes, records, strings } from './protocol';
+import {
+  ApiError,
+  type ApiHandler,
+  boolOpt,
+  isRecord,
+  nameListBytes,
+  oneOf,
+  records,
+  strings,
+  strOpt,
+  vec3,
+} from './protocol';
 
 const setOrAddLabels: ApiHandler = async ({ type, p }) => {
   const inputs = records(p.labels, 'labels');
@@ -57,11 +68,65 @@ const setOrAddLabels: ApiHandler = async ({ type, p }) => {
   return { added: items.length, missed: notFound };
 };
 
+const MEASURE_KINDS = ['point', 'line', 'path', 'area', 'diameter', 'angle', 'face'] as const;
+/** Per-axis flag triples (`axisLegs` / `axisLabels`). */
+const NO_AXES: [boolean, boolean, boolean] = [false, false, false];
+
+function readAxisFlags(v: unknown, what: string): [boolean, boolean, boolean] {
+  if (v === undefined || v === null) {
+    return [...NO_AXES];
+  }
+  if (!Array.isArray(v) || v.length !== 3) {
+    throw new ApiError('bad-payload', `${what} must be an array of 3 booleans`);
+  }
+  return [boolOpt(v[0], `${what}[0]`, false), boolOpt(v[1], `${what}[1]`, false), boolOpt(v[2], `${what}[2]`, false)];
+}
+
+/** One measurement point: `pos` is required, `normal` / `clicked` optional —
+ *  all three fixed-length number triples. */
+function readMeasurePoint(v: unknown, what: string) {
+  if (!isRecord(v)) {
+    throw new ApiError('bad-payload', `${what} must be an object with a pos`);
+  }
+  return {
+    pos: vec3(v.pos, `${what}.pos`),
+    ...(v.normal === undefined || v.normal === null ? {} : { normal: vec3(v.normal, `${what}.normal`) }),
+    ...(v.clicked === undefined || v.clicked === null ? {} : { clicked: vec3(v.clicked, `${what}.clicked`) }),
+  };
+}
+
+/** One `measurements.set` / `.add` entry, fully validated. `importJson`
+ *  backfills defaults but only ever checked `kind` and that `points` is an
+ *  array — a point of `['x']` reached the overlay geometry as NaN. */
+function readMeasurement(x: Record<string, unknown>, i: number) {
+  const what = `measurements[${i}]`;
+  const points = Array.isArray(x.points) ? x.points : null;
+  if (!points) {
+    throw new ApiError('bad-payload', `${what}.points must be an array`);
+  }
+  return {
+    id: i + 1,
+    kind: oneOf(x.kind, `${what}.kind`, MEASURE_KINDS),
+    points: points.map((pt, j) => readMeasurePoint(pt, `${what}.points[${j}]`)),
+    label: strOpt(x.label, `${what}.label`, '', 4096),
+    visible: boolOpt(x.visible, `${what}.visible`, true),
+    showLabel: boolOpt(x.showLabel, `${what}.showLabel`, true),
+    showPerp: boolOpt(x.showPerp, `${what}.showPerp`, false),
+    axisLegs: readAxisFlags(x.axisLegs, `${what}.axisLegs`),
+    axisLabels: readAxisFlags(x.axisLabels, `${what}.axisLabels`),
+    legsInLabel: boolOpt(x.legsInLabel, `${what}.legsInLabel`, false),
+    slopeInLabel: boolOpt(x.slopeInLabel, `${what}.slopeInLabel`, false),
+    flipAngle: boolOpt(x.flipAngle, `${what}.flipAngle`, false),
+    // readSphereMarker is already defensive about its own fields
+    sphere: x.sphere,
+  };
+}
+
 const setOrAddMeasurements: ApiHandler = ({ type, p }) => {
   const inputs = records(p.measurements, 'measurements');
   const cur = measurementsState.get();
   const base = type === 'measurements.set' ? [] : cur.items;
-  const mapped = inputs.map((m, i) => ({ id: i + 1, ...m }));
+  const mapped = inputs.map(readMeasurement);
   // importJson replaces + backfills every optional field
   const n = measurementsActions.importJson(
     JSON.stringify({ items: [...base, ...mapped], muted: cur.muted, precision: cur.precision }),
@@ -172,20 +237,20 @@ export const sceneHandlers: Record<string, ApiHandler> = {
     return { loaded };
   },
 
-  'viewpoints.setUrl': async ({ p }) => {
+  'viewpoints.setUrl': async ({ p, signal }) => {
     const url = typeof p.url === 'string' ? p.url : '';
     if (!url) {
       throw new ApiError('bad-payload', 'url is required');
     }
     let text: string;
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, signal ? { signal } : undefined);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status} ${res.statusText}`);
       }
       text = await res.text();
     } catch (e) {
-      throw new ApiError('internal', `download failed: ${e instanceof Error ? e.message : String(e)}`);
+      throw new ApiError('download', `download failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     let loaded: number;
     try {

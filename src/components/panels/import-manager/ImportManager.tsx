@@ -1,5 +1,5 @@
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { InfoButton } from '@treDeSpaceUI/widgets';
+import { InfoButton, PanelHeader } from '@treDeSpaceUI/widgets';
 import { useEffect } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { storesActions } from '../../../state/stores/stores.actions';
@@ -35,14 +35,16 @@ export function ImportManager() {
 
   return (
     <PanelBody className="panel-body flex h-full min-h-0 flex-col gap-2 overflow-y-auto p-2">
-      <div className="flex shrink-0 items-center gap-1 border-slate-800 border-b pb-1 text-slate-400 text-xs">
-        <span className="flex-1">Import</span>
-        <InfoButton label="About importing">
-          All conversion is done in your browser — nothing is uploaded to a server. An import <b>overwrites</b> an
-          existing asset with the same store + folder + name; the old file is deleted only after the new one lands, so a
-          failed import keeps the previous version.
-        </InfoButton>
-      </div>
+      <PanelHeader
+        title="Import"
+        actions={
+          <InfoButton label="About importing">
+            All conversion is done in your browser — nothing is uploaded to a server. An import <b>overwrites</b> an
+            existing asset with the same store + folder + name; the old file is deleted only after the new one lands, so
+            a failed import keeps the previous version.
+          </InfoButton>
+        }
+      />
 
       <MergedGlbSection si={si} />
       <TdpSection si={si} />

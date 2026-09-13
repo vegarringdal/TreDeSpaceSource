@@ -1,6 +1,6 @@
 import { IconDatabase, IconFile } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { FileTree, type TreeDir } from '@treDeSpaceUI/widgets';
+import { EmptyState, FileTree, type TreeDir } from '@treDeSpaceUI/widgets';
 import { useEffect } from 'react';
 import { sqlAssetsActions as act } from '../../../state/sqlAssets/sqlAssets.actions';
 import { type SqlDbEntry, sqlAssetsState } from '../../../state/sqlAssets/sqlAssets.state';
@@ -72,9 +72,9 @@ export function SqlAssets() {
           expandAllSignal={treeExpandSignal}
           fileIcon={<IconFile size={13} className="shrink-0 text-slate-400" />}
         />
-        <p className="note m-0 shrink-0 text-slate-500">
+        <EmptyState className="mt-2 shrink-0">
           Files live in <code>sql_assets/&lt;store&gt;/</code> — that path is what ATTACH DATABASE takes.
-        </p>
+        </EmptyState>
       </div>
     </PanelBody>
   );

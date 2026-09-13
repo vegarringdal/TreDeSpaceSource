@@ -11,7 +11,7 @@ export function TextFieldDemo() {
     <Section
       title="TextInput / TextArea"
       note="Single- and multi-line text fields with a label on top or to the left (share one labelWidth so stacked fields align), a clear button, and onCommit for Enter/blur-style handling."
-      props={['TextInputProps', 'TextAreaProps']}
+      props={['TextInputProps', 'TextAreaProps', 'LabelledProps']}
       code={`function Details() {
   const [name, setName] = useState('Torus knot');
   const [tag, setTag] = useState('hero-prop');

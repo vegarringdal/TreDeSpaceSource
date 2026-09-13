@@ -61,7 +61,7 @@ export function Hierarchy() {
         onContextMenu={(r, e) => setMenu({ x: e.clientX, y: e.clientY, row: r })}
       />
       {sel.count > 0 && (
-        <p className="note shrink-0">
+        <p className="m-0 mt-2 shrink-0 text-slate-400 text-xs">
           {sel.count.toLocaleString()} item{sel.count === 1 ? '' : 's'} selected
         </p>
       )}

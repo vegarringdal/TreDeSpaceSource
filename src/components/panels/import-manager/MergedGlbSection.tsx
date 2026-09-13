@@ -1,17 +1,10 @@
 import { IconFolderPlus } from '@tabler/icons-react';
-import { Button, Collapsible, NumberInput } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, Link, NumberInput } from '@treDeSpaceUI/widgets';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
 import { workerPoolCap } from '../../../state/assets/workerPoolCap';
 import { NO_IMPORTABLE_FILES } from '../model-assets/scanDirectory';
-import {
-  ExtLink,
-  FolderField,
-  ImportCancelRow,
-  ImportOptionsRows,
-  StagingSelectButtons,
-  StagingTree,
-} from './importWidgets';
+import { FolderField, ImportCancelRow, ImportOptionsRows, StagingSelectButtons, StagingTree } from './importWidgets';
 import { pickFolder } from './staging';
 import type { StagedImport } from './useStagedImport';
 
@@ -26,8 +19,8 @@ export function MergedGlbSection({ si }: { si: StagedImport }) {
       defaultOpen={false}
       info={
         <>
-          <ExtLink href="https://github.com/vegarringdal/rvm2glb">rvm2glb</ExtLink> <b>merged</b> files only — a single
-          mesh stream per hierarchy root. Standard and gpu-instanced glTF goes through <b>Import standard GLB</b> below
+          <Link href="https://github.com/vegarringdal/rvm2glb">rvm2glb</Link> <b>merged</b> files only — a single mesh
+          stream per hierarchy root. Standard and gpu-instanced glTF goes through <b>Import standard GLB</b> below
           instead. Pick a folder, tick the files you want, then Import; each file is cooked to a <code>.tdp</code>{' '}
           (TreDeSpace model) in the chosen store.
         </>
@@ -50,24 +43,20 @@ export function MergedGlbSection({ si }: { si: StagedImport }) {
             <StagingTree si={si} emptyText={NO_IMPORTABLE_FILES} />
             <ImportOptionsRows />
             <FolderField value={si.folder} onChange={si.setFolder} />
-            <label
-              className="flex items-center gap-2 text-slate-400 text-xs"
-              data-tooltip={`Cooker workers run at once (max ${poolCap} on this machine: one per core, one left for the UI). Each holds a whole GLB while it cooks.`}
-            >
-              <span className="w-14 shrink-0">Pool</span>
-              <div className="w-24">
-                <NumberInput
-                  value={pool}
-                  min={1}
-                  max={poolCap}
-                  step={1}
-                  onChange={act.setPool}
-                  decShortcut="assets.pool.dec"
-                  incShortcut="assets.pool.inc"
-                />
-              </div>
-              <span className="text-slate-500">parallel cooks</span>
-            </label>
+            <NumberInput
+              label="Pool"
+              labelPosition="left"
+              labelWidth={56}
+              unit="parallel cooks"
+              value={pool}
+              min={1}
+              max={poolCap}
+              step={1}
+              tooltip={`Cooker workers run at once (max ${poolCap} on this machine: one per core, one left for the UI). Each holds a whole GLB while it cooks.`}
+              onChange={act.setPool}
+              decShortcut="assets.pool.dec"
+              incShortcut="assets.pool.inc"
+            />
             <ImportCancelRow si={si} tooltip="Import the selected files (GLBs are cooked)" />
           </>
         )}

@@ -10,12 +10,17 @@ import {
   IconTrash,
   IconVectorTriangle,
 } from '@tabler/icons-react';
-import { Button, Collapsible, NumberInput, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, NumberInput, TextInput, Vec3Input } from '@treDeSpaceUI/widgets';
 import { clipShapesActions as act } from '../../../state/viewer/clipShapes.actions';
 import { type ClipShape, displayName } from '../../../state/viewer/clipShapes.state';
-import { fitTarget, setAxis } from './clipShapeFit';
+import { fitTarget } from './clipShapeFit';
 
 const KIND_ICON = { sphere: IconCircle, cylinder: IconCylinder, box: IconBox } as const;
+
+/** Label column of the numeric rows (matches the Fit row's first column). */
+const LABEL_W = 48;
+/** Smallest radius / half-extent a shape may have. */
+const MIN_EXTENT = 0.01;
 
 /** One clip-shape editor block: name, toggles, fit and per-axis numbers. */
 export function ShapeRow({ s, armed }: { s: ClipShape; armed: boolean }) {
@@ -107,29 +112,30 @@ export function ShapeRow({ s, armed }: { s: ClipShape; armed: boolean }) {
           >
             Center
           </Button>
-          <span>Center</span>
-          {([0, 1, 2] as const).map((ax) => (
-            <div key={ax}>{num(s.center[ax], (x) => act.update(s.id, { center: setAxis(s.center, ax, x) }))}</div>
-          ))}
+          <Vec3Input
+            className="col-span-4"
+            label="Center"
+            labelWidth={LABEL_W}
+            value={s.center}
+            onChange={(center) => act.update(s.id, { center })}
+          />
           {s.kind === 'box' ? (
-            <>
-              <span>Size</span>
-              {([0, 1, 2] as const).map((ax) => (
-                <div key={ax}>
-                  {num(s.halfExtents[ax], (x) =>
-                    act.update(s.id, { halfExtents: setAxis(s.halfExtents, ax, Math.max(0.01, x)) }),
-                  )}
-                </div>
-              ))}
-            </>
+            <Vec3Input
+              className="col-span-4"
+              label="Size"
+              labelWidth={LABEL_W}
+              min={MIN_EXTENT}
+              value={s.halfExtents}
+              onChange={(halfExtents) => act.update(s.id, { halfExtents })}
+            />
           ) : (
             <>
               <span>Radius</span>
-              <div>{num(s.radius, (x) => act.update(s.id, { radius: Math.max(0.01, x) }))}</div>
+              <div>{num(s.radius, (x) => act.update(s.id, { radius: Math.max(MIN_EXTENT, x) }))}</div>
               {s.kind === 'cylinder' ? (
                 <>
                   <span className="col-span-1 text-right">Height</span>
-                  <div>{num(s.height, (x) => act.update(s.id, { height: Math.max(0.01, x) }))}</div>
+                  <div>{num(s.height, (x) => act.update(s.id, { height: Math.max(MIN_EXTENT, x) }))}</div>
                 </>
               ) : (
                 <span className="col-span-2" />
@@ -137,12 +143,14 @@ export function ShapeRow({ s, armed }: { s: ClipShape; armed: boolean }) {
             </>
           )}
           {s.kind === 'cylinder' && (
-            <>
-              <span>Axis</span>
-              {([0, 1, 2] as const).map((ax) => (
-                <div key={ax}>{num(s.axis[ax], (x) => act.update(s.id, { axis: setAxis(s.axis, ax, x) }), 0.1)}</div>
-              ))}
-            </>
+            <Vec3Input
+              className="col-span-4"
+              label="Axis"
+              labelWidth={LABEL_W}
+              step={0.1}
+              value={s.axis}
+              onChange={(axis) => act.update(s.id, { axis })}
+            />
           )}
         </div>
       </div>

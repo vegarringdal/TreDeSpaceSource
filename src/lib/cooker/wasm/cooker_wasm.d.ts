@@ -9,9 +9,15 @@ export class CookResult {
      * Full AABB [minX,minY,minZ,maxX,maxY,maxZ].
      */
     readonly bounds: Float32Array;
+    /**
+     * The cooked bytes, **moved** out of wasm memory: wasm-bindgen already
+     * copies the `Vec` into a JS `Uint8Array`, so cloning it first meant two
+     * copies of a whole model. Reading it a second time yields an empty array.
+     */
     readonly bytes: Uint8Array;
     /**
-     * The coarse variant — present only when the cook asked for one.
+     * The coarse variant — present only when the cook asked for one. Moved
+     * out like {@link CookResult::bytes}: a second read yields `undefined`.
      */
     readonly coarse: Uint8Array | undefined;
     /**

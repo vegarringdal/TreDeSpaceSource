@@ -1,7 +1,7 @@
 import { copyText } from '../../../lib/clipboard';
 import { downloadBinary } from '../../../lib/download';
 import { exportFileName, toTsv } from '../../../lib/tableExport';
-import { buildXlsx, XLSX_MIME } from '../../../lib/xlsx';
+import { buildXlsxZipped, XLSX_MIME } from '../../../lib/xlsx';
 import { dialogs } from '../../dialogs/dialogs.actions';
 import { consoleActions } from '../console/console.actions';
 import type { TablePayload } from './sqlTablePanel';
@@ -16,9 +16,6 @@ export type GridExport = Readonly<{
 }>;
 
 type RowScope = 'all' | 'selected';
-
-/** Let the loading dialog paint before a long synchronous build. */
-const yieldToPaint = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** Export / copy the grid AS SHOWN: the view's order (sort) and rows (column
  *  filters). "Selected" keeps only the selected rows, in that same order. */
@@ -39,8 +36,11 @@ export function createGridExport(payload: TablePayload, view: TableView, selecti
     const fileName = exportFileName(title, 'xlsx');
     dialogs.loading(`Building ${fileName}…`, 'SQL Table');
     try {
-      await yieldToPaint();
-      const bytes = buildXlsx(columns, out, title);
+      // the builder yields between row batches, so the overlay stays live and
+      // can report where it is
+      const bytes = await buildXlsxZipped(columns, out, title, (done, total) =>
+        dialogs.loading(`Building ${fileName}…`, 'SQL Table', done / total),
+      );
       downloadBinary(fileName, bytes.buffer, XLSX_MIME);
       consoleActions.log('info', `SQL Table: exported ${out.length.toLocaleString()} ${scope} row(s) to ${fileName}`);
     } finally {

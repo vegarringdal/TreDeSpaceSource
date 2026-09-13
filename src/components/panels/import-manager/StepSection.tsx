@@ -1,10 +1,9 @@
 import { IconFolderPlus, IconUpload } from '@tabler/icons-react';
-import { Button, Collapsible, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Collapsible, InfoBox, Link, NumberInput, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
-import { ExtLink, FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
-import { OptionCheckRow, OptionNumberRow } from './optionRows';
+import { FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
 
 /** Above this size the section warns that the import may exhaust memory. */
 const LARGE_STEP_BYTES = 200 * 1024 * 1024;
@@ -36,8 +35,8 @@ export function StepSection() {
       info={
         <>
           AI-written STEP parser — it may misread some parts.{' '}
-          <ExtLink href="https://github.com/vegarringdal/step2glb">step2glb</ExtLink> is the source; improvements
-          welcome. The B-rep is tessellated and cooked into a single asset in one pass — no intermediate file.
+          <Link href="https://github.com/vegarringdal/step2glb">step2glb</Link> is the source; improvements welcome. The
+          B-rep is tessellated and cooked into a single asset in one pass — no intermediate file.
           <br />
           <br />
           <b>Deflection</b> / <b>Max angle</b> control curve smoothness (smaller = smoother, more triangles).{' '}
@@ -59,52 +58,58 @@ export function StepSection() {
           {file && <span className="self-center truncate text-slate-400 text-xs">{file.name}</span>}
         </div>
         {file && file.size >= LARGE_STEP_BYTES && (
-          <p className="text-amber-400 text-xs">
+          <InfoBox>
             Large file ({Math.round(file.size / 1024 / 1024)} MB): a STEP import can need several GB of RAM (every
             tessellation worker keeps its own copy of the file index) and may crash the tab — save your work first.
             Fewer workers use less memory.
-          </p>
+          </InfoBox>
         )}
         {file && (
           <>
             <ImportOptionsRows />
-            <FolderField value={folder} onChange={setFolder} labelWidth="w-16" />
-            <OptionNumberRow
+            <FolderField value={folder} onChange={setFolder} labelWidth={64} />
+            <NumberInput
               label="Deflection"
-              labelWidth="w-16"
+              labelPosition="left"
+              labelWidth={64}
               tooltip="Chordal sag tolerance (mm) — smaller = smoother curves, more triangles"
               value={step.deflectionMm}
               min={0.01}
               max={10}
               step={0.1}
               unit="mm"
-              shortcutBase="assets.step.deflection"
+              decShortcut="assets.step.deflection.dec"
+              incShortcut="assets.step.deflection.inc"
               onChange={(v) => act.setStepOptions({ deflectionMm: v })}
             />
-            <OptionNumberRow
+            <NumberInput
               label="Max angle"
-              labelWidth="w-16"
+              labelPosition="left"
+              labelWidth={64}
               tooltip="Max chord turn angle (deg) — smaller = smoother curves, more triangles"
               value={step.maxAngleDeg}
               min={1}
               max={90}
               step={1}
               unit="deg"
-              shortcutBase="assets.step.angle"
+              decShortcut="assets.step.angle.dec"
+              incShortcut="assets.step.angle.inc"
               onChange={(v) => act.setStepOptions({ maxAngleDeg: v })}
             />
-            <OptionNumberRow
+            <NumberInput
               label="Workers"
-              labelWidth="w-16"
+              labelPosition="left"
+              labelWidth={64}
               tooltip="Tessellation sub-workers (0 = in-process). Each keeps its own copy of the file index: more = faster, more memory"
               value={step.workers}
               min={0}
               max={MAX_STEP_WORKERS}
               step={1}
-              shortcutBase="assets.step.workers"
+              decShortcut="assets.step.workers.dec"
+              incShortcut="assets.step.workers.inc"
               onChange={(v) => act.setStepOptions({ workers: v })}
             />
-            <OptionCheckRow
+            <Checkbox
               label="Cleanup (weld positions)"
               shortcut="assets.step.cleanup"
               tooltip="Weld duplicate positions (drops normals) — matches the flatshaded renderer"

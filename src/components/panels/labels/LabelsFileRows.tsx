@@ -6,12 +6,17 @@ import {
   IconDownload,
   IconUpload,
 } from '@tabler/icons-react';
-import { Button, readFileText, Select, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, readFileText, SegmentedControl, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useEffect } from 'react';
 import { labelsActions as act } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
 import { dialogs } from '../../dialogs/dialogs.actions';
 import { registerLabelsLoad } from './labelsPanel';
+
+const EXPLODE_SHAPES = [
+  { value: 'circle', label: 'Circle', tooltip: 'Explode the labels onto a circle around the anchors' },
+  { value: 'box', label: 'Box', tooltip: 'Explode the labels onto a rectangle around the anchors' },
+] as const;
 
 /** Labels → Common, rows 3-4: explode/implode with layout shape, JSON
  *  save/load (owns the file picker + the labels.load hotkey hook-up), undo/redo. */
@@ -21,9 +26,9 @@ export function LabelsFileRows() {
     readFileText(f, (text) => {
       try {
         const n = act.importJson(text);
-        void dialogs.confirm(`Loaded ${n} label(s).`, { okLabel: 'OK' });
+        dialogs.success(`Loaded ${n} label(s).`);
       } catch (e) {
-        void dialogs.confirm(`Import failed: ${e instanceof Error ? e.message : String(e)}`, { okLabel: 'OK' });
+        dialogs.warn(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     }),
   );
@@ -55,16 +60,7 @@ export function LabelsFileRows() {
         >
           Implode
         </Button>
-        <div data-tooltip="Explode layout shape" className="w-24">
-          <Select
-            options={[
-              { value: 'circle', label: 'Circle' },
-              { value: 'box', label: 'Box' },
-            ]}
-            value={s.explodeShape}
-            onChange={(v) => act.setExplodeShape(v as 'circle' | 'box')}
-          />
-        </div>
+        <SegmentedControl options={EXPLODE_SHAPES} value={s.explodeShape} onChange={act.setExplodeShape} />
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <Button

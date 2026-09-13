@@ -15,14 +15,18 @@ pub struct CookResult {
 
 #[wasm_bindgen]
 impl CookResult {
+    /// The cooked bytes, **moved** out of wasm memory: wasm-bindgen already
+    /// copies the `Vec` into a JS `Uint8Array`, so cloning it first meant two
+    /// copies of a whole model. Reading it a second time yields an empty array.
     #[wasm_bindgen(getter)]
-    pub fn bytes(&self) -> Vec<u8> {
-        self.bytes.clone()
+    pub fn bytes(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.bytes)
     }
-    /// The coarse variant — present only when the cook asked for one.
+    /// The coarse variant — present only when the cook asked for one. Moved
+    /// out like {@link CookResult::bytes}: a second read yields `undefined`.
     #[wasm_bindgen(getter)]
-    pub fn coarse(&self) -> Option<Vec<u8>> {
-        self.coarse.clone()
+    pub fn coarse(&mut self) -> Option<Vec<u8>> {
+        self.coarse.take()
     }
     #[wasm_bindgen(getter, js_name = rootName)]
     pub fn root_name(&self) -> String {

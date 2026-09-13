@@ -5,7 +5,20 @@
 
 export const PROTOCOL = 1;
 
-export type ApiErrorCode = 'bad-payload' | 'not-ready' | 'busy' | 'not-found' | 'internal' | 'unknown-command';
+export type ApiErrorCode =
+  | 'bad-payload'
+  | 'not-ready'
+  /** the import lock is held — the command never ran, so a retry is sensible */
+  | 'busy'
+  | 'not-found'
+  /** a URL the command was told to fetch could not be downloaded */
+  | 'download'
+  /** SQLite rejected the statement (a caller error: bad SQL, no such table) */
+  | 'sql'
+  /** the caller cancelled it (an AbortSignal, or the SDK's timeout) */
+  | 'cancelled'
+  | 'internal'
+  | 'unknown-command';
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -28,6 +41,10 @@ export type Inbound =
   | { kind: 'ignore'; reason: 'origin' | 'envelope' | 'no-source' | 'no-id' | 'own-traffic' }
   | { kind: 'hello' }
   | { kind: 'bye' }
+  /** `command.cancel` — abort the in-flight command with this id, if it is
+   *  still running and belongs to the sender. Carries no id of its own: it is
+   *  a note, not a request, and gets no reply. */
+  | { kind: 'cancel'; cancelId: string }
   | { kind: 'command'; id: string; type: string; payload: Record<string, unknown>; bytes: unknown };
 
 /** The command's answer, ready to go into a result envelope. */
@@ -56,6 +73,10 @@ export function classifyInbound(data: unknown, originAllowed: boolean, hasSource
   }
   if (data.id === null && data.type === 'client.bye') {
     return { kind: 'bye' };
+  }
+  if (data.id === null && data.type === 'command.cancel') {
+    const cancelId = isRecord(data.payload) ? data.payload.id : undefined;
+    return typeof cancelId === 'string' ? { kind: 'cancel', cancelId } : { kind: 'ignore', reason: 'no-id' };
   }
   if (typeof data.id !== 'string') {
     return { kind: 'ignore', reason: 'no-id' };
@@ -88,15 +109,47 @@ export async function answerCommand(
   cmd: Extract<Inbound, { kind: 'command' }>,
   ready: boolean,
   dispatch: (type: string, payload: Record<string, unknown>, bytes: unknown) => Promise<unknown>,
+  signal?: AbortSignal,
 ): Promise<Answer> {
   if (!ready) {
     return { ok: false, error: { code: 'not-ready', message: 'app is still booting — wait for app.ready' } };
   }
   try {
-    return { ok: true, payload: await dispatch(cmd.type, cmd.payload, cmd.bytes) };
+    const payload = await dispatch(cmd.type, cmd.payload, cmd.bytes);
+    // a handler that finished anyway after an abort still reports cancelled:
+    // the caller has stopped listening for a success
+    if (signal?.aborted) {
+      return { ok: false, error: { code: 'cancelled', message: `${cmd.type} was cancelled` } };
+    }
+    return { ok: true, payload };
   } catch (err) {
+    if (signal?.aborted) {
+      return { ok: false, error: { code: 'cancelled', message: `${cmd.type} was cancelled` } };
+    }
     return { ok: false, error: toWireError(err) };
   }
+}
+
+/**
+ * Buffers in a handler's payload that should MOVE to the host instead of being
+ * copied. Kept beside the payload (a WeakMap, not a field) so nothing extra
+ * ever reaches the wire; `transfersOf` reads it back just before the reply is
+ * posted. A cross-origin window is fine — postMessage's transfer list is not
+ * origin-restricted.
+ */
+const transferLists = new WeakMap<object, Transferable[]>();
+
+export function withTransfer<T extends object>(payload: T, list: Transferable[]): T {
+  transferLists.set(payload, list);
+  return payload;
+}
+
+/** The transfer list an answer's payload declared, or none. */
+export function transfersOf(answer: Answer): Transferable[] {
+  if (!answer.ok || typeof answer.payload !== 'object' || answer.payload === null) {
+    return [];
+  }
+  return transferLists.get(answer.payload) ?? [];
 }
 
 /** The one result envelope a request gets (same id, `type:result`). */

@@ -1,77 +1,78 @@
-import { IconAsterisk, IconCube, IconEqual, IconFolder, IconX } from '@tabler/icons-react';
-import { Button } from '@treDeSpaceUI/widgets';
+import { IconCube, IconFolder } from '@tabler/icons-react';
+import { SegmentedControl, TextInput, TreeView, type TreeViewRow } from '@treDeSpaceUI/widgets';
 import { useEffect, useState } from 'react';
 import { db } from '../../../state/viewer/db';
 import { keyOf } from './hierarchyModel';
 
 export type SearchResult = { model: number; entry: number; name: string; path: number[]; group?: string };
 
+const SEARCH_DEBOUNCE_MS = 200;
+const MAX_RESULTS = 10;
+const MIN_QUERY_LEN = 2;
+
+/** The two name-match modes — the same pair the asset search offers. */
+const MATCH_MODES = [
+  { value: 'contains', label: '*', tooltip: 'Contains — any part of the name matches' },
+  { value: 'exact', label: '=', tooltip: 'Equals — whole-string match' },
+] as const;
+
+type MatchMode = (typeof MATCH_MODES)[number]['value'];
+
+/** One result row: a folder, a model root, or a deeper entry. */
+function toTreeRow(r: SearchResult): TreeViewRow {
+  return {
+    key: r.group ?? keyOf(r.model, r.entry),
+    depth: 0,
+    label: r.group ? (r.group.split('/').pop() ?? r.name) : r.name,
+    icon: r.group ? (
+      <IconFolder size={14} className="shrink-0 text-amber-400/80" />
+    ) : (
+      <IconCube size={14} className={`shrink-0 ${r.path.length === 1 ? 'text-sky-400/80' : 'text-slate-600'}`} />
+    ),
+  };
+}
+
 /** Debounced worker-side name search (top-10, shallowest level first) with its
  *  match-mode toggle and result list. */
 export function HierarchySearch({ onPick }: { onPick: (r: SearchResult) => void }) {
   const [query, setQuery] = useState('');
-  const [exact, setExact] = useState(false); // = exact match, * contains
+  const [mode, setMode] = useState<MatchMode>('contains');
   const [results, setResults] = useState<SearchResult[] | null>(null);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
+    if (query.trim().length < MIN_QUERY_LEN) {
       setResults(null);
       return;
     }
     const t = setTimeout(() => {
-      void db.search(query, exact ? 'equals' : 'contains', 10).then(setResults);
-    }, 200);
+      void db.search(query, mode === 'exact' ? 'equals' : 'contains', MAX_RESULTS).then(setResults);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [query, exact]);
+  }, [query, mode]);
+
+  const byKey = new Map((results ?? []).map((r) => [r.group ?? keyOf(r.model, r.entry), r]));
 
   return (
     <>
       <div className="mb-1 flex shrink-0 items-center gap-1">
         <div className="relative min-w-0 flex-1">
-          <input
-            type="text"
-            value={query}
-            placeholder="Search items…"
-            className="h-6 w-full border border-slate-700 bg-slate-900 px-2 py-0 pr-6 text-slate-200 text-xs outline-none focus:border-blue-400"
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query && (
-            <button
-              type="button"
-              data-tooltip="Clear search"
-              className="absolute top-1/2 right-1 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-              onClick={() => setQuery('')}
-            >
-              <IconX size={12} />
-            </button>
-          )}
+          <TextInput type="search" value={query} onChange={setQuery} placeholder="Search items…" />
         </div>
-        <Button
-          iconOnly
-          active={exact}
-          icon={exact ? <IconEqual /> : <IconAsterisk />}
-          tooltip={exact ? 'Exact match (=)\nclick for contains (*)' : 'Contains (*)\nclick for exact match (=)'}
-          onClick={() => setExact((x) => !x)}
-        />
+        <SegmentedControl value={mode} options={MATCH_MODES} onChange={setMode} />
       </div>
       {results !== null && (
-        <ul className="tree scroll-slim mb-1 max-h-56 shrink-0 border-slate-800 border-b pb-1">
-          {results.length === 0 && <p className="note">No matches.</p>}
-          {results.map((r) => (
-            <li key={r.group ?? keyOf(r.model, r.entry)}>
-              <button type="button" className="tree-row flex w-full min-w-0 items-center" onClick={() => onPick(r)}>
-                {r.group ? (
-                  <IconFolder size={14} className="mr-1 shrink-0 text-amber-400/80" />
-                ) : r.path.length === 1 ? (
-                  <IconCube size={14} className="mr-1 shrink-0 text-sky-400/80" />
-                ) : (
-                  <IconCube size={14} className="mr-1 shrink-0 text-slate-600" />
-                )}
-                <span className="min-w-0 truncate">{r.group ? (r.group.split('/').pop() ?? r.name) : r.name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <TreeView
+          className="mb-1 max-h-56 shrink-0 border-slate-800 border-b pb-1"
+          rows={results.map(toTreeRow)}
+          padLeft={8}
+          emptyText="No matches."
+          onRowClick={(t) => {
+            const r = byKey.get(t.key);
+            if (r) {
+              onPick(r);
+            }
+          }}
+        />
       )}
     </>
   );

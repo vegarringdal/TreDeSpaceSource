@@ -326,6 +326,7 @@ dependencies = [
  "bytemuck",
  "cad-format",
  "meshopt 0.7.0",
+ "rustc-hash",
  "rvm-core",
  "serde",
  "serde_json",

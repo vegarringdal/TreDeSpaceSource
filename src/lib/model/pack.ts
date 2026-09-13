@@ -183,7 +183,9 @@ export function packModelMixed(full: ParsedModel, coarse: ParsedModel | null, us
     full.colorGroups.every((cg) => cg.normals != null) &&
     (!coarse || coarse.colorGroups.every((cg) => cg.normals != null));
   const normalsQ = withNormals ? new Int16Array(totalVerts * 2) : null;
-  const indices16 = new Uint16Array(totalTris * 3 + 1); // +1: even pad for writeBuffer
+  // exact length, rounded up to an even u16 count so the byte size stays
+  // 4-byte aligned for writeBuffer
+  const indices16 = new Uint16Array(totalTris * 3 + ((totalTris * 3) & 1));
   const cull = new ArrayBuffer(totalMeshlets * MESHLET_STRIDE);
   const cullF = new Float32Array(cull);
   const cullU = new Uint32Array(cull);
@@ -192,8 +194,14 @@ export function packModelMixed(full: ParsedModel, coarse: ParsedModel | null, us
   const infoU = new Uint32Array(meshletInfo);
   const infoF = new Float32Array(meshletInfo);
   const itemBounds = new Float32Array(full.itemCount * 6);
-  for (let i = 0; i < full.itemCount; i++) {
-    itemBounds.set([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity], i * 6);
+  // strided fill — `set([...])` allocated a six-element JS array per item
+  for (let i = 0; i < itemBounds.length; i += 6) {
+    itemBounds[i] = Infinity;
+    itemBounds[i + 1] = Infinity;
+    itemBounds[i + 2] = Infinity;
+    itemBounds[i + 3] = -Infinity;
+    itemBounds[i + 4] = -Infinity;
+    itemBounds[i + 5] = -Infinity;
   }
 
   let nextVert = 0;
@@ -293,7 +301,7 @@ export function packModelMixed(full: ParsedModel, coarse: ParsedModel | null, us
     itemCount: full.itemCount,
     cgCount: full.colorGroups.length,
     positionsQ,
-    indices16: indices16.slice(0, Math.ceil(indexPos / 2) * 2),
+    indices16,
     cull,
     meshletInfo,
     cgColors,
@@ -308,14 +316,21 @@ export function packModel(model: ParsedModel): PackedModel {
   for (const cg of model.colorGroups) {
     totalVerts += cg.localVertCount;
     totalMeshlets += cg.meshletCount;
-    totalTris += cg.triByteCount; // upper bound; trimmed below
+    // exact triangle count from the descs, not the triByteCount upper bound:
+    // one u32 read per meshlet here saves allocating the whole index buffer
+    // too large and copying the used part out of it at the end
+    for (let m = 0; m < cg.meshletCount; m++) {
+      totalTris += cg.descs.getUint32(m * 40 + 12, true);
+    }
   }
 
   const positionsQ = new Uint16Array(totalVerts * 4);
   // normals are all-or-nothing per file (cook.ts) — pack only when every CG has them
   const withNormals = model.colorGroups.length > 0 && model.colorGroups.every((cg) => cg.normals != null);
   const normalsQ = withNormals ? new Int16Array(totalVerts * 2) : null;
-  const indices16 = new Uint16Array(totalTris * 3 + 1); // +1: even pad for writeBuffer
+  // exact length, rounded up to an even u16 count so the byte size stays
+  // 4-byte aligned for writeBuffer
+  const indices16 = new Uint16Array(totalTris * 3 + ((totalTris * 3) & 1));
   const cull = new ArrayBuffer(totalMeshlets * MESHLET_STRIDE);
   const cullF = new Float32Array(cull);
   const cullU = new Uint32Array(cull);
@@ -331,8 +346,14 @@ export function packModel(model: ParsedModel): PackedModel {
   }
 
   const itemBounds = new Float32Array(model.itemCount * 6);
-  for (let i = 0; i < model.itemCount; i++) {
-    itemBounds.set([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity], i * 6);
+  // strided fill — `set([...])` allocated a six-element JS array per item
+  for (let i = 0; i < itemBounds.length; i += 6) {
+    itemBounds[i] = Infinity;
+    itemBounds[i + 1] = Infinity;
+    itemBounds[i + 2] = Infinity;
+    itemBounds[i + 3] = -Infinity;
+    itemBounds[i + 4] = -Infinity;
+    itemBounds[i + 5] = -Infinity;
   }
   // meshlet -> item lookup while packing (mirrors the meshletInfo fill below)
   const meshletItem = new Uint32Array(model.colorGroups.reduce((n, cg) => n + cg.meshletCount, 0));
@@ -458,7 +479,7 @@ export function packModel(model: ParsedModel): PackedModel {
     itemCount: model.itemCount,
     cgCount: model.colorGroups.length,
     positionsQ,
-    indices16: indices16.slice(0, Math.ceil(indexPos / 2) * 2),
+    indices16,
     cull,
     meshletInfo,
     cgColors,

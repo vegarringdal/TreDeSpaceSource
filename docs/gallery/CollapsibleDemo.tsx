@@ -6,11 +6,12 @@ import { Section } from './Section';
 /** Gallery section for Collapsible. */
 export function CollapsibleDemo() {
   const [edits, setEdits] = useState(0);
+  const [openId, setOpenId] = useState<string | null>('a');
 
   return (
     <Section
       title="Collapsible"
-      note="A titled section that collapses — for organising long settings tabs. The header can carry a right-aligned aside (count, badge), action buttons (a reset that greys out at defaults) and an info popover."
+      note="A titled section that collapses — for organising long settings tabs. The header can carry a right-aligned aside (count, badge), action buttons (a reset that greys out at defaults) and an info popover. Uncontrolled by default; pass `open` + `onToggle` when something else owns the state — an accordion, or a search that must open every matching group."
       props={['CollapsibleProps']}
       code={`function RenderingSettings() {
   const [edits, setEdits] = useState(0);
@@ -47,6 +48,17 @@ export function CollapsibleDemo() {
       <Collapsible title="Collapsed by default" defaultOpen={false}>
         <p className="m-0 py-1 text-slate-400">Sections animate open and closed without measuring.</p>
       </Collapsible>
+      {/* controlled: one open at a time */}
+      {['a', 'b'].map((id) => (
+        <Collapsible
+          key={id}
+          title={`Controlled ${id.toUpperCase()} — only one open at a time`}
+          open={openId === id}
+          onToggle={(next) => setOpenId(next ? id : null)}
+        >
+          <p className="m-0 py-1 text-slate-400">Opening this one closes the other.</p>
+        </Collapsible>
+      ))}
     </Section>
   );
 }

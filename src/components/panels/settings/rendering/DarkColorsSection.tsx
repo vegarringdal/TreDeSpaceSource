@@ -1,8 +1,6 @@
-import { NumberInput } from '@treDeSpaceUI/widgets';
+import { Checkbox, NumberInput } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
-import { Row } from '../Row';
 import { SettingsSection } from '../SettingsSection';
 
 /** Rendering → Dark colours: render pure-black material colours as grey so
@@ -25,25 +23,25 @@ export function DarkColorsSection() {
         </>
       }
     >
-      <Check
+      <Checkbox
         label="Lift black color to grey"
         tooltip="Render pure-black material colours as grey so their shading shows; other dark colours, the cooked colours and exports are untouched"
         shortcut="render.darkLift"
         checked={v.darkLift}
         onChange={(x) => act.update({ darkLift: x })}
       />
-      <Row label="Grey level">
-        <NumberInput
-          value={v.darkLiftPct}
-          min={0}
-          max={100}
-          step={5}
-          unit="%"
-          decShortcut="render.darkLift.dec"
-          incShortcut="render.darkLift.inc"
-          onChange={(x) => act.update({ darkLiftPct: x })}
-        />
-      </Row>
+      <NumberInput
+        label="Grey level"
+        labelPosition="split"
+        value={v.darkLiftPct}
+        min={0}
+        max={100}
+        step={5}
+        unit="%"
+        decShortcut="render.darkLift.dec"
+        incShortcut="render.darkLift.inc"
+        onChange={(x) => act.update({ darkLiftPct: x })}
+      />
     </SettingsSection>
   );
 }

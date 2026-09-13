@@ -203,7 +203,7 @@ async function packedFor(p: Record<string, unknown>, name: string, event: string
   const t0 = performance.now();
   const res = await sqlReportsActions.runColoringResult(report, opts);
   if (res.error || !res.packed) {
-    throw new ApiError('internal', res.error ?? 'the coloring query returned nothing');
+    throw new ApiError('sql', res.error ?? 'the coloring query returned nothing');
   }
   return { packed: res.packed, opts, ms: Math.round(performance.now() - t0) };
 }
@@ -247,7 +247,7 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     });
   },
 
-  'sql.importUrl': async ({ p }) => {
+  'sql.importUrl': async ({ p, signal }) => {
     const raw = p.files;
     if (!Array.isArray(raw) || raw.length === 0) {
       throw new ApiError('bad-payload', 'files must be a non-empty array');
@@ -266,6 +266,7 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     // per-file download failures are recorded, never thrown.
     return await sqlAssetsActions.importDatabasesFromUrls(files, store, {
       replace,
+      ...(signal ? { signal } : {}),
       ...sqlProgressOpts(p),
     });
   },
@@ -299,7 +300,13 @@ export const sqlHandlers: Record<string, ApiHandler> = {
   // Full statement form (the SQL editor's / sqllitedebug's contract): several
   // statements in ONE transaction on the same files, per-statement bindings
   // and collect flags, optional progress per statement and per row.
-  'sql.execute': async ({ p }) => {
+  // A statement already running inside the SQLite worker cannot be stopped
+  // (killing the worker would abort every tab's query), so cancellation here
+  // means: never start, and report `cancelled` for a result nobody wants.
+  'sql.execute': async ({ p, signal }) => {
+    if (signal?.aborted) {
+      throw new ApiError('cancelled', 'sql.execute was cancelled before it started');
+    }
     const mainDbPath = typeof p.mainDb === 'string' ? p.mainDb : '';
     if (!mainDbPath) {
       throw new ApiError('bad-payload', 'mainDb is required (a path from sql.list)');
@@ -360,7 +367,9 @@ export const sqlHandlers: Record<string, ApiHandler> = {
       onProgress,
     );
     if (result.err) {
-      throw new ApiError('internal', result.err.msg);
+      // SQLite rejected it (bad SQL, no such table, locked file) — the
+      // caller's problem to fix, not an internal viewer failure
+      throw new ApiError('sql', result.err.msg);
     }
     const out = statements.map((st, i) => {
       const { rows, rowCount, truncated } = capRows(result.data?.[i], result.rowCounts?.[i]);
@@ -405,7 +414,9 @@ export const sqlHandlers: Record<string, ApiHandler> = {
       }),
     );
     if (result.err) {
-      throw new ApiError('internal', result.err.msg);
+      // SQLite rejected it (bad SQL, no such table, locked file) — the
+      // caller's problem to fix, not an internal viewer failure
+      throw new ApiError('sql', result.err.msg);
     }
     const out = (result.data ?? []).map((rowsUnknown, i) => {
       const { rows, rowCount, truncated } = capRows(rowsUnknown, result.rowCounts?.[i]);
@@ -443,7 +454,7 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     const report = await apiReport(p, typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'API query');
     const res = await sqlReportsActions.runTable(report, p.loadAll === true, runOpts(p, 'sql.table:progress'));
     if (res.error) {
-      throw new ApiError('internal', res.error);
+      throw new ApiError('sql', res.error);
     }
     if (p.show !== false) {
       openSqlTablePanel();

@@ -1,7 +1,6 @@
 import { ColorSelect, NumberInput } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Row } from '../Row';
 import { SettingsSection } from '../SettingsSection';
 
 /** Settings → Lighting tab: ambient + headlight colour and intensity, once for
@@ -23,34 +22,40 @@ export function LightingTab() {
           </>
         }
       >
-        <Row label="Ambient colour">
-          <ColorSelect value={v.ambientColor} onChange={(x) => act.update({ ambientColor: x })} />
-        </Row>
-        <Row label="Ambient intensity">
-          <NumberInput
-            value={v.ambientIntensity}
-            min={0}
-            max={2}
-            step={0.05}
-            decShortcut="render.ambient.dec"
-            incShortcut="render.ambient.inc"
-            onChange={(x) => act.update({ ambientIntensity: x })}
-          />
-        </Row>
-        <Row label="Headlight colour">
-          <ColorSelect value={v.headlightColor} onChange={(x) => act.update({ headlightColor: x })} />
-        </Row>
-        <Row label="Headlight intensity">
-          <NumberInput
-            value={v.headlightIntensity}
-            min={0}
-            max={2}
-            step={0.05}
-            decShortcut="render.headlight.dec"
-            incShortcut="render.headlight.inc"
-            onChange={(x) => act.update({ headlightIntensity: x })}
-          />
-        </Row>
+        <ColorSelect
+          label="Ambient colour"
+          labelPosition="split"
+          value={v.ambientColor}
+          onChange={(x) => act.update({ ambientColor: x })}
+        />
+        <NumberInput
+          label="Ambient intensity"
+          labelPosition="split"
+          value={v.ambientIntensity}
+          min={0}
+          max={2}
+          step={0.05}
+          decShortcut="render.ambient.dec"
+          incShortcut="render.ambient.inc"
+          onChange={(x) => act.update({ ambientIntensity: x })}
+        />
+        <ColorSelect
+          label="Headlight colour"
+          labelPosition="split"
+          value={v.headlightColor}
+          onChange={(x) => act.update({ headlightColor: x })}
+        />
+        <NumberInput
+          label="Headlight intensity"
+          labelPosition="split"
+          value={v.headlightIntensity}
+          min={0}
+          max={2}
+          step={0.05}
+          decShortcut="render.headlight.dec"
+          incShortcut="render.headlight.inc"
+          onChange={(x) => act.update({ headlightIntensity: x })}
+        />
       </SettingsSection>
       <SettingsSection
         id="sketchLighting"
@@ -63,34 +68,40 @@ export function LightingTab() {
           </>
         }
       >
-        <Row label="Ambient colour">
-          <ColorSelect value={v.sketchAmbientColor} onChange={(x) => act.update({ sketchAmbientColor: x })} />
-        </Row>
-        <Row label="Ambient intensity">
-          <NumberInput
-            value={v.sketchAmbientIntensity}
-            min={0}
-            max={2}
-            step={0.05}
-            decShortcut="render.sketchAmbient.dec"
-            incShortcut="render.sketchAmbient.inc"
-            onChange={(x) => act.update({ sketchAmbientIntensity: x })}
-          />
-        </Row>
-        <Row label="Headlight colour">
-          <ColorSelect value={v.sketchHeadlightColor} onChange={(x) => act.update({ sketchHeadlightColor: x })} />
-        </Row>
-        <Row label="Headlight intensity">
-          <NumberInput
-            value={v.sketchHeadlightIntensity}
-            min={0}
-            max={2}
-            step={0.05}
-            decShortcut="render.sketchHeadlight.dec"
-            incShortcut="render.sketchHeadlight.inc"
-            onChange={(x) => act.update({ sketchHeadlightIntensity: x })}
-          />
-        </Row>
+        <ColorSelect
+          label="Ambient colour"
+          labelPosition="split"
+          value={v.sketchAmbientColor}
+          onChange={(x) => act.update({ sketchAmbientColor: x })}
+        />
+        <NumberInput
+          label="Ambient intensity"
+          labelPosition="split"
+          value={v.sketchAmbientIntensity}
+          min={0}
+          max={2}
+          step={0.05}
+          decShortcut="render.sketchAmbient.dec"
+          incShortcut="render.sketchAmbient.inc"
+          onChange={(x) => act.update({ sketchAmbientIntensity: x })}
+        />
+        <ColorSelect
+          label="Headlight colour"
+          labelPosition="split"
+          value={v.sketchHeadlightColor}
+          onChange={(x) => act.update({ sketchHeadlightColor: x })}
+        />
+        <NumberInput
+          label="Headlight intensity"
+          labelPosition="split"
+          value={v.sketchHeadlightIntensity}
+          min={0}
+          max={2}
+          step={0.05}
+          decShortcut="render.sketchHeadlight.dec"
+          incShortcut="render.sketchHeadlight.inc"
+          onChange={(x) => act.update({ sketchHeadlightIntensity: x })}
+        />
       </SettingsSection>
     </div>
   );

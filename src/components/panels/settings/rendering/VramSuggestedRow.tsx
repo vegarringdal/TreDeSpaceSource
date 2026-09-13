@@ -1,7 +1,6 @@
 import { Button } from '@treDeSpaceUI/widgets';
 import { suggestVramBudgetMb } from '../../../../lib/render/vramHint';
 import { getRenderer, viewerActions } from '../../../../state/viewer/viewer.actions';
-import { Row } from '../Row';
 
 /** "Suggested for this GPU: N MB" under Max VRAM — shown only when the
  *  adapter is an integrated or mobile part, where a quarter of system RAM is
@@ -12,12 +11,13 @@ export function VramSuggestedRow({ current, enabled }: { current: number; enable
   if (suggested === null) {
     return null;
   }
+
   const inUse = enabled && current === suggested;
   return (
-    <Row label="Suggested">
-      <span className="text-slate-400 text-xs">{suggested} MB for this GPU</span>
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="min-w-0 truncate text-slate-400">Suggested</span>
+      <span className="ml-auto text-slate-400">{suggested} MB for this GPU</span>
       <Button
-        className="h-6 px-2 text-[11px]"
         disabled={inUse}
         tooltip="Enable the budget with Max VRAM at the suggestion — a quarter of system RAM, clamped to what an integrated GPU can use"
         shortcut="render.vramUseSuggested"
@@ -25,6 +25,6 @@ export function VramSuggestedRow({ current, enabled }: { current: number; enable
       >
         {inUse ? 'In use' : 'Use'}
       </Button>
-    </Row>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { InfoBox, Select, TextInput } from '@treDeSpaceUI/widgets';
+import { EmptyState, InfoBox, Select, TextInput } from '@treDeSpaceUI/widgets';
 import { useEffect, useMemo } from 'react';
 import { sqlAssetsActions } from '../../../state/sqlAssets/sqlAssets.actions';
 import { sqlAssetsState } from '../../../state/sqlAssets/sqlAssets.state';
@@ -38,20 +38,17 @@ export function SqlReports() {
 
   return (
     <PanelBody className="panel-body flex h-full min-h-0 flex-col gap-2 overflow-y-auto p-2">
-      <label className="flex shrink-0 items-center gap-2 text-slate-400 text-xs">
-        <span className="w-12 shrink-0">Store</span>
-        <div
-          className="min-w-0 flex-1"
-          data-tooltip="Reports are grouped by store — pick one to see and edit its reports"
-        >
-          <Select
-            value={store}
-            placeholder={stores.length ? 'Pick a store…' : 'No stores yet'}
-            options={stores.map((s) => ({ value: s.name, label: s.name, hint: s.description || undefined }))}
-            onChange={(v) => void act.setStore(v)}
-          />
-        </div>
-      </label>
+      <Select
+        label="Store"
+        labelPosition="left"
+        labelWidth={48}
+        className="shrink-0"
+        tooltip="Reports are grouped by store — pick one to see and edit its reports"
+        value={store}
+        placeholder={stores.length ? 'Pick a store…' : 'No stores yet'}
+        options={stores.map((s) => ({ value: s.name, label: s.name, hint: s.description || undefined }))}
+        onChange={(v) => void act.setStore(v)}
+      />
 
       {!store ? (
         <InfoBox>
@@ -62,9 +59,9 @@ export function SqlReports() {
           <NewReportRow store={store} />
           <TextInput value={query} onChange={act.setQuery} placeholder="Search reports…" />
           {filtered.length === 0 ? (
-            <p className="note px-1 py-2 text-center text-slate-500">
+            <EmptyState layout="center">
               {reports.length === 0 ? 'No reports yet — create one above.' : 'No reports match the search.'}
-            </p>
+            </EmptyState>
           ) : (
             filtered.map((r) =>
               editId === r.id ? (

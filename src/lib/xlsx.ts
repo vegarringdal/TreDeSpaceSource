@@ -1,7 +1,7 @@
 // Minimal .xlsx writer — one sheet, a header row, plain values, no styles.
 // Just enough OOXML for Excel / LibreOffice to open a query result, with no
 // dependency; the container is the STORED zip in ./zip.ts. Pure, unit-tested.
-import { type ZipEntry, zipStored } from './zip';
+import { type ZipEntry, type ZipSource, zipDeflated, zipStored } from './zip';
 
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 /** Excel's hard limit for one cell's text. */
@@ -99,24 +99,80 @@ function sheetXml(columns: readonly string[], rows: readonly (readonly unknown[]
   return parts.join('');
 }
 
+/** The fixed parts every workbook carries, plus the one that names the sheet. */
+function workbookParts(title: string): { name: string; text: string }[] {
+  const sheetName = escapeXml(sheetNameFor(title));
+  return [
+    { name: '[Content_Types].xml', text: CONTENT_TYPES },
+    { name: '_rels/.rels', text: ROOT_RELS },
+    {
+      name: 'xl/workbook.xml',
+      text:
+        `${XML_HEAD}<workbook xmlns="${NS_MAIN}" xmlns:r="${NS_DOC_REL}">` +
+        `<sheets><sheet name="${sheetName}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    },
+    { name: 'xl/_rels/workbook.xml.rels', text: WORKBOOK_RELS },
+  ];
+}
+
 /** The complete .xlsx bytes for a header + rows, the sheet named after
- *  `title` (sanitized). */
+ *  `title` (sanitized). STORED and synchronous — the pure form the unit tests
+ *  read; {@link buildXlsxZipped} is what the app uses. */
 export function buildXlsx(
   columns: readonly string[],
   rows: readonly (readonly unknown[])[],
   title = 'Sheet1',
 ): Uint8Array<ArrayBuffer> {
   const enc = new TextEncoder();
-  const sheetName = escapeXml(sheetNameFor(title));
-  const workbook =
-    `${XML_HEAD}<workbook xmlns="${NS_MAIN}" xmlns:r="${NS_DOC_REL}">` +
-    `<sheets><sheet name="${sheetName}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
   const entries: ZipEntry[] = [
-    { name: '[Content_Types].xml', data: enc.encode(CONTENT_TYPES) },
-    { name: '_rels/.rels', data: enc.encode(ROOT_RELS) },
-    { name: 'xl/workbook.xml', data: enc.encode(workbook) },
-    { name: 'xl/_rels/workbook.xml.rels', data: enc.encode(WORKBOOK_RELS) },
+    ...workbookParts(title).map((p) => ({ name: p.name, data: enc.encode(p.text) })),
     { name: 'xl/worksheets/sheet1.xml', data: enc.encode(sheetXml(columns, rows)) },
   ];
   return zipStored(entries);
+}
+
+/** Rows per encoded chunk — big enough that the per-chunk overhead vanishes,
+ *  small enough that the sheet XML is never held whole. */
+const SHEET_CHUNK_ROWS = 2000;
+
+/** The sheet XML as a stream of encoded pieces, yielding between batches so a
+ *  quarter-million rows do not freeze the tab. */
+async function* sheetChunks(
+  columns: readonly string[],
+  rows: readonly (readonly unknown[])[],
+  onProgress?: (done: number, total: number) => void,
+): AsyncGenerator<Uint8Array<ArrayBuffer>> {
+  const enc = new TextEncoder();
+  yield enc.encode(`${XML_HEAD}<worksheet xmlns="${NS_MAIN}">${FROZEN_HEADER}<sheetData>${rowXml(1, columns)}`);
+  for (let i = 0; i < rows.length; i += SHEET_CHUNK_ROWS) {
+    const end = Math.min(i + SHEET_CHUNK_ROWS, rows.length);
+    const parts: string[] = [];
+    for (let r = i; r < end; r++) {
+      parts.push(rowXml(r + 2, rows[r]));
+    }
+    yield enc.encode(parts.join(''));
+    onProgress?.(end, rows.length);
+    // let the loading dialog repaint between batches
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  yield enc.encode('</sheetData></worksheet>');
+}
+
+/**
+ * The app's .xlsx writer: DEFLATED, and the sheet is encoded in row batches
+ * straight into the compressor — so a 250k-row export never builds one
+ * hundred-megabyte string, and the file it downloads is a fraction of the size.
+ */
+export async function buildXlsxZipped(
+  columns: readonly string[],
+  rows: readonly (readonly unknown[])[],
+  title = 'Sheet1',
+  onProgress?: (done: number, total: number) => void,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const enc = new TextEncoder();
+  const sources: ZipSource[] = [
+    ...workbookParts(title).map((p) => ({ name: p.name, chunks: () => [enc.encode(p.text)] })),
+    { name: 'xl/worksheets/sheet1.xml', chunks: () => sheetChunks(columns, rows, onProgress) },
+  ];
+  return await zipDeflated(sources);
 }

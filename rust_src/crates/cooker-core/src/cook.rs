@@ -8,6 +8,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use bytemuck::Zeroable;
+use rustc_hash::FxHashMap;
 use cad_format::{
     CellEntry, ColorGroupHeader, HierarchyEntry as FmtHierEntry, HierarchySectionHeader,
     IdItemEntry, ItemsSectionHeader, MeshletBounds, MeshletDesc, ModelFileHeader, CELL_COUNT,
@@ -69,12 +70,17 @@ fn cell_of(bx: &([f32; 3], [f32; 3]), min: [f32; 3], extent: [f32; 3]) -> u32 {
         return CELL_ROOT; // item without geometry
     }
     for (dim, base) in [(L2_DIM, CELL_L2_BASE), (L1_DIM, CELL_L1_BASE)] {
-        let lo: Vec<usize> = (0..3)
-            .map(|k| axis_cell(bmin[k], min[k], extent[k], dim))
-            .collect();
-        let hi: Vec<usize> = (0..3)
-            .map(|k| axis_cell(bmax[k], min[k], extent[k], dim))
-            .collect();
+        // fixed-size arrays, not Vecs: this runs once per draw range per level
+        let lo = [
+            axis_cell(bmin[0], min[0], extent[0], dim),
+            axis_cell(bmin[1], min[1], extent[1], dim),
+            axis_cell(bmin[2], min[2], extent[2], dim),
+        ];
+        let hi = [
+            axis_cell(bmax[0], min[0], extent[0], dim),
+            axis_cell(bmax[1], min[1], extent[1], dim),
+            axis_cell(bmax[2], min[2], extent[2], dim),
+        ];
         if lo == hi {
             return base + (lo[0] + lo[1] * dim + lo[2] * dim * dim) as u32;
         }
@@ -237,17 +243,30 @@ pub fn merged_model_from_glb(glb_bytes: &[u8]) -> Result<MergedModel> {
     let (draw_ranges_raw, hierarchy) = parse_extras(&glb.json)?;
 
     // 2. Geometry per node, rotated glTF Y-up → Z-up at cook time.
-    let mut node_geometry: std::collections::HashMap<usize, (Vec<[f32; 3]>, Vec<u32>, [f32; 4])> =
-        Default::default();
+    let mut node_geometry: FxHashMap<usize, (Vec<[f32; 3]>, Vec<u32>, [f32; 4])> =
+        FxHashMap::default();
     for g in glb::node_geometries(&glb)? {
         let positions = g.positions.iter().map(|&[x, y, z]| [x, -z, y]).collect();
         node_geometry.insert(g.node_index, (positions, g.indices, g.base_color));
     }
 
     // 3. One node (→ one color group) per node index referenced by the ranges.
-    let mut node_indices: Vec<usize> = draw_ranges_raw.iter().map(|dr| dr.node_index).collect();
+    // Bucket the ranges by node in ONE pass: filtering the whole range list per
+    // node was O(nodes × ranges), and a merged GLB has a node per colour and a
+    // range per item, so that is quadratic on exactly the big models.
+    let mut ranges_by_node: FxHashMap<usize, Vec<MergedRange>> = FxHashMap::default();
+    for dr in &draw_ranges_raw {
+        ranges_by_node
+            .entry(dr.node_index)
+            .or_default()
+            .push(MergedRange {
+                id: dr.id,
+                index_start: dr.index_start as u32,
+                index_count: dr.index_count as u32,
+            });
+    }
+    let mut node_indices: Vec<usize> = ranges_by_node.keys().copied().collect();
     node_indices.sort_unstable();
-    node_indices.dedup();
 
     let mut nodes = Vec::with_capacity(node_indices.len());
     for &node_index in &node_indices {
@@ -255,15 +274,7 @@ pub fn merged_model_from_glb(glb_bytes: &[u8]) -> Result<MergedModel> {
             node_geometry.remove(&node_index).ok_or_else(|| {
                 anyhow!("node{node_index} referenced in draw_ranges but has no geometry")
             })?;
-        let draw_ranges = draw_ranges_raw
-            .iter()
-            .filter(|dr| dr.node_index == node_index)
-            .map(|dr| MergedRange {
-                id: dr.id,
-                index_start: dr.index_start as u32,
-                index_count: dr.index_count as u32,
-            })
-            .collect();
+        let draw_ranges = ranges_by_node.remove(&node_index).unwrap_or_default();
         nodes.push(MergedNode {
             base_color,
             positions,
@@ -388,7 +399,7 @@ fn prepare(model: MergedModel, opts: CookOptions, want_coarse: bool) -> Result<P
     // JSON object already iterates in (serde_json map = BTreeMap), so this
     // normalisation is a no-op for the GLB path and makes a direct caller's
     // output byte-identical to it.
-    hierarchy.sort_by(|a, b| a.id.to_string().cmp(&b.id.to_string()));
+    hierarchy.sort_by_cached_key(|h| h.id.to_string());
     let root_name = hierarchy
         .iter()
         .find(|h| h.parent_id.is_none())
@@ -448,14 +459,18 @@ fn prepare(model: MergedModel, opts: CookOptions, want_coarse: bool) -> Result<P
         let extent = [bmax[0] - bmin[0], bmax[1] - bmin[1], bmax[2] - bmin[2]];
         for (cg, cg_boxes) in color_groups.iter_mut().zip(boxes.iter_mut()) {
             let n = cg.dr_ids.len();
+            // the cell is both the sort key and the cell table's input, so
+            // compute it once per range instead of O(n log n) times inside the
+            // comparator and once more afterwards
+            let cells: Vec<u32> = cg_boxes.iter().map(|b| cell_of(b, bmin, extent)).collect();
             let mut order: Vec<usize> = (0..n).collect();
-            order.sort_by_key(|&d| (cell_of(&cg_boxes[d], bmin, extent), cg.dr_ids[d]));
+            order.sort_by_key(|&d| (cells[d], cg.dr_ids[d]));
             let permute = |src: &Vec<u32>| -> Vec<u32> { order.iter().map(|&d| src[d]).collect() };
             cg.dr_ids = permute(&cg.dr_ids);
             cg.dr_starts = permute(&cg.dr_starts);
             cg.dr_counts = permute(&cg.dr_counts);
             *cg_boxes = order.iter().map(|&d| cg_boxes[d]).collect();
-            cell_of_item.push(cg_boxes.iter().map(|b| cell_of(b, bmin, extent)).collect());
+            cell_of_item.push(permute(&cells));
         }
     }
 
@@ -744,13 +759,12 @@ struct DrMeshletData {
 
 /// `on_range(index)` fires after each draw range is meshletized.
 pub(crate) fn meshletize_cg(cg: &mut ColorGroup, on_range: &mut dyn FnMut(usize)) -> Result<()> {
-    let per_dr: Vec<DrMeshletData> = (0..cg.dr_ids.len())
-        .map(|di| {
-            let d = build_dr_meshlets(cg, di);
-            on_range(di);
-            d
-        })
-        .collect();
+    let mut scratch = LocalIndexScratch::new(cg.positions.len());
+    let mut per_dr: Vec<DrMeshletData> = Vec::with_capacity(cg.dr_ids.len());
+    for di in 0..cg.dr_ids.len() {
+        per_dr.push(build_dr_meshlets(cg, di, &mut scratch));
+        on_range(di);
+    }
 
     for dr in per_dr {
         let dr_meshlet_start = cg.meshlet_descs.len() as u32;
@@ -773,24 +787,63 @@ pub(crate) fn meshletize_cg(cg: &mut ColorGroup, on_range: &mut dyn FnMut(usize)
     Ok(())
 }
 
-fn build_dr_meshlets(cg: &ColorGroup, di: usize) -> DrMeshletData {
-    use std::collections::HashMap;
+/// The per-draw-range "global vertex → local index" table, reused across every
+/// range of a colour group. A fresh `HashMap` per range meant an allocation and
+/// a hash for every single index; this is one flat array, invalidated by
+/// bumping a generation counter instead of being cleared. It is at most 2/3 the
+/// size of the positions array it indexes.
+struct LocalIndexScratch {
+    stamp: Vec<u32>,
+    local: Vec<u32>,
+    generation: u32,
+}
+
+impl LocalIndexScratch {
+    fn new(vertex_count: usize) -> Self {
+        Self {
+            stamp: vec![0; vertex_count],
+            local: vec![0; vertex_count],
+            generation: 0,
+        }
+    }
+
+    /// Start a range: every slot stamped by the previous one is now stale.
+    fn begin(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        if self.generation == 0 {
+            // wrapped — old stamps would read as current again
+            self.stamp.fill(0);
+            self.generation = 1;
+        }
+    }
+
+    /// Local index of global vertex `g`, assigning the next one on first sight.
+    /// First-occurrence order, exactly like the map it replaces.
+    fn local_of(&mut self, g: u32, local_to_global: &mut Vec<u32>) -> u32 {
+        let slot = g as usize;
+        if self.stamp[slot] == self.generation {
+            return self.local[slot];
+        }
+        let l = local_to_global.len() as u32;
+        self.stamp[slot] = self.generation;
+        self.local[slot] = l;
+        local_to_global.push(g);
+        l
+    }
+}
+
+fn build_dr_meshlets(cg: &ColorGroup, di: usize, scratch: &mut LocalIndexScratch) -> DrMeshletData {
     let start = cg.dr_starts[di] as usize;
     let count = cg.dr_counts[di] as usize;
     let dr_indices = &cg.indices[start..start + count];
     let mut out = DrMeshletData::default();
 
     // Compact this DR's vertices to a local 0..N range (O(DR) meshopt calls).
-    let mut global_to_local: HashMap<u32, u32> = HashMap::new();
+    scratch.begin();
     let mut local_to_global: Vec<u32> = Vec::new();
     let mut local_indices: Vec<u32> = Vec::with_capacity(count);
     for &g in dr_indices {
-        let l = *global_to_local.entry(g).or_insert_with(|| {
-            let l = local_to_global.len() as u32;
-            local_to_global.push(g);
-            l
-        });
-        local_indices.push(l);
+        local_indices.push(scratch.local_of(g, &mut local_to_global));
     }
     if local_to_global.is_empty() {
         return out;

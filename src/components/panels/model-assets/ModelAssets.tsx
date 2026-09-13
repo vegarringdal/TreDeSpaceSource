@@ -1,5 +1,5 @@
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { Button } from '@treDeSpaceUI/widgets';
+import { Button, EmptyState } from '@treDeSpaceUI/widgets';
 import { useEffect, useState } from 'react';
 import { assetsActions as act, assetsActions } from '../../../state/assets/assets.actions';
 import { storesActions } from '../../../state/stores/stores.actions';
@@ -38,14 +38,13 @@ export function ModelAssets() {
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-2 pb-2">
         {m.totalAssets === 0 ? (
-          <p className="note px-1 py-2 text-center text-slate-500">
-            No assets yet — import into a store from the Import Manager panel.
-          </p>
+          <EmptyState layout="center">No assets yet — import into a store from the Import Manager panel.</EmptyState>
         ) : (
           <>
             <div className="flex shrink-0 items-center gap-2">
               <Button
-                className="h-auto min-h-6 flex-1 py-1 leading-tight"
+                wrap
+                grow
                 shortcut="assets.collapseAll"
                 onClick={() => assetsActions.collapseTree()}
                 tooltip="Collapse every store and folder in the tree"
@@ -53,7 +52,8 @@ export function ModelAssets() {
                 Collapse all
               </Button>
               <Button
-                className="h-auto min-h-6 flex-1 py-1 leading-tight"
+                wrap
+                grow
                 shortcut="assets.expandAll"
                 onClick={() => assetsActions.expandTree()}
                 tooltip="Expand every store and folder in the tree"

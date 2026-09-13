@@ -1,5 +1,5 @@
 import { IconTrash } from '@tabler/icons-react';
-import { Button, Collapsible, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, PanelHeader, TextInput } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { storesActions } from '../../../state/stores/stores.actions';
 import { MAIN_STORE, storesState } from '../../../state/stores/stores.state';
@@ -8,7 +8,7 @@ import { dialogs } from '../../dialogs/dialogs.actions';
 /** Label separating Store Config from the store list — shared by Model Assets
  *  and SQL Assets. Pinned above the scrolling list so it stays visible. */
 export function DataStoresHeader() {
-  return <div className="border-slate-800 border-b pb-1 text-slate-400 text-xs">Data Stores</div>;
+  return <PanelHeader title="Data Stores" />;
 }
 
 /** Store Config: create/remove stores — SHARED by the Model Assets and SQL Assets

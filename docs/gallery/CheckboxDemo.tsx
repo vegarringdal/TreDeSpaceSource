@@ -7,10 +7,11 @@ export function CheckboxDemo() {
   const [edges, setEdges] = useState(true);
   const [replace, setReplace] = useState(false);
   const [taa, setTaa] = useState(true);
+  const [some, setSome] = useState(false);
   return (
     <Section
       title="Checkbox"
-      note="A single on/off toggle — the standalone sibling of a RadioGroup row, same settings-panel visual language. Carries an optional dim hint or a longer info popover."
+      note="A single on/off toggle — the standalone sibling of a RadioGroup row, same settings-panel visual language. Carries an optional dim hint or a longer info popover. `indeterminate` renders the tri-state box for a select-all that covers only some rows."
       props={['CheckboxProps']}
       code={`function ImportOptions() {
   const [replace, setReplace] = useState(false);
@@ -33,6 +34,13 @@ export function CheckboxDemo() {
           info="Deletes any prior asset with the same store, folder and name."
         />
         <Checkbox checked={taa} onChange={setTaa} label="TAA (disabled)" disabled />
+        <Checkbox
+          checked={some}
+          indeterminate={!some}
+          onChange={setSome}
+          label="Select all rows"
+          hint="indeterminate until every row is picked"
+        />
       </div>
     </Section>
   );

@@ -1,8 +1,6 @@
-import { ColorSelect, NumberInput } from '@treDeSpaceUI/widgets';
+import { Checkbox, ColorSelect, NumberInput } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
-import { Row } from '../Row';
 import { SettingsSection } from '../SettingsSection';
 import { EdgeTuning } from './EdgeTuning';
 import { SketchEdgesSection } from './SketchEdgesSection';
@@ -19,39 +17,42 @@ export function EdgesTab() {
         title="Edges — common"
         info="Global edge switches plus the styling shared by every mesh: line colour and the white-on-dark override. The two categories below tune the edge-detection thresholds per shading type."
       >
-        <Check
+        <Checkbox
           label="Geometry edges"
           checked={v.geoEdges}
           shortcut="render.geoEdges"
           onChange={(x) => act.update({ geoEdges: x })}
         />
-        <Check
+        <Checkbox
           label="Item edges"
           checked={v.itemEdges}
           shortcut="render.itemEdges"
           onChange={(x) => act.update({ itemEdges: x })}
         />
-        <Row label="Edge colour">
-          <ColorSelect value={v.edgeColor} onChange={(x) => act.update({ edgeColor: x })} />
-        </Row>
-        <Check
+        <ColorSelect
+          label="Edge colour"
+          labelPosition="split"
+          value={v.edgeColor}
+          onChange={(x) => act.update({ edgeColor: x })}
+        />
+        <Checkbox
           label="White edges on dark items"
           checked={v.whiteOnDark}
           shortcut="render.whiteOnDark"
           onChange={(x) => act.update({ whiteOnDark: x })}
         />
-        <Row label="Darkness threshold">
-          <NumberInput
-            value={v.darkThr}
-            min={0}
-            max={1}
-            step={0.01}
-            precision={3}
-            decShortcut="render.edgeDark.dec"
-            incShortcut="render.edgeDark.inc"
-            onChange={(x) => act.update({ darkThr: x })}
-          />
-        </Row>
+        <NumberInput
+          label="Darkness threshold"
+          labelPosition="split"
+          value={v.darkThr}
+          min={0}
+          max={1}
+          step={0.01}
+          precision={3}
+          decShortcut="render.edgeDark.dec"
+          incShortcut="render.edgeDark.inc"
+          onChange={(x) => act.update({ darkThr: x })}
+        />
       </SettingsSection>
 
       <SettingsSection
@@ -59,7 +60,7 @@ export function EdgesTab() {
         title="Edges — flat shading (default)"
         info="Edge detection for flat-shaded meshes — the default look (GLBs imported without normals, and everything cooked flat). Fade/thresholds here don't affect meshes with authored normals."
       >
-        <Check
+        <Checkbox
           label="Edge lines on flat meshes"
           checked={v.flatMeshEdges}
           shortcut="render.flatMeshEdges"
@@ -92,7 +93,7 @@ export function EdgesTab() {
         title="Edges — with normals"
         info="Separate edge tuning for meshes that carry authored normals (smooth shading) — e.g. standard GLBs imported with 'Import normals' on."
       >
-        <Check
+        <Checkbox
           label="Edge lines on meshes with normals"
           checked={v.smoothMeshEdges}
           shortcut="render.smoothMeshEdges"

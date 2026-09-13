@@ -4,14 +4,31 @@
  * alike. Multi-line via real newlines or a literal "\n" in the attribute.
  *
  * One document-level listener drives everything; call initTooltips() once
- * (App does) and forget about it. The bubble prefers sitting above the
- * element, flips below when there is no room, and clamps to the viewport.
+ * (App does) and forget about it. The bubble sits below the element, flips
+ * above when there is no room, and clamps to the viewport; inside a menu or
+ * listbox it moves beside the whole list instead — see `tooltipPlacement.ts`.
+ * It draws above every other floating layer.
  */
 
 import { formatSequence, hotkeysActions } from '../hotkeys';
+import { computeTooltipPlacement, type TooltipPlacement, type TooltipSide } from './tooltipPlacement';
 
 const SHOW_DELAY = 400;
-const GAP = 7;
+/** Above every other floating layer: popovers 1000, InfoButton 2000, Menu 3000. */
+const Z_INDEX = '4000';
+const ARROW_BORDER = '1px solid #3a4250';
+const ARROW_POKE = '-4.5px'; // how far the rotated square sticks out of the edge
+/** Floating lists whose entries a tooltip must never cover. */
+const LIST_CONTAINERS = '[role="menu"],[role="listbox"]';
+
+/** Per side: the bubble edge the arrow pokes out of, and the two square edges
+ *  that outline the poking corner once it is rotated 45°. */
+const ARROW_EDGES = {
+  bottom: { edge: 'top', borders: ['borderTop', 'borderLeft'] },
+  top: { edge: 'bottom', borders: ['borderBottom', 'borderRight'] },
+  right: { edge: 'left', borders: ['borderBottom', 'borderLeft'] },
+  left: { edge: 'right', borders: ['borderTop', 'borderRight'] },
+} as const satisfies Record<TooltipSide, { edge: string; borders: readonly string[] }>;
 
 let disposer: (() => void) | null = null;
 
@@ -23,7 +40,7 @@ export function initTooltips(): () => void {
   const tip = document.createElement('div');
   Object.assign(tip.style, {
     position: 'fixed',
-    zIndex: '3000',
+    zIndex: Z_INDEX,
     maxWidth: '260px',
     padding: '5px 8px',
     border: '1px solid #3a4250',
@@ -62,35 +79,36 @@ export function initTooltips(): () => void {
     tip.style.opacity = '0';
   };
 
-  const place = (el: HTMLElement) => {
-    const r = el.getBoundingClientRect();
-    const t = tip.getBoundingClientRect();
-    // Default: below the element, aligned to its left edge; flip above when
-    // there is no room underneath, clamp to the viewport horizontally.
-    const below = r.bottom + GAP + t.height <= window.innerHeight - 4 || r.top - GAP - t.height < 4;
-    const top = below ? r.bottom + GAP : r.top - t.height - GAP;
-    const left = Math.min(Math.max(4, r.left), window.innerWidth - t.width - 4);
-    tip.style.left = `${left}px`;
-    tip.style.top = `${top}px`;
-
-    // Point the arrow at the anchor's centre (kept inside the bubble).
-    const ax = Math.min(Math.max(8, r.left + r.width / 2 - left - 4), t.width - 16);
-    arrow.style.left = `${ax}px`;
-    if (below) {
-      arrow.style.top = '-4.5px';
-      arrow.style.bottom = '';
-      arrow.style.borderTop = '1px solid #3a4250';
-      arrow.style.borderLeft = '1px solid #3a4250';
-      arrow.style.borderBottom = '0';
-      arrow.style.borderRight = '0';
-    } else {
-      arrow.style.bottom = '-4.5px';
-      arrow.style.top = '';
-      arrow.style.borderBottom = '1px solid #3a4250';
-      arrow.style.borderRight = '1px solid #3a4250';
-      arrow.style.borderTop = '0';
-      arrow.style.borderLeft = '0';
+  const applyArrow = (p: TooltipPlacement) => {
+    const { edge, borders } = ARROW_EDGES[p.side];
+    Object.assign(arrow.style, {
+      top: '',
+      right: '',
+      bottom: '',
+      left: '',
+      borderTop: '0',
+      borderRight: '0',
+      borderBottom: '0',
+      borderLeft: '0',
+    } satisfies Partial<CSSStyleDeclaration>);
+    arrow.style[edge] = ARROW_POKE;
+    arrow.style[p.side === 'left' || p.side === 'right' ? 'top' : 'left'] = `${p.arrow}px`;
+    for (const border of borders) {
+      arrow.style[border] = ARROW_BORDER;
     }
+  };
+
+  const place = (el: HTMLElement) => {
+    const list = el.closest(LIST_CONTAINERS);
+    const placement = computeTooltipPlacement(
+      el.getBoundingClientRect(),
+      list?.getBoundingClientRect() ?? null,
+      tip.getBoundingClientRect(),
+      { width: window.innerWidth, height: window.innerHeight },
+    );
+    tip.style.left = `${placement.left}px`;
+    tip.style.top = `${placement.top}px`;
+    applyArrow(placement);
   };
 
   const show = (el: HTMLElement, text: string) => {

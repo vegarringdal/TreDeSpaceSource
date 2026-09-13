@@ -1,12 +1,10 @@
-import { ColorSelect, RadioGroup } from '@treDeSpaceUI/widgets';
+import { Checkbox, ColorSelect, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
-import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Check } from '../Check';
-import { Row } from '../Row';
+import { useViewer, type ViewerState } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
 import { EdgeTuning } from './EdgeTuning';
 
-const colorModes = [
+const colorModes: readonly RadioOption<ViewerState['sketchColorMode']>[] = [
   { value: 'off', label: 'Wire', hint: 'plain paper and ink', shortcut: 'render.sketchColor.off' },
   {
     value: 'fill',
@@ -33,13 +31,13 @@ export function SketchEdgesSection() {
         </>
       }
     >
-      <Check
+      <Checkbox
         label="Sketch mode"
         checked={v.sketch}
         shortcut="view.sketch"
         onChange={(x) => act.update({ sketch: x })}
       />
-      <Check
+      <Checkbox
         label="Respect edge-off switches"
         checked={v.sketchRespectsEdgesOff}
         shortcut="render.sketchRespectsEdgesOff"
@@ -49,23 +47,38 @@ export function SketchEdgesSection() {
       <RadioGroup
         options={colorModes}
         value={v.sketchColorMode}
-        onChange={(x) => act.update({ sketchColorMode: x as 'off' | 'fill' | 'edges' })}
+        onChange={(sketchColorMode) => act.update({ sketchColorMode })}
       />
-      <Row label="Edge colour">
-        <ColorSelect value={v.sketchEdgeColor} onChange={(x) => act.update({ sketchEdgeColor: x })} />
-      </Row>
-      <Row label="Cube faces">
-        <ColorSelect value={v.sketchCubeFaceColor} onChange={(x) => act.update({ sketchCubeFaceColor: x })} />
-      </Row>
-      <Row label="Cube lines">
-        <ColorSelect value={v.sketchCubeLineColor} onChange={(x) => act.update({ sketchCubeLineColor: x })} />
-      </Row>
-      <Row label="Cube text">
-        <ColorSelect value={v.sketchCubeTextColor} onChange={(x) => act.update({ sketchCubeTextColor: x })} />
-      </Row>
-      <Row label="Cube hover">
-        <ColorSelect value={v.sketchCubeHoverColor} onChange={(x) => act.update({ sketchCubeHoverColor: x })} />
-      </Row>
+      <ColorSelect
+        label="Edge colour"
+        labelPosition="split"
+        value={v.sketchEdgeColor}
+        onChange={(x) => act.update({ sketchEdgeColor: x })}
+      />
+      <ColorSelect
+        label="Cube faces"
+        labelPosition="split"
+        value={v.sketchCubeFaceColor}
+        onChange={(x) => act.update({ sketchCubeFaceColor: x })}
+      />
+      <ColorSelect
+        label="Cube lines"
+        labelPosition="split"
+        value={v.sketchCubeLineColor}
+        onChange={(x) => act.update({ sketchCubeLineColor: x })}
+      />
+      <ColorSelect
+        label="Cube text"
+        labelPosition="split"
+        value={v.sketchCubeTextColor}
+        onChange={(x) => act.update({ sketchCubeTextColor: x })}
+      />
+      <ColorSelect
+        label="Cube hover"
+        labelPosition="split"
+        value={v.sketchCubeHoverColor}
+        onChange={(x) => act.update({ sketchCubeHoverColor: x })}
+      />
       <EdgeTuning
         fade={{
           value: v.sketchFadeExp,

@@ -1,4 +1,5 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { usePointerDrag } from '../../lib/usePointerDrag';
 
 export type NumberInputControl = Readonly<{
   /** Non-null while the field is being typed in. */
@@ -9,9 +10,12 @@ export type NumberInputControl = Readonly<{
   inputRef: RefObject<HTMLInputElement | null>;
   isDragging: () => boolean;
   onPointerDown: (e: React.PointerEvent<HTMLInputElement>) => void;
-  onPointerMove: (e: React.PointerEvent<HTMLInputElement>) => void;
-  onPointerUp: (e: React.PointerEvent<HTMLInputElement>) => void;
 }>;
+
+/** px of travel before a press becomes a roll rather than a click. */
+const ROLL_THRESHOLD_PX = 4;
+/** px of horizontal travel per step while rolling. */
+const ROLL_PX_PER_STEP = 4;
 
 /**
  * The stepper's interaction engine: clamped commits, non-passive wheel
@@ -37,7 +41,7 @@ export function useNumberInputControl(
 
   const [text, setText] = useState<string | null>(null); // non-null while editing
   const inputRef = useRef<HTMLInputElement>(null);
-  const drag = useRef<{ x: number; start: number; rolled: boolean } | null>(null);
+  const rollFrom = useRef(value);
   const latest = useRef({ value, onChange, disabled });
   latest.current = { value, onChange, disabled };
 
@@ -68,41 +72,29 @@ export function useNumberInputControl(
     return () => el.removeEventListener('wheel', onWheel);
   }, [step, clamp]);
 
+  const drag = usePointerDrag({
+    threshold: ROLL_THRESHOLD_PX,
+    onMove: (d, e) => {
+      e.preventDefault();
+      onChange(clamp(rollFrom.current + Math.round(d.dx / ROLL_PX_PER_STEP) * step));
+    },
+    onEnd: (moved) => {
+      if (!moved) {
+        inputRef.current?.focus(); // plain click → start editing (onFocus fills the text)
+      }
+    },
+  });
+
   const onPointerDown = (e: React.PointerEvent<HTMLInputElement>) => {
     // Dragging while focused would fight text selection — rolling starts unfocused.
     if (disabled || document.activeElement === inputRef.current) {
       return;
     }
     // Block native focus + text selection while rolling; a plain click gets
-    // focused manually on pointerup instead.
+    // focused manually when the press ends without movement.
     e.preventDefault();
-    drag.current = { x: e.clientX, start: value, rolled: false };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLInputElement>) => {
-    const d = drag.current;
-    if (!d) {
-      return;
-    }
-    const dx = e.clientX - d.x;
-    if (!d.rolled && Math.abs(dx) < 4) {
-      return;
-    }
-    d.rolled = true;
-    e.preventDefault();
-    onChange(clamp(d.start + Math.round(dx / 4) * step));
-  };
-
-  const onPointerUp = (e: React.PointerEvent<HTMLInputElement>) => {
-    const d = drag.current;
-    drag.current = null;
-    if (d?.rolled) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-      e.preventDefault();
-    } else if (d) {
-      inputRef.current?.focus(); // plain click → start editing (onFocus fills the text)
-    }
+    rollFrom.current = value;
+    drag.start(e);
   };
 
   const bump = (dir: 1 | -1) => onChange(clamp(value + dir * step));
@@ -113,9 +105,7 @@ export function useNumberInputControl(
     commitText,
     bump,
     inputRef,
-    isDragging: () => drag.current != null,
+    isDragging: drag.isDragging,
     onPointerDown,
-    onPointerMove,
-    onPointerUp,
   };
 }

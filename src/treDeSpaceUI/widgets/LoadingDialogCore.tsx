@@ -1,5 +1,6 @@
 import { IconLoader2 } from '@tabler/icons-react';
-import { Modal, TitleBar } from './Modal';
+import { DialogFrame } from './DialogFrame';
+import { ProgressBar } from './Spinner';
 
 export interface LoadingDialogCoreProps {
   title: string;
@@ -9,28 +10,19 @@ export interface LoadingDialogCoreProps {
   z?: number;
 }
 
-/** Pure blocking loading overlay — props only, no store coupling. */
+/** Pure blocking loading overlay — props only, no store coupling. It has no
+ *  close path on purpose: the work owns the dialog's lifetime. */
 export function LoadingDialogCore({ title, label, progress, z = 2020 }: LoadingDialogCoreProps) {
   return (
-    <Modal z={z}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="w-64 border border-slate-600 bg-slate-900 shadow-black/50 shadow-xl"
-      >
-        <TitleBar icon={<IconLoader2 size={16} className="shrink-0 animate-spin text-blue-400" />}>{title}</TitleBar>
-        <div className="flex flex-col gap-2 px-3 py-5">
-          <span className="whitespace-pre-line text-xs">{label}</span>
-          {progress != null && (
-            <div role="progressbar" aria-valuenow={Math.round(progress * 100)} className="h-1.5 w-full bg-slate-800">
-              <div
-                className="h-full bg-blue-500 transition-[width] duration-150"
-                style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-    </Modal>
+    <DialogFrame
+      z={z}
+      width={256}
+      icon={<IconLoader2 size={16} className="shrink-0 animate-spin text-blue-400" />}
+      title={title}
+      bodyClassName="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-5"
+    >
+      <span className="whitespace-pre-line text-xs">{label}</span>
+      {progress != null && <ProgressBar value={progress} />}
+    </DialogFrame>
   );
 }

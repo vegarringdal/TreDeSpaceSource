@@ -30,24 +30,20 @@ export function DropdownFilterFields({ report, filter: f, onChange }: DropdownFi
         value={f.dropdownSql ?? ''}
         onChange={(v) => onChange({ dropdownSql: v })}
       />
-      <label
-        className="flex items-center gap-2 text-slate-400 text-xs"
-        data-tooltip={
+      <Select
+        multiple
+        label="Test/selected"
+        labelPosition="left"
+        labelWidth={90}
+        tooltip={
           'Also the predefined selection: what you pick here is saved\nwith the report and pre-selected when the report is used.'
         }
-      >
-        <span className="w-[90px] shrink-0">Test/selected</span>
-        <div className="min-w-0 flex-1">
-          <Select
-            multiple
-            value={f.selected ?? []}
-            searchable
-            placeholder="Try the dropdown…"
-            loadOptions={(q) => act.dropdownOptions(report, f, q)}
-            onChange={(v) => onChange({ selected: v })}
-          />
-        </div>
-      </label>
+        value={f.selected ?? []}
+        searchable
+        placeholder="Try the dropdown…"
+        loadOptions={(q) => act.dropdownOptions(report, f, q)}
+        onChange={(v) => onChange({ selected: v })}
+      />
     </>
   );
 }

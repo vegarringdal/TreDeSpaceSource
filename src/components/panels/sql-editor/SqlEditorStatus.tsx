@@ -1,4 +1,4 @@
-import { InfoBox } from '@treDeSpaceUI/widgets';
+import { Badge, InfoBox } from '@treDeSpaceUI/widgets';
 import { parseAttachPaths } from '../../../lib/sqlite/sqlAttach';
 import { sqlAssetsState } from '../../../state/sqlAssets/sqlAssets.state';
 import { sqlEditorState } from '../../../state/sqlAssets/sqlEditor.state';
@@ -37,15 +37,15 @@ export function SqlEditorStatus() {
       )}
       <div className="shrink-0 text-[11px]">
         {running ? (
-          <span className="text-amber-300">running…</span>
+          <Badge tone="warning">running…</Badge>
         ) : lastError ? (
-          <span className="text-rose-400">{lastError}</span>
+          <InfoBox tone="danger">{lastError}</InfoBox>
         ) : lastMs ? (
           <span className="text-slate-500">
             last run: {lastMs.toFixed(0)} ms, {lastRows} row(s) — see the Console panel
           </span>
         ) : (
-          <span className="text-slate-600">ready</span>
+          <Badge>ready</Badge>
         )}
       </div>
     </>

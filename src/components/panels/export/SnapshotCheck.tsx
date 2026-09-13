@@ -1,4 +1,4 @@
-import { cn } from '@treDeSpaceUI/lib/cn';
+import { Checkbox } from '@treDeSpaceUI/widgets';
 import type { ExportState } from './export.state';
 import { exportState } from './export.state';
 
@@ -21,13 +21,13 @@ interface SnapshotCheckProps {
 export function SnapshotCheck({ field, label, shortcut, tooltip, className }: SnapshotCheckProps) {
   const s = exportState.use();
   return (
-    <label
-      className={cn('flex cursor-pointer items-center gap-2 text-slate-300 text-xs', className)}
-      data-shortcut={shortcut}
-      data-tooltip={tooltip}
-    >
-      <input type="checkbox" checked={s[field]} onChange={(e) => exportState.set({ [field]: e.target.checked })} />
-      {label}
-    </label>
+    <Checkbox
+      className={className}
+      label={label}
+      checked={s[field]}
+      shortcut={shortcut}
+      tooltip={tooltip}
+      onChange={(on) => exportState.set({ [field]: on })}
+    />
   );
 }

@@ -9,7 +9,7 @@ export function ColorSelectDemo() {
     <Section
       title="ColorSelect"
       note="The one colour picker: saturation/value area, hue bar, hex + RGB entry, and quick swatches, in a popover portaled to the body. Values are always #rrggbb. A host can swap the default swatch grid with setColorSelectSwatchesStore()."
-      props={['ColorSelectProps', 'ColorSelectSwatchesStore']}
+      props={['ColorSelectProps', 'ColorSelectSwatchesStore', 'LabelledProps']}
       code={`function TintPicker() {
   const [color, setColor] = useState('#4f8cff');
   return (

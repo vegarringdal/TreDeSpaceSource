@@ -30,17 +30,20 @@ export function itemForId(h: Hierarchy, id: number): number {
   return -1;
 }
 
-/** Per-entry subtree sums of `weight(item)` over every item beneath the
- *  entry (its own included). One post-order pass over the children CSR —
- *  O(entries + items), no recursion (explicit stack). */
-function subtreeCounts(m: DbModel, weight: (item: number) => number): Uint32Array {
+/** Per-entry subtree sums of EVERY `weight(item)` over the items beneath the
+ *  entry (its own included). One post-order pass over the children CSR for all
+ *  the weights at once — O(entries + items) however many are asked for, and
+ *  the entry→item lookup is the prebuilt table, not a binary search per entry. */
+function subtreeSums(m: DbModel, weights: readonly ((item: number) => number)[]): Uint32Array[] {
   const n = m.hierarchy.entryParent.length;
-  const out = new Uint32Array(n);
+  const outs = weights.map(() => new Uint32Array(n));
   // own weight first
   for (let e = 0; e < n; e++) {
-    const item = itemForId(m.hierarchy, m.hierarchy.entryId[e]);
+    const item = m.entryToItem[e];
     if (item >= 0) {
-      out[e] = weight(item);
+      for (let w = 0; w < weights.length; w++) {
+        outs[w][e] = weights[w](item);
+      }
     }
   }
   // post-order: push children onto parents, deepest first
@@ -57,10 +60,12 @@ function subtreeCounts(m: DbModel, weight: (item: number) => number): Uint32Arra
     const e = order[i];
     const p = m.hierarchy.entryParent[e];
     if (p !== NO_PARENT) {
-      out[p] += out[e];
+      for (let w = 0; w < outs.length; w++) {
+        outs[w][p] += outs[w][e];
+      }
     }
   }
-  return out;
+  return outs;
 }
 
 /** `hiddenUnder` + `selectedUnder`, refreshed when the model's states changed
@@ -71,10 +76,14 @@ function subtreeCounts(m: DbModel, weight: (item: number) => number): Uint32Arra
 export function stateAggregates(m: DbModel): { hidden: Uint32Array; selected: Uint32Array } {
   const v = m.stateVersion ?? 0;
   if (!m.hiddenUnder || !m.selectedUnder || m.hiddenAggVersion !== v) {
-    m.hiddenUnder = subtreeCounts(m, (item) =>
-      isEffectivelyHidden(m.states[item * 2], m.states[item * 2 + 1]) ? 1 : 0,
-    );
-    m.selectedUnder = subtreeCounts(m, (item) => ((m.states[item * 2] & IS_SELECTED) !== 0 ? 1 : 0));
+    // both aggregates in ONE traversal — they walk the same tree and read the
+    // same state words, and this runs on every state-version bump
+    const [hidden, selected] = subtreeSums(m, [
+      (item) => (isEffectivelyHidden(m.states[item * 2], m.states[item * 2 + 1]) ? 1 : 0),
+      (item) => ((m.states[item * 2] & IS_SELECTED) !== 0 ? 1 : 0),
+    ]);
+    m.hiddenUnder = hidden;
+    m.selectedUnder = selected;
     m.hiddenAggVersion = v;
   }
   return { hidden: m.hiddenUnder, selected: m.selectedUnder };
@@ -117,18 +126,25 @@ export function buildIndexes(m: DbModel) {
   m.childStart = childStart;
   m.childList = childList;
   m.roots = roots;
-  m.itemsUnder = subtreeCounts(m, () => 1);
-  m.hiddenUnder = undefined;
-  m.hiddenAggVersion = undefined;
 
-  // item -> leaf entry
+  // entry -> dense item (-1 when the entry owns no geometry) and its inverse,
+  // both from ONE binary search per entry. Everything downstream — the subtree
+  // aggregates, the item collection — reads these instead of searching the
+  // id table again per entry, per pass.
+  const entryToItem = new Int32Array(n);
   m.itemToEntry = new Uint32Array(m.itemCount).fill(NO_PARENT);
   for (let e = 0; e < n; e++) {
     const item = itemForId(h, h.entryId[e]);
+    entryToItem[e] = item;
     if (item >= 0) {
       m.itemToEntry[item] = e;
     }
   }
+  m.entryToItem = entryToItem;
+
+  m.itemsUnder = subtreeSums(m, [() => 1])[0];
+  m.hiddenUnder = undefined;
+  m.hiddenAggVersion = undefined;
 }
 
 /** GPU upload layout: interleaved [flags, colorRGBA8, transform_idx] — the
@@ -171,7 +187,7 @@ export function itemsUnder(m: DbModel, entry: number): Uint32Array {
   const stack = [entry];
   while (stack.length) {
     const e = stack.pop()!;
-    const item = itemForId(m.hierarchy, m.hierarchy.entryId[e]);
+    const item = m.entryToItem[e];
     if (item >= 0) {
       out.push(item);
     }

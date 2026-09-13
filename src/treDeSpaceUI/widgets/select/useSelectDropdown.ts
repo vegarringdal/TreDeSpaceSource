@@ -2,37 +2,37 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { type PopoverPos, usePopoverAnchor } from '../usePopoverAnchor';
 import type { SelectOption } from './Select';
 
-export type SelectDropdown = Readonly<{
+export type SelectDropdown<T extends string = string> = Readonly<{
   open: boolean;
   setOpen: (o: boolean | ((o: boolean) => boolean)) => void;
   query: string;
   setQuery: (q: string) => void;
   hot: number;
   setHot: (h: number | ((h: number) => number)) => void;
-  filtered: SelectOption[];
-  asyncState: { options: SelectOption[]; loading: boolean; error: string | null };
+  filtered: readonly SelectOption<T>[];
+  asyncState: { options: SelectOption<T>[]; loading: boolean; error: string | null };
   pos: PopoverPos;
   rootRef: RefObject<HTMLDivElement | null>;
   popRef: RefObject<HTMLDivElement | null>;
   searchRef: RefObject<HTMLInputElement | null>;
   listRef: RefObject<HTMLDivElement | null>;
-  known: (v: string) => SelectOption;
+  known: (v: T) => SelectOption<T>;
 }>;
 
 /** Open/filter/anchor state for the Select popover: debounced async search,
  *  local filtering, outside-close, and viewport-anchored placement (the
  *  anchoring itself lives in the shared usePopoverAnchor). */
-export function useSelectDropdown(
-  options: SelectOption[],
-  loadOptions: ((query: string) => Promise<SelectOption[]>) | undefined,
+export function useSelectDropdown<T extends string = string>(
+  options: readonly SelectOption<T>[],
+  loadOptions: ((query: string) => Promise<SelectOption<T>[]>) | undefined,
   searchable: boolean,
   selected: ReadonlySet<string>,
-): SelectDropdown {
+): SelectDropdown<T> {
   const anchor = usePopoverAnchor(Math.min(52 * 4 + (searchable ? 40 : 0) + 10, 260));
   const { open, setOpen } = anchor;
   const [query, setQuery] = useState('');
   const [hot, setHot] = useState(0); // index into `filtered`
-  const [asyncState, setAsyncState] = useState<{ options: SelectOption[]; loading: boolean; error: string | null }>({
+  const [asyncState, setAsyncState] = useState<{ options: SelectOption<T>[]; loading: boolean; error: string | null }>({
     options: [],
     loading: false,
     error: null,
@@ -43,11 +43,11 @@ export function useSelectDropdown(
 
   // Chips and the summary need labels for values whose options are no longer
   // in the (async) result list — remember every option we have ever seen.
-  const labels = useRef(new Map<string, SelectOption>());
+  const labels = useRef(new Map<string, SelectOption<T>>());
   for (const o of [...options, ...asyncState.options]) {
     labels.current.set(o.value, o);
   }
-  const known = (v: string): SelectOption => labels.current.get(v) ?? { value: v, label: v };
+  const known = (v: T): SelectOption<T> => labels.current.get(v) ?? { value: v, label: v };
 
   const filtered = useMemo(() => {
     if (loadOptions) {

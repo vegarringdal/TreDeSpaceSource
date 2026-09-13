@@ -8,21 +8,19 @@ type TableBodyProps = Readonly<{
   view: TableView;
   layout: TableLayout;
   selection: TableSelection;
-  first: number;
-  last: number;
 }>;
 
 /** The virtualized grid body: only the rows in the [first, last) view window
  *  are mounted, absolutely positioned inside a full-height spacer. */
-export function TableBody({ rows, view, layout, selection, first, last }: TableBodyProps) {
+export function TableBody({ rows, view, layout, selection }: TableBodyProps) {
   const { colKeys, viewIdx } = view;
-  const { widths, gutterW } = layout;
+  const { widths, gutterW, virtual } = layout;
   const { selected, clickRow } = selection;
 
   return (
-    <div style={{ height: viewIdx.length * ROW_H, position: 'relative' }}>
-      {viewIdx.slice(first, last).map((ri, k) => {
-        const p = first + k; // view position
+    <div style={{ height: virtual.totalH, position: 'relative' }}>
+      {viewIdx.slice(virtual.first, virtual.last).map((ri, k) => {
+        const p = virtual.first + k; // view position
         const row = rows[ri];
         const isSel = selected.has(ri);
         return (

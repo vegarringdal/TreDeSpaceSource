@@ -1,3 +1,4 @@
+import { Toaster } from '@treDeSpaceUI/widgets';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ErrorDialog } from './ErrorDialog';
 import { LoadingDialog } from './LoadingDialog';
@@ -7,7 +8,7 @@ export { type ConfirmOptions, dialogs } from './dialogs.actions';
 export { type DialogsState, dialogsState } from './dialogs.state';
 export { ConfirmDialog, ErrorDialog, LoadingDialog, PromptDialog };
 
-/** Mount once, anywhere (App): all three dialog layers. */
+/** Mount once, anywhere (App): every dialog layer plus the toast stack. */
 export function DialogHost() {
   return (
     <>
@@ -15,6 +16,7 @@ export function DialogHost() {
       <PromptDialog />
       <ErrorDialog />
       <LoadingDialog />
+      <Toaster />
     </>
   );
 }

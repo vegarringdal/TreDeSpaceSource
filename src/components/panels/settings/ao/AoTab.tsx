@@ -1,10 +1,13 @@
-import { NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
+import { NumberInput, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
-import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Row } from '../Row';
+import { useViewer, type ViewerState } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
 
-const aoModes = [
+/** The radio values are strings; this maps each back to the state's numeric
+ *  union, so the handler needs no assertion. */
+const AO_MODES: Record<string, ViewerState['aoMode']> = { '0': 0, '1': 1, '2': 2 };
+
+const aoModes: readonly RadioOption[] = [
   { value: '0', label: 'Off', shortcut: 'render.aoMode.off' },
   { value: '1', label: 'Motion', hint: 'every frame', shortcut: 'render.aoMode.motion' },
   { value: '2', label: 'Static', hint: 'accumulate at rest', shortcut: 'render.aoMode.static' },
@@ -36,53 +39,53 @@ export function AoTab() {
       <RadioGroup
         options={aoModes}
         value={String(v.aoMode)}
-        onChange={(x) => act.update({ aoMode: Number(x) as 0 | 1 | 2 })}
+        onChange={(x) => act.update({ aoMode: AO_MODES[x] ?? 0 })}
       />
-      <Row label="Radius">
-        <NumberInput
-          value={v.aoRadius}
-          min={0.05}
-          max={10}
-          step={0.1}
-          unit="m"
-          decShortcut="render.aoRadius.dec"
-          incShortcut="render.aoRadius.inc"
-          onChange={(x) => act.update({ aoRadius: x })}
-        />
-      </Row>
-      <Row label="Strength">
-        <NumberInput
-          value={v.aoStrength}
-          min={0}
-          max={1}
-          step={0.05}
-          decShortcut="render.aoStrength.dec"
-          incShortcut="render.aoStrength.inc"
-          onChange={(x) => act.update({ aoStrength: x })}
-        />
-      </Row>
-      <Row label="Slices">
-        <NumberInput
-          value={v.aoSlices}
-          min={1}
-          max={16}
-          step={1}
-          decShortcut="render.aoSlices.dec"
-          incShortcut="render.aoSlices.inc"
-          onChange={(x) => act.update({ aoSlices: x })}
-        />
-      </Row>
-      <Row label="Samples">
-        <NumberInput
-          value={v.aoSamples}
-          min={1}
-          max={12}
-          step={1}
-          decShortcut="render.aoSamples.dec"
-          incShortcut="render.aoSamples.inc"
-          onChange={(x) => act.update({ aoSamples: x })}
-        />
-      </Row>
+      <NumberInput
+        label="Radius"
+        labelPosition="split"
+        value={v.aoRadius}
+        min={0.05}
+        max={10}
+        step={0.1}
+        unit="m"
+        decShortcut="render.aoRadius.dec"
+        incShortcut="render.aoRadius.inc"
+        onChange={(x) => act.update({ aoRadius: x })}
+      />
+      <NumberInput
+        label="Strength"
+        labelPosition="split"
+        value={v.aoStrength}
+        min={0}
+        max={1}
+        step={0.05}
+        decShortcut="render.aoStrength.dec"
+        incShortcut="render.aoStrength.inc"
+        onChange={(x) => act.update({ aoStrength: x })}
+      />
+      <NumberInput
+        label="Slices"
+        labelPosition="split"
+        value={v.aoSlices}
+        min={1}
+        max={16}
+        step={1}
+        decShortcut="render.aoSlices.dec"
+        incShortcut="render.aoSlices.inc"
+        onChange={(x) => act.update({ aoSlices: x })}
+      />
+      <NumberInput
+        label="Samples"
+        labelPosition="split"
+        value={v.aoSamples}
+        min={1}
+        max={12}
+        step={1}
+        decShortcut="render.aoSamples.dec"
+        incShortcut="render.aoSamples.inc"
+        onChange={(x) => act.update({ aoSamples: x })}
+      />
     </SettingsSection>
   );
 }

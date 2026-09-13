@@ -10,7 +10,7 @@ export function NumberInputDemo() {
     <Section
       title="NumberInput"
       note="A stepper with a 'rolling' middle: type into it, click − / +, scroll the wheel over it, or press and drag horizontally like a Blender field. Enter commits, Escape reverts."
-      props={['NumberInputProps']}
+      props={['NumberInputProps', 'LabelledProps']}
       code={`function Transform() {
   const [scale, setScale] = useState(1);
   const [angle, setAngle] = useState(45);

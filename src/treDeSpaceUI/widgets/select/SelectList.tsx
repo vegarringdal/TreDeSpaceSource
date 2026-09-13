@@ -3,7 +3,7 @@ import type { SelectOption } from './Select';
 import type { SelectDropdown } from './useSelectDropdown';
 
 /** The portaled listbox: optional search box, async states, option rows. */
-export function SelectList({
+export function SelectList<T extends string = string>({
   dd,
   multiple,
   searchable,
@@ -12,12 +12,12 @@ export function SelectList({
   pick,
   onKeyDown,
 }: {
-  dd: SelectDropdown;
+  dd: SelectDropdown<T>;
   multiple: boolean;
   searchable: boolean;
   hasAsync: boolean;
   selected: ReadonlySet<string>;
-  pick: (opt: SelectOption) => void;
+  pick: (opt: SelectOption<T>) => void;
   onKeyDown: (e: ReactKeyboardEvent) => void;
 }) {
   const { pos, asyncState, filtered, hot } = dd;

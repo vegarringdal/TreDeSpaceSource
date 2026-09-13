@@ -1,8 +1,8 @@
 import { type ReactNode, useId } from 'react';
 import { InfoButton } from './InfoButton';
 
-export interface RadioOption {
-  value: string;
+export interface RadioOption<T extends string = string> {
+  value: T;
   label: string;
   /** Small dimmed note after the label. */
   hint?: string;
@@ -13,10 +13,10 @@ export interface RadioOption {
   shortcut?: string;
 }
 
-export interface RadioGroupProps {
-  value: string;
-  options: RadioOption[];
-  onChange: (value: string) => void;
+export interface RadioGroupProps<T extends string = string> {
+  value: T;
+  options: readonly RadioOption<T>[];
+  onChange: (value: T) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -26,8 +26,15 @@ export interface RadioGroupProps {
  *  checkboxes. The options share one generated `name`, so the keyboard
  *  behaves like a real radio group (arrows move within it, Tab lands on the
  *  checked one). Each option carries a data-shortcut so it can be bound to a
- *  hotkey. */
-export function RadioGroup({ value, options, onChange, disabled = false, className = '' }: RadioGroupProps) {
+ *  hotkey. Generic over the value union, so `onChange` hands back the caller's
+ *  own string-literal type instead of a bare string. */
+export function RadioGroup<T extends string = string>({
+  value,
+  options,
+  onChange,
+  disabled = false,
+  className = '',
+}: RadioGroupProps<T>) {
   const name = useId();
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>

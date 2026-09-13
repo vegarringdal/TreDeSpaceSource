@@ -1,4 +1,4 @@
-import { Button, Collapsible, Select, TextArea } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Collapsible, Select, TextArea } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { labelsActions as act } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
@@ -36,22 +36,22 @@ export function LabelsImportSection() {
         placeholder={'Paste tag names — one per line\n/A-82BB010A-509-Q01\nA-82BB010B-705-Q04'}
         onChange={setPaste}
       />
-      <label
-        className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
-        title="A tag with children anchors at its bounding-box center — on a bent pipe run that point hangs in empty air. This snaps the anchor to the nearest child item instead. (Hotkey: Labels: snap anchors to items)"
-      >
-        <input type="checkbox" checked={snapToItem} onChange={(e) => act.setSnapToItem(e.target.checked)} />
-        Snap anchor to nearest item
-      </label>
-      <label
-        className="flex items-center gap-2 text-slate-300 text-xs"
-        data-tooltip="Resolve tags only among models loaded from one store — All stores searches every loaded model"
-      >
-        <span className="w-14 shrink-0 text-slate-400">Store</span>
-        <div className="w-40">
-          <Select options={storeOptions} value={importStore} onChange={(v) => act.setImportStore(v ?? '')} />
-        </div>
-      </label>
+      <Checkbox
+        label="Snap anchor to nearest item"
+        checked={snapToItem}
+        onChange={act.setSnapToItem}
+        shortcut="labels.import.snap"
+        tooltip="A tag with children anchors at its bounding-box center — on a bent pipe run that point hangs in empty air. This snaps the anchor to the nearest child item instead."
+      />
+      <Select
+        label="Store"
+        labelPosition="left"
+        labelWidth={56}
+        options={storeOptions}
+        value={importStore}
+        tooltip="Resolve tags only among models loaded from one store — All stores searches every loaded model"
+        onChange={(v) => act.setImportStore(v ?? '')}
+      />
       <div className="flex items-center gap-1.5">
         <Button
           disabled={importing || !paste.trim()}

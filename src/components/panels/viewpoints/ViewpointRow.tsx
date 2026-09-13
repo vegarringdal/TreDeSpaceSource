@@ -1,5 +1,5 @@
 import { IconListCheck, IconMapPinPlus, IconPalette, IconRuler } from '@tabler/icons-react';
-import { Button, Collapsible, TextArea, TextInput } from '@treDeSpaceUI/widgets';
+import { Badge, Button, Collapsible, TextArea, TextInput } from '@treDeSpaceUI/widgets';
 import { viewpointsActions as act } from '../../../state/viewer/viewpoints.actions';
 import type { Viewpoint } from '../../../state/viewer/viewpoints.state';
 import { ViewpointRowActions } from './ViewpointRowActions';
@@ -21,31 +21,37 @@ export function ViewpointRow({
 }) {
   return (
     <Collapsible
-      key={`${vp.id}:${expanded}`}
-      defaultOpen={expanded}
+      open={expanded}
+      onToggle={(next) => act.select(next ? vp.id : null)}
       title={
         <span className={active ? 'text-blue-300' : undefined}>
           {vp.name}
           {active ? ' — active' : ''}
         </span>
       }
-      aside={`${vp.labels.length}L ${vp.measurements.length}M ${vp.fullnames.length}S`}
+      aside={
+        <Badge tooltip="Labels · Measurements · Selected fullnames stored in this viewpoint">
+          {vp.labels.length}L {vp.measurements.length}M {vp.fullnames.length}S
+        </Badge>
+      }
     >
       <ViewpointRowActions vpId={vp.id} idx={idx} total={total} />
 
-      <label className="flex items-center gap-2 text-slate-400 text-xs">
-        <span className="w-16 shrink-0">Name</span>
-        <TextInput value={vp.name} onChange={(v) => act.setName(vp.id, v)} placeholder="Viewpoint name" />
-      </label>
-      <label className="flex flex-col gap-1 text-slate-400 text-xs">
-        <span>Description — **bold** and newlines render in the viewer</span>
-        <TextArea
-          value={vp.description}
-          rows={3}
-          placeholder="What this viewpoint shows…"
-          onChange={(v) => act.setDescription(vp.id, v)}
-        />
-      </label>
+      <TextInput
+        label="Name"
+        labelPosition="left"
+        labelWidth={64}
+        value={vp.name}
+        onChange={(v) => act.setName(vp.id, v)}
+        placeholder="Viewpoint name"
+      />
+      <TextArea
+        label="Description — **bold** and newlines render in the viewer"
+        value={vp.description}
+        rows={3}
+        placeholder="What this viewpoint shows…"
+        onChange={(v) => act.setDescription(vp.id, v)}
+      />
       <div className="mt-1 text-slate-400 text-xs">Copy into this viewpoint</div>
       <div className="flex flex-wrap gap-1.5">
         <Button
@@ -74,15 +80,13 @@ export function ViewpointRow({
         </Button>
       </div>
 
-      <label className="flex flex-col gap-1 text-slate-400 text-xs">
-        <span>Selected on activation — one fullname per line</span>
-        <TextArea
-          value={vp.fullnames.join('\n')}
-          rows={3}
-          placeholder="/SITE/ZONE/PIPE-01&#10;/SITE/ZONE/PIPE-02"
-          onChange={(v) => act.setFullnames(vp.id, v)}
-        />
-      </label>
+      <TextArea
+        label="Selected on activation — one fullname per line"
+        value={vp.fullnames.join('\n')}
+        rows={3}
+        placeholder="/SITE/ZONE/PIPE-01&#10;/SITE/ZONE/PIPE-02"
+        onChange={(v) => act.setFullnames(vp.id, v)}
+      />
       <Button
         icon={<IconListCheck size={14} />}
         tooltip="Fill the list from the currently selected items (selection roots)"

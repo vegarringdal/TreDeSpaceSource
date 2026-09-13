@@ -17,12 +17,15 @@ function StoreScopeRow({ field, tooltip }: { field: 'snapStore' | 'snapApplyStor
     ...(value && !loadedStores.includes(value) ? [{ value, label: value }] : []),
   ];
   return (
-    <label className="flex items-center gap-2 text-slate-300 text-xs" data-tooltip={tooltip}>
-      <span className="w-14 shrink-0 text-slate-400">Store</span>
-      <div className="w-40">
-        <Select options={options} value={value} onChange={(v) => exportState.set({ [field]: v ?? '' })} />
-      </div>
-    </label>
+    <Select
+      label="Store"
+      labelPosition="left"
+      labelWidth={56}
+      options={options}
+      value={value}
+      tooltip={tooltip}
+      onChange={(v) => exportState.set({ [field]: v ?? '' })}
+    />
   );
 }
 

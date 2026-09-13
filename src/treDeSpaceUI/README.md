@@ -109,17 +109,45 @@ own plain CSS with fallback colors and works even without Tailwind.
   combo, live-updated when the user rebinds it; with no `tooltip` given, the
   hotkey's `description` is used as the tooltip body — see "One definition
   drives the whole UI" in §5).
-- **`className`** merges extra Tailwind utilities onto the root element. Use
-  `cn()` when composing conditionally.
+- **Stacking order.** Floating layers sit on fixed floors so they never
+  fight: `1000` popovers and dropdowns (Select, color picker, field
+  popovers), `2000` InfoButton, `3000` Menu, `4000` the tooltip bubble.
+  A tooltip is always topmost — it is the one layer that must be readable
+  over anything else — and inside a `role="menu"` or `role="listbox"` it
+  places itself BESIDE the list rather than over the entries below the one
+  being hovered. Keep any new floating layer of your own on one of these
+  floors (or below `4000`), and give equal-priority layers DIFFERENT
+  values: two `position: fixed` siblings at the same z-index are resolved
+  by DOM order, which for a portal means "whichever mounted last".
+- **`className`** merges extra Tailwind utilities onto the widget's outermost
+  element. For a field widget that means the labelled ROW (`Labelled`), label
+  included — so `className="min-w-0 flex-1"` next to a button sizes the whole
+  row, and with no label it is simply the box around the field. Use `cn()` when
+  composing conditionally.
 - **Empty = `null`.** Clearable single-value pickers (Select, DatePicker,
   TimePicker, DateTimePicker) use `null` for "nothing picked" and call
   `onChange(null)` when cleared.
 - **Discriminated unions** for variants: `range: true` switches Date/Time
   pickers into range mode, `multiple: true` switches Select into multi mode —
   TypeScript narrows the `value`/`onChange` types accordingly.
-- **Labelled fields.** `TextInput`/`TextArea` accept `label`,
-  `labelPosition: 'top' | 'left'` and `labelWidth` (px, only for `'left'`;
-  share one value across stacked fields so they align).
+- **Labelled fields.** Every field widget — `TextInput`, `TextArea`,
+  `NumberInput`, `Select`, `ColorSelect` — takes the same label props, so a
+  panel never hand-rolls a `<label><span>…</span><field/></label>` row:
+  - `label` — the caption;
+  - `labelPosition: 'top' | 'left' | 'split'` — `'left'` gives the LABEL a
+    fixed column (`labelWidth`, px) and lets the field fill, for stacked form
+    fields that must line up; `'split'` is the settings-row inverse, where the
+    label takes the free space and the FIELD keeps a fixed width
+    (`fieldWidth`, px, default 112);
+  - the row is `w-full`, so a labelled field placed in a flex row next to a
+    button shrinks to leave room for it.
+
+  The layout itself lives in one place (`Labelled`, exported) if you need it
+  for something that is not a field widget.
+- **Generic over the value union.** `Select`, `RadioGroup` and
+  `SegmentedControl` are generic over `T extends string`. Type the option list
+  (`readonly SelectOption<Mode>[]`) and `onChange` hands back `Mode`, not
+  `string` — no `as` cast at the call site.
 
 ---
 
@@ -137,20 +165,33 @@ import { IconRefresh } from '@tabler/icons-react';
 ```
 
 ```ts
+type ButtonVariant = 'default' | 'primary' | 'danger' | 'ghost';
+type ButtonSize = 'xs' | 'sm' | 'md';   // md = 24px, lines up with the inputs
+
 type ButtonProps = {
   children?: ReactNode;
   icon?: ReactNode;                       // leading icon, locked to 14×14
   onClick?: (e: ReactMouseEvent) => void; // event passed so handlers can read modifiers (Alt…)
   disabled?: boolean;
-  active?: boolean;                       // highlighted / selected look
+  active?: boolean;                       // highlighted / selected look — a STATE, wins over variant
+  variant?: ButtonVariant;                // emphasis: confirming / destructive / borderless
+  size?: ButtonSize;
   readOnly?: boolean;                     // static display chip — no hover, not focusable
   iconOnly?: boolean;                     // square icon-only button (e.g. a reset ✕)
+  wrap?: boolean;                         // long label runs to a second line, height grows from the size floor
+  grow?: boolean;                         // takes the free space of a flex row (flex-1)
+  loading?: boolean;                      // icon becomes a spinner, clicks blocked
+  badge?: ReactNode;                      // count / status chip after the label (a Badge)
   title?: string;
   tooltip?: string;
   shortcut?: string;
   className?: string;
 };
 ```
+
+Never restyle a Button with a class string to get a different size or tone —
+use `size` / `variant` / `wrap` / `grow` so every button in the app stays one
+control.
 
 ### Checkbox
 
@@ -165,12 +206,16 @@ type CheckboxProps = {
   label?: ReactNode;   // the whole label toggles
   hint?: string;       // small dimmed note after the label
   info?: ReactNode;    // longer explanation behind an info icon (replaces hint)
+  indeterminate?: boolean; // tri-state box: some of what it covers is checked
   disabled?: boolean;
   tooltip?: string;
   shortcut?: string;
   className?: string;
 };
 ```
+
+`indeterminate` is purely visual — `checked` still decides what a click
+reports. Use it for a select-all that currently covers only some rows.
 
 ### RadioGroup
 
@@ -186,15 +231,20 @@ type CheckboxProps = {
 ```
 
 ```ts
-type RadioOption = { value: string; label: string; hint?: string; info?: ReactNode; shortcut?: string };
-type RadioGroupProps = {
-  value: string;
-  options: RadioOption[];
-  onChange: (value: string) => void;
+type RadioOption<T extends string = string> =
+  { value: T; label: string; hint?: string; info?: ReactNode; shortcut?: string };
+
+type RadioGroupProps<T extends string = string> = {
+  value: T;
+  options: readonly RadioOption<T>[];
+  onChange: (value: T) => void;
   disabled?: boolean;
   className?: string;
 };
 ```
+
+Vertical native radios — for an exclusive choice in a **form**. For the same
+choice in a **toolbar**, use `SegmentedControl` instead.
 
 ### TextInput / TextArea
 
@@ -260,8 +310,11 @@ type NumberInputProps = {
   unit?: string;           // suffix, e.g. "px", "×" — hidden while typing
   disabled?: boolean;
   className?: string;
+  tooltip?: string;        // styled tooltip for the whole field
+  shortcut?: string;
   decShortcut?: string;    // hotkey ids for the − / + steppers
   incShortcut?: string;
+  // + the shared label props (see §2): label, labelPosition, labelWidth, fieldWidth
 };
 ```
 
@@ -284,12 +337,25 @@ type NumberInputProps = {
 ```
 
 ```ts
-type SelectOption = { value: string; label: string; hint?: string; disabled?: boolean };
+type SelectOption<T extends string = string> =
+  { value: T; label: string; hint?: string; disabled?: boolean };
 
-// shared: options?, placeholder?, searchable?, loadOptions?, disabled?, className?
-type SingleSelectProps = { multiple?: false; value: string | null; onChange: (value: string | null) => void; /* +shared */ };
-type MultiSelectProps  = { multiple: true;  value: string[];      onChange: (value: string[]) => void;      /* +shared */ };
-type SelectProps = SingleSelectProps | MultiSelectProps;
+// shared: options?, placeholder?, searchable?, loadOptions?, tooltip?, shortcut?,
+//         disabled?, className? + the label props from §2
+type SingleSelectProps<T extends string = string> =
+  { multiple?: false; value: T | null; onChange: (value: T | null) => void; /* +shared */ };
+type MultiSelectProps<T extends string = string> =
+  { multiple: true; value: readonly T[]; onChange: (value: T[]) => void; /* +shared */ };
+type SelectProps<T extends string = string> = SingleSelectProps<T> | MultiSelectProps<T>;
+```
+
+Type the option list and the union flows through:
+
+```tsx
+const MODES: readonly SelectOption<'reset' | 'append' | 'hide'>[] = [ … ];
+
+<Select options={MODES} value={mode} onChange={(m) => m && setMode(m)} />
+//                                              ^ 'reset' | 'append' | 'hide' | null
 ```
 
 `loadOptions(query)` is called debounced with the current query; resolve with
@@ -311,7 +377,10 @@ type ColorSelectProps = {
   swatches?: string[];                 // quick-pick row at the bottom of the popover
   disabled?: boolean;
   className?: string;
+  tooltip?: string;
+  shortcut?: string;
   flush?: boolean;                     // fill parent height exactly (ribbon slots)
+  // + the shared label props (see §2)
 };
 ```
 
@@ -409,13 +478,21 @@ type CollapsibleProps = {
   actions?: ReactNode;    // header action buttons (icon-only), before the info icon;
                           // outside the toggle, so clicking one never collapses
   info?: ReactNode;       // explanation behind an info icon in the header
-  defaultOpen?: boolean;
+  defaultOpen?: boolean;  // uncontrolled initial state
+  open?: boolean;         // controlled — pair with onToggle
+  onToggle?: (open: boolean) => void;
   children: ReactNode;
   className?: string;
+  bodyClassName?: string; // merged over the body's default `flex flex-col gap-2 p-2`
   fill?: boolean;         // fill remaining panel height while open; the BODY scrolls
   fillMinClass?: string;  // height floor for a fill section, e.g. "min-h-64"
 };
 ```
+
+Uncontrolled by default. Pass `open` + `onToggle` when something else owns the
+state — an accordion where only one section is open, or a search that must
+open every group with a hit. Never force a section open by remounting it with
+a changing `key`.
 
 `fill` note: with several `fill` sections in one panel, give each a
 `fillMinClass` so they stop shrinking and the panel scrolls instead.
@@ -452,28 +529,282 @@ a `title` node takes over the rendering entirely:
 
 `dense` shrinks the header to a single tight line and trims the body padding —
 for a list of many small sections (one editor per filter). Pair it with
-`h-5 w-5` icon buttons in `actions` so the header stays that height:
+`size="sm"` icon buttons in `actions` so the header stays that height:
 
 ```tsx
 <InlinePanel dense title="Filter #1" titleUppercase={false}
-  actions={<Button iconOnly className="h-5 w-5" icon={<IconTrash />} tooltip="Remove" />}>
+  actions={<Button iconOnly size="sm" icon={<IconTrash />} tooltip="Remove" />}>
   …
 </InlinePanel>
 ```
 
 ### InfoBox / InfoButton
 
-`InfoBox` is an always-visible informational callout (`children`,
-`className?`). `InfoButton` is its compact replacement: an ⓘ icon that shows
-the explanation in a popover.
+`InfoBox` is an always-visible tinted callout. `InfoButton` is its compact
+replacement: an ⓘ icon that shows the explanation in a popover.
 
 ```ts
+type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+
+type InfoBoxProps = {
+  children: ReactNode;
+  tone?: Tone;             // default 'warning' — the hint/caution note
+  icon?: ReactNode | null; // replaces the tone's icon; null drops it
+  className?: string;
+};
+
 type InfoButtonProps = {
   children: ReactNode;  // the explanation shown in the popover
   label?: string;       // accessible label / hover tooltip for the trigger
   className?: string;
 };
 ```
+
+`Tone` is the library's one semantic scale — `InfoBox`, `Badge` and the toasts
+all take it, so "warning" looks the same wherever it appears. Use `danger` for
+a failure the user must act on, not a red text span.
+
+### SegmentedControl
+
+A run of joined buttons for one exclusive choice — the horizontal sibling of
+`RadioGroup`, for a mode switch that belongs in a toolbar rather than a form.
+
+```tsx
+const UNITS = [
+  { value: 'mm', label: 'mm', tooltip: 'Step unit: millimeters' },
+  { value: 'cm', label: 'cm', tooltip: 'Step unit: centimeters' },
+  { value: 'm',  label: 'm',  tooltip: 'Step unit: meters' },
+] as const;
+
+<SegmentedControl value={unit} options={UNITS} onChange={setUnit} />
+```
+
+```ts
+type SegmentedOption<T extends string = string> = {
+  value: T;
+  label?: ReactNode;   // omit for an icon-only segment
+  icon?: ReactNode;
+  tooltip?: string;
+  shortcut?: string;
+  disabled?: boolean;
+};
+
+type SegmentedControlProps<T extends string = string> = {
+  value: T;
+  options: readonly SegmentedOption<T>[];
+  onChange: (value: T) => void;
+  size?: ButtonSize;   // matches Button
+  grow?: boolean;      // split the row evenly instead of hugging the labels
+  fill?: boolean;      // fill the parent's height (a ribbon slot)
+  disabled?: boolean;
+  className?: string;
+};
+```
+
+A run of `<Button active={x === value}>` is not this — it has no shared edges
+and no group semantics. Use SegmentedControl whenever the choice is exclusive
+and lives on one row; keep Buttons for a grid-shaped group.
+
+### Badge / Kbd
+
+```tsx
+<Badge>{rows} rows</Badge>
+<Badge tone="warning">unsaved edits</Badge>
+<span>Run with <Kbd>Ctrl + Enter</Kbd></span>
+```
+
+`Badge` is the one status chip — a count, a license name, a state marker — in
+the five `Tone`s. `Kbd` is its key-cap sibling for a shortcut combo. `Button`
+takes a `badge` so a count can ride along with an action.
+
+```ts
+type BadgeProps = { children: ReactNode; tone?: Tone; tooltip?: string; className?: string };
+type KbdProps = { children: ReactNode; className?: string };
+```
+
+### PanelHeader / EmptyState
+
+The two pieces of panel chrome.
+
+```tsx
+<PanelHeader
+  variant="title"
+  title={report.name}
+  aside={<Badge>{rows.length} rows</Badge>}
+  actions={<Button onClick={run}>Run</Button>}
+/>
+{rows.length === 0 && <EmptyState layout="center">No rows — run the report.</EmptyState>}
+```
+
+```ts
+type PanelHeaderProps = {
+  title: ReactNode;                            // truncates when the panel narrows
+  aside?: ReactNode;                           // dim notes between title and actions
+  actions?: ReactNode;
+  variant?: 'label' | 'title' | 'band';        // dim caption / panel name / tinted mode bar
+  className?: string;
+};
+
+type EmptyStateProps = {
+  children: ReactNode;
+  icon?: ReactNode;                 // 'center' layout only
+  layout?: 'note' | 'center';       // dim line in the flow / centred in the space left
+  className?: string;
+};
+```
+
+`PanelHeader` is already `shrink-0`, so only the content under it scrolls.
+`EmptyState` replaces every hand-written "nothing here" paragraph — it is the
+only place that wording gets its styling.
+
+### PropertyList
+
+A label/value read-out: the field list of a record, a stats block, a table of
+fixed controls.
+
+```tsx
+<PropertyList divided rows={fields.map((f) => ({ key: f.key, label: f.label, value: <Value f={f} /> }))} />
+<PropertyList numeric rows={stats} />
+<PropertyList layout="fill" rows={controls.map((c) => ({ key: c.id, label: c.desc, value: <Kbd>{c.keys}</Kbd> }))} />
+```
+
+```ts
+type PropertyRow = {
+  key: string;
+  label: ReactNode;
+  value: ReactNode;
+  tooltip?: string;      // on the label cell — for a truncated or renamed key
+  leading?: ReactNode;   // cell before the label (a checkbox, a swatch)
+};
+
+type PropertyListProps = {
+  rows: readonly PropertyRow[];
+  layout?: 'fixed' | 'fill';  // label column + filling value / filling label + natural value
+  labelWidth?: number;        // px, 'fixed' only (default 128)
+  numeric?: boolean;          // monospace, right-aligned values
+  divided?: boolean;          // rule under every row
+  className?: string;
+};
+```
+
+### Menu
+
+The right-click menu, portaled to the body so panel scroll clipping can never
+cut it off. It opens at the press position and is then measured and nudged
+back inside the viewport — no hard-coded size guesses.
+
+```tsx
+const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+
+<div onContextMenu={(e) => { e.preventDefault(); setAnchor({ x: e.clientX, y: e.clientY }); }}>…</div>
+
+<Menu
+  anchor={anchor}
+  onClose={() => setAnchor(null)}
+  items={[
+    { id: 'copy', label: 'Copy name', onSelect: () => copy(row.name) },
+    canEdit && { id: 'rename', label: 'Rename…', onSelect: () => rename(row) },
+    { separator: true },
+    { id: 'del', label: 'Remove', danger: true, onSelect: () => remove(row) },
+  ]}
+/>
+```
+
+```ts
+type MenuItem = {
+  id: string;
+  label: ReactNode;
+  onSelect: () => void;
+  icon?: ReactNode;
+  tooltip?: string;
+  shortcut?: string;    // hotkey id
+  disabled?: boolean;
+  danger?: boolean;     // destructive — danger tone
+};
+type MenuSeparator = { separator: true };
+type MenuEntry = MenuItem | MenuSeparator | null | false | undefined;
+
+type MenuProps = {
+  anchor: { x: number; y: number } | null;   // null renders nothing
+  items: readonly MenuEntry[];
+  onClose: () => void;
+  minWidth?: number;    // default 160
+  className?: string;
+};
+```
+
+A falsy entry is skipped, so a conditional item can be written inline. Picking
+an entry closes the menu **before** running `onSelect`, so a handler that opens
+a dialog never leaves the menu floating behind it. Closes on outside press and
+on Escape.
+
+### TreeView
+
+The app's tree list: indent, twisty, selection and partial-selection
+highlighting over a **flat list of the rows that are visible right now**. The
+widget draws; it never owns the model — so a lazily-loaded tree costs nothing
+until it is expanded, and the caller keeps whatever data source it has.
+
+```tsx
+const rows = visibleRows(model, open).map((n) => ({
+  key: n.id,
+  depth: n.depth,
+  label: n.name,
+  icon: <IconCube size={14} />,
+  expandable: n.hasChildren,
+  expanded: open.has(n.id),
+  selected: n.selected,
+  partial: n.partiallySelected,
+  trailing: <Badge>{n.count}</Badge>,
+}));
+
+<TreeView
+  rows={rows}
+  rowHeight={22}              // turns on virtualization
+  onToggle={(row) => toggleOpen(row.key)}
+  onRowClick={(row, e) => select(row.key, e)}
+  onRowContextMenu={(row, e) => openMenu(row, e)}
+/>
+```
+
+```ts
+type TreeViewRow = {
+  key: string;               // React key AND what the callbacks hand back
+  depth: number;
+  label: ReactNode;
+  icon?: ReactNode;
+  expandable?: boolean;      // renders the twisty; a leaf keeps its width so levels line up
+  expanded?: boolean;
+  selected?: boolean;
+  partial?: boolean;         // SOME rows beneath are selected — a bar at the left edge
+  partialTooltip?: string;
+  band?: boolean;            // grouping chrome (a store, a section) — a dimmed full-width band
+  muted?: boolean;           // dim, italic label — hidden or unavailable content
+  disabled?: boolean;        // not clickable (a band that is pure chrome)
+  trailing?: ReactNode;      // right-aligned node after the label
+  tooltip?: string;
+};
+
+type TreeViewProps = {
+  rows: readonly TreeViewRow[];
+  onToggle?: (row: TreeViewRow) => void;
+  onRowClick?: (row: TreeViewRow, e: ReactMouseEvent) => void;
+  onRowContextMenu?: (row: TreeViewRow, e: ReactMouseEvent) => void;
+  rowHeight?: number;        // px — virtualizes when given (only rows in view are mounted)
+  indent?: number;           // px per depth level (default 14)
+  padLeft?: number;          // px before a depth-0 row (default 6)
+  scrollerRef?: RefObject<HTMLDivElement | null>;  // to scroll a row into view
+  rowProps?: (row: TreeViewRow) => TreeRowExtras;  // drag-and-drop, data-* markers
+  emptyText?: ReactNode;
+  className?: string;
+};
+```
+
+The twisty toggles expansion **only** — it never touches the selection, so a
+folder can be opened without selecting its subtree. `rowProps` is the escape
+hatch for behaviour the tree has no opinion on (`draggable`, the drag
+handlers, a drop-highlight class, `data-*` attributes a container-level
+handler reads). `FileTree` is this widget plus a file model.
 
 ### VerticalTabs
 
@@ -579,12 +910,52 @@ type SqlCodeEditorProps = {
 };
 ```
 
-### Modal, TitleBar and the dialog cores
+### DialogFrame, Modal, TitleBar and the dialog cores
 
-`Modal` is the raw overlay: a centered dialog above a dimmed backdrop at
-z-index `z` (stack multiple dialogs by increasing `z`). `TitleBar` is the
-standard header row. The `*DialogCore` widgets are complete, presentation-only
-dialog bodies — you own the open/close state:
+`DialogFrame` is the dialog window: backdrop, bordered box, a title bar with
+its ✕, a body that scrolls inside `maxHeight`, and a footer rule for the
+buttons. Every dialog in the app is this frame plus its content — build a new
+one with it rather than repeating the box classes.
+
+```tsx
+<DialogFrame
+  icon={<IconLicense size={16} className="text-blue-400" />}
+  title="License"
+  width="min(560px, 92vw)"
+  onClose={() => setOpen(false)}
+  footer={<Button variant="primary" onClick={accept}>Accept</Button>}
+>
+  {body}
+</DialogFrame>
+```
+
+```ts
+type DialogFrameProps = {
+  icon: ReactNode;
+  title: ReactNode;
+  children: ReactNode;
+  footer?: ReactNode;                 // right-aligned above the bottom rule
+  width?: number | string;            // number = px (default 320)
+  height?: number | string;           // omit to hug the content
+  maxHeight?: number | string;        // default '80vh' — the body scrolls inside it
+  onClose?: () => void;               // Escape, backdrop press and the ✕ all call this
+  role?: 'dialog' | 'alertdialog';
+  z?: number;
+  bodyClassName?: string;             // replaces the default body padding
+  className?: string;
+};
+```
+
+`Modal` is the raw overlay underneath it: a centered window above a dimmed
+backdrop at z-index `z` (stack multiple dialogs by increasing `z`). Give it
+`onClose` and it handles dismissal for you — Escape reaches only the **top**
+open modal (they register in a stack), and a backdrop press closes unless
+`closeOnBackdrop={false}`. A modal without `onClose` cannot be dismissed by
+the user, which is what a blocking progress overlay wants. `TitleBar` is the
+standard header row; give it `onClose` for the ✕.
+
+The `*DialogCore` widgets are complete, presentation-only dialog bodies built
+on `DialogFrame` — you own the open/close state:
 
 ```tsx
 {confirming && (
@@ -596,8 +967,10 @@ dialog bodies — you own the open/close state:
 ```
 
 ```ts
-type ModalProps = { z: number; children: ReactNode; onKeyDown?: (e: React.KeyboardEvent) => void };
-type TitleBarProps = { icon: ReactNode; children: ReactNode };
+type ModalProps = { z: number; children: ReactNode; onClose?: () => void;
+                    closeOnBackdrop?: boolean;      // default true
+                    onKeyDown?: (e: React.KeyboardEvent) => void };
+type TitleBarProps = { icon: ReactNode; children: ReactNode; onClose?: () => void; className?: string };
 
 type ConfirmDialogCoreProps = { title: string; message: string; okLabel: string; cancelLabel: string;
                                 onResult: (ok: boolean) => void;  // true = OK, false = Cancel/Escape
@@ -611,6 +984,66 @@ type PromptDialogCoreProps  = { title: string; message: string; value: string; o
                                 onResult: (ok: boolean) => void;  // true = OK/Enter
                                 z?: number };
 ```
+
+### Toast (`toast` + `Toaster`)
+
+Non-blocking notifications — the alternative to stopping the user with a
+confirm() they can only acknowledge. Render `<Toaster />` once at the app
+root; everything else calls `toast.*`, from React or not.
+
+```tsx
+// once, at the app root
+<Toaster />
+
+// anywhere — a worker callback, an action, a hotkey
+toast.success(`Loaded ${n} label(s).`);
+toast.warning('Import failed: 3 tags not found.');
+toast.error('GPU device lost.', { title: 'Renderer' });
+```
+
+```ts
+type ToastOptions = { title?: string; duration?: number };  // duration 0 = until dismissed
+
+const toast: {
+  info(message: string, opts?: ToastOptions): string;      // returns the id
+  success(message: string, opts?: ToastOptions): string;
+  warning(message: string, opts?: ToastOptions): string;
+  error(message: string, opts?: ToastOptions): string;     // stays until dismissed
+  dismiss(id: string): void;
+  clear(): void;
+};
+
+type ToasterProps = { z?: number; className?: string };     // default z 2600 — above the modal layer
+```
+
+They stack bottom-right, newest at the bottom, hold while the pointer is over
+them, and cap at four so a burst of failures cannot bury the screen. An
+OK-only dialog is never the right answer for a result the user does not have
+to acknowledge — use a toast.
+
+### Link / Swatch / Spinner / ProgressBar / CopyButton / Vec3Input
+
+The small single-purpose parts.
+
+```tsx
+<Link href="https://example.com/docs">Read the docs</Link>
+<Swatch color={rule.color} active={picked} onClick={() => pick(rule.color)} />
+<Spinner /> <ProgressBar value={0.4} /> <ProgressBar />   {/* no value = indeterminate */}
+<CopyButton value={() => toTsv(rows)}>Copy rows</CopyButton>
+<Vec3Input label="Center" value={shape.center} onChange={(center) => update({ center })} />
+```
+
+- **`Link`** — one look for every out-of-app link; external by default
+  (`target="_blank"` + `noreferrer noopener`).
+- **`Swatch`** — a colour chip: clickable in a palette (`active` rings the
+  current pick), static as a read-out when no `onClick` is given.
+- **`Spinner` / `ProgressBar`** — the busy indicators the loading dialog is
+  built from, available on their own for inline progress.
+- **`CopyButton`** — copy-to-clipboard that owns its own "Copied"
+  confirmation, so no panel hand-rolls that timer. `value` may be a getter for
+  something expensive to build.
+- **`Vec3Input`** — three steppers on one row for a point, a size or an axis,
+  with a label column that keeps stacked rows aligned.
 
 ### Ribbon (toolbar family)
 
@@ -765,6 +1198,43 @@ const v = useVirtualRows(scroller, rows.length, 20);
 
 Call `v.onScroll()` yourself after setting `scrollTop` from code (a "follow
 the end" jump) so the window updates in the same render.
+
+`TreeView` uses this internally — reach for `useVirtualRows` directly only for
+a list that is not a tree (a log, a grid body).
+
+### `usePointerDrag({ onMove, onStart?, onEnd?, threshold? })`
+
+One press-and-drag gesture, on pointer **capture**: every later event retargets
+to the handle, so the drag survives the pointer crossing an iframe, another
+panel or the window edge — which window-level listeners do not.
+
+```tsx
+const from = useRef(0);
+const drag = usePointerDrag({
+  onMove: ({ dx }) => setWidth(Math.max(48, from.current + dx)),
+});
+
+<div
+  className="cursor-col-resize"
+  onPointerDown={(e) => { from.current = width; drag.start(e); }}
+/>
+```
+
+```ts
+type PointerDragDelta = { dx: number; dy: number; x: number; y: number };
+
+type PointerDragOptions = {
+  onMove: (d: PointerDragDelta, e: PointerEvent) => void;
+  onStart?: (d: PointerDragDelta) => void;   // fires once past `threshold`
+  onEnd?: (moved: boolean) => void;          // moved=false → it was a click
+  threshold?: number;                        // px before it counts as a drag (default 0)
+};
+
+type PointerDrag = { start: (e: ReactPointerEvent<HTMLElement>) => void; isDragging: () => boolean };
+```
+
+With a `threshold`, `onEnd(false)` tells you the press never moved — that is
+how NumberInput distinguishes a scrub from a click that should focus the field.
 
 ### The state architecture — how apps on this library are designed
 
@@ -1217,4 +1687,14 @@ throw inside `loadOptions` to surface the error in the dropdown.
   `normalizeLayout` / `manager.loadLayout` (which heals invalid trees).
 - **Don't** use `as` casts to force widget props — the unions (Select,
   DatePicker, TimePicker) narrow correctly when you set the discriminant
-  (`multiple`, `range`) literally.
+  (`multiple`, `range`) literally, and Select / RadioGroup / SegmentedControl
+  are generic, so a typed option list gives you the literal union back.
+- **Don't** hand-roll something the library already has. Before writing markup,
+  check for: a labelled field row (`label` + `labelPosition`), an empty-list
+  message (`EmptyState`), a panel's top strip (`PanelHeader`), a status chip
+  (`Badge`), a key/value read-out (`PropertyList`), a right-click menu
+  (`Menu`), a tree (`TreeView`), a dialog box (`DialogFrame`), a toast
+  (`toast`), a copy button (`CopyButton`), or a drag gesture
+  (`usePointerDrag`). A hand-rolled copy is a second visual language.
+- **Don't** restyle a Button with a class string to change its size or tone —
+  `size`, `variant`, `wrap` and `grow` exist so every button stays one control.

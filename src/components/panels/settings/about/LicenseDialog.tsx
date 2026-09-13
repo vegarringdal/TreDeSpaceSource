@@ -1,5 +1,5 @@
-import { IconLicense, IconX } from '@tabler/icons-react';
-import { Button, Modal, TitleBar } from '@treDeSpaceUI/widgets';
+import { IconLicense } from '@tabler/icons-react';
+import { Button, DialogFrame } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import licenseText from '../../../../../LICENSE?raw';
 
@@ -52,47 +52,38 @@ export function LicenseDialog() {
       </Button>
 
       {open && (
-        <Modal z={2000} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
-          <div className="flex max-h-[80vh] w-[min(560px,92vw)] flex-col border border-slate-600 bg-slate-900 shadow-black/50 shadow-xl">
-            <TitleBar icon={<IconLicense size={16} className="shrink-0 text-blue-400" />}>
-              <span>License</span>
-              <button
-                type="button"
-                className="ml-auto cursor-pointer text-slate-400 hover:text-slate-200"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-              >
-                <IconX size={15} />
-              </button>
-            </TitleBar>
-            <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-4 py-4">
-              {BLOCKS.map((b, i) => {
-                const key = `${b.kind}-${i}`;
-                if (b.kind === 'heading') {
-                  return (
-                    <div key={key} className="mt-1 font-semibold text-slate-200 text-xs tracking-wide">
-                      {b.text}
-                    </div>
-                  );
-                }
-                if (b.kind === 'list') {
-                  return (
-                    <ul key={key} className="list-disc pl-5 text-slate-400 text-xs leading-relaxed">
-                      {b.items.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  );
-                }
-                return (
-                  <p key={key} className={`text-xs leading-relaxed ${i === 0 ? 'text-slate-200' : 'text-slate-400'}`}>
-                    {b.text}
-                  </p>
-                );
-              })}
-            </div>
-          </div>
-        </Modal>
+        <DialogFrame
+          icon={<IconLicense size={16} className="shrink-0 text-blue-400" />}
+          title="License"
+          width="min(560px, 92vw)"
+          onClose={() => setOpen(false)}
+          bodyClassName="flex min-h-0 flex-col gap-3 overflow-y-auto px-4 py-4"
+        >
+          {BLOCKS.map((b, i) => {
+            const key = `${b.kind}-${i}`;
+            if (b.kind === 'heading') {
+              return (
+                <div key={key} className="mt-1 font-semibold text-slate-200 text-xs tracking-wide">
+                  {b.text}
+                </div>
+              );
+            }
+            if (b.kind === 'list') {
+              return (
+                <ul key={key} className="list-disc pl-5 text-slate-400 text-xs leading-relaxed">
+                  {b.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              );
+            }
+            return (
+              <p key={key} className={`text-xs leading-relaxed ${i === 0 ? 'text-slate-200' : 'text-slate-400'}`}>
+                {b.text}
+              </p>
+            );
+          })}
+        </DialogFrame>
       )}
     </>
   );

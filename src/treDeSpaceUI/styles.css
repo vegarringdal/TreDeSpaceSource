@@ -77,3 +77,14 @@
 ::-webkit-scrollbar-button {
   display: none;
 }
+
+/* Indeterminate ProgressBar sweep — a keyframe has no Tailwind utility, so
+   the library ships it with the widget that uses it. */
+@keyframes tdsSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}

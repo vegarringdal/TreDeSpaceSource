@@ -62,13 +62,12 @@ async function applyRecorded(id: string, seq: Sequence): Promise<void> {
 function doImportText(text: string): void {
   try {
     const r = hotkeysActions.importJson(text);
-    void dialogs.confirm(
+    dialogs.success(
       `Imported ${r.applied.length} shortcut(s).` +
         (r.conflicts.length ? ` ${r.conflicts.length} skipped (conflict).` : '') +
         (r.skipped.length ? ` ${r.skipped.length} skipped (unknown/invalid).` : ''),
-      { okLabel: 'OK' },
     );
   } catch (e) {
-    void dialogs.confirm(`Import failed: ${e instanceof Error ? e.message : String(e)}`, { okLabel: 'OK' });
+    dialogs.warn(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }

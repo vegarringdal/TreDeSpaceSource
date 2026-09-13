@@ -1,3 +1,4 @@
+import { Checkbox, InfoBox } from '@treDeSpaceUI/widgets';
 import {
   isViewerOriginUrl,
   PERMISSION_OPTIONS,
@@ -7,7 +8,6 @@ import {
   VIEWER_ORIGIN_WARNING,
 } from '../../../../state/externalAppPolicy';
 import { type ExternalApp, externalAppsActions } from '../../../../state/externalApps.state';
-import { Check } from '../Check';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -34,7 +34,7 @@ function PolicyRow<T extends string>({ caption, tooltip, options, selected, onCh
         {caption}
       </span>
       {options.map((o) => (
-        <Check
+        <Checkbox
           key={o.value}
           label={o.label}
           tooltip={o.tooltip}
@@ -53,7 +53,7 @@ export function ExternalAppPolicyEditor({ app }: { app: ExternalApp }) {
   return (
     <>
       {isViewerOriginUrl(app.url) && (
-        <div className="text-amber-400 text-xs">{VIEWER_ORIGIN_WARNING} Only add tools you fully trust here.</div>
+        <InfoBox tone="danger">{VIEWER_ORIGIN_WARNING} Only add tools you fully trust here.</InfoBox>
       )}
       <PolicyRow
         caption="Sandbox"

@@ -1,34 +1,19 @@
-import { useEffect } from 'react';
+import { Menu, type MenuEntry } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import type { Row } from './hierarchyModel';
 
 export type MenuState = { x: number; y: number; row: Row };
 
-/** Right-click menu: copy names and remove files/folders. Closes on any
- *  outside pointer press. */
+/** Right-click menu: copy names, toggle item edges and remove files/folders. */
 export function HierarchyMenu({ menu, rows, onClose }: { menu: MenuState | null; rows: Row[]; onClose: () => void }) {
-  useEffect(() => {
-    if (!menu) {
-      return;
-    }
-    window.addEventListener('pointerdown', onClose);
-    return () => window.removeEventListener('pointerdown', onClose);
-  }, [menu, onClose]);
-
-  if (!menu) {
-    return null;
-  }
-
   const visibleSelected = () => rows.filter((r) => r.selected && r.model !== -1);
 
   const copy = (text: string) => {
     void navigator.clipboard?.writeText(text).catch(() => {});
-    onClose();
   };
 
   /** Remove the row's whole file (any item row → its model) or folder subtree. */
   const removeCurrent = (r: Row) => {
-    onClose();
     if (r.model === -1) {
       void viewerActions.removeGroups([r.group!], `folder "${r.group}"`, r.inStore);
     } else {
@@ -36,88 +21,55 @@ export function HierarchyMenu({ menu, rows, onClose }: { menu: MenuState | null;
     }
   };
 
-  const setItemEdges = (on: boolean) => {
-    onClose();
-    void viewerActions.setItemEdgesOnSelection(on);
-  };
-
   /** Remove every file that owns a selected row (distinct models). */
   const removeSelected = () => {
-    onClose();
     const models = [...new Set(visibleSelected().map((r) => r.model))];
     void viewerActions.removeModels(models);
   };
 
-  return (
-    <div
-      className="fixed z-50 flex flex-col border border-slate-700 bg-slate-900 py-1 text-xs shadow-lg"
-      style={{ left: menu.x, top: menu.y }}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <button
-        type="button"
-        className="px-3 py-1 text-left text-slate-200 hover:bg-slate-800"
-        onClick={() => copy(menu.row.name)}
-      >
-        Copy Current
-      </button>
-      <button
-        type="button"
-        className="px-3 py-1 text-left text-slate-200 hover:bg-slate-800"
-        onClick={() =>
-          copy(
-            visibleSelected()
-              .map((r) => r.name)
-              .join('\n'),
-          )
-        }
-      >
-        Copy Selected
-      </button>
-      <button
-        type="button"
-        className="px-3 py-1 text-left text-slate-200 hover:bg-slate-800"
-        onClick={() =>
-          copy(
-            visibleSelected()
-              .filter((r) => r.depth === menu.row.depth)
-              .map((r) => r.name)
-              .join('\n'),
-          )
-        }
-      >
-        Copy Selected same level
-      </button>
-      <div className="my-1 border-slate-700 border-t" />
-      <button
-        type="button"
-        className="px-3 py-1 text-left text-slate-200 hover:bg-slate-800"
-        data-shortcut="hierarchy.itemEdgesOff"
-        data-tooltip="No item-boundary edge lines on the selected items (only visible while Settings → Edges → item edges is on). Undo reverts it"
-        onClick={() => setItemEdges(false)}
-      >
-        Disable item edges on selected
-      </button>
-      <button
-        type="button"
-        className="px-3 py-1 text-left text-slate-200 hover:bg-slate-800"
-        data-shortcut="hierarchy.itemEdgesOn"
-        data-tooltip="Item-boundary edge lines back on for the selected items"
-        onClick={() => setItemEdges(true)}
-      >
-        Enable item edges on selected
-      </button>
-      <div className="my-1 border-slate-700 border-t" />
-      <button
-        type="button"
-        className="px-3 py-1 text-left text-red-300 hover:bg-slate-800"
-        onClick={() => removeCurrent(menu.row)}
-      >
-        Remove current file/folder
-      </button>
-      <button type="button" className="px-3 py-1 text-left text-red-300 hover:bg-slate-800" onClick={removeSelected}>
-        Remove selected files
-      </button>
-    </div>
-  );
+  const items = (row: Row): MenuEntry[] => [
+    { id: 'copyCurrent', label: 'Copy Current', onSelect: () => copy(row.name) },
+    {
+      id: 'copySelected',
+      label: 'Copy Selected',
+      onSelect: () =>
+        copy(
+          visibleSelected()
+            .map((r) => r.name)
+            .join('\n'),
+        ),
+    },
+    {
+      id: 'copySelectedLevel',
+      label: 'Copy Selected same level',
+      onSelect: () =>
+        copy(
+          visibleSelected()
+            .filter((r) => r.depth === row.depth)
+            .map((r) => r.name)
+            .join('\n'),
+        ),
+    },
+    { separator: true },
+    {
+      id: 'itemEdgesOff',
+      label: 'Disable item edges on selected',
+      shortcut: 'hierarchy.itemEdgesOff',
+      tooltip:
+        'No item-boundary edge lines on the selected items (only visible while Settings → Edges → item edges is on). Undo reverts it',
+      onSelect: () => void viewerActions.setItemEdgesOnSelection(false),
+    },
+    {
+      id: 'itemEdgesOn',
+      label: 'Enable item edges on selected',
+      shortcut: 'hierarchy.itemEdgesOn',
+      tooltip: 'Item-boundary edge lines back on for the selected items',
+      onSelect: () => void viewerActions.setItemEdgesOnSelection(true),
+    },
+    { separator: true },
+    { id: 'removeCurrent', label: 'Remove current file/folder', danger: true, onSelect: () => removeCurrent(row) },
+    { id: 'removeSelected', label: 'Remove selected files', danger: true, onSelect: removeSelected },
+  ];
+
+  return <Menu anchor={menu} items={menu ? items(menu.row) : []} minWidth={200} onClose={onClose} />;
 }

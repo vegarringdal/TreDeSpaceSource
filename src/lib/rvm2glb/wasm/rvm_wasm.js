@@ -21,7 +21,9 @@ export class ConvertResult {
         wasm.__wbg_convertresult_free(ptr, 0);
     }
     /**
-     * Bytes of file `i`.
+     * Bytes of file `i`, **moved** out (wasm-bindgen copies the `Vec` into a
+     * JS `Uint8Array` anyway, so cloning first held two copies). Reading the
+     * same index twice yields an empty array.
      * @param {number} i
      * @returns {Uint8Array | undefined}
      */

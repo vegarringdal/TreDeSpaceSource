@@ -3,7 +3,7 @@
 // layout into the selected slot. Names are edited in Settings → Layouts.
 import { IconDeviceFloppy, IconLayoutDashboard } from '@tabler/icons-react';
 import { usePanelContext } from '@treDeSpaceUI/dockable';
-import { Ribbon, RibbonButton, RibbonSection, Select } from '@treDeSpaceUI/widgets';
+import { Checkbox, Ribbon, RibbonButton, RibbonSection, Select } from '@treDeSpaceUI/widgets';
 import { layoutsActions as act, layoutsState } from '../../../state/layouts.state';
 
 const isRibbon = (dockableIn?: string | string[]) =>
@@ -54,12 +54,10 @@ export function RibbonLayout() {
           shortcut="layout.save"
           onClick={() => act.saveCurrent()}
         />
-        <div
-          className="flex w-44 flex-col justify-center gap-1"
-          data-tooltip="Ribbon tab focused when this slot's layout is applied"
-        >
-          <span className="text-slate-400 text-xs">Linked ribbon</span>
+        <div className="flex w-44 flex-col justify-center gap-1">
           <Select
+            label="Linked ribbon"
+            tooltip="Ribbon tab focused when this slot's layout is applied"
             options={ribbonOptions}
             value={selected?.ribbon ?? ''}
             onChange={(v) => {
@@ -68,22 +66,17 @@ export function RibbonLayout() {
               }
             }}
           />
-          <label
-            className="flex cursor-pointer items-center gap-1.5 text-slate-300 text-xs"
-            data-tooltip="Show the ribbon strip when this slot's layout is applied (default on)"
-          >
-            <input
-              type="checkbox"
-              disabled={s.selected == null}
-              checked={selected?.ribbonOpen !== false}
-              onChange={(e) => {
-                if (s.selected != null) {
-                  act.setRibbonOpen(s.selected, e.target.checked);
-                }
-              }}
-            />
-            Ribbon open
-          </label>
+          <Checkbox
+            label="Ribbon open"
+            disabled={s.selected == null}
+            checked={selected?.ribbonOpen !== false}
+            tooltip="Show the ribbon strip when this slot's layout is applied (default on)"
+            onChange={(open) => {
+              if (s.selected != null) {
+                act.setRibbonOpen(s.selected, open);
+              }
+            }}
+          />
         </div>
       </RibbonSection>
     </Ribbon>

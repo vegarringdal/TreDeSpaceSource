@@ -30,7 +30,7 @@ export function SettingsSection({
       actions={
         <Button
           iconOnly
-          className="h-4 w-4"
+          size="xs"
           icon={<IconRestore size={14} />}
           disabled={!isDirty}
           tooltip={isDirty ? `Reset ${label} to defaults` : `${label} is at its defaults`}

@@ -254,7 +254,7 @@ fn convert_inner(
         enable_instancing: opts.mode.is_instanced(),
         ..StreamingOptions::default()
     };
-    let result = process_geometry_streaming_with_options_and_bootstrap(
+    let mut result = process_geometry_streaming_with_options_and_bootstrap(
         ifc_bytes,
         stream_opts,
         |_batch, processed, total| {
@@ -279,7 +279,11 @@ fn convert_inner(
     let mut physical: Vec<Mesh> = Vec::new();
     let mut spaces: Vec<Mesh> = Vec::new();
     let mut openings: Vec<Mesh> = Vec::new();
-    for m in result.meshes.iter().filter(|m| m.geometry_class == 0) {
+    for m in result
+        .meshes
+        .drain(..)
+        .filter(|m| m.geometry_class == 0)
+    {
         let ty = m.ifc_type.to_ascii_lowercase();
         if ty == "ifcannotation" {
             continue;
@@ -422,7 +426,7 @@ fn convert_inner(
         }
     } else {
         emit_files(
-            &physical,
+            physical,
             "",
             opts,
             tree.as_ref(),
@@ -435,7 +439,7 @@ fn convert_inner(
         )?;
         if !spaces.is_empty() {
             emit_files(
-                &spaces,
+                spaces,
                 "_spaces",
                 opts,
                 tree.as_ref(),
@@ -449,7 +453,7 @@ fn convert_inner(
         }
         if !openings.is_empty() {
             emit_files(
-                &openings,
+                openings,
                 "_openings",
                 opts,
                 tree.as_ref(),
@@ -532,7 +536,7 @@ fn emit_instanced(
 /// added to each file stem (`""` for the physical model, `"_spaces"` for the spaces pass).
 #[allow(clippy::too_many_arguments)]
 fn emit_files(
-    meshes: &[Mesh],
+    meshes: Vec<Mesh>,
     suffix: &str,
     opts: &ConvertOptions,
     tree: Option<&QuickMetadataSpatialNode>,
@@ -547,11 +551,17 @@ fn emit_files(
         return Ok(());
     }
     let (assignment, default_group) = split::assign_groups(opts.split, tree, root_name);
-    let buckets = bucket(meshes, &assignment, &default_group);
-    let hierarchy = build_hierarchy(tree, meshes, ifc_bytes);
+    let buckets = bucket(&meshes, &assignment, &default_group);
+    let hierarchy = build_hierarchy(tree, &meshes, ifc_bytes);
+
+    // `bucket` puts every mesh in exactly ONE group, so each group can MOVE its
+    // meshes out of the pool instead of cloning them. With split = none that is
+    // one bucket holding everything — the clone was a second copy of the whole
+    // model's geometry, alive at the same time as the original.
+    let mut pool: Vec<Option<Mesh>> = meshes.into_iter().map(Some).collect();
 
     for (group, idxs) in &buckets {
-        let group_meshes: Vec<Mesh> = idxs.iter().map(|&i| meshes[i].clone()).collect();
+        let group_meshes: Vec<Mesh> = idxs.iter().filter_map(|&i| pool[i].take()).collect();
         // Instanced modes route through `emit_instanced`, never here.
         let stem = format!("{}{suffix}", split::file_stem(&group.name));
         let bytes = match opts.mode {
@@ -635,7 +645,11 @@ fn split_label(tier: SplitTier) -> &'static str {
 
 /// Map one upstream `MeshData` into our [`Mesh`], folding the per-mesh f64 `origin` into
 /// absolute world positions (`world = origin + position`).
-fn to_mesh(m: &MeshData) -> Option<Mesh> {
+///
+/// Takes the `MeshData` BY VALUE: indices, normals, UVs and the texture move
+/// across untouched. Borrowing it meant cloning every one of those buffers —
+/// a second copy of the whole model's geometry before anything was written.
+fn to_mesh(m: MeshData) -> Option<Mesh> {
     if m.positions.is_empty() || m.indices.is_empty() || !m.positions.len().is_multiple_of(3) {
         return None;
     }
@@ -651,24 +665,20 @@ fn to_mesh(m: &MeshData) -> Option<Mesh> {
             ]
         })
         .collect();
+    // Carry UVs + texture only when consistent (1:1 with vertices, well-formed image).
+    let vertex_count = m.positions.len() / 3;
     let normals = if m.normals.len() == m.positions.len() {
-        m.normals.clone()
+        m.normals
     } else {
         Vec::new()
     };
-    // Carry UVs + texture only when consistent (1:1 with vertices, well-formed image).
-    let vertex_count = m.positions.len() / 3;
-    let uvs = m
-        .uvs
-        .as_ref()
-        .filter(|u| u.len() == vertex_count * 2)
-        .cloned();
-    let texture = m.texture.as_ref().and_then(|t| {
+    let uvs = m.uvs.filter(|u| u.len() == vertex_count * 2);
+    let texture = m.texture.and_then(|t| {
         let ok = t.width > 0
             && t.height > 0
             && t.rgba.len() == (t.width as usize) * (t.height as usize) * 4;
         ok.then(|| crate::mesh::MeshTexture {
-            rgba: t.rgba.clone(),
+            rgba: t.rgba,
             width: t.width,
             height: t.height,
             repeat_s: t.repeat_s,
@@ -677,11 +687,11 @@ fn to_mesh(m: &MeshData) -> Option<Mesh> {
     });
     Some(Mesh {
         express_id: m.express_id,
-        ifc_type: m.ifc_type.clone(),
-        name: m.name.clone(),
+        ifc_type: m.ifc_type,
+        name: m.name,
         positions,
         normals,
-        indices: m.indices.clone(),
+        indices: m.indices,
         color: m.color,
         uvs: uvs.filter(|_| texture.is_some()),
         texture,

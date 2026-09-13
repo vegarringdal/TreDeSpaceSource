@@ -95,9 +95,49 @@ App → host (exactly one per request):
   error: { code: 'bad-payload', message: 'fullnames must be a string[]' } }
 ```
 
-Error codes: `bad-payload`, `not-ready`, `busy` (import lock held),
-`not-found`, `internal`, `unknown-command` (no such command in this viewer —
-`app.info` lists the ones it has; the SDK's `supports()` answers from it).
+Error codes: `bad-payload`, `not-ready`, `busy` (the import lock is held, so
+the command never ran — a retry is sensible), `not-found`, `download` (a URL
+the command was told to fetch failed), `sql` (SQLite rejected the statement —
+bad SQL, no such table), `internal` (an unexpected viewer-side failure) and
+`unknown-command` (no such command in this viewer — `app.info` lists the ones
+it has; the SDK's `supports()` answers from it), and `cancelled` (the caller
+gave up — see Ordering and cancellation).
+
+## Ordering and cancellation
+
+**Commands from ONE client run in the order they arrived.** Fire
+`selection.set` and then `view.screenshot` without awaiting the first, and the
+screenshot still shows the selection. Different clients stay concurrent — the
+queue is per sending window.
+
+A long command therefore holds up that client's later ones. Pass
+`parallel: true` in the payload to skip the queue for a single command — the
+escape hatch for a read you want answered *while* an import or a query runs:
+
+```js
+{ tredespace: 1, id: 'ping-1', type: 'app.info', payload: { parallel: true } }
+```
+
+**Cancellation.** An id-less note tells the viewer to stop a command that is
+still running. It gets no reply of its own; the command it names answers
+`cancelled` instead of a result:
+
+```js
+// host → app, id: null — `id` in the payload is the COMMAND's id
+{ tredespace: 1, id: null, type: 'command.cancel', payload: { id: 'req-42' } }
+```
+
+Only the window that issued the command can cancel it, and a client that says
+`client.bye` (or unloads) cancels everything it started. What actually stops
+depends on the command: the URL imports (`assets.importUrl`, `sql.importUrl`)
+abort their downloads and start no more files, `viewpoints.setUrl` aborts its
+fetch, and anything already inside a synchronous wasm call or the SQLite
+worker runs to completion but answers `cancelled` — the point being that the
+caller is no longer waiting on it.
+
+The SDK does this for you: pass a `signal` to `assetsImportUrl`,
+`sqlImportUrl` or `sqlExecute`, and note that **a timeout now cancels too** —
+it used to drop the pending entry locally while the viewer kept downloading.
 
 ## Handshake
 
@@ -536,12 +576,22 @@ response: { sketch: true }
 Capture the viewport as a PNG — the converged frame (edges, AA, AO, view cube)
 plus the label and measurement overlays, exactly as shown. The viewer waits for
 TAA/AO to finish accumulating before grabbing the pixels, so a busy scene may
-take a moment. Returns a `data:image/png` URL (usable straight as an `<img>`
-src or a download href) and the captured pixel size.
+take a moment.
+
+By default the PNG comes back as raw `bytes` — an `ArrayBuffer` **transferred**
+to the host, so nothing is copied and nothing is base64-encoded (which inflated
+a 4K shot by a third and built a multi-megabyte string on both sides). Wrap it
+yourself for display: `URL.createObjectURL(new Blob([bytes], { type: mime }))`.
+Pass `dataUrl: true` to get the old `data:image/png;base64,…` string instead,
+for a host that wants to drop it straight into an `<img>` src.
 
 ```js
 payload:  {}
-response: { dataUrl: 'data:image/png;base64,iVBORw0KGgoAAA…', width: 1920, height: 1080 }
+response: { bytes: ArrayBuffer, mime: 'image/png', width: 1920, height: 1080 }
+
+payload:  { dataUrl: true }
+response: { dataUrl: 'data:image/png;base64,iVBORw0KGgoAAA…', mime: 'image/png',
+            width: 1920, height: 1080 }
 ```
 
 ### assets.list

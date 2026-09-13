@@ -1,7 +1,6 @@
 import { NumberInput, RadioGroup } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
-import { Row } from '../Row';
 import { SettingsSection } from '../SettingsSection';
 
 type TransparencyMode = 'hash' | 'blend' | 'backdrop';
@@ -53,19 +52,19 @@ export function TransparencySection() {
           viewerActions.update({ transparencyBlend: x !== 'hash', transparencyBackdrop: x === 'backdrop' })
         }
       />
-      <Row label="Background fade">
-        <NumberInput
-          value={v.backdropFadePct}
-          min={0}
-          max={100}
-          step={5}
-          unit="%"
-          disabled={!(v.transparencyBlend && v.transparencyBackdrop)}
-          decShortcut="render.backdropFade.dec"
-          incShortcut="render.backdropFade.inc"
-          onChange={(x) => viewerActions.update({ backdropFadePct: x })}
-        />
-      </Row>
+      <NumberInput
+        label="Background fade"
+        labelPosition="split"
+        value={v.backdropFadePct}
+        min={0}
+        max={100}
+        step={5}
+        unit="%"
+        disabled={!(v.transparencyBlend && v.transparencyBackdrop)}
+        decShortcut="render.backdropFade.dec"
+        incShortcut="render.backdropFade.inc"
+        onChange={(x) => viewerActions.update({ backdropFadePct: x })}
+      />
     </SettingsSection>
   );
 }

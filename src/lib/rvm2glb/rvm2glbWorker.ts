@@ -81,11 +81,13 @@ const api = {
 
     // The core's open/write/close callbacks are synchronous (called from
     // inside wasm), so no promise can progress here until the conversion
-    // returns — buffer the ONE file being written, and on close transfer it
-    // to the writer worker (postMessage queues even from a blocked thread).
+    // returns. Each chunk is transferred to the writer worker AS IT ARRIVES
+    // (postMessage queues even from a blocked thread), so a file is never held
+    // whole on this side and never concatenated — the writer appends it at the
+    // running offset.
     const writer = new Worker(new URL('./rvmWriter.ts', import.meta.url), { type: 'module' });
-    const names = new Map<number, string>();
-    const buffers = new Map<number, Uint8Array[]>();
+    /** Open outputs: the name, bytes written so far, and whether we keep it. */
+    const outputs = new Map<number, { name: string; at: number; keep: boolean }>();
     const files: { name: string; size: number }[] = [];
     let nextId = 0;
 
@@ -98,39 +100,35 @@ const api = {
       },
       open: (name: string): number => {
         nextId += 1;
-        names.set(nextId, name);
-        buffers.set(nextId, []);
+        // keep the cooked files and status_file.json (parents/warnings — the
+        // main thread reads it after); drop any other output, and drop it here
+        // so its chunks are never copied or posted at all
+        const keep = name === 'status_file.json' || /\.tdp$/i.test(name);
+        outputs.set(nextId, { name, at: 0, keep });
         return nextId;
       },
-      // wasm reuses its linear memory after the call, so copy the chunk
+      // wasm reuses its linear memory after the call, so the chunk is copied
+      // once — straight into the buffer that is transferred to the writer
       write: (handle: number, bytes: Uint8Array): void => {
-        buffers.get(handle)?.push(bytes.slice());
-      },
-      close: (handle: number): void => {
-        const chunks = buffers.get(handle);
-        const name = names.get(handle);
-        buffers.delete(handle);
-        names.delete(handle);
-        if (!chunks || name === undefined) {
+        const out = outputs.get(handle);
+        if (!out?.keep) {
           return;
         }
-        const total = chunks.reduce((n, c) => n + c.length, 0);
-        const all = new Uint8Array(total);
-        let at = 0;
-        for (const c of chunks) {
-          all.set(c, at);
-          at += c.length;
+        const copy = new Uint8Array(bytes);
+        const buf = copy.buffer;
+        writer.postMessage({ name: out.name, at: out.at, bytes: buf }, [buf]);
+        out.at += copy.length;
+      },
+      close: (handle: number): void => {
+        const out = outputs.get(handle);
+        outputs.delete(handle);
+        if (!out?.keep) {
+          return;
         }
-        // keep the cooked files and status_file.json (parents/warnings — the
-        // main thread reads it after); drop any other output
-        if (name !== 'status_file.json') {
-          if (!/\.tdp$/i.test(name)) {
-            return;
-          }
-          files.push({ name, size: total });
+        if (out.name !== 'status_file.json') {
+          files.push({ name: out.name, size: out.at });
         }
-        const buf = all.buffer as ArrayBuffer;
-        writer.postMessage({ name, bytes: buf }, [buf]);
+        writer.postMessage({ name: out.name, end: out.at });
       },
       progress: (outputIndex: number, name: string, nodes: number) => {
         onProgress({ outputIndex, name, nodes });

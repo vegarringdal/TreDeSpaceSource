@@ -234,6 +234,7 @@ function buildDbModel(
     childList: new Uint32Array(0),
     roots: new Uint32Array(0),
     itemToEntry: new Uint32Array(0),
+    entryToItem: new Int32Array(0),
     namesLower: null,
     states: new Uint32Array(parsed.itemCount * 2),
     tidx: new Uint32Array(parsed.itemCount),
@@ -507,6 +508,19 @@ export const modelsApi = {
    * different folders don't collide. Mirrors addModel's `group = name`. */
   hasModel(name: string, group = name, store = ''): boolean {
     return models.some((m) => !m.removed && m.name === name && m.group === group && m.store === store);
+  },
+
+  /** {@link hasModel} for a whole list, in ONE worker round trip. The API's
+   *  asset listings ask this per asset; a library of a few thousand meant a
+   *  few thousand awaited Comlink calls on the main thread. */
+  hasModels(keys: readonly { name: string; group: string; store: string }[]): boolean[] {
+    const live = new Set<string>();
+    for (const m of models) {
+      if (!m.removed) {
+        live.add(`${m.store}\u0000${m.group}\u0000${m.name}`);
+      }
+    }
+    return keys.map((k) => live.has(`${k.store}\u0000${k.group}\u0000${k.name}`));
   },
 
   /** Scene-wide "dense" box: where ~80% of the geometry actually is. Per

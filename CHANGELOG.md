@@ -4,6 +4,203 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.13** (>0.0.118):
+  Tooltips fixed where they meet a menu. The bubble and `Menu` were both at
+  z-index 3000 and both children of `document.body`, so the menu — portaled in
+  later — painted over it: a right-click entry's tooltip was hidden behind the
+  menu with only its hotkey footer poking out below. Tooltips now sit on their
+  own floor at 4000, above every other floating layer.
+  Placement follows: an anchor inside a `role="menu"` or `role="listbox"` puts
+  the bubble BESIDE the whole list — right if it fits, else left, vertically
+  centred on the hovered entry — instead of over the entries below it, with the
+  arrow now able to poke out of any of the four edges. Free-standing tooltips
+  are unchanged. The geometry moved to a pure `tooltipPlacement.ts` with unit
+  tests, and `@treDeSpaceUI/README.md` now documents the stacking floors
+  (1000 popovers, 2000 InfoButton, 3000 Menu, 4000 tooltip) so the next
+  floating layer does not land on an occupied one.
+
+- **2026.09.13** (>0.0.118):
+  Section 4 of the code review (rendering) closed end to end by ruling — no code change.
+  4.3 (per-model encoder calls / render bundles) first downgraded MEDIUM → LOW: the in-app
+  `cpuMs` stat has never been seen above 4 ms, so the encoder calls are not the frame
+  bottleneck.
+  4.2 (per-model cull dispatches serialized on the shared `countsBuf`) DECLINED — no visible
+  benefit, and both cures (per-model count buffers, or a flat dispatch over merged arenas)
+  risk costing more than the serialization does.
+  4.5 (the outline mask replaying the whole culled scene) DECLINED until hover is actually
+  a problem: outline style is off by default, and the fix would touch all four cull
+  pipelines, put work back on the hold path next to TAA convergence and residency burst
+  hold, and move the per-meshlet VRAM constant the residency planner budgets from. Its
+  entry records the re-open condition and the cheap per-model-skip variant to try first.
+  The whole section-4 LOW tail (4.3, 4.7-4.18) DECLINED as a batch on the same grounds:
+  micro-optimisations, unmeasured or known-small, against parts with the least margin for
+  error — pinned WGSL, the cull, the HZB, the frame loop, the target lifecycle — where a
+  wrong early-out is a visual regression no unit test catches. Everything moved to
+  `plans/REVIEW_20260912_DONE.md` with its diagnosis and a re-open condition; nothing
+  here is to be re-proposed without a measurement. Two flagged there for the record:
+  4.8 is conservative-safe as it stands,
+  and 4.18 (floored canvas size softening 1 px edges at fractional DPR) is a visible
+  defect rather than a micro-opt — re-open it if edges ever look soft on a fractionally
+  scaled display.
+
+- **2026.09.13** (>0.0.118):
+  Review section 6 (6.4, 6.5, 6.10–6.14) — the postMessage host API. Three of
+  them are protocol changes hosts can see, all documented in EVENTS.md.
+
+  **Ordering.** Commands from ONE client now run in the order they arrived, so
+  `selection.set` followed by `view.screenshot` without awaiting gives a shot
+  WITH the selection; different clients stay concurrent. `parallel: true` in a
+  payload skips the queue for a read a host wants answered while a long import
+  runs.
+
+  **Cancellation.** An id-less `command.cancel` note aborts an in-flight
+  command; the SDK's `assetsImportUrl` / `sqlImportUrl` / `sqlExecute` take an
+  `AbortSignal`, and its TIMEOUT now sends the note too — it used to drop the
+  pending entry locally while the viewer kept downloading and cooking for
+  nobody. A client that unloads cancels everything it started. The URL imports
+  abort their fetches and start no more files; work already inside the SQLite
+  worker or a synchronous wasm call cannot be stopped (killing the worker would
+  abort every tab's query) and answers `cancelled` instead.
+
+  **Error codes.** `busy` is now reserved for the import LOCK — an import that
+  ran and produced nothing answers `internal` instead of sending hosts into a
+  retry loop over a file that will never import. New `download` and `sql` codes
+  carry the caller errors (a URL that would not fetch, a statement SQLite
+  rejected) that used to arrive as `internal` and read as viewer bugs.
+
+  **Validation.** `protocol.ts` gained `num` / `str` / `bool` / `vec3` / `quat`
+  / `oneOf` helpers, and the three trust-by-shape payloads use them:
+  `clip.shapes.add` (a `center: 'x'` used to reach the clip uniforms as NaN and
+  clip the scene away), `measurements.set/add` (every point triple), and
+  `instance.set` — which is rebroadcast to every window, and now takes the same
+  1 MB JSON cap `custom.post` has.
+
+  **Smaller things.** `view.screenshot` returns the PNG as TRANSFERRED bytes
+  (`{ bytes, mime, width, height }`) instead of base64 in a string, with
+  `{ dataUrl: true }` for the old shape; replies can carry a transfer list at
+  all now, and one a host's engine refuses falls back to a copy rather than
+  losing the reply. `assets.list` / `assets.setLoaded` ask the worker once
+  (`db.hasModels`) instead of per asset. Closing an external panel or modal now
+  forgets its API client — a removed iframe never reports `closed`, so its
+  entry and event subscription used to live as long as the tab.
+
+- **2026.09.13** (>0.0.118):
+  Review section 3 (3.6, 3.7, 3.9–3.16) — import/export performance. Section 3
+  is now empty.
+
+  **Rust, byte-identical output.** The cooker's hot loops: `cell_of` no longer
+  allocates two `Vec`s per call and its result is computed once per draw range
+  instead of O(n log n) times inside a sort comparator; the hierarchy sort is
+  `sort_by_cached_key` instead of two `to_string()`s per comparison; the
+  per-node draw-range filter became one bucketing pass (it was O(nodes ×
+  ranges)); the per-draw-range vertex-compaction `HashMap` is a
+  generation-stamped flat array reused across a colour group; `rustc-hash`
+  backs the keyed maps. The IFC front end stopped cloning: `to_mesh` takes the
+  upstream mesh by value (indices, normals, UVs and texture move across) and
+  `emit_files` moves each mesh into its split bucket — with split = none that
+  clone was a second copy of the whole model. Both verified by cooking the
+  samples on the old and new revisions and comparing digests.
+
+  **wasm → JS.** The byte getters in all four wasm shells MOVE their payload
+  (`std::mem::take`) instead of cloning it first; wasm-bindgen's copy into the
+  JS `Uint8Array` is the only one left. All four binaries rebuilt.
+
+  **Export.** The GLB and IFC exports feed the worker ONE MODEL AT A TIME
+  (`beginExport` / `addExportGeoms` / `finishExport*`), so the main thread holds
+  one model's packed geometry instead of every model's; readback of model i+1
+  now overlaps the decode/build/cook of model i in all three exports.
+
+  **Import.** A downloaded file stays a (possibly disk-backed) Blob and goes
+  straight into `new File(...)` for the converters — a GB-scale RVM/STEP/IFC
+  URL import is never materialised in RAM. The RVM writer takes each cooked
+  chunk as it arrives and appends it at a running offset, so no output file is
+  buffered whole or concatenated, and an output that will be discarded is
+  recognised before its chunks are ever copied.
+
+  **Smaller things.** `pack.ts` sizes the index buffer exactly from the descs
+  (no more allocate-large-then-slice) and fills item bounds with a strided loop;
+  the hierarchy index builds one `entryToItem` table instead of re-running a
+  binary search per entry per pass, and computes the hidden/selected aggregates
+  in one traversal; `readPositions` takes a direct typed-array view for the
+  aligned stride-12 case; and the .xlsx export is now DEFLATED, with the sheet
+  encoded in row batches straight into the compressor (no hundred-megabyte
+  string, live progress, a much smaller file).
+
+- **2026.09.13** (>0.0.118):
+  Review section 1 (1.6, 1.9, 1.10, 1.11):
+
+  - The **SQL Table** no longer holds its result forever. Closing the panel
+    drops the rows — but on a REAL close only, never a layout swap — and the
+    grid header has a `Clear on close` / `Keep` toggle (hotkey
+    `sql.table.clearOnClose`, default: clear) so a slow report's result can be
+    kept on purpose instead of re-running it.
+  - The **SQLite worker client** handles `onerror` / `onmessageerror`. A wasm
+    trap, an OOM or a module that fails to load used to leave every pending
+    `execute()` unresolved — and with it the Web Lock holding the db files, so
+    every later query in *every* tab reported "files in use". Both now run the
+    same teardown `killWorkerThread()` uses: pending calls settle with the
+    error, locks are released, the failure is logged, and the next query starts
+    a fresh worker. Dead `postChannel` deleted.
+  - **`dialogs.confirm` / `dialogs.prompt`** queue instead of overwriting. A
+    second ask raised while one was on screen used to replace the first's
+    resolver, leaving that caller awaiting forever; both now keep a FIFO and
+    show the next one when the current is answered. A queued prompt remounts
+    (keyed by the ask) so it takes focus rather than reusing the previous field.
+  - 1.9 (external panel definitions outliving a close) is closed **by design**:
+    a host-registered definition is the host's to manage, and its remembered
+    location is the point. A host that wants it gone unregisters it itself.
+
+- **2026.09.13** (>0.0.118):
+  Widget-library sweep — review 2a, 2b, 2c, 2d in one pass. The library gains
+  the pieces the panels kept hand-rolling: `TreeView` (a virtualized tree over
+  a flat row list — Hierarchy, its search results and `FileTree` all render
+  through it now), `Menu` (one portaled, viewport-clamped right-click menu, in
+  place of three different ones), `DialogFrame` (every dialog is now one frame
+  plus content), `SegmentedControl`, `PanelHeader`, `EmptyState`, `Badge`,
+  `Kbd`, `PropertyList`, a `toast` stack + `Toaster` (with `dialogs.info` /
+  `success` / `warn`, replacing the OK-only confirms used as alerts), plus
+  `Link`, `Swatch`, `Spinner`, `ProgressBar`, `CopyButton`, `Vec3Input` and the
+  `usePointerDrag` hook (now the single drag path for the number scrubber,
+  column resize and the external-modal move/resize).
+
+  Existing widgets grew the props panels were faking with class strings and
+  wrappers: Button gets `variant` / `size` / `wrap` / `grow` / `loading` /
+  `badge`; Select, NumberInput and ColorSelect take the shared label props
+  (`label`, `labelPosition: 'top' | 'left' | 'split'`, `labelWidth`,
+  `fieldWidth`) plus `tooltip` / `shortcut`, so ~25 hand-rolled label rows and
+  every `data-tooltip` wrapper are gone; Select / RadioGroup /
+  SegmentedControl are generic over their value union, removing all 11 `as`
+  casts in `src/components`; Collapsible is controllable (`open` / `onToggle`
+  — the `key`-remount hack in Viewpoints and the re-implementation in the
+  Shortcuts settings are gone); Modal / TitleBar own Escape, backdrop and the
+  ✕ (Escape reaches the top dialog only); Checkbox has `indeterminate`;
+  InfoBox has tones. Duplicates deleted: `settings/Check`, `settings/Row`,
+  `import-manager/optionRows`, `multi-color/Tip`, `filetree/FileTreeRow` and
+  `FileTreeMenu`, and the Labels panel's private `Row`.
+
+  App-style leakage is gone with them: no panel references an `src/styles.css`
+  class any more (`.note`, `.tree*`, `.is-selected`, `.partial-bar`,
+  `.scroll-slim`), and the dead demo-leftover rules (`.field`, `.check`,
+  `.row`, `.swatches`, `.dot-*`, `.btn`, `.toolbar`, `.brand`, `.dim`,
+  `.grow`, `.section`) are deleted — `src/styles.css` is down to the page
+  shell plus `.panel-body.strip`. The gallery gains eight tabs for the new
+  widgets and the existing ones show the new props; the README documents all
+  of it. Still open in 2a: the full `DataGrid` extraction (one consumer — the
+  virtualization hook reuse landed) and the two grid-shaped exclusive button
+  groups that a single-row SegmentedControl does not fit.
+
+- **2026.09.13** (>0.0.118):
+  The 2026-09-12 code review is split in two: `plans/REVIEW_20260912.md` keeps
+  only what is still open, and the findings that have been dealt with move to
+  `plans/REVIEW_20260912_DONE.md` with their original diagnosis intact (the
+  record of why each change was made; what shipped is in this file and
+  DESIGN.md). Numbering is never reused, so the gaps in the open list mean
+  "closed", not "missing". Section 5 moved wholesale except three LOW items and
+  cross-model ordering — the pre-rewrite state and the option survey behind the
+  sorted blend pass are history now. 5c.2 (a third MSAA resolve per transparent
+  frame) is marked closed: the 4.1 resolve-on-last-pass fix was exactly what it
+  asked for.
+
 - **2026.09.12** (>0.0.117):
   postMessage API (review 6.2, 6.3, 6.6, 6.7, 6.8):
   Discovery — `app.ready` (and a new `app.info` command) now carry the

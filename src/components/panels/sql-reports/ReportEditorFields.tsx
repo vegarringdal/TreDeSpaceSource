@@ -19,24 +19,20 @@ export function ReportEditorFields({ draft, dbs, patch, toggleType }: ReportEdit
     <>
       <ReportMetaFields draft={draft} patch={patch} />
 
-      <label className="flex items-center gap-2 text-slate-400 text-xs">
-        <span className="w-[70px] shrink-0">Main db</span>
-        <div
-          className="min-w-0 flex-1"
-          data-tooltip="The database opened directly. Pick None to run purely off ATTACH'd files (an in-memory scratch db is used)."
-        >
-          <Select
-            value={draft.db}
-            searchable
-            placeholder="(None — attach only)"
-            options={[
-              { value: '', label: '(None — attach only)' },
-              ...dbs.map((d) => ({ value: d.path, label: d.fileName, hint: d.store })),
-            ]}
-            onChange={(v) => patch({ db: v ?? '' })}
-          />
-        </div>
-      </label>
+      <Select
+        label="Main db"
+        labelPosition="left"
+        labelWidth={70}
+        tooltip="The database opened directly. Pick None to run purely off ATTACH'd files (an in-memory scratch db is used)."
+        value={draft.db}
+        searchable
+        placeholder="(None — attach only)"
+        options={[
+          { value: '', label: '(None — attach only)' },
+          ...dbs.map((d) => ({ value: d.path, label: d.fileName, hint: d.store })),
+        ]}
+        onChange={(v) => patch({ db: v ?? '' })}
+      />
 
       <ReportTypeToggles draft={draft} toggleType={toggleType} />
 

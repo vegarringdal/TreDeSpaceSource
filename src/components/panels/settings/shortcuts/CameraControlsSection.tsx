@@ -1,4 +1,4 @@
-import { Collapsible } from '@treDeSpaceUI/widgets';
+import { Collapsible, Kbd, PropertyList } from '@treDeSpaceUI/widgets';
 
 /** Fixed viewport/camera controls, shown read-only in the Shortcuts panel. */
 const CAMERA_CONTROLS = [
@@ -23,14 +23,10 @@ export function CameraControlsSection() {
       defaultOpen={false}
       info="These viewport controls are fixed and cannot be rebound, so they stay consistent."
     >
-      {CAMERA_CONTROLS.map((c) => (
-        <div key={c.desc} className="flex items-center gap-2 py-1">
-          <div className="flex-1 text-[11px] text-slate-300">{c.desc}</div>
-          <code className="shrink-0 whitespace-nowrap border border-slate-700 bg-slate-800 px-2 py-1 font-mono text-[11px] text-slate-300">
-            {c.keys}
-          </code>
-        </div>
-      ))}
+      <PropertyList
+        layout="fill"
+        rows={CAMERA_CONTROLS.map((c) => ({ key: c.desc, label: c.desc, value: <Kbd>{c.keys}</Kbd> }))}
+      />
     </Collapsible>
   );
 }

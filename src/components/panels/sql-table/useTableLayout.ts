@@ -1,71 +1,56 @@
+import { usePointerDrag } from '@treDeSpaceUI/lib/usePointerDrag';
+import { useVirtualRows, type VirtualRows } from '@treDeSpaceUI/lib/useVirtualRows';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 export const ROW_H = 22; // px — fixed, so the visible window is pure arithmetic
-export const OVERSCAN = 8;
 const DEFAULT_COL_W = 140;
 const MIN_COL_W = 48;
-const INITIAL_VIEW_H = 400;
 
 export type TableLayout = Readonly<{
   widths: number[];
   gutterW: number;
   totalW: number;
-  scrollTop: number;
-  viewH: number;
   scroller: RefObject<HTMLDivElement | null>;
-  setScrollTop: (top: number) => void;
-  startResize: (col: number, e: ReactPointerEvent) => void;
+  /** The mounted row window, from the shared virtualization hook. */
+  virtual: VirtualRows;
+  startResize: (col: number, e: ReactPointerEvent<HTMLElement>) => void;
 }>;
 
-/** Column widths (drag-to-resize with a 48px floor), scroll position and the
- *  measured viewport height that drive the virtualized window. Resets to the
- *  defaults whenever a new result (columns) arrives. */
-export function useTableLayout(columns: string[], rowCount: number): TableLayout {
+/** Column widths (drag-to-resize with a 48px floor) and the virtualized row
+ *  window. Resets to the defaults whenever a new result (columns) arrives.
+ *  `viewCount` is the FILTERED row count — what the body actually lays out. */
+export function useTableLayout(columns: string[], rowCount: number, viewCount: number): TableLayout {
   const [widths, setWidths] = useState<number[]>(() => columns.map(() => DEFAULT_COL_W));
-  const [scrollTop, setScrollTop] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
-  const [viewH, setViewH] = useState(INITIAL_VIEW_H);
+  const virtual = useVirtualRows(scroller, viewCount, ROW_H);
+  const resizing = useRef({ col: 0, startW: 0 });
 
   // reset per-result layout when a new payload arrives
   useEffect(() => {
     setWidths(columns.map(() => DEFAULT_COL_W));
-    setScrollTop(0);
     if (scroller.current) {
       scroller.current.scrollTop = 0;
     }
   }, [columns]);
 
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el) {
-      return;
-    }
-    const ro = new ResizeObserver(() => setViewH(el.clientHeight));
-    ro.observe(el);
-    setViewH(el.clientHeight);
-    return () => ro.disconnect();
-  }, []);
+  const drag = usePointerDrag({
+    onMove: ({ dx }) => {
+      const { col, startW } = resizing.current;
+      const w = Math.max(MIN_COL_W, startW + dx);
+      setWidths((prev) => prev.map((x, i) => (i === col ? w : x)));
+    },
+  });
 
-  const startResize = (col: number, e: ReactPointerEvent): void => {
+  const startResize = (col: number, e: ReactPointerEvent<HTMLElement>): void => {
     e.preventDefault();
     e.stopPropagation();
-    const startX = e.clientX;
-    const startW = widths[col];
-    const move = (ev: PointerEvent): void => {
-      const w = Math.max(MIN_COL_W, startW + ev.clientX - startX);
-      setWidths((prev) => prev.map((x, i) => (i === col ? w : x)));
-    };
-    const up = (): void => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    resizing.current = { col, startW: widths[col] };
+    drag.start(e);
   };
 
   const gutterW = Math.max(40, String(rowCount).length * 7 + 18);
   const totalW = gutterW + widths.reduce((a, b) => a + b, 0);
 
-  return { widths, gutterW, totalW, scrollTop, viewH, scroller, setScrollTop, startResize };
+  return { widths, gutterW, totalW, scroller, virtual, startResize };
 }

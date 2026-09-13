@@ -15,6 +15,7 @@ import { forgetDialogId } from '../../state/externalDialogIds';
 import { externalPanelsActions, findExternalPanel } from '../../state/externalPanels/externalPanels.actions';
 import { externalPanelsState } from '../../state/externalPanels/externalPanels.state';
 import { panelIdOfWindow } from './clients';
+import { parseJsonData } from './customPayload';
 import { type DialogSnapshot, diffDialogChanges } from './dialogEvents';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
 import { getInstanceData, getKiosk, getPanelControl, setInstanceData } from './registry';
@@ -248,7 +249,15 @@ export const uiHandlers: Record<string, ApiHandler> = {
     if (!isRecord(p.data)) {
       throw new ApiError('bad-payload', 'data must be a JSON object');
     }
-    const data = p.merge === true ? { ...getInstanceData(), ...p.data } : { ...p.data };
+    const merged = p.merge === true ? { ...getInstanceData(), ...p.data } : { ...p.data };
+    // The same JSON round-trip + 1 MB cap custom.post takes: this value is
+    // REBROADCAST to every window on each change, so an unbounded blob here
+    // is an unbounded blob times every client.
+    const checked = parseJsonData(merged);
+    if (!checked.ok) {
+      throw new ApiError('bad-payload', `data ${checked.error.replace(/^data /, '')}`);
+    }
+    const data = isRecord(checked.value) ? checked.value : {};
     setInstanceData(data);
     emitApiEvent('instance.changed', { data });
     return { data };

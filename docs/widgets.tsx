@@ -7,6 +7,7 @@
 // The demo sections live one-per-file in ./gallery/.
 import { initTooltips, VerticalTabs } from '@treDeSpaceUI/widgets';
 import { createRoot } from 'react-dom/client';
+import { BadgeDemo } from './gallery/BadgeDemo';
 import { ButtonDemo } from './gallery/ButtonDemo';
 import { CheckboxDemo } from './gallery/CheckboxDemo';
 import { CollapsibleDemo } from './gallery/CollapsibleDemo';
@@ -20,15 +21,22 @@ import { FileTreeDemo } from './gallery/FileTreeDemo';
 import { HotkeysDemo } from './gallery/HotkeysDemo';
 import { InfoDemo } from './gallery/InfoDemo';
 import { InlinePanelDemo } from './gallery/InlinePanelDemo';
+import { MenuDemo } from './gallery/MenuDemo';
 import { NumberInputDemo } from './gallery/NumberInputDemo';
 import { PackageCard } from './gallery/PackageCard';
+import { PanelChromeDemo } from './gallery/PanelChromeDemo';
+import { PropertyListDemo } from './gallery/PropertyListDemo';
 import { RadioGroupDemo } from './gallery/RadioGroupDemo';
 import { RibbonDemo } from './gallery/RibbonDemo';
+import { SegmentedDemo } from './gallery/SegmentedDemo';
 import { SelectDemo } from './gallery/SelectDemo';
+import { SmallPartsDemo } from './gallery/SmallPartsDemo';
 import { SqlEditorDemo } from './gallery/SqlEditorDemo';
 import { TextFieldDemo } from './gallery/TextFieldDemo';
 import { TimePickerDemo } from './gallery/TimePickerDemo';
+import { ToastDemo } from './gallery/ToastDemo';
 import { TooltipDemo } from './gallery/TooltipDemo';
+import { TreeViewDemo } from './gallery/TreeViewDemo';
 import { VerticalTabsDemo } from './gallery/VerticalTabsDemo';
 import './theme';
 import './widgets.css';
@@ -44,17 +52,25 @@ const GALLERY = [
   { id: 'time', label: 'TimePicker', content: <TimePickerDemo /> },
   { id: 'datetime', label: 'DateTimePicker', content: <DateTimePickerDemo /> },
   { id: 'radio', label: 'RadioGroup', content: <RadioGroupDemo /> },
+  { id: 'segmented', label: 'SegmentedControl', content: <SegmentedDemo /> },
   { id: 'checkbox', label: 'Checkbox', content: <CheckboxDemo /> },
   { id: 'color', label: 'ColorSelect', content: <ColorSelectDemo /> },
   { id: 'collapsible', label: 'Collapsible', content: <CollapsibleDemo /> },
   { id: 'inline', label: 'InlinePanel', content: <InlinePanelDemo /> },
   { id: 'info', label: 'InfoBox', content: <InfoDemo /> },
+  { id: 'badge', label: 'Badge / Kbd', content: <BadgeDemo /> },
+  { id: 'panel', label: 'PanelHeader', content: <PanelChromeDemo /> },
+  { id: 'proplist', label: 'PropertyList', content: <PropertyListDemo /> },
   { id: 'vtabs', label: 'VerticalTabs', content: <VerticalTabsDemo /> },
+  { id: 'tree', label: 'TreeView', content: <TreeViewDemo /> },
   { id: 'filetree', label: 'FileTree', content: <FileTreeDemo /> },
+  { id: 'menu', label: 'Menu', content: <MenuDemo /> },
   { id: 'sql', label: 'SqlCodeEditor', content: <SqlEditorDemo /> },
   { id: 'dialogs', label: 'Dialogs', content: <DialogsDemo /> },
+  { id: 'toast', label: 'Toast', content: <ToastDemo /> },
   { id: 'tooltip', label: 'Tooltips', content: <TooltipDemo /> },
   { id: 'hotkeys', label: 'Hotkeys', content: <HotkeysDemo /> },
+  { id: 'small', label: 'Small parts', content: <SmallPartsDemo /> },
   { id: 'picker', label: 'useFilePicker', content: <FilePickerDemo /> },
   { id: 'ribbon', label: 'Ribbon', content: <RibbonDemo /> },
   { id: 'dock', label: 'Dockable', content: <DockDemo /> },

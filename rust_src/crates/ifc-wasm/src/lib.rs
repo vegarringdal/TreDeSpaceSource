@@ -141,9 +141,12 @@ impl ConvertedFiles {
     pub fn name(&self, i: usize) -> Option<String> {
         self.names.get(i).cloned()
     }
-    /// The file's bytes (copied out to JS as a `Uint8Array`).
-    pub fn bytes(&self, i: usize) -> Option<Vec<u8>> {
-        self.blobs.get(i).cloned()
+    /// The file's bytes, **moved** out to JS as a `Uint8Array`: wasm-bindgen
+    /// copies the `Vec` across on its own, so cloning it first held two copies
+    /// of every cooked file at once. Reading the same index twice yields an
+    /// empty array.
+    pub fn bytes(&mut self, i: usize) -> Option<Vec<u8>> {
+        self.blobs.get_mut(i).map(std::mem::take)
     }
     #[wasm_bindgen(getter)]
     pub fn mesh_count(&self) -> usize {

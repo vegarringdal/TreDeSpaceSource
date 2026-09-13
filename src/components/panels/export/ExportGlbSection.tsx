@@ -1,5 +1,5 @@
 import { IconFileExport, IconSitemap } from '@tabler/icons-react';
-import { Button, Collapsible } from '@treDeSpaceUI/widgets';
+import { Button, Checkbox, Collapsible } from '@treDeSpaceUI/widgets';
 import { ExportClipCheck } from './ExportClipCheck';
 import { exportActions as act } from './export.actions';
 import { exportState } from './export.state';
@@ -28,22 +28,20 @@ export function ExportGlbSection() {
         </>
       }
     >
-      <label
-        className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
-        data-shortcut="export.recenter"
-        data-tooltip="Shift the model onto its bounding-box centre — far-from-origin building coordinates lose f32 precision and break some viewers (e.g. Office)"
-      >
-        <input type="checkbox" checked={s.recenter} onChange={(e) => exportState.set({ recenter: e.target.checked })} />
-        Recenter on bounding box
-      </label>
-      <label
-        className="flex cursor-pointer items-center gap-2 text-slate-300 text-xs"
-        data-shortcut="export.zup"
-        data-tooltip="Keep the app's Z-up axes instead of converting to the glTF-standard Y-up (viewers show Z-up models tipped)"
-      >
-        <input type="checkbox" checked={s.zUp} onChange={(e) => exportState.set({ zUp: e.target.checked })} />
-        Keep Z up
-      </label>
+      <Checkbox
+        label="Recenter on bounding box"
+        checked={s.recenter}
+        onChange={(recenter) => exportState.set({ recenter })}
+        shortcut="export.recenter"
+        tooltip="Shift the model onto its bounding-box centre — far-from-origin building coordinates lose f32 precision and break some viewers (e.g. Office)"
+      />
+      <Checkbox
+        label="Keep Z up"
+        checked={s.zUp}
+        onChange={(zUp) => exportState.set({ zUp })}
+        shortcut="export.zup"
+        tooltip="Keep the app's Z-up axes instead of converting to the glTF-standard Y-up (viewers show Z-up models tipped)"
+      />
       <ExportClipCheck />
       <Button
         icon={<IconFileExport size={14} />}

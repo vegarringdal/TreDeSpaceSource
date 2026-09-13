@@ -1859,6 +1859,14 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => callTableAction('copySelected'),
   },
   {
+    id: 'sql.table.clearOnClose',
+    category: 'SQL',
+    label: 'SQL Table: clear on close / keep',
+    defaultKeys: 'ALT + 662',
+    description: 'Toggle whether closing the SQL Table throws its result away (default) or keeps the rows in memory',
+    run: () => callTableAction('toggleClearOnClose'),
+  },
+  {
     id: 'sql.detail.open',
     category: 'SQL',
     label: 'SQL: open SQL Detail',
