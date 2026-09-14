@@ -2969,11 +2969,14 @@ export class TredespaceClient {
   }
 
   /** Show / hide the blocking loading overlay. `header` is the bold title line,
-   *  `title` the message below it. */
+   *  `title` the message below it. Never queues behind another command, so it
+   *  can be called from the `onProgress` callback of a long import or query
+   *  and appear while that work is still running. */
   uiLoadingShow(opts?: { header?: string; title?: string }): Promise<Result<Record<string, never>>> {
     return this.send('ui.loading.show', { ...opts });
   }
-  /** Hide the blocking loading overlay shown by {@link uiLoadingShow}. */
+  /** Hide the blocking loading overlay shown by {@link uiLoadingShow}. Skips
+   *  the command queue for the same reason. */
   uiLoadingHide(): Promise<Result<Record<string, never>>> {
     return this.send('ui.loading.hide', {});
   }

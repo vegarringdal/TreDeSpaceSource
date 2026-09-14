@@ -118,6 +118,11 @@ escape hatch for a read you want answered *while* an import or a query runs:
 { tredespace: 1, id: 'ping-1', type: 'app.info', payload: { parallel: true } }
 ```
 
+`ui.loading.show` and `ui.loading.hide` never queue — with or without
+`parallel`. A host drives the overlay from the progress callback of the very
+command that would be holding the queue, so queueing them would put the
+"working…" message on screen only once the work had finished.
+
 **Cancellation.** An id-less note tells the viewer to stop a command that is
 still running. It gets no reply of its own; the command it names answers
 `cancelled` instead of a result:

@@ -141,6 +141,15 @@ async function requestOriginConsent(origins: string[]) {
 const commandQueues = new WeakMap<Window, Promise<unknown>>();
 
 /**
+ * Commands that NEVER queue, `parallel` or not. The loading overlay exists to
+ * report on work that is still running — a host drives it from the progress
+ * callback of the very command that would be holding the queue, so queueing it
+ * shows the overlay only once the work it describes has finished. Both
+ * handlers are synchronous store writes with nothing to order against.
+ */
+const ALWAYS_PARALLEL: ReadonlySet<string> = new Set(['ui.loading.show', 'ui.loading.hide']);
+
+/**
  * In-flight commands per client, so `command.cancel` can abort one by its id
  * (and a client going away aborts everything it started). The signal reaches
  * the handlers that can honour it — the ones that download or loop over a
@@ -216,7 +225,8 @@ async function onMessage(e: MessageEvent) {
     answerCommand(cmd, isApiReady(), (type, p, bytes) => dispatch(type, p, bytes, source, ctl.signal), ctl.signal);
   let answer: Awaited<ReturnType<typeof answerCommand>>;
   try {
-    answer = cmd.payload.parallel === true ? await answerNow() : await runQueued(source, answerNow);
+    const skipQueue = cmd.payload.parallel === true || ALWAYS_PARALLEL.has(cmd.type);
+    answer = skipQueue ? await answerNow() : await runQueued(source, answerNow);
   } finally {
     endInFlight(source, cmd.id);
   }

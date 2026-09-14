@@ -498,7 +498,7 @@ export class Renderer {
   private depth: GPUTexture | null = null;
   private sceneColor: GPUTexture | null = null; // post-pass input
   private msColor: GPUTexture | null = null; // 4x target, resolves into sceneColor
-  private normalTex: GPUTexture | null = null; // G-buffer (non-MSAA only)
+  private normalTex: GPUTexture | null = null; // G-buffer (4x under MSAA — edges read it per sample)
   private idTex: GPUTexture | null = null;
   private histA: GPUTexture | null = null; // TAA accumulation sums (RGBA16F ping-pong)
   private histB: GPUTexture | null = null;

@@ -4,6 +4,19 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.14** (>0.0.120):
+  Fixed the loading overlay never appearing while a long command runs. The
+  per-client command queue (added 2026.09.13) serialises commands from one
+  window, so a host calling `ui.loading.show` from the `onProgress` callback of
+  `sql.importUrl` / `sql.execute` / `assets.importUrl` queued it BEHIND that
+  import — the overlay surfaced only once the work it was describing had
+  finished. `ui.loading.show` and `ui.loading.hide` now never queue, with or
+  without `parallel: true`: reporting on work in flight is the whole point of
+  them, and both handlers are synchronous store writes with nothing to order
+  against. Other commands are unchanged — ordering still holds, and
+  `parallel: true` is still the escape hatch for everything else. Documented in
+  EVENTS.md ("Ordering and cancellation") and on the SDK methods.
+
 - **2026.09.13** (>0.0.119):
   Fixed the ✕ of an external modal doing nothing: the title bar starts a drag
   on pointer-down and skipped presses on its buttons with an
