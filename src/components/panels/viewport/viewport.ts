@@ -432,6 +432,7 @@ export const viewport: PanelDefinition = {
       o.smoothMeshEdges = s.smoothMeshEdges;
       o.sketchRespectsEdgesOff = s.sketchRespectsEdgesOff;
       o.sketchColorMode = s.sketchColorMode;
+      o.sketchFillStrength = s.sketchFillPct / 100;
       o.aoMode = s.aoMode;
       o.aoRadius = s.aoRadius;
       o.aoStrength = s.aoStrength;

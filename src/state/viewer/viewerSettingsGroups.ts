@@ -73,6 +73,7 @@ export const VIEWER_SECTION_KEYS = {
     'sketchNormalThr',
     'sketchRespectsEdgesOff',
     'sketchColorMode',
+    'sketchFillPct',
     'sketchCubeFaceColor',
     'sketchCubeLineColor',
     'sketchCubeTextColor',

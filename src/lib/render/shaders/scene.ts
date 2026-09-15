@@ -300,11 +300,22 @@ fn fs(in: VsOut) -> FsOut {
   var rgb = in.color.rgb * shade;
   if (backdrop) { rgb = mix(rgb, frame.backdrop.rgb, frame.backdrop.a); }
   o.color = vec4f(rgb, alpha);
+  // Sketch colour-from-mesh asks "does this surface carry colour?" — decided
+  // HERE, on the UNLIT base colour, so one surface answers the same over its
+  // whole area. The post pass used to ask it of the lit colour, which reaches
+  // it through an 8-bit target that rounds each channel on its own: a near-grey
+  // mesh then crossed the threshold back and forth along the shading gradient,
+  // banding into iso-shade contours (concentric rings under the headlight).
+  // Relative chroma, so a coloured mesh in shadow still counts as coloured.
+  let base_mx = max(in.color.r, max(in.color.g, in.color.b));
+  let base_mn = min(in.color.r, min(in.color.g, in.color.b));
+  let has_chroma = select(0u, 16u, base_mx - base_mn > 0.1 * max(base_mx, 1e-4));
   // normal alpha = edge tag BITS for the post pass (quantized to 8 bits):
   //   1 = authored normals (own edge thresholds), 2 = edge lines OFF (asset
-  //   import option), 4 = item edges OFF for this item (item state); 8 is
-  //   stamped later by the helper overlays (lineWgsl / markerWgsl)
-  let gtag = select(0u, 1u, model_uni.info.z == 1u) | select(0u, 2u, model_uni.info.w == 1u) | in.edge_bits;
+  //   import option), 4 = item edges OFF for this item (item state), 16 = the
+  //   surface carries colour (sketch fill / coloured ink); 128 is stamped later
+  //   by the helper overlays (lineWgsl / markerWgsl)
+  let gtag = select(0u, 1u, model_uni.info.z == 1u) | select(0u, 2u, model_uni.info.w == 1u) | in.edge_bits | has_chroma;
   o.normal = vec4f(n * 0.5 + 0.5, f32(gtag) / 255.0);
   o.id = vec4f(
     f32(in.id & 255u), f32((in.id >> 8u) & 255u),
@@ -591,8 +602,12 @@ ${RENDER_FS}`;
 /** G-buffer edge-tag bit stamped by the helper overlays (clip helper lines,
  * marker spheres): the post pass keeps those samples' own colour in sketch
  * mode instead of paper + ink. The overlay pipelines write ONLY the normal
- * target's alpha with a `max` blend, so the normal itself is untouched. */
-export const HELPER_TAG_BIT = 8;
+ * target's alpha with a `max` blend, so the normal itself is untouched.
+ * It must stay the TOP bit: `max` is not a bitwise OR, so the stamp survives
+ * only while it outranks every bit a surface can set (1 | 2 | 4 | 16 = 23, and
+ * 8 / 32 / 64 if the reserved ones are ever used) — which is also what makes
+ * the helper own the sample, the scene's own bits dropping out of the max. */
+export const HELPER_TAG_BIT = 128;
 
 /** Fragment output shared by the helper overlays: colour + the G-buffer tag
  * (normal target — its rgb is masked off by the pipeline). */

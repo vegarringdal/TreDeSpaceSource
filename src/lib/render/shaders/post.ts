@@ -1,5 +1,10 @@
 import { HELPER_TAG_BIT } from './scene';
 
+/** Sketch colour fill: the darkest unlit luma a colourless surface washes to.
+ *  A pure-black mesh filled at full strength would read as a hole punched in
+ *  the paper, so black lands on a dark grey instead. */
+const SKETCH_GREY_FLOOR = 0.25;
+
 // VBAO compute — port of the native vbao.slang (Visibility Bitmask AO,
 // Therrien/Levesque/Gilet 2023). Screen-space horizon bitmask per slice;
 // view-space positions reconstructed from reversed-Z infinite depth.
@@ -211,10 +216,14 @@ struct PostParams {
   sm_depth_thr: f32,
   sm_normal_thr: f32,
   sm_fade_exp: f32,
-  _pad: f32,
+  // sketch colour-from-mesh: how far the paper moves from white toward the
+  // surface hue (0 = plain paper, 1 = the hue at full strength)
+  fill_strength: f32,
 };
 
 const SAMPLES = ${msaa ? 4 : 1};
+// sketch colour fill: darkest grey a colourless surface washes to (unlit luma)
+const GREY_FLOOR = ${SKETCH_GREY_FLOOR.toFixed(2)};
 
 @group(0) @binding(0) var scene: texture_2d<f32>;
 @group(0) @binding(1) var depth_tex: ${gtex};
@@ -348,9 +357,11 @@ fn fs(@builtin(position) fpos: vec4f) -> PostOut {
 
   // edge tag bits from the G-buffer normal alpha (see RENDER_FS): 1 = authored
   // normals (own thresholds), 2 = edges off (asset option), 4 = ITEM edges off
-  // for this item, 8 = helper overlay sample (clip helper lines / marker
-  // spheres — sketch keeps their colour). Four bits stay free for a per-model
-  // edge STRENGTH (DESIGN.md "Per-model edge tag / edge strength").
+  // for this item, 16 = the surface carries colour (sketch colour-from-mesh),
+  // 128 = helper overlay sample (clip helper lines / marker spheres — sketch
+  // keeps their colour, and the top bit is what makes the overlay's max-blend
+  // stamp outrank every surface bit). Three bits (8, 32, 64) stay free for a
+  // per-model edge STRENGTH (DESIGN.md "Per-model edge tag / edge strength").
   let gtag = ld_tag(xy, vec2i(0, 0), dims, 0);
   let smooth_mesh = (gtag & 1u) != 0u;
   let use_depth_thr = select(pp.depth_thr, pp.sm_depth_thr, smooth_mesh);
@@ -444,23 +455,30 @@ fn fs(@builtin(position) fpos: vec4f) -> PostOut {
     var paper = vec3f(1.0);
     var ink = pp.edge_color.rgb;
     if ((pp.flags & (32768u | 65536u)) != 0u && depth_c0 > 1e-7) {
-      // colour from mesh — fill (32768): coloured surfaces get a pastel wash
-      // of the shaded colour; edges (65536): the INK takes the mesh hue
-      // instead, normalized to a fixed darkness so lit and shadowed runs of
-      // one pipe draw the same line colour. Either way only surfaces that
-      // actually carry colour participate — colourless meshes (white, grey,
-      // black) keep plain paper + the sketch ink, as if uncoloured.
-      // RELATIVE chroma, so a coloured mesh in shadow still counts as
-      // coloured while a shaded white one never does.
-      let fill = col;
-      let mx = max(fill.r, max(fill.g, fill.b));
-      let mn = min(fill.r, min(fill.g, fill.b));
-      if (mx - mn > 0.1 * max(mx, 1e-4)) {
-        if ((pp.flags & 32768u) != 0u) {
-          paper = mix(vec3f(1.0), fill, 0.45);
-        } else {
-          ink = fill * (0.55 / max(mx, 1e-4));
-        }
+      // colour from mesh — fill (32768): surfaces are washed onto the paper;
+      // edges (65536): the INK takes the mesh hue instead. Whether a surface
+      // carries colour at all is decided in the scene FS, on the UNLIT colour,
+      // and arrives as tag bit 16: asking it here, of the lit 8-bit colour,
+      // made a near-grey mesh band along the shading gradient (each channel
+      // rounds on its own, so the chroma ratio crossed the threshold back and
+      // forth across one surface).
+      // Colour is used as HUE at full brightness (divide by the brightest
+      // channel), so the shading drops out: one pipe washes and inks the same
+      // along its length instead of turning pale where the headlight hits it,
+      // and a dark base keeps its hue instead of greying out.
+      let coloured = (gtag & 16u) != 0u;
+      let hue = col / max(max(col.r, max(col.g, col.b)), 1e-4);
+      if ((pp.flags & 32768u) != 0u) {
+        // A colourless surface washes with its own grey LEVEL instead — the
+        // scene alpha carries the unlit base luma, so it is shading-free the
+        // same way the hue is — otherwise every grey normalizes to white and a
+        // grey mesh is indistinguishable from paper. Black is floored to a
+        // dark grey: a solid black wash reads as a hole in the page.
+        let grey = vec3f(max(scene_px.a, GREY_FLOOR));
+        paper = mix(vec3f(1.0), select(grey, hue, coloured), pp.fill_strength);
+      } else if (coloured) {
+        // colour wire: a colourless mesh keeps the plain sketch ink
+        ink = hue * 0.55;
       }
     }
     col = mix(paper, ink, sketch_edge);

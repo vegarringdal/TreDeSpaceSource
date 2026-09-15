@@ -924,11 +924,17 @@ guess, so one over-budget correction, bounded by dwell, is expected.
   selection, undoable like a hide). The scene fragment shader folds the
   per-item bit in at zero cost (it already reads the item state); the post
   pass gates the id-boundary detector per pixel and lets the LOWER-id side
-  draw the silhouette when the higher side has edges off. Bit 8 = helper
-  overlay sample: the clip helper lines and marker spheres stamp it with an
-  alpha-only `max` blend (the scene's bits are dropped at those samples — the
-  helper owns them), and the sketch composite keeps those samples' colour,
-  read per sample from the unresolved MSAA colour target. Four bits free.
+  draw the silhouette when the higher side has edges off. Bit 16 = the surface
+  carries colour, decided in the scene FS from the UNLIT base colour and read
+  by the sketch colour-from-mesh composite — asking it in the post pass, of a
+  lit colour that arrives through an 8-bit target, made near-grey meshes band
+  along the shading gradient. Bit 128 = helper overlay sample: the clip helper
+  lines and marker spheres stamp it with an alpha-only `max` blend (the scene's
+  bits are dropped at those samples — the helper owns them), and the sketch
+  composite keeps those samples' colour, read per sample from the unresolved
+  MSAA colour target. It has to be the TOP bit, because `max` is not a bitwise
+  OR: the stamp survives only while it outranks every bit a surface can set.
+  Three bits free (8, 32, 64).
   Considered follow-up: a second, opt-in encoding where the byte carries a
   continuous per-model **edge STRENGTH** instead of on/off — e.g. split the
   range (0–0.45 = flat + strength, 0.55–1.0 = smooth + strength, ~100

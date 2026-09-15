@@ -1,7 +1,7 @@
 // Tree / naming domain: tree nodes for the hierarchy panel, name search, the
 // fullname resolvers over the global index, and root→leaf path helpers.
 import { type DbModel, models, NO_PARENT, type TreeNode } from './dbState';
-import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel, liveHits } from './globalNameIndex';
+import { ensureGlobalIndex, hitEntry, hitModel, liveHits } from './globalNameIndex';
 import { ensureNames, entryName, itemForId, itemsUnder, stateAggregates } from './hierarchyIndex';
 import { transforms } from './transformPool';
 
@@ -319,8 +319,11 @@ export const treeApi = {
   },
 
   /** Resolve fullnames to hierarchy entries (case-insensitive equals, exact
-   * match). Unresolvable names are dropped. O(names) via the GLOBAL fullname
-   * index — one lookup per name, however many models are loaded. */
+   * match). EVERY live model carrying the name resolves, so the same structure
+   * loaded from two stores selects and frames both copies — the semantic the
+   * colour rules and `findLabelAnchors` already use. A name may therefore
+   * return several entries; unresolvable names are dropped. O(names + hits)
+   * via the GLOBAL fullname index. */
   findEntriesByNames(names: string[]): { name: string; model: number; entry: number }[] {
     const out: { name: string; model: number; entry: number }[] = [];
     ensureGlobalIndex();
@@ -330,10 +333,7 @@ export const treeApi = {
       if (!base) {
         continue;
       }
-      const p = firstLiveHit(base); // first model with a hit wins
-      if (p !== undefined) {
-        out.push({ name: trimmed, model: hitModel(p), entry: hitEntry(p) });
-      }
+      liveHits(base, (p) => out.push({ name: trimmed, model: hitModel(p), entry: hitEntry(p) }));
     }
     return out;
   },

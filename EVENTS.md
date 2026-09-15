@@ -246,9 +246,17 @@ same as the internal `selectByFullnames`). `append: true` ADDS to the current
 selection instead of replacing it, so a host can build a selection up over
 several calls (each call still reveals its own first hit).
 
+A fullname resolves in EVERY loaded model that carries it, so the same
+structure loaded from two stores selects both copies — the same rule the colour
+commands and label anchors follow. `matched` therefore counts the ENTRIES
+selected and can exceed the number of names sent; `missed` lists only the names
+that resolved nowhere. Name a deeper, unique path when you want one copy.
+
 ```js
 payload:  { fullnames: ['/TP400-PIPE-01', '/TP400-PIPE-02'], append: false }
 response: { matched: 2, missed: [] }
+// the same two names with that structure loaded twice:
+response: { matched: 4, missed: [] }
 ```
 
 ### selection.setList
@@ -256,8 +264,11 @@ Select a LARGE fullname list. The list rides in the message's `bytes`
 side-channel as UTF-8 text — one `fullname` per line — and is packed straight
 into the model DB: no JSON array, no string per row on either side, and the
 buffer is transferred rather than cloned. Build it with the SDK's
-`encodeNameList()`. `append` behaves as in `selection.set`. Use this over
-`selection.set` from a few thousand names up.
+`encodeNameList()`. `append` behaves as in `selection.set`, and so does
+multi-model resolution: `matched` counts entries (a name carried by two loaded
+models contributes two) while `missed` counts names that resolved nowhere, so
+`matched + missed` need not equal `names`. Use this over `selection.set` from a
+few thousand names up.
 
 ```js
 payload:  { append: false }        // + bytes: ArrayBuffer of "/PIPE-01\n/PIPE-02\n…"
@@ -1619,6 +1630,11 @@ move is an animation the render loop drives), so a chained `view.screenshot`
 or `camera.get` sees the final view; without it the response comes back
 immediately and the camera is still gliding. `matched` is false when the
 fullname isn't found.
+
+A fullname carried by several loaded models resolves to every copy, as in
+`selection.set`: `flyTo` frames them ALL (the camera pulls back far enough to
+hold both, like fit-selected on a multi-model selection) and `orbit` pivots on
+their common centre.
 
 ```js
 payload:  { fullname: '/SITE/ZONE-1/PIPE-401', select: false, wait: true }

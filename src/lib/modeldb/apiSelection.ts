@@ -4,7 +4,7 @@ import { aabbInsideShape, aabbIntersectsShape, type SelectShape, type SelectShap
 // Selection domain: subtree/group/item selection, inversion, counts, and the
 // transform-aware world bounds of the current selection.
 import { IS_SELECTED, models, NO_PARENT, type StateUpdate } from './dbState';
-import { ensureGlobalIndex, firstLiveHit, hitEntry, hitModel } from './globalNameIndex';
+import { ensureGlobalIndex, hitEntry, hitModel, liveHits } from './globalNameIndex';
 import {
   entryName,
   interleaveStates,
@@ -181,10 +181,13 @@ export const selectionApi = {
   },
 
   /** Select every subtree named in a packed list (a big SQL result): each
-   *  name is decoded once and resolved through the global index (first live
-   *  model wins, as findEntriesByNames), items are marked per model in one
-   *  pass, and the (model, entry) hits come back as one flat Uint32Array —
-   *  no per-hit object for a 4M-row result. */
+   *  name is decoded once and resolved through the global index to EVERY live
+   *  model carrying it (as findEntriesByNames and the colour rules — the same
+   *  structure loaded twice selects both copies), items are marked per model
+   *  in one pass, and the (model, entry) hits come back as one flat
+   *  Uint32Array — no per-hit object for a 4M-row result. `matched` counts
+   *  HITS, so it can exceed the number of names; `missed` counts names that
+   *  resolved to nothing. */
   selectPacked(
     p: PackedNames,
     append = false,
@@ -200,29 +203,31 @@ export const selectionApi = {
     let n = 0;
     let missed = 0;
     for (let i = 0; i < p.count; i++) {
-      const h = firstLiveHit(packedName(p, i, decoder));
-      if (h === undefined) {
+      let hit = false;
+      liveHits(packedName(p, i, decoder), (h) => {
+        hit = true;
+        const mi = hitModel(h);
+        const e = hitEntry(h);
+        if (n * 2 + 2 > pairs.length) {
+          const grown = new Uint32Array(pairs.length * 2);
+          grown.set(pairs);
+          pairs = grown;
+        }
+        pairs[n * 2] = mi;
+        pairs[n * 2 + 1] = e;
+        n++;
+        const m = models[mi];
+        let mark = marks.get(mi);
+        if (!mark) {
+          mark = new Uint8Array(m.itemCount);
+          marks.set(mi, mark);
+        }
+        for (const it of itemsUnder(m, e)) {
+          mark[it] = 1;
+        }
+      });
+      if (!hit) {
         missed++;
-        continue;
-      }
-      const mi = hitModel(h);
-      const e = hitEntry(h);
-      if (n * 2 + 2 > pairs.length) {
-        const grown = new Uint32Array(pairs.length * 2);
-        grown.set(pairs);
-        pairs = grown;
-      }
-      pairs[n * 2] = mi;
-      pairs[n * 2 + 1] = e;
-      n++;
-      const m = models[mi];
-      let mark = marks.get(mi);
-      if (!mark) {
-        mark = new Uint8Array(m.itemCount);
-        marks.set(mi, mark);
-      }
-      for (const it of itemsUnder(m, e)) {
-        mark[it] = 1;
       }
     }
     for (const [mi, mark] of marks) {

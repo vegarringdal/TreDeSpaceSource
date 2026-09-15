@@ -1,4 +1,4 @@
-import { Checkbox, ColorSelect, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
+import { Checkbox, ColorSelect, NumberInput, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer, type ViewerState } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
@@ -9,7 +9,7 @@ const colorModes: readonly RadioOption<ViewerState['sketchColorMode']>[] = [
   {
     value: 'fill',
     label: 'Colour fill',
-    hint: 'wash mesh colours onto the paper',
+    hint: 'wash mesh colours onto the paper (greys wash grey)',
     shortcut: 'render.sketchColor.fill',
   },
   { value: 'edges', label: 'Colour wire', hint: 'ink takes the mesh colour', shortcut: 'render.sketchColor.edges' },
@@ -43,11 +43,24 @@ export function SketchEdgesSection() {
         shortcut="render.sketchRespectsEdgesOff"
         onChange={(x) => act.update({ sketchRespectsEdgesOff: x })}
       />
-      <div className="text-slate-400 text-xs">Colour from mesh (colourless stays paper)</div>
+      <div className="text-slate-400 text-xs">Colour from mesh (colourless stays paper in Colour wire)</div>
       <RadioGroup
         options={colorModes}
         value={v.sketchColorMode}
         onChange={(sketchColorMode) => act.update({ sketchColorMode })}
+      />
+      <NumberInput
+        label="Colour fill strength"
+        labelPosition="split"
+        tooltip="How far the paper moves from white toward the surface tone in Colour fill mode — its hue if it has one, its own grey level if not. The shading is divided out first, so one surface washes evenly whatever the light does"
+        value={v.sketchFillPct}
+        min={0}
+        max={100}
+        step={5}
+        unit="%"
+        decShortcut="render.sketchFill.dec"
+        incShortcut="render.sketchFill.inc"
+        onChange={(x) => act.update({ sketchFillPct: x })}
       />
       <ColorSelect
         label="Edge colour"

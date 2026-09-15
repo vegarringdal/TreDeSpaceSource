@@ -117,6 +117,7 @@ const NUM_SETTINGS = [
   { id: 'aoStrength', label: 'AO strength', field: 'aoStrength', step: 0.05, lo: 0, hi: 1, code: 470 },
   { id: 'aoSlices', label: 'AO slices', field: 'aoSlices', step: 1, lo: 1, hi: 16, code: 472 },
   { id: 'aoSamples', label: 'AO samples', field: 'aoSamples', step: 1, lo: 1, hi: 12, code: 474 },
+  { id: 'sketchFill', label: 'Sketch colour fill (%)', field: 'sketchFillPct', step: 5, lo: 0, hi: 100, code: 830 },
   { id: 'darkLift', label: 'Dark colour lift (%)', field: 'darkLiftPct', step: 5, lo: 0, hi: 100, code: 438 },
   { id: 'backdropFade', label: 'Background fade (%)', field: 'backdropFadePct', step: 5, lo: 0, hi: 100, code: 413 },
 ] as const;

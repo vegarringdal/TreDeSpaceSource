@@ -27,3 +27,39 @@ ${
 }
 `;
 }
+
+/** Item pick, fast path: read the packed item id the main pass ALREADY wrote
+ *  into the G-buffer id target under the cursor, instead of replaying the
+ *  scene through the pick pipelines. Under MSAA the winning sample is the one
+ *  nearest the camera (reversed-Z, so max depth) — the same rule pickDepthWgsl
+ *  uses, so an edge pixel resolves to the object rather than to what is behind
+ *  it. Only valid while nothing in the scene is transparent; ItemPickPass owns
+ *  that guard and falls back to the replay otherwise. */
+export function pickItemIdWgsl(msaa: boolean): string {
+  return /* wgsl */ `
+@group(0) @binding(0) var ids: ${msaa ? 'texture_multisampled_2d<f32>' : 'texture_2d<f32>'};
+${msaa ? '@group(0) @binding(1) var depth: texture_multisampled_2d<f32>;\n' : ''}@group(0) @binding(2) var<uniform> pick: vec4u;
+@group(0) @binding(3) var<storage, read_write> out: array<u32>;
+
+@compute @workgroup_size(1)
+fn main() {
+  let c = min(pick.xy, textureDimensions(ids) - 1u);
+${
+  msaa
+    ? `  var best = -1.0;
+  var px = vec4f(0.0);
+  for (var s = 0u; s < textureNumSamples(ids); s++) {
+    let d = textureLoad(depth, c, i32(s)).x;
+    if (d > best) {
+      best = d;
+      px = textureLoad(ids, c, i32(s));
+    }
+  }`
+    : `  let px = textureLoad(ids, c, 0);`
+}
+  // the id was written as four f32(byte)/255 channels through rgba8unorm
+  let v = vec4u(round(px * 255.0));
+  out[0] = v.x | (v.y << 8u) | (v.z << 16u) | (v.w << 24u);
+}
+`;
+}

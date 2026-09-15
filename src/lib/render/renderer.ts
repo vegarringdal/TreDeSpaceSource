@@ -416,6 +416,7 @@ export class Renderer {
     // 'edges' draws the ink in the mesh colour; colourless meshes always stay
     // plain paper + ink
     sketchColorMode: 'off' as 'off' | 'fill' | 'edges',
+    sketchFillStrength: 1, // 'fill': how far the paper moves toward the hue
     whiteOnDark: true, // white edge color on items darker than darkThr (unlit luma)
     darkThr: 0.07,
     darkFloor: 0, // render pure-black material colours at this unlit luma (0 = off)
@@ -969,6 +970,7 @@ export class Renderer {
     this.hzbFirstMsPipeline = compute(hzbWgsl(true));
     this.pickDepthPipeline = compute(pickDepthWgsl(false));
     this.pickDepthMsPipeline = compute(pickDepthWgsl(true));
+    this.itemPick.init(dev);
     this.pickParamsBuf = dev.createBuffer({
       label: 'pickParamsBuf',
       size: 16,
@@ -2498,7 +2500,8 @@ export class Renderer {
       `${opt.geoEdges};${opt.itemEdges};${opt.sketch};${opt.edgeColor.join(',')};${opt.fadeExp};` +
       `${opt.depthThr};${opt.normalThr};${opt.whiteOnDark};${opt.darkThr};${opt.darkFloor};${opt.debugBuf};` +
       `${opt.smoothDepthThr};${opt.smoothNormalThr};${opt.smoothFadeExp};` +
-      `${opt.flatMeshEdges};${opt.smoothMeshEdges};${opt.sketchRespectsEdgesOff};${opt.sketchColorMode};` +
+      `${opt.flatMeshEdges};${opt.smoothMeshEdges};${opt.sketchRespectsEdgesOff};` +
+      `${opt.sketchColorMode};${opt.sketchFillStrength};` +
       `${opt.aoMode};${opt.aoRadius};${opt.aoStrength};${opt.aoSlices};${opt.aoSamples};` +
       `${opt.bgColor.join(',')};${opt.ambientColor.join(',')};${opt.ambientIntensity};` +
       `${opt.headlightColor.join(',')};${opt.headlightIntensity};${opt.vertexPull};` +
@@ -2739,6 +2742,7 @@ export class Renderer {
       pf[16] = opt.smoothDepthThr;
       pf[17] = opt.smoothNormalThr;
       pf[18] = opt.smoothFadeExp;
+      pf[19] = opt.sketchFillStrength;
       dev.queue.writeBuffer(this.postParamsBuf, 0, pp);
     }
 
@@ -3102,6 +3106,7 @@ export class Renderer {
       this.pickPipeline,
       this.pickVpPipeline,
       this.timings,
+      this.idTex && this.depth ? { id: this.idTex, depth: this.depth, msaa: this.targetsMsaa } : null,
     );
 
     // snapshots copy the presented swapchain (post output + view cube), and

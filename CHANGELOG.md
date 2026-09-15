@@ -4,6 +4,154 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.15** (>0.0.121):
+  Clicking no longer replays the whole scene. Item picking rendered the entire
+  geometry a SECOND time through the pick pipelines just to read one texel —
+  the 1x1 scissor cuts fragment work but not vertex work, so a click submitted
+  roughly twice a full frame in a single unpreemptible command buffer, on top
+  of the scene re-render the selection change already forces. From an idle
+  baseline (a converged view encodes nothing at all) that was the largest
+  submit the GPU ever saw, and weak devices hung on it — worst with blend
+  transparency, which fattens both halves. But the main pass ALREADY writes
+  the packed item id to the G-buffer id target, and when nothing in the scene
+  is transparent the pick's opacity rule is a no-op (every branch returns
+  solid at opacity 1.0, any threshold, shift or not), so that id IS the answer:
+  one compute workgroup now reads the texel, MSAA resolved to the nearest
+  sample by depth like the depth pick. No geometry, and the canvas-sized pick
+  targets are never allocated. The replay stays for scenes that really are
+  transparent, where blend masks id writes off and alpha hash writes them
+  stochastically — there the two rules genuinely disagree.
+
+- **2026.09.15** (>0.0.121):
+  Sketch colour fill now washes GREY surfaces too. They were skipped twice
+  over: the "carries colour" test excluded them by design, and the hue
+  normalization added the same day maps every grey to white anyway — so a grey
+  mesh was indistinguishable from a white one, a black one, or blank paper. A
+  colourless surface now washes with its own grey LEVEL, read from the scene
+  target's alpha (the unlit base luma, so it is shading-free exactly as the hue
+  is), with black floored to a dark grey — a solid black wash reads as a hole
+  punched in the page. Coloured surfaces are unchanged, and Colour WIRE mode is
+  unchanged too: a colourless mesh there still keeps the plain sketch ink.
+  Everything rides the existing Colour fill strength stepper.
+
+- **2026.09.15** (>0.0.121):
+  Sketch colour-from-mesh no longer washes out. Both colour modes now divide the
+  shading out of the surface colour before using it — the coloured-ink branch
+  always did ("normalized to a fixed darkness so lit and shadowed runs of one
+  pipe draw the same line colour"), the fill branch did not, so how pastel a
+  surface looked depended on how the light happened to hit it and a dark base
+  greyed out entirely (a dark red washed to `(0.66, 0.55, 0.55)`, a hint of pink
+  in grey). Fill now takes the hue at full brightness, so one surface washes
+  evenly along its length and a dark red reads as red. New setting **Colour fill
+  strength** (Settings → Edges → Sketch edges, `sketchFillPct`, default 100 %, with
+  ALT stepper hotkeys and a tooltip): how far the paper moves from white toward
+  the hue, 0 = plain paper, 100 = full strength. It is part of the renderer's
+  idle-skip key, so dragging the stepper redraws instead of waiting for the
+  next camera move to break convergence. It rides the post-pass params'
+  spare padding word, so no uniform grew, and the key is in the `settings.edges`
+  tab for the host API — the SDK's `EdgesSettings` gains it under the
+  compile-time parity check.
+
+- **2026.09.15** (>0.0.121):
+  Fixed sketch mode's colour-from-mesh banding a near-grey surface into
+  concentric rings that followed the camera. The "does this surface carry
+  colour?" test ran in the POST pass, on the lit colour — which arrives through
+  an 8-bit target that rounds each channel on its own, so the relative-chroma
+  ratio of a mesh sitting near the threshold crossed it back and forth along
+  the shading gradient. Under a headlight those iso-shade contours are
+  concentric circles centred on the point facing the camera, alternating plain
+  paper with the 45 % wash. The test now runs in the scene fragment shader on
+  the UNLIT base colour and reaches the post pass as G-buffer tag bit 16, so one
+  surface answers once for its whole area, whatever the lighting. It also does
+  what the code always said it wanted — a coloured mesh in deep shadow keeps its
+  wash instead of losing the chroma to quantization. The helper-overlay tag
+  moved from bit 8 to bit 128 to make room: the overlays stamp it with an
+  alpha-only `max` blend, which is not a bitwise OR, so it only survives while
+  it outranks every bit a surface can set. Three bits (8, 32, 64) are still free
+  for the per-model edge strength; DESIGN.md's bit-field note is updated.
+
+- **2026.09.15** (>0.0.121):
+  Fixed: selecting by fullname stopped at the first model that carried the name,
+  while colouring the same list painted every copy. The model DB has two
+  resolvers over the global fullname index — `firstLiveHit` (first model wins)
+  and `liveHits` (every live model) — and selection was the only caller left on
+  the first: `findEntriesByNames` (`selection.set`, `nav.flyTo`, `nav.orbit`,
+  viewpoint restore) and `selectPacked` (`selection.setList` and every
+  SQL-driven select) both resolved one entry per name, so the same structure
+  loaded from two stores coloured and labelled both copies but selected one.
+  Both now resolve through `liveHits`. Consequences, all deliberate: `matched`
+  counts the ENTRIES selected and can exceed the number of names sent (`missed`
+  still counts only names that resolved nowhere, so `matched + missed` need not
+  equal `names`), and `nav.flyTo` frames EVERY copy — pulling back far enough to
+  hold them all, the same as fit-selected on a multi-model selection — while
+  `nav.orbit` pivots on their common centre. Name a deeper, unique path to reach
+  one copy. Documented on the SDK methods and in EVENTS.md; covered by
+  `tests/selectMultiModel.test.ts` (two models, identical names: resolve,
+  select, and a bounds union spanning both).
+
+- **2026.09.15** (>0.0.121):
+  The 2026-09-12 code review is CLOSED — no code change. 5a.7 (cross-model blend
+  order) DECLINED: the only exact fix multiplies the blend pass, and the free
+  half (ordering models by bounds depth) misses the case most likely to be hit
+  on purpose, two copies of one model in a revision compare. Filed and declined
+  on arrival alongside it, 5a.8: the blend pass has no adaptive fallback when
+  transparency stops being a minority of the scene. Measured on a 136-model,
+  788k-meshlet scene — 99.6 % of drawn meshlets in the blend list, `blend` 44.23
+  of 50.26 ms at 19 fps, GPU-bound. It is vertex-bound on padding: that reading
+  was taken on the vertex-pull fallback, which draws every meshlet as a flat 372
+  vertices twice (the facing split) — 118.6 M vertex invocations against scene
+  1's 236 K. Two levers already cover it and neither is code: the MDI path
+  (Chrome's multi-draw flags) writes each meshlet's real index count, and
+  `transparencyBlend: false` is the right mode for a wholesale-ghosted scene.
+  Both rulings carry their measurement and re-open condition in
+  `plans/REVIEW_20260912_DONE.md` § 5.
+
+- **2026.09.15** (>0.0.121):
+  The 2026-09-12 review is down to one finding. Closed by ruling, no code
+  change: 2a.10 (`DataGrid` extraction) DECLINED until a second consumer
+  appears — the hook-reuse half already landed, and moving a grid with one user
+  into the library means inventing an API rather than deriving it. The
+  section-5 LOW tail (5a.5 edges/AO over glass, 5a.6 glass over marker spheres,
+  5c.1 hash mode under MSAA) DECLINED as a batch on the section-4 grounds: two
+  of the three argue against themselves (native parity, per-sample shading
+  cost), and each carries a re-open condition. What remains is the cross-model
+  blend order, now numbered **5a.7** and written up properly: the sort scan and
+  scatter run per model, so the back-to-front guarantee stops at the model
+  boundary and models draw in load order. Fix directions costed the same day:
+  ordering models by bounds depth in the blend pass is free but only helps
+  separated models; a single shared draw list is NOT possible while each model
+  owns its vertex / index buffers; a G-way partition of the transparent record
+  buffer would take fixed per-meshlet VRAM from 144 to 284 bytes at G=8 and is
+  dead against the budget; the candidate is G filtered passes over the full
+  list, costing G× vertex-side work on transparent geometry only — to be
+  decided on the existing `blend` timestamp span, not an estimate.
+
+- **2026.09.15** (>0.0.121):
+  Review 6.15 (`*Url` commands fetch with default options) closed BY DESIGN — no
+  code change. The viewer is meant to be self-hosted, so a page served from the
+  same origin as its data is the normal deployment and some of those hosts will
+  want their session cookie to ride along: `credentials: 'omit'` would break
+  `sql.importUrl` / `assets.importUrl` / `viewpoints.setUrl` against an
+  authenticated intranet endpoint, which is the setup we suggest. The
+  intranet-URL half follows 6.1's trust model — an allowlisted origin is
+  full-trust by design. Re-open condition recorded: a shared multi-tenant
+  deployment, where credentials become opt-in per app entry. 1.12 closed with
+  it as a stale cross-reference to 6.14. § 1 and § 6 of the open review are now
+  empty; § 5 cross-model blend ordering is the only finding left in the file.
+
+- **2026.09.15** (>0.0.121):
+  Review 6.9 (client-API capability gaps) closed BY DESIGN — no code change. The
+  postMessage API is meant to do a lot, but not to replace the user: a host
+  embeds the viewer and drives it, while the person in front of it still
+  selects, hides, exports and undoes. So the state-layer capabilities with no
+  wire representation are a menu, not a defect list — commands and events get
+  added when a host actually needs one, not to make the wire surface mirror
+  `src/state/**`. Moved to `plans/REVIEW_20260912_DONE.md` with the ruling, the
+  order to reach for if it is ever worked through, and two corrections to the
+  original diagnosis (`app.error` already exists and already carries the GPU
+  codes; only the recovered edge and non-GPU failures are missing). § 6 of the
+  open review now holds 6.15 alone.
+
 - **2026.09.14** (>0.0.120):
   Fixed the loading overlay never appearing while a long command runs. The
   per-client command queue (added 2026.09.13) serialises commands from one

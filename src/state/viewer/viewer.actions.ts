@@ -427,10 +427,13 @@ export const viewerActions = {
   },
 
   /** Select many items by fullname (replaces the selection, reveals the
-   *  first). `append` keeps what is already selected and adds to it — the
-   *  host API's additive selection. Returns what matched and which names
-   *  resolved to nothing — hosts driving the app over postMessage need the
-   *  misses. */
+   *  first hit). A name resolves in EVERY loaded model that carries it, so the
+   *  same structure loaded twice selects both copies — matching what colouring
+   *  the same list does. `append` keeps what is already selected and adds to
+   *  it — the host API's additive selection. `matched` counts the ENTRIES
+   *  selected, so it can exceed the number of names; `missed` lists the names
+   *  that resolved to nothing — hosts driving the app over postMessage need
+   *  those. */
   async selectByFullnames(
     names: string[],
     opts: { append?: boolean } = {},
@@ -447,7 +450,7 @@ export const viewerActions = {
     applyStateUpdates(await db.addSubtrees(hits.map((h) => ({ model: h.model, entry: h.entry }))));
     viewerState.set({ suppressTintOnOverride: false });
     const first = hits[0];
-    const keys = hits.map((h) => `${h.model}:${h.entry}`);
+    const keys = [...new Set(hits.map((h) => `${h.model}:${h.entry}`))];
     const reveal = { model: first.model, path: await db.pathForEntry(first.model, first.entry) };
     selectionState.set((prev) =>
       opts.append
@@ -455,7 +458,7 @@ export const viewerActions = {
         : { activeGroup: null, activeGroups: [], actives: keys, reveal },
     );
     await refreshSelectionMeta({ model: first.model, entry: first.entry });
-    return { matched: hits.length, missed };
+    return { matched: keys.length, missed };
   },
 
   /** selectByFullnames for a packed list (a big SQL result): the names never
@@ -665,7 +668,9 @@ export const viewerActions = {
   /** Host API `nav.flyTo`: fly the camera to a fullname's subtree; `select`
    *  also selects it, otherwise the selection is left untouched. `wait`
    *  resolves only once the move has landed (the glide is an animation the
-   *  render loop drives). Returns whether the name matched anything. */
+   *  render loop drives). A name carried by several loaded models frames EVERY
+   *  copy, like fit-selected on a multi-model selection — the camera pulls back
+   *  far enough to hold them all. Returns whether the name matched anything. */
   async flyToFullname(fullname: string, opts: { select?: boolean; wait?: boolean } = {}): Promise<boolean> {
     if (!renderer) {
       return false;
@@ -690,7 +695,9 @@ export const viewerActions = {
 
   /** Host API `nav.orbit`: set the orbit pivot to a fullname's centre (camera
    *  stays put); `select` also selects it, `wait` resolves once the re-pivot
-   *  has landed. Returns whether the name matched. */
+   *  has landed. A name carried by several loaded models pivots on the centre
+   *  of all copies together, as `nav.flyTo` frames them all. Returns whether
+   *  the name matched. */
   async orbitFullname(fullname: string, opts: { select?: boolean; wait?: boolean } = {}): Promise<boolean> {
     if (!renderer) {
       return false;

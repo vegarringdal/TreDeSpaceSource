@@ -76,10 +76,14 @@ export interface ViewerState {
   smoothMeshEdges: boolean;
   /** Sketch mode honors the edge-off switches (default: sketch always draws). */
   sketchRespectsEdgesOff: boolean;
-  /** sketch colour-from-mesh: 'fill' washes coloured surfaces onto the paper,
-   *  'edges' draws the ink in the mesh colour; colourless meshes
-   *  (white/grey/black) always stay plain paper + ink */
+  /** sketch colour-from-mesh: 'fill' washes surfaces onto the paper — coloured
+   *  ones with their hue, colourless ones with their own grey level (black
+   *  floored to a dark grey) — while 'edges' draws the ink in the mesh colour
+   *  and leaves colourless meshes on plain paper + ink */
   sketchColorMode: SketchColorMode;
+  /** 'fill' mode: how far the paper moves from white toward the surface hue,
+   *  in percent (0 = plain paper, 100 = the hue at full strength). */
+  sketchFillPct: number;
   // ambient occlusion
   aoMode: 0 | 1 | 2; // off / motion / static
   aoRadius: number;
@@ -221,6 +225,7 @@ export const initialViewerState: ViewerState = {
   smoothMeshEdges: true,
   sketchRespectsEdgesOff: false,
   sketchColorMode: 'off',
+  sketchFillPct: 100,
   // AO off by default: the at-rest accumulation tail is a real cost on weak
   // GPUs (queued full-detail frames delay the next camera move)
   aoMode: 0,

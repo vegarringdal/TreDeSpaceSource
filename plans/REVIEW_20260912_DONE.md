@@ -10,11 +10,13 @@ moved since. What actually shipped is in CHANGELOG.md and DESIGN.md; this file
 is the problem statement, not the implementation.
 
 Entries closed by ruling rather than by a fix, kept here so they are not
-re-proposed: 1.9 and 6.1 as **BY DESIGN** (the behaviour is intended); 4.2, 4.5
-and the whole section-4 LOW tail (4.3, 4.7-4.18) as **DECLINED** — the cost is
-real but the cure is riskier than the disease. The declined entries carry
-re-open conditions: what would have to be true first, and which cheaper variant
-to try before the one that was declined.
+re-proposed: 1.9, 6.1, 6.9 and 6.15 as **BY DESIGN** (the behaviour is
+intended); 2a.10, 4.2, 4.5, the whole section-4 LOW tail (4.3, 4.7-4.18) and
+5a.7, 5a.8 and the section-5 LOW tail (5a.5, 5a.6, 5c.1) as **DECLINED** — the cost is real
+but the cure is riskier than the disease, or the information needed to do it
+right has not arrived yet. The declined entries carry re-open conditions: what
+would have to be true first, and which cheaper variant to try before the one
+that was declined.
 
 ---
 
@@ -152,6 +154,12 @@ to try before the one that was declined.
 
 ---
 
+- 1.12 ~~LOW~~ **DONE** (2026-09-15, closed with 6.14) — API client registry prunes lazily.
+  Nothing separate to do: this was the section-1 cross-reference to 6.14, and that landed on 2026-09-13 —
+  `dropClientsForDialog(id)` is called from `externalPanelsActions.close` and the modal's
+  `removeExternalModal`, so a removed iframe's entry (a strong `Window` ref) no longer outlives the panel.
+  See § 6 for the diagnosis.
+
 ## 2. Widgets (`src/treDeSpaceUI`)
 
 Inventory: 20 exported widgets (Button, Checkbox, RadioGroup, TextInput/TextArea,
@@ -238,6 +246,15 @@ its virtualization-hook half landed here.
   Landed: `PropertyList` (`fixed` | `fill`, `numeric`, `divided`) and `Kbd`. SqlDetail, StatsReadout and CameraControlsSection use them; ShortcutRow's binding chip is now `Button readOnly`. Original: `sql-detail/SqlDetail.tsx:81-96` (`<dl>`), `settings/stats/StatsReadout.tsx:20-32,66-72` (grid),
   `settings/shortcuts/CameraControlsSection.tsx:29-38`, `ShortcutRow.tsx:24-47` (binding chip with
   custom / recording tones — Button has a `readOnly` prop, `Button.tsx:15`, that ShortcutRow does not use).
+
+- 2a.10 ~~MEDIUM~~ **DECLINED** (2026-09-15, re-open when a SECOND consumer appears) — `DataGrid`: the full extraction.
+  Director's ruling: the useful half already landed — `sql-table/useTableLayout` drives `useVirtualRows`
+  instead of re-implementing it, and `usePointerDrag` owns the column resize. What is left is moving a
+  generic virtualized / sortable / filterable / resizable grid
+  (`sql-table/{TableGrid,TableHeader,TableBody,useTableLayout,useTableView,useTableSelection}`) into the
+  library while it has exactly ONE user, which means inventing an API instead of deriving one — and a
+  library widget is a promise to keep it stable. Re-open the moment a second panel needs a grid: that
+  consumer is what tells us which props are really generic and which are SQL-table specifics.
 
 - 2a.11 ~~MEDIUM~~ **DONE** — generic `TreeView` (big refactor, schedule with care).
   Landed: `TreeView` — a virtualized tree over a flat list of visible rows, with indent, twisty, selection, partial bar, bands and a `rowProps` escape hatch for drag-and-drop. Hierarchy, the Hierarchy search results and FileTree all render through it; `FileTreeRow.tsx` is deleted and the app tree CSS with it. Original: `hierarchy/HierarchyRows.tsx` + `HierarchySearch.tsx` hand-roll a tree on app CSS
@@ -781,7 +798,7 @@ combine. Skip 5b.2, 5b.6, 5b.7.
 Deviations from the sketch above: the facing split draws each meshlet's two halves ADJACENT (two instances
 per record / two list entries) instead of the whole list twice, so wall patches with an arbitrary centre
 never interleave with other meshlets; 2048 buckets; the meshlet centre comes from the AABB already in the
-render bind (no cook change). Fixes 5a.1, 5a.2, 5a.3, 5a.4. Open: cross-model order, 5a.5, 5a.6, 5c.2.
+render bind (no cook change). Fixes 5a.1, 5a.2, 5a.3, 5a.4. Left open: 5a.7 (cross-model order); 5a.5, 5a.6 declined below, 5c.2 closed by 4.1.
 
 ### Other observations
 
@@ -789,6 +806,112 @@ render bind (no cook change). Fixes 5a.1, 5a.2, 5a.3, 5a.4. Open: cross-model or
   runs, is that last pass, so a transparent frame now resolves once instead of three times.
   Original: the blend pass adds a third `msColor → sceneColor` resolve per frame (see 4.1).
   Option 5b.1 removes the replay but not this resolve; only the resolve-on-last-pass fix does.
+
+
+- 5a.7 ~~MEDIUM~~ **DECLINED** (2026-09-15, measured — re-open only with a user complaint on a real scene)
+  — cross-model ordering: the depth sort is per model, so glass in an earlier-loaded model sits under glass
+  in a later one wherever the two overlap.
+  Director's ruling: written off as too expensive for what it buys. The finding was costed the same day it
+  was numbered, and then a measurement settled it (see 5a.8): on a transparency-heavy scene the blend pass
+  is already 44 of 50 ms, so the only EXACT fix — G filtered passes over the transparent list — multiplies
+  the most expensive pass in the frame. What is left is the free model-bounds sort, which does not fix the
+  case most likely to be hit deliberately (the same model loaded twice for a revision compare has identical
+  bounds), so it buys correctness in the easy case only. The artifact is narrow to begin with: it needs two
+  models' TRANSPARENT geometry overlapping on screen — glass behind an opaque surface is occluded correctly
+  whatever the model order, because blend mode routes transparent items out of the depth-writing opaque
+  passes. Re-open if a user points at it on a real model, and then take the free model-bounds sort first.
+  Original:
+  sits under glass in a later one wherever the two overlap, whatever the camera says.
+  The sorted blend pass fixed ordering INSIDE a model: `renderer.ts:2965-2984` runs the bucket scan and
+  the scatter once per model (`for (const m of this.models)`), each writing its own `recordBufT` from its
+  own histogram, and `drawScene` (`renderer.ts:2827-2832`) then draws those lists model by model. So the
+  back-to-front guarantee stops at the model boundary and the models themselves are ordered by load, not
+  by depth — the pre-rewrite 5a.1 artifact, surviving one level up.
+  Only visible where two models' transparent geometry overlaps on screen (a glass facade loaded over a
+  plant model, a scan loaded next to CAD), which is why it was not worth blocking the rewrite on.
+  Only transparent-over-transparent is affected: blend mode routes transparent items out of the opaque
+  passes, which write depth first, so glass behind an opaque surface is still occluded correctly whatever
+  the model order. The keys are already globally comparable — `sort_bucket` (2048 log buckets) is keyed off
+  the scene-bounds far corner, shared by every model — so only the SUBMISSION is per model.
+  Fix directions, costed 2026-09-15:
+  (1) **Order models back-to-front by scene bounds in the blend pass only.** Free: an N-model sort per
+  frame, no GPU work, no VRAM, no shader change. Fixes separated models (a facade loaded next to a plant);
+  does nothing where bounds interleave, which includes the same model loaded twice for a revision compare.
+  Effort S.
+  (2) **One shared record buffer / global histogram — NOT possible as stated.** Each model owns its
+  `vertexBuf` / `indexBuf` / `renderBind` (`renderer.ts:2836-2846`), so a globally sorted list cannot be one
+  MDI call: a depth-interleaved list would need a rebind per meshlet run. It requires shared geometry
+  buffers across models, which fights per-model load / unload and residency. Dead unless the geometry
+  allocator is rewritten.
+  (2') **Bucket-group interleave** (draw far→near in G groups, models inner). MDI blocks it:
+  `multiDrawIndexedIndirect` takes a CPU-side byte offset while the bucket bases are GPU-computed by the
+  scan, so CPU-known offsets mean a fixed G-way partition of `recordBufT` — 20 B of the 144 B fixed
+  per-meshlet VRAM, so G=8 takes 144 → 284 B per meshlet. Dead against the VRAM budget. The vertex-pull
+  path could do it (its draw args are GPU-written), but correctness only in the non-MDI fallback is
+  backwards.
+  (3) **G filtered passes over the full list** — the real candidate. Draw the blend pass once per group,
+  VS collapses records outside the group to degenerate triangles. No VRAM change (or +4 B/meshlet to store
+  the bucket instead of recomputing it), no layout change; cost is G× index + VS work on the transparent
+  subset only, fragments and blending unchanged, plus G×M draw calls. Ordering is exact within a model
+  (2048 buckets) and G-granular across models. Effort M.
+  (4) Accept and document.
+  Measure before building: the `sort` and `blend` timestamp spans already exist (`gpuTimings.ts`, Stats
+  tab) — (3)'s multiplier applies to the vertex-side half of `blend`, so the decision needs that number on
+  a glass-heavy model, not an estimate.
+
+---
+
+- 5a.8 ~~MEDIUM~~ **DECLINED on arrival** (2026-09-15, measured — re-open if the free levers are not enough)
+  — the blend pass has no adaptive fallback: its cost scales with the WHOLE transparent set, not with a
+  transparent minority, and nothing detects when the assumption behind the sorted blend pass stops holding.
+  Measured on a 136-model, 788,224-meshlet scene (RDNA-3), from the Stats tab:
+  `drawn p1 / p2 / blend = 635 / 3 / 159,448` — 99.6 % of the drawn meshlets go through the blend pass —
+  `blend 44.23 ms` of a `total 50.26 ms` frame at 19 fps, `cpu 0.94 ms` (GPU-bound), `sort 2.03 ms`,
+  `scene 1 0.24 ms`, `scene 2 0.00 ms`.
+  Diagnosis: the pass is vertex-bound on padding, not fill-bound on blending. The measurement was taken on
+  the VERTEX-PULL fallback (`culling: vertex-pull` — the adapter had no
+  `chromium-experimental-multi-draw-indirect`, `renderer.ts:853`), where every meshlet draws a flat 372
+  vertices whatever its real index count (`cull.ts:495`, `scene.ts:471`; padding vertices clamp to the last
+  index and die pre-raster, but the invocation and its storage loads still happen), and the transparent list
+  holds two entries per meshlet for the winding-free facing split — so 159,448 × 2 × 372 ≈ 118.6 M vertex
+  invocations against scene 1's 635 × 372 ≈ 236 K in 0.24 ms. The scene averages 55.7 M tris / 788,224
+  meshlets ≈ 71 tris ≈ 212 indices per meshlet against that flat 372.
+  Director's ruling: written off as too expensive. Two free levers already cover the case and neither is
+  code: (1) the MDI path writes each meshlet's real `index_count` instead of 372, so running Chrome with the
+  multi-draw flags removes the padding waste outright — the 44 ms above is a fallback-path upper bound;
+  (2) `transparencyBlend: false` (hash / dithered transparency) puts transparent items back in the opaque
+  pass with depth write, one draw per meshlet, no sort and no facing split — the right mode for a scene that
+  is ghosted wholesale, which is what a 99.6 % transparent share means.
+  What was NOT built, and is the thing being declined: an adaptive switch (or a warning) when the
+  transparent share crosses a threshold, plus anything that makes exact sorted blending cheap at that scale.
+  Re-open if a user hits this with the flags ON and hash mode rejected on looks — then the measurement to
+  take first is MDI-path `blend` on the same scene, to separate the padding waste from the overdraw.
+
+### The LOW tail — declined as a batch (2026-09-15)
+
+Same grounds as the section-4 tail: the cost is real, the cure is worth more
+than the symptom only once someone complains about the image, and each has a
+named re-open condition. 5a.7 (cross-model ordering) stays open in
+`REVIEW_20260912.md` — it is the one artifact of the group that a user can
+actually point at.
+
+- 5a.5 ~~LOW~~ **DECLINED** — edges / AO are computed from the opaque surface behind the glass (G-buffer
+  masked) and composited over the blended colour at full strength; glass itself gets no edges. Native
+  parity, but reads as "the glass is behind the lines". Declined because it IS native parity: the reference
+  renderer looks the same, and changing it means deciding what an edge on transparent geometry should even
+  mean (its own silhouette? the surface behind, attenuated?). Re-open if glass-heavy models become a
+  primary use case, and then as a deliberate look, not a bug fix — attenuating the composite by the blended
+  alpha is the cheap first experiment.
+- 5a.6 ~~LOW~~ **DECLINED** — glass blends over translucent marker spheres (pass order). The markers are
+  overlay geometry drawn before the blend pass, so glass in front of a marker still paints over it. Declined
+  as cosmetic and self-limiting: markers are small, and the alternative (markers inside the sorted list, or
+  a third pass after it) costs more than the artifact. Re-open if measurement markers are ever used THROUGH
+  glass as a workflow rather than incidentally.
+- 5c.1 ~~LOW~~ **DECLINED** — hash mode under MSAA gains nothing from the extra samples.
+  `alpha_hash(vec2u(in.clip.xy), …)` (`scene.ts:228`) is per pixel and the FS runs per pixel, so all 4
+  samples share the discard. Declined by its own diagnosis: it is not a bug, and per-sample hashing means
+  per-sample shading — a 4× fragment cost for dithered transparency that is already the cheap mode.
+  Re-open only if hash mode becomes the default over the sorted blend pass.
 
 ---
 
@@ -883,6 +1006,34 @@ render bind (no cook change). Fixes 5a.1, 5a.2, 5a.3, 5a.4. Open: cross-model or
   Proposal: typed `EventMap`, `once`, `ready({ timeoutMs })`, an `app.error` event, opt-out auto-await of
   ready in `send`, deprecate the aliases. Effort S.
 
+- 6.9 ~~MEDIUM~~ **BY DESIGN** (2026-09-15) — capabilities the state layer has that the API does not expose.
+  Director's ruling: the client API is supposed to do a lot, but not to replace the user. A host embeds the
+  viewer and drives it; the person in front of it still selects, hides, exports and undoes, and a command
+  exists because a host asked for it — not to make the wire surface mirror `src/state/**`. Events are the
+  same: added when a need shows up, one at a time. So the list below is not a defect list, it is the menu
+  to pick from when that need arrives. If it is ever worked through, the missing halves of symmetric pairs
+  (`measurements.get`, `clip.shapes.get / update / remove`, `stores.remove`, `viewpoints.activate`) are the
+  cheapest and the most surprising by their absence; `undo / redo` is NOT the S the finding claims — there
+  are three undo domains (colour / opacity / visibility in `colorUndo.ts`, labels in `labels.actions.ts`,
+  transforms) and exposing one verb means first deciding what a host undoes.
+  Two corrections to the original, found while ruling on it: `app.error` already exists — it is in the SDK
+  event map, in EVENTS.md, and emitted for `gpu-init` / `gpu-lost` / `gpu-recovery`; what is missing is
+  coverage (import, cook and SQL failures never raise it). `gpu.lost` is therefore half-covered too: the
+  loss is emitted, the RECOVERED edge is not, and the confirm dialog remains invisible to the host because
+  `dialog.changed` fires from the external-modal / external-panel stores only. Command count is 101 today,
+  not the 99 counted then.
+  Original: capabilities the state layer has that the API does not expose (99 commands registered; verified by absence from the handler tables).
+  Events: `selection.changed` for any route (only click-driven `tree.select` exists); `model.loaded /
+  unloaded`; `gpu.lost / recovered` (`gpuRecovery.ts` shows a confirm the host cannot see); `app.error`;
+  a throttled `camera.changed`.
+  Commands: `measurements.get` (labels.get exists, measurements.get does not); `labels.remove` /
+  `measurements.remove` by id; `clip.shapes.get / update / remove` (only `add`), `clip.box.set`, clipping
+  planes; `viewpoints.activate / list / remove` (only get / set / setUrl / addFromLabels /
+  setBookmarkButton); `stores.remove` (only create / list); `selection.hide / isolate / invert /
+  unhideAll / setColor / setOpacity` (`viewer.actions.ts:736-868`); `undo / redo`; `export.glb / tdp / ifc`
+  (`export.actions.ts:120-262`); state `snapshot.save / load`; `layouts.activate`; `stats.get` for fps /
+  VRAM / residency (only `gpu.info.get` exists); hotkeys. Effort S each.
+
 - 6.10 ~~LOW~~ **DONE** — error codes misreport the cause.
   Landed: three separate fixes. `busy` is now reserved for the import LOCK: the import actions report whether they actually ran, so an import that ran and produced nothing answers `internal` with a pointer to the Console instead of sending hosts into a retry loop over a file that will never import. Two new codes carry the caller errors that used to look like viewer bugs: `download` (`viewpoints.setUrl`) and `sql` (everything SQLite rejects — `sql.execute`, `sql.table`, the colouring queries). Both are in the SDK's union and in EVENTS.md. Original: `handlersAssets.ts:82-84` reports ANY import that produced no entries as `busy` ("busy or failed");
   `viewpoints.setUrl` download failures and sqlite errors such as "no such table" surface as `internal`
@@ -909,3 +1060,17 @@ render bind (no cook change). Fixes 5a.1, 5a.2, 5a.3, 5a.4. Open: cross-model or
   `client.bye` stays in `entries` (strong `Window` ref) until someone lists clients. `emitApiEvent` and
   `panelIdOfWindow` (`clients.ts:45-49`) walk all iframes per call. Proposal: prune from
   `externalPanelsActions.close` / modal close, and in emit. Effort S.
+
+- 6.15 ~~LOW~~ **BY DESIGN** (2026-09-15, revisit if the viewer is ever hosted multi-tenant) — `*Url`
+  commands call `fetch(url)` with default options.
+  Director's ruling: the viewer is meant to be SELF-HOSTED, so a page served from the same origin as its
+  data is the normal deployment and some of those hosts will want their session cookie to ride along.
+  `credentials: 'omit'` would break exactly the setup we suggest — an authenticated intranet endpoint
+  feeding `sql.importUrl` / `assets.importUrl` / `viewpoints.setUrl` without the host proxying every byte
+  through postMessage. The intranet-URL half follows 6.1's trust model: an allowlisted origin is full-trust
+  by design, and one that can already run `sql.execute` and read the model gains nothing by naming a URL.
+  Re-open if a shared multi-tenant deployment appears, where being on the allowlist no longer implies
+  trust — then credentials become opt-in per app entry rather than omitted for everyone.
+  Original: `handlersScene.ts:182`, `handlersAssets.ts:152`, `sqlAssets.actions.ts:303` — same-origin
+  cookies ride along on same-origin URLs, and any allowed origin can point the viewer at intranet URLs.
+  Consider `credentials: 'omit'` and http(s)-only. Effort S.

@@ -638,8 +638,13 @@ export interface EdgesSettings {
   sketchNormalThr: number;
   /** sketch mode honours the edges-off switches (default: sketch always draws) */
   sketchRespectsEdgesOff: boolean;
-  /** sketch colour-from-mesh: off = paper + ink, fill = washed surfaces, edges = coloured ink */
+  /** sketch colour-from-mesh: off = paper + ink; fill = washed surfaces (hue
+   *  for coloured ones, their own grey level for colourless ones); edges =
+   *  coloured ink, colourless meshes keeping the plain sketch ink */
   sketchColorMode: 'off' | 'fill' | 'edges';
+  /** `fill` mode only: how far the paper moves from white toward the surface
+   *  colour, in percent (0 = plain paper, 100 = the hue at full strength) */
+  sketchFillPct: number;
   sketchCubeFaceColor: string;
   sketchCubeLineColor: string;
   sketchCubeTextColor: string;
@@ -1827,15 +1832,21 @@ export class TredespaceClient {
   // ── commands (one method per EVENTS.md entry) ─────────────────────────────
 
   /** Replace the selection by fullname (reveals the first hit in the tree).
-   *  `append: true` keeps what is already selected and adds to it instead.
-   *  `missed` lists fullnames that resolved to nothing. */
+   *  A name resolves in EVERY loaded model that carries it — the same
+   *  structure loaded twice selects both copies, as colouring the same list
+   *  would — so `matched` counts selected entries and can exceed the number of
+   *  names sent. `append: true` keeps what is already selected and adds to it
+   *  instead. `missed` lists fullnames that resolved to nothing. */
   selectionSet(fullnames: string[], opts?: { append?: boolean }): Promise<Result<SelectionSetResult>> {
     return this.send('selection.set', { fullnames, append: opts?.append ?? false });
   }
   /** Select a LARGE fullname list: build it with {@link encodeNameList} and
    *  it travels as one transferred buffer, packed straight into the model DB —
    *  no per-row JSON on either side. `append` adds to the current selection.
-   *  For a handful of names {@link selectionSet} is simpler. */
+   *  As with {@link selectionSet}, a name resolves in every loaded model that
+   *  carries it, so `matched` counts entries and `missed` counts names that
+   *  resolved nowhere. For a handful of names {@link selectionSet} is
+   *  simpler. */
   selectionSetList(list: ArrayBuffer, opts?: { append?: boolean }): Promise<Result<SelectionListResult>> {
     return this.send(
       'selection.setList',
@@ -2016,14 +2027,18 @@ export class TredespaceClient {
   // ── navigation ────────────────────────────────────────────────────────────
   /** Fly the camera to a node by fullname. `select` also selects it (default
    *  just flies); `wait` responds only once the camera has ARRIVED, so a
-   *  chained screenshot or command sees the final view. `matched` is false
-   *  when the fullname isn't found. */
+   *  chained screenshot or command sees the final view. A name carried by
+   *  several loaded models frames EVERY copy — the camera pulls back far
+   *  enough to hold them all, like fit-selected on a multi-model selection.
+   *  `matched` is false when the fullname isn't found. */
   navFlyTo(fullname: string, opts?: { select?: boolean; wait?: boolean }): Promise<Result<{ matched: boolean }>> {
     return this.send('nav.flyTo', { fullname, select: opts?.select ?? false, wait: opts?.wait ?? false });
   }
   /** Set the orbit pivot to a node by fullname (camera stays); `select` also
-   *  selects it, `wait` responds only once the re-pivot has landed. `matched`
-   *  is false when the fullname isn't found. */
+   *  selects it, `wait` responds only once the re-pivot has landed. A name
+   *  carried by several loaded models pivots on the centre of all copies
+   *  together, as {@link navFlyTo} frames them all. `matched` is false when the
+   *  fullname isn't found. */
   navOrbit(fullname: string, opts?: { select?: boolean; wait?: boolean }): Promise<Result<{ matched: boolean }>> {
     return this.send('nav.orbit', { fullname, select: opts?.select ?? false, wait: opts?.wait ?? false });
   }
