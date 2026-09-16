@@ -19,21 +19,19 @@ function toHit(p: MeasureProbe | null): MeasureHit | null {
   return p ? { point: p.point, normal: p.normal ?? undefined, edgeDir: p.edgeDir ?? undefined, kind: p.kind } : null;
 }
 
-/** How much the snap radii widen for a finger: the contact patch is far bigger
- *  and less precise than a mouse cursor, so the user's pixel radii (tuned for a
- *  cursor) under-snap badly on touch. */
-const TOUCH_SNAP_MULT = 2;
-
 /** Snap config for the measure probe — the Face tool needs a face hit (its
  *  reference plane comes from the surface normal), so corner/edge snap is
- *  bypassed while it is active. `coarse` widens the radii for a touch probe. */
-function measureSnap(coarse = false) {
+ *  bypassed while it is active.
+ *
+ *  The radii are NOT widened for touch, however tempting that looks: they are
+ *  compared in RENDER pixels (renderer.worldToPixel projects into canvas.width),
+ *  and a tablet renders at pixelRatio 1 while a desktop renders at its native
+ *  ratio — so the same configured number already covers 2-3x more glass on a
+ *  tablet. Widening it there made the probe snap to a vertex up to 24 CSS px
+ *  from the crosshair. */
+function measureSnap() {
   const s = measurementsState.get();
-  const snap = s.activeKind === 'face' ? { ...s.snap, corner: false, edge: false } : s.snap;
-  if (!coarse) {
-    return snap;
-  }
-  return { ...snap, cornerPx: snap.cornerPx * TOUCH_SNAP_MULT, edgePx: snap.edgePx * TOUCH_SNAP_MULT };
+  return s.activeKind === 'face' ? { ...s.snap, corner: false, edge: false } : s.snap;
 }
 
 /** Tap tolerance between pointerdown and click: a mouse barely moves, a finger
@@ -605,7 +603,7 @@ export const viewport: PanelDefinition = {
         host,
         canvas,
         camera: renderer.camera,
-        probe: (x, y) => renderer.probeMeasureAsync(x, y, measureSnap(true)).then(toHit),
+        probe: (x, y) => renderer.probeMeasureAsync(x, y, measureSnap()).then(toHit),
       });
       // The cube is DRAWN by the renderer (GPU overlay — so canvas captures
       // include it); the DOM ViewGizmo stays as invisible hit zones + handle.
@@ -707,7 +705,7 @@ export const viewport: PanelDefinition = {
         // probed surface (auto-finishes Line/Diameter). No item selection.
         if (measurementsState.get().activeKind) {
           measurementsActions.setPerp(e.shiftKey);
-          void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap(downAt.type === 'touch')).then((p) => {
+          void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap()).then((p) => {
             const hit = toHit(p);
             if (hit) {
               measurementsActions.addPoint(hit);
@@ -788,8 +786,7 @@ export const viewport: PanelDefinition = {
         }
         hoverBusy = true;
         const gen = hoverGen;
-        const touch = e.pointerType === 'touch';
-        void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap(touch)).then((p) => {
+        void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap()).then((p) => {
           hoverBusy = false;
           if (gen !== hoverGen || measureAim?.aiming()) {
             return;

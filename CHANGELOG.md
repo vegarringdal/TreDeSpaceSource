@@ -21,8 +21,10 @@ version at release time. See CLAUDE.md for the rule.
   were the only ways — so a bar now appears over the viewport whenever points
   are down, showing the tool and the point count with touch-sized Finish
   (disabled until the measurement has enough points), Undo and Cancel; it works
-  the same with a mouse. And the snap radii, tuned in pixels for a cursor,
-  double for a touch probe.
+  the same with a mouse. The snap radii are deliberately NOT widened for touch:
+  they are compared in RENDER pixels, and a tablet renders at pixelRatio 1 while
+  a desktop renders at its native ratio, so the same configured number already
+  covers 2-3x more glass there.
 
   Aiming got the piece it was missing: a finger covers exactly the pixel it is
   placing. Press and hold for 450 ms without moving and the touch is taken away
