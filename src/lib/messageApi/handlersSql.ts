@@ -16,7 +16,7 @@ import { withDatabases } from '../../state/sqlReports/reportDraft';
 import { type SqlRunOpts, sqlReportsActions } from '../../state/sqlReports/sqlReports.actions';
 import type { ReportDef, ReportFilter } from '../../state/sqlReports/sqlReports.state';
 import { sqliteClient, sqlOptions } from '../sqlite/client';
-import { parseAttachPaths, splitSqlStatements } from '../sqlite/sqlAttach';
+import { parseAttachPaths, parseStatements, splitSqlStatements } from '../sqlite/sqlAttach';
 import type { Statement } from '../sqlite/types';
 import { parseColorMode } from './colorMode';
 import { fileNameFromUrl } from './handlersAssets';
@@ -294,7 +294,9 @@ export const sqlHandlers: Record<string, ApiHandler> = {
       }
       return { path, exists: true, size: d.size, modified: d.modified, ...(d.md5 ? { md5: d.md5 } : {}) };
     });
-    return { dbs };
+    // the statements the script would actually run: comments stripped, split
+    // on top-level ';', each labelled with its leading keyword
+    return { dbs, statements: parseStatements(sql) };
   },
 
   // Full statement form (the SQL editor's / sqllitedebug's contract): several

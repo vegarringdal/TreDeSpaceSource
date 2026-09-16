@@ -17,10 +17,15 @@ export interface ReportFilter {
   value?: string;
   /** DROPDOWN: default bind for dropdownSql when the search box is empty (usually '%'). */
   searchValue?: string;
-  /** DROPDOWN: `select <id>, <value> …` — first 25 shown; `?` binds the search term. */
+  /** DROPDOWN: `select <id>, <label> …` — first 25 shown; `?` binds the search
+   *  term. Columns named `id` / `label` are read by NAME in any order;
+   *  unnamed ones fall back to the first two positionally. */
   dropdownSql?: string;
   /** DROPDOWN: selected ids → one FILTER_ARGS row each. */
   selected?: string[];
+  /** DROPDOWN: one pick only (the list closes on click); default multi. The
+   *  value is still a list — with at most one id in it. */
+  single?: boolean;
 }
 
 export interface ReportDef {

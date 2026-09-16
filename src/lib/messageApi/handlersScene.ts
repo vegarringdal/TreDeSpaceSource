@@ -16,28 +16,75 @@ import {
   ApiError,
   type ApiHandler,
   boolOpt,
+  colorOpt,
   isRecord,
   nameListBytes,
+  numOpt,
   oneOf,
   records,
   strings,
   strOpt,
+  vec2Opt,
   vec3,
 } from './protocol';
 
+/** Map key for a label anchor lookup: case-insensitive, leading '/' ignored —
+ *  `findLabelAnchors` answers with the MODEL's real fullname, which may carry
+ *  the slash the caller left out (or the other way round). */
+const anchorKey = (name: string): string => name.trim().toLowerCase().replace(/^\//, '');
+
+/** Label text for an entry that carries no `text`: the linked fullname, with
+ *  its leading '/' dropped when asked. A point-anchored label has no name to
+ *  fall back on, so it stays empty. */
+function deriveLabelText(fullname: string | null, strip: unknown, fallbackStrip: boolean): string {
+  if (fullname === null) {
+    return '';
+  }
+  return boolOpt(strip, 'labels[].stripSlash', fallbackStrip) ? fullname.replace(/^\//, '') : fullname;
+}
+
+type LabelAnchors = {
+  centers: Map<string, [number, number, number]>;
+  notFound: string[];
+};
+
+/** Resolve tag names to world anchors. `snap` anchors on the nearest child
+ *  item when the subtree's bounds centre hangs in empty air (bent pipe runs),
+ *  so a batch mixing snapped and plain labels takes one lookup per group. */
+async function resolveAnchors(names: string[], snap: boolean): Promise<LabelAnchors> {
+  if (names.length === 0) {
+    return { centers: new Map(), notFound: [] };
+  }
+  const { found, notFound } = await db.findLabelAnchors(names, snap);
+  return { centers: new Map(found.map((f) => [anchorKey(f.name), f.center])), notFound };
+}
+
 const setOrAddLabels: ApiHandler = async ({ type, p }) => {
   const inputs = records(p.labels, 'labels');
-  const wantNames = [...new Set(inputs.map((l) => l.fullname).filter((n): n is string => typeof n === 'string'))];
-  const { found, notFound } = wantNames.length ? await db.findLabelAnchors(wantNames) : { found: [], notFound: [] };
-  const centers = new Map(found.map((f) => [f.name.toLowerCase().replace(/^\//, ''), f.center]));
   const s = labelsState.get();
+  // `snap` is per label and defaults to the Labels panel's toggle, like the
+  // style fields below — validated up front so a bad flag fails before the
+  // (async) anchor lookups
+  const wants = inputs.map((l, i) => ({
+    l,
+    what: `labels[${i}]`,
+    snap: boolOpt(l.snap, `labels[${i}].snap`, s.snapToItem),
+  }));
+  const namesFor = (snap: boolean): string[] => [
+    ...new Set(
+      wants.filter((w) => w.snap === snap && typeof w.l.fullname === 'string').map((w) => String(w.l.fullname)),
+    ),
+  ];
+  const [plain, snapped] = await Promise.all([
+    resolveAnchors(namesFor(false), false),
+    resolveAnchors(namesFor(true), true),
+  ]);
   const items: SceneLabel[] = [];
-  for (const l of inputs) {
-    const text = typeof l.text === 'string' ? l.text : '';
+  for (const { l, what, snap } of wants) {
     let anchor: [number, number, number] | null = null;
     let fullname: string | null = null;
     if (typeof l.fullname === 'string') {
-      const c = centers.get(l.fullname.trim().toLowerCase().replace(/^\//, ''));
+      const c = (snap ? snapped : plain).centers.get(anchorKey(l.fullname));
       if (!c) {
         continue; // reported via missed
       }
@@ -50,14 +97,22 @@ const setOrAddLabels: ApiHandler = async ({ type, p }) => {
     }
     items.push({
       id: 0, // rebased by setAll
-      text,
+      // no text: label a tag by name alone, like the panel's tag import —
+      // `stripSlash` (panel toggle by default) drops the model's leading '/'
+      // from what is SHOWN, never from the fullname the label links to. A text
+      // the caller wrote is used exactly as given.
+      text: typeof l.text === 'string' ? l.text : deriveLabelText(fullname, l.stripSlash, s.importStripSlash),
       fullname,
       anchor,
-      offset: [0, 0],
+      // non-zero offset = the label sits away from its anchor, leader line drawn
+      offset: vec2Opt(l.offset, `${what}.offset`, [0, 0]),
       selected: false,
-      bg: s.bg,
-      opacity: s.opacity,
-      textColor: s.textColor,
+      // style: each field falls back to the panel's, like `sphere` below
+      bg: colorOpt(l.bg, `${what}.bg`, s.bg),
+      opacity: numOpt(l.opacity, `${what}.opacity`, s.opacity, { min: 0, max: 1 }),
+      textColor: colorOpt(l.textColor, `${what}.textColor`, s.textColor),
+      // null = follow the panel's leader colour (also the label's border)
+      leaderColor: colorOpt(l.leaderColor, `${what}.leaderColor`, null),
       // explicit marker (or `true` for the panel default); omitted = the panel style
       sphere: l.sphere === undefined ? s.sphere : readSphereMarker(l.sphere),
     });
@@ -65,7 +120,7 @@ const setOrAddLabels: ApiHandler = async ({ type, p }) => {
   const base = type === 'labels.set' ? [] : s.items;
   const combined = [...base, ...items].slice(0, MAX_LABELS);
   labelsActions.setAll(combined);
-  return { added: items.length, missed: notFound };
+  return { added: items.length, missed: [...new Set([...plain.notFound, ...snapped.notFound])] };
 };
 
 const MEASURE_KINDS = ['point', 'line', 'path', 'area', 'diameter', 'angle', 'face'] as const;
@@ -191,6 +246,7 @@ export const sceneHandlers: Record<string, ApiHandler> = {
       bg: l.bg,
       opacity: l.opacity,
       textColor: l.textColor,
+      leaderColor: l.leaderColor ?? null,
       sphere: l.sphere ?? null,
       muted: l.muted === true,
     })),

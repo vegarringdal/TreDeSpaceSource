@@ -13,7 +13,15 @@ const draft: ReportDef = {
   databases: ['sql_assets/main/meta.db'],
   filters: [
     { kind: 'INPUT', key: 'minSeverity', label: 'Min severity', value: '2' },
-    { kind: 'DROPDOWN', key: 'area', label: 'Area', searchValue: '%', dropdownSql: 'select id, name from areas', selected: ['a1'] },
+    {
+      kind: 'DROPDOWN',
+      key: 'area',
+      label: 'Area',
+      searchValue: '%',
+      dropdownSql: 'select id, name from areas',
+      selected: ['a1'],
+      single: true,
+    },
   ],
 };
 
@@ -54,6 +62,9 @@ describe('parseEditorDraft', () => {
     expect(parseEditorDraft({ filters: [{ label: 'no key' }] }).error).toBe('filters[0].key must be a non-empty string');
     expect(parseEditorDraft({ filters: [{ key: 'k', kind: 'RADIO' }] }).error).toBe('filters[0].kind must be INPUT or DROPDOWN');
     expect(parseEditorDraft({ filters: [{ key: 'k', selected: [1] }] }).error).toBe('filters[0].selected must be a string[]');
+    expect(parseEditorDraft({ filters: [{ key: 'k', single: 'yes' }] }).error).toBe(
+      'filters[0].single must be a boolean',
+    );
     expect(parseEditorDraft({ filters: [{ key: 'k', dropdownSql: 5 }] }).error).toBe('filters[0].dropdownSql must be a string');
     expect(parseEditorDraft({ filters: 'nope' }).error).toBe('filters must be an array');
   });

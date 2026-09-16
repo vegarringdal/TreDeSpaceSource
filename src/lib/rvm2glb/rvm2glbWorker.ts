@@ -108,7 +108,11 @@ const api = {
         return nextId;
       },
       // wasm reuses its linear memory after the call, so the chunk is copied
-      // once — straight into the buffer that is transferred to the writer
+      // once — straight into the buffer that is transferred to the writer.
+      // The length is read BEFORE the transfer: transferring detaches the
+      // buffer, and a view on a detached buffer reports length 0 — reading it
+      // after left `at` pinned at 0, so every chunk overwrote the first and
+      // close() reported an empty file.
       write: (handle: number, bytes: Uint8Array): void => {
         const out = outputs.get(handle);
         if (!out?.keep) {
@@ -116,8 +120,9 @@ const api = {
         }
         const copy = new Uint8Array(bytes);
         const buf = copy.buffer;
+        const len = copy.length;
         writer.postMessage({ name: out.name, at: out.at, bytes: buf }, [buf]);
-        out.at += copy.length;
+        out.at += len;
       },
       close: (handle: number): void => {
         const out = outputs.get(handle);

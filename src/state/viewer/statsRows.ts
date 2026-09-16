@@ -78,6 +78,15 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
       label: 'residency',
       value: res ? `${res.full} full / ${res.mixed} mixed / ${res.coarse} coarse / ${res.unloaded} unloaded` : NONE,
     },
+    {
+      key: 'newCap',
+      label: 'meshlets per frame (cap)',
+      // >= the cap means the budget deferred meshlets to the next frames
+      value:
+        st.newMeshletCap > 0
+          ? `${r.newVisibleWanted.toLocaleString()} wanted / ${st.newMeshletCap.toLocaleString()}`
+          : NONE,
+    },
     { key: 'jsHeap', label: 'js heap', value: `${mb(heap)} MB` },
     { key: 'frame', label: 'frame', value: r.idle ? 'idle' : 'rendering' },
     { key: 'fps', label: 'fps', value: r.idle ? NONE : r.fps.toFixed(0) },

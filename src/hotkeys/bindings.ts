@@ -44,7 +44,6 @@ import { callReportSetEditor, openSqlReportsPanel } from '../components/panels/s
 import { callTableAction, openSqlTablePanel } from '../components/panels/sql-table/sqlTablePanel';
 import { openViewpointsPanel, openViewpointViewerPanel } from '../components/panels/viewpoints/viewpointsPanel';
 import { openProductPage } from '../lib/productUrl';
-import { suggestVramBudgetMb } from '../lib/render/vramHint';
 import { storageKey } from '../lib/storageKeys';
 import { apiSecurityState } from '../state/apiSecurity.state';
 import { assetsActions } from '../state/assets/assets.actions';
@@ -82,6 +81,17 @@ function bump(field: keyof ViewerState, delta: number, lo: number, hi: number) {
 const NUM_SETTINGS = [
   { id: 'aaSamples', label: 'AA samples', field: 'aaSamples', step: 4, lo: 4, hi: 128, code: 450 },
   { id: 'cutSize', label: 'Cut size', field: 'pxCut', step: 1, lo: 1, hi: 32, code: 452 },
+  { id: 'cutSizeAlways', label: 'Always-on cut size', field: 'pxCutAlways', step: 1, lo: 0, hi: 8, code: 415 },
+  {
+    id: 'newMeshletCap',
+    label: 'New meshlets per frame',
+    field: 'newMeshletCap',
+    step: 25000,
+    lo: 0,
+    hi: 10000000,
+    code: 417,
+  },
+  { id: 'settleFrames', label: 'Frames after stop', field: 'settleFrames', step: 5, lo: 0, hi: 600, code: 404 },
   { id: 'protectDist', label: 'Protect distance', field: 'protectDist', step: 5, lo: 0, hi: 100000, code: 454 },
   { id: 'pickOpacity', label: 'Pick opacity threshold', field: 'pickOpacityPct', step: 0.5, lo: 0, hi: 100, code: 476 },
   { id: 'fpsLimit', label: 'FPS limit', field: 'fpsLimit', step: 5, lo: 5, hi: 240, code: 478 },
@@ -731,19 +741,6 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 449',
     description: 'Turn the VRAM budget on or off (the Max VRAM ceiling applies while on)',
     run: () => viewerState.set((p) => ({ vramBudgetOn: !p.vramBudgetOn })),
-  },
-  {
-    id: 'render.vramUseSuggested',
-    category: 'View',
-    label: 'VRAM budget: use the suggested budget',
-    defaultKeys: 'ALT + 448',
-    description: 'Set Max VRAM to the budget suggested for this GPU (integrated and mobile GPUs only)',
-    run: () => {
-      const mbSuggested = suggestVramBudgetMb(getRenderer()?.adapterHints ?? null);
-      if (mbSuggested !== null) {
-        viewerState.set({ maxVramMb: mbSuggested, vramBudgetOn: true });
-      }
-    },
   },
   // debug buffer (radio, codes 420..425)
   ...(['off', 'normal', 'depth', 'id', 'edge', 'ao'] as const).map((name, i) => ({
@@ -1940,6 +1937,15 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => openClipShapesPanel(),
   },
   {
+    id: 'transform.offOnSwitch',
+    category: 'Transform',
+    label: 'Transform: auto disable',
+    defaultKeys: 'ALT + 1226',
+    description:
+      'Toggle auto disable — whether leaving the Transform ribbon (another tab or a layout switch) disarms the gizmo, pivot placement and move-to-click',
+    run: () => tx.toggleOffOnRibbonSwitch(),
+  },
+  {
     id: 'measure.offOnSwitch',
     category: 'Measure',
     label: 'Measure: auto disable',
@@ -2446,6 +2452,15 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT + 1039',
     description: 'Open the Labels panel to replace all labels from a pasted list',
     run: () => openLabelsPanel(),
+  },
+  {
+    id: 'labels.import.stripSlash',
+    category: 'Labels',
+    label: 'Labels: label text without leading /',
+    defaultKeys: 'ALT + 1290',
+    description:
+      "Toggle whether imported tag labels show the model's leading “/” in their text (the linked fullname is unchanged)",
+    run: () => labelsActions.setImportStripSlash(!labelsState.get().importStripSlash),
   },
   {
     id: 'labels.import.snap',

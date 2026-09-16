@@ -359,12 +359,36 @@ export interface SphereMarker {
 }
 
 export interface LabelInput {
-  /** shown text — supports **bold** and newlines in rich mode */
-  text: string;
+  /** shown text — supports **bold** and newlines in rich mode. Omit it with a
+   *  `fullname` to label the item by its own name (what the panel's tag import
+   *  does); a point-anchored label without text is blank. */
+  text?: string;
   /** anchor to a model item by fullname (bounds centre)… */
   fullname?: string;
+  /** when the text comes from `fullname`, drop the model's leading '/' from
+   *  what is SHOWN — the label still links to the full name, so selection and
+   *  colouring match. Omitted = the Labels panel's "Label text without
+   *  leading /" toggle. Ignored when `text` is given. */
+  stripSlash?: boolean;
   /** …or at an explicit world-space point */
   anchor?: [number, number, number];
+  /** `fullname` anchors only: when the subtree's bounds centre falls in empty
+   *  air (a bent pipe run, an L-shaped assembly), anchor on the nearest child
+   *  item's centre instead; omitted = the Labels panel's "Snap to item" */
+  snap?: boolean;
+  /** background colour, `'#rrggbb'` or a CSS colour name; omitted = the
+   *  Labels panel's current style */
+  bg?: string;
+  /** text colour, same forms as `bg`; omitted = the panel style */
+  textColor?: string;
+  /** 0-1; omitted = the panel style */
+  opacity?: number;
+  /** screen-px displacement from the anchor — what dragging the label in the
+   *  viewport produces. Non-zero draws a leader line back to the anchor. */
+  offset?: [number, number];
+  /** leader-line (and border) colour for THIS label, same forms as `bg`;
+   *  omitted = the panel's leader colour */
+  leaderColor?: string;
   /** 3D sphere marker at the anchor; `true` = the Labels panel's current
    *  marker; omitted = the panel style (usually none); `null` = none */
   sphere?: SphereMarker | true | null;
@@ -388,6 +412,8 @@ export interface LabelInfo {
   bg: string;
   opacity: number;
   textColor: string;
+  /** per-label leader/border colour, or null when it follows the panel's */
+  leaderColor: string | null;
   sphere: SphereMarker | null;
   /** hidden in the viewport by the panel's per-label mute */
   muted: boolean;
@@ -539,6 +565,15 @@ export interface RenderingSettings {
   /** pixel-size cut while the camera moves (px) */
   pxCut: number;
   pxCutEnabled: boolean;
+  /** always-on floor for the pixel cut (px, 0 = off): meshlets that stay
+   *  under this projected radius are dropped with the camera at rest too */
+  pxCutAlways: number;
+  /** max meshlets the occlusion pass may newly draw in one frame (0 = no
+   *  cap) — spreads the frame after a mass unhide over several cheaper ones */
+  newMeshletCap: number;
+  /** frames to keep rendering after the view settles so a capped backlog
+   *  finishes arriving; AA frames count toward it, not on top (0 = off) */
+  settleFrames: number;
   /** cull + draw via vertex pulling (core WebGPU) instead of multi-draw indirect */
   vertexPull: boolean;
   /** pick threshold %: items at/above are clickable, below pass through */
@@ -710,8 +745,6 @@ export interface GpuInfo {
   /** system RAM in GB as the browser reports it (Chromium caps at 8), 0 when unknown */
   deviceMemoryGb: number;
   isMobile: boolean;
-  /** the VRAM budget the viewer would suggest for this adapter, null when it has no opinion */
-  suggestedVramBudgetMb: number | null;
 }
 
 export interface AssetInfo {
@@ -1138,6 +1171,23 @@ export interface SqlCheckEntry {
   md5?: string;
 }
 
+/** One statement of the script passed to {@link TredespaceClient.sqlCheck},
+ *  as it would actually run. */
+export interface SqlCheckStatement {
+  /** the statement text with comments stripped and whitespace trimmed — a
+   *  script that is nothing but comments yields no entries at all */
+  sql: string;
+  /** leading keyword, lower-cased: `'select'`, `'with'`, `'attach'`,
+   *  `'pragma'`, `'create'`, … (`''` when the statement starts with a
+   *  non-word character) */
+  kind: string;
+  /** expected to answer with a result set — the `select` / `with` / `values` /
+   *  `pragma` / `explain` forms, plus anything carrying `RETURNING` */
+  returnsRows: boolean;
+  /** the database path an `attach` statement references */
+  attach?: string;
+}
+
 export interface SqlStatementResult {
   /** column names, or null for a statement that returned no result set. */
   columns: string[] | null;
@@ -1211,7 +1261,9 @@ export type SqlReportType = 'TABLE' | 'COLORING' | 'DETAIL';
 /** One filter of the SQL Editor draft — the saved-report shape, richer than
  *  {@link SqlFilterInput}: INPUT holds its `value`; DROPDOWN holds the
  *  `dropdownSql` listing its options (`?` binds the search term, `searchValue`
- *  is the default bind, usually '%') and the `selected` ids. */
+ *  is the default bind, usually '%') and the `selected` ids. A `dropdownSql`
+ *  names its columns `id` and `label` — read by name, in any order; a query
+ *  naming neither is read positionally (first the id, second the text). */
 export interface SqlEditorFilter {
   kind: 'INPUT' | 'DROPDOWN';
   /** FILTER_ARGS.k — the SQL reads `select v from FILTER_ARGS where k='…'`. */
@@ -1221,6 +1273,9 @@ export interface SqlEditorFilter {
   searchValue?: string;
   dropdownSql?: string;
   selected?: string[];
+  /** DROPDOWN: one pick only instead of several; the value stays a list,
+   *  holding at most one id. Default multi. */
+  single?: boolean;
 }
 
 /** The SQL Editor's draft as {@link TredespaceClient.sqlEditorGet} returns it
@@ -1870,8 +1925,11 @@ export class TredespaceClient {
   }
 
   /** Replace all scene labels. Each label anchors either to a world-space
-   *  `anchor` point or to a `fullname` (the item's bounds centre); `missed`
-   *  lists fullnames that resolved to nothing. */
+   *  `anchor` point or to a `fullname` (the item's bounds centre, or the
+   *  nearest child item with `snap: true`); `missed` lists fullnames that
+   *  resolved to nothing. Colours (`bg`, `textColor`, `leaderColor`),
+   *  `opacity` and the leader-line `offset` are per label — each omitted one
+   *  falls back to the Labels panel's current style. */
   labelsSet(labels: LabelInput[]): Promise<Result<LabelsResult>> {
     return this.send('labels.set', { labels });
   }
@@ -2533,13 +2591,20 @@ export class TredespaceClient {
     }).finally(done);
   }
 
-  /** Pre-flight a SQL script WITHOUT running it: which databases does it
-   *  reference (the optional `mainDb` plus every `ATTACH DATABASE '…'`
-   *  literal, in appearance order), and are they present? Present entries
-   *  carry `size` / `modified` / `md5` (import-time hash of the delivered
-   *  bytes), so a host can compare against its manifest and `sqlImportUrl`
-   *  only the missing or outdated files before calling `sqlQuery`. */
-  sqlCheck(input: { sql: string; mainDb?: string }): Promise<Result<{ dbs: SqlCheckEntry[] }>> {
+  /** Pre-flight a SQL script WITHOUT running it. `dbs`: which databases it
+   *  references (the optional `mainDb` plus every `ATTACH DATABASE '…'`
+   *  literal, in appearance order) and whether they are present — present
+   *  entries carry `size` / `modified` / `md5` (import-time hash of the
+   *  delivered bytes), so a host can compare against its manifest and
+   *  `sqlImportUrl` only the missing or outdated files before calling
+   *  `sqlQuery`. `statements`: the statements the script would actually run,
+   *  comments stripped, each labelled with its leading keyword and whether it
+   *  answers with rows — enough to reject a script that writes, to count the
+   *  queries, or to tell "empty" from "only comments" before running it. */
+  sqlCheck(input: {
+    sql: string;
+    mainDb?: string;
+  }): Promise<Result<{ dbs: SqlCheckEntry[]; statements: SqlCheckStatement[] }>> {
     return this.send('sql.check', input);
   }
 

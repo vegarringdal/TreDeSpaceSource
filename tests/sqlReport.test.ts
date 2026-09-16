@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildReportStatements, detailScopedSql, filterArgsStatements } from '../src/lib/sqlite/sqlReport';
+import {
+  buildReportStatements,
+  detailScopedSql,
+  filterArgsStatements,
+  pickDropdownColumns,
+} from '../src/lib/sqlite/sqlReport';
 
 const base = { filters: [], sql: 'SELECT fullname FROM t' };
 
@@ -66,11 +71,48 @@ describe('filterArgsStatements — a dropdown\'s own search term', () => {
     ]);
   });
 
+  it('a single-select dropdown binds at most one id', () => {
+    const single = [{ ...filters[0], single: true }];
+    const ins = filterArgsStatements(single).find((s) => s.sql.startsWith('INSERT'));
+    expect(ins?.binding).toEqual([['arg1', 'old-1']]);
+  });
+
   it('the searched key carries the term instead of its selection', () => {
     const ins = filterArgsStatements(filters, { key: 'arg1', value: 'pum' }).find((s) => s.sql.startsWith('INSERT'));
     expect(ins?.binding).toEqual([
       ['arg1', 'pum'],
       ['arg2', 'elec'],
     ]);
+  });
+});
+
+describe('pickDropdownColumns — which column is the id', () => {
+  const pick = (cols: string[] | null) => pickDropdownColumns(cols);
+
+  it('reads named columns in any order', () => {
+    expect(pick(['label', 'id'])).toEqual({ idIdx: 1, labelIdx: 0 });
+    expect(pick(['id', 'label'])).toEqual({ idIdx: 0, labelIdx: 1 });
+  });
+
+  it('keeps the documented (id, value) pair', () => {
+    expect(pick(['id', 'value'])).toEqual({ idIdx: 0, labelIdx: 1 });
+    // `value` is the stored id only when `label` claims the shown text
+    expect(pick(['label', 'value'])).toEqual({ idIdx: 1, labelIdx: 0 });
+    expect(pick(['value', 'label'])).toEqual({ idIdx: 0, labelIdx: 1 });
+  });
+
+  it('falls back to the positional reading for unnamed columns', () => {
+    expect(pick(['tag_id', 'tag_name'])).toEqual({ idIdx: 0, labelIdx: 1 });
+    expect(pick(null)).toEqual({ idIdx: 0, labelIdx: 0 });
+  });
+
+  it('pairs a single named column with the first column left', () => {
+    expect(pick(['descr', 'id'])).toEqual({ idIdx: 1, labelIdx: 0 });
+    expect(pick(['a', 'b', 'label'])).toEqual({ idIdx: 0, labelIdx: 2 });
+    expect(pick(['id'])).toEqual({ idIdx: 0, labelIdx: 0 });
+  });
+
+  it('ignores case and surrounding blanks', () => {
+    expect(pick([' Label ', 'ID'])).toEqual({ idIdx: 1, labelIdx: 0 });
   });
 });

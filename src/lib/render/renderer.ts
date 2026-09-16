@@ -392,6 +392,15 @@ export class Renderer {
     pixelRatio: 1 as number | null,
     meshletVis: false, // per-meshlet debug colors
     pxCut: 0, // while moving, cull meshlets with projected radius < this many px (0 = off)
+    pxCutAlways: 0, // floor for the above, applied at rest as well (0 = off)
+    // max meshlets pass 2 may newly draw in ONE frame (0 = no cap): bounds the
+    // frame after a mass unhide, which would otherwise draw the whole model
+    // against an empty HZB in a single unpreemptible submit
+    newMeshletCap: 0,
+    // keep rendering this many frames after everything settles (camera stop,
+    // state change), so a capped backlog finishes arriving. AA frames count
+    // toward it — they are real scene frames, not extra ones.
+    settleFrames: 0,
     // pick rule (native mesh_pick): items at/above this opacity %% are clickable
     // and block clicks; below it clicks pass through. Shift inverts the band.
     pickOpacityPct: 10.1,
@@ -676,6 +685,17 @@ export class Renderer {
   // periodic draw-count readback for the HUD
   private statsBuf!: GPUBuffer;
   private statsInFlight = false;
+  private newBudgetBuf!: GPUBuffer;
+  private newBudgetReadBuf!: GPUBuffer;
+  private capReadInFlight = false;
+  /** meshlets pass 2 wanted to draw last resolved frame (>= the cap means the
+   *  budget turned some away and more frames are needed) */
+  newVisibleWanted = 0;
+  /** the cap deferred geometry: keep rendering until the backlog is drawn */
+  private capBacklog = false;
+  /** frameCounter when the scene last changed (camera included) — the settle
+   *  window is measured from here */
+  private keyChangeFrame = 0;
   private lastCountRead = 0;
   /** Per-slot drawn-meshlet counts from the last readback (~2 Hz, plus the
    *  first still frame after any scene change) — 0 means the model was
@@ -949,6 +969,18 @@ export class Renderer {
     this.statsBuf = dev.createBuffer({
       label: 'statsBuf',
       size: MAX_MODELS * COUNT_SLOT * COUNT_SLOTS,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    // newly-visible budget: one counter for the whole frame (every model's
+    // pass-2 dispatch shares it), plus its readback staging buffer
+    this.newBudgetBuf = dev.createBuffer({
+      label: 'newBudgetBuf',
+      size: 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+    });
+    this.newBudgetReadBuf = dev.createBuffer({
+      label: 'newBudgetReadBuf',
+      size: 4,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
 
@@ -2223,6 +2255,18 @@ export class Renderer {
     this.drawnResolvedT = this.lastCountRead;
   }
 
+  /** Read back how many meshlets pass 2 WANTED to draw. At or above the cap
+   *  the budget turned some away, so the backlog keeps the renderer out of
+   *  idle until a frame comes in under it. */
+  private async resolveCapBudget() {
+    await this.newBudgetReadBuf.mapAsync(GPUMapMode.READ, 0, 4);
+    this.newVisibleWanted = new Uint32Array(this.newBudgetReadBuf.getMappedRange(0, 4))[0];
+    this.newBudgetReadBuf.unmap();
+    this.capReadInFlight = false;
+    const cap = Math.max(0, Math.floor(this.options.newMeshletCap));
+    this.capBacklog = cap > 0 && this.newVisibleWanted >= cap;
+  }
+
   // (Re)create depth / offscreen color / MSAA targets, the HZB pyramid and the
   // dependent bind groups for the current canvas size and MSAA setting. The
   // post-side targets (AO, TAA history) come along via rebuildPostTargets,
@@ -2403,6 +2447,7 @@ export class Renderer {
       entries: [
         { binding: 0, resource: { buffer: this.paramsBuf } },
         { binding: 1, resource: this.hzb.createView() },
+        { binding: 2, resource: { buffer: this.newBudgetBuf } },
         { binding: 3, resource: { buffer: this.clipBuf } },
       ],
     });
@@ -2412,6 +2457,7 @@ export class Renderer {
       entries: [
         { binding: 0, resource: { buffer: this.paramsBuf } },
         { binding: 1, resource: this.hzb.createView() },
+        { binding: 2, resource: { buffer: this.newBudgetBuf } },
         { binding: 3, resource: { buffer: this.clipBuf } },
       ],
     });
@@ -2492,7 +2538,10 @@ export class Renderer {
     if (moving) {
       this.lastMoveT = performance.now();
     }
-    const pxCut = moving || this.wasMoving ? opt.pxCut : 0;
+    // the always-on cut is a FLOOR: at rest it is the whole cut, while moving
+    // the (larger) movement cut takes over — never less than the floor, or
+    // coming to a stop would draw MORE than the moving frames did
+    const pxCut = moving || this.wasMoving ? Math.max(opt.pxCut, opt.pxCutAlways) : opt.pxCutAlways;
     this.wasMoving = moving;
     const key =
       `${vpKey};${pxCut};${opt.meshletVis};${opt.protectDist};` +
@@ -2546,6 +2595,11 @@ export class Renderer {
       this.traceKeyChange(this.lastKey, key);
     }
 
+    // frames rendered since the last change of any kind, the camera coming to
+    // a stop included: the window a capped backlog gets to finish arriving in.
+    // Accumulation frames COUNT toward it — they already redraw the scene, so
+    // AA never adds frames on top of the window.
+    const settled = this.frameCounter - this.keyChangeFrame >= Math.max(0, Math.floor(opt.settleFrames));
     let hold = false;
     if (key === this.lastKey) {
       const taaConverged = holdAccum || !opt.fastAA || this.accumIdx >= this.aaMax - 1;
@@ -2553,10 +2607,14 @@ export class Renderer {
       if (
         taaConverged &&
         aoConverged &&
+        settled &&
         !this.pendingPick &&
         !this.pendingSnap &&
         !this.itemPick.hasPending &&
-        !outlineWork
+        !outlineWork &&
+        // the cap deferred meshlets: more frames are owed before the scene is
+        // complete (a late readback re-arms this and the next tick renders)
+        !this.capBacklog
       ) {
         this.idle = true;
         this.frames = 0;
@@ -2569,11 +2627,15 @@ export class Renderer {
       if (!aoConverged && opt.aoMode !== 0) {
         this.aoAccum++;
       }
-      hold = usePost && taaConverged && aoConverged;
+      // a held frame re-presents the accumulation and encodes NOTHING
+      // scene-side, so it can neither drain a capped backlog nor advance the
+      // settle window — both keep the full path
+      hold = usePost && taaConverged && aoConverged && settled && !this.capBacklog;
     } else {
       this.accumIdx = 0; // scene changed: restart accumulation
       this.aoAccum = 0;
       this.accumResets++;
+      this.keyChangeFrame = this.frameCounter;
     }
     this.lastKey = key;
     this.idle = false;
@@ -2692,6 +2754,7 @@ export class Renderer {
       pf[55] = this.camera.orthoFar;
       new Uint32Array(params)[56] = sortActive ? 1 : 0;
       pf[57] = this.sortFar(eye);
+      new Uint32Array(params)[58] = Math.max(0, Math.floor(opt.newMeshletCap));
       dev.queue.writeBuffer(this.paramsBuf, 0, params);
     }
 
@@ -2903,6 +2966,7 @@ export class Renderer {
       const vp = cullMode === 'vp';
       if (cullActive) {
         enc.clearBuffer(this.countsBuf, 0, this.models.length * COUNT_SLOT * COUNT_SLOTS);
+        enc.clearBuffer(this.newBudgetBuf);
         if (sortActive) {
           for (const m of this.models) {
             if (!m.dead && m.meshletCount > 0) {
@@ -3092,6 +3156,14 @@ export class Renderer {
       statsBytes = this.models.length * COUNT_SLOT * COUNT_SLOTS;
       enc.copyBufferToBuffer(this.countsBuf, 0, this.statsBuf, 0, statsBytes);
     }
+    // the cap's own readback is NOT throttled like the stats: it decides
+    // whether meshlets are still owed, so it runs every frame the cap is on
+    let capRead = false;
+    if (cullActive && opt.newMeshletCap > 0 && !this.capReadInFlight) {
+      this.capReadInFlight = true;
+      capRead = true;
+      enc.copyBufferToBuffer(this.newBudgetBuf, 0, this.newBudgetReadBuf, 0, 4);
+    }
 
     const itemPickJob = this.itemPick.encode(
       enc,
@@ -3120,6 +3192,12 @@ export class Renderer {
     snapJob?.();
     itemPickJob?.();
     tsJob?.();
+    if (capRead) {
+      this.resolveCapBudget().catch(() => (this.capReadInFlight = false));
+    } else if (opt.newMeshletCap <= 0) {
+      this.capBacklog = false;
+      this.newVisibleWanted = 0;
+    }
     if (statsBytes > 0) {
       // vp mode: the counter is instanceCount, word 1 of the args block
       this.resolveStats(statsBytes, cullMode === 'vp' ? 1 : 0).catch(() => (this.statsInFlight = false));

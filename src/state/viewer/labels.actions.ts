@@ -293,9 +293,10 @@ export const labelsActions = {
     labelsState.set({ undoDepth: undoStack.length, redoDepth: 0 });
   },
 
-  /** Apply the panel style (bg / opacity / text colour / sphere marker) to the
-   *  selected labels, and remember it for the next ones. */
-  setStyle(patch: Partial<Pick<SceneLabel, 'bg' | 'opacity' | 'textColor' | 'sphere'>>) {
+  /** Apply the panel style (bg / opacity / text colour / leader colour /
+   *  sphere marker) to the selected labels, and remember it for the next
+   *  ones. */
+  setStyle(patch: Partial<Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'leaderColor' | 'sphere'>>) {
     labelsState.set(patch);
     const items = labelsState.get().items;
     if (items.some((l) => l.selected)) {
@@ -331,9 +332,10 @@ export const labelsActions = {
   },
 
   setLeaderColor(leaderColor: string) {
+    this.setStyle({ leaderColor });
     // version bump: label BORDERS follow the leader colour and only restyle
     // on rebuild (leader lines themselves redraw every frame)
-    labelsState.set((s) => ({ leaderColor, version: s.version + 1 }));
+    labelsState.set((s) => ({ version: s.version + 1 }));
   },
 
   setRichText(richText: boolean) {
@@ -347,6 +349,11 @@ export const labelsActions = {
   /** Tag-import store scope ('' = resolve across all stores). */
   setImportStore(importStore: string) {
     labelsState.set({ importStore });
+  },
+
+  /** Tag import: show the label text without the model's leading '/'. */
+  setImportStripSlash(importStripSlash: boolean) {
+    labelsState.set({ importStripSlash });
   },
 
   undo() {
@@ -536,7 +543,7 @@ export const labelsActions = {
     if (names.length === 0) {
       return [];
     }
-    const { snapToItem, importStore } = labelsState.get();
+    const { snapToItem, importStore, importStripSlash } = labelsState.get();
     const onlyModels = importStore ? await loadedIndicesForStore(importStore) : undefined;
     const { found, notFound } = await db.findLabelAnchors(names, snapToItem, onlyModels);
     const s = labelsState.get();
@@ -556,7 +563,9 @@ export const labelsActions = {
       ...base,
       ...fresh.slice(0, Math.max(0, room)).map((f) => ({
         id: nextId++,
-        text: f.name,
+        // the TEXT may drop the leading '/'; `fullname` keeps the model's real
+        // name, so selection, colouring and viewpoints still resolve
+        text: importStripSlash ? f.name.replace(/^\//, '') : f.name,
         fullname: f.name,
         anchor: f.center,
         offset: [0, 0] as [number, number],

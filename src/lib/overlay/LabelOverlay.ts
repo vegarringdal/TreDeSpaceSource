@@ -74,7 +74,8 @@ export class LabelOverlay {
       node.style.left = `${x}px`;
       node.style.top = `${y}px`;
       if (l.offset[0] !== 0 || l.offset[1] !== 0) {
-        lines += `<line x1="${at[0]}" y1="${at[1]}" x2="${x}" y2="${y}" stroke="${s.leaderColor}" stroke-width="1.5"/><circle cx="${at[0]}" cy="${at[1]}" r="2.5" fill="${s.leaderColor}"/>`;
+        const c = l.leaderColor ?? s.leaderColor;
+        lines += `<line x1="${at[0]}" y1="${at[1]}" x2="${x}" y2="${y}" stroke="${c}" stroke-width="1.5"/><circle cx="${at[0]}" cy="${at[1]}" r="2.5" fill="${c}"/>`;
       }
     }
     if (this.svg.innerHTML !== lines) {
@@ -103,7 +104,7 @@ export class LabelOverlay {
       node.style.color = l.textColor;
       node.style.opacity = String(l.opacity);
       // unselected border matches the leader-line colour (selection = black dash)
-      node.style.border = l.selected ? '1.5px dashed #000000' : `1px solid ${leaderColor}`;
+      node.style.border = l.selected ? '1.5px dashed #000000' : `1px solid ${l.leaderColor ?? leaderColor}`;
       node.style.whiteSpace = rich ? 'normal' : 'pre';
     }
     for (const [id, node] of this.nodes) {

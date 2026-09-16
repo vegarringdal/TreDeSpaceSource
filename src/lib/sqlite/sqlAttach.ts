@@ -78,6 +78,41 @@ export function parseAttachPaths(sql: string): string[] {
   return out;
 }
 
+/** One statement of a script as `sql.check` reports it. */
+export interface ParsedStatement {
+  /** the statement as it would RUN — comments stripped, trimmed */
+  sql: string;
+  /** leading keyword, lower-cased: `select`, `with`, `attach`, `pragma`, … */
+  kind: string;
+  /** expected to produce a result set (the forms SQLite answers with rows) */
+  returnsRows: boolean;
+  /** the database path, for an `attach` statement */
+  attach?: string;
+}
+
+/** Statement forms that answer with a result set. `pragma` and `explain` do
+ *  too; `insert`/`update`/`delete` only with a RETURNING clause, which is why
+ *  that is tested separately. */
+const ROW_KINDS = new Set(['select', 'with', 'values', 'pragma', 'explain']);
+const RETURNING_RE = /\breturning\b/i;
+
+/** Break a script into the statements it would run, as {@link splitSqlStatements}
+ *  does, and label each one: its leading keyword, whether it answers with rows,
+ *  and the path of an ATTACH. Comments are gone by construction — a script that
+ *  is nothing but comments yields an empty list. */
+export function parseStatements(sql: string): ParsedStatement[] {
+  return splitSqlStatements(sql).map((text) => {
+    const kind = (text.match(/^[a-z]+/i)?.[0] ?? '').toLowerCase();
+    const attach = kind === 'attach' ? parseAttachPaths(text)[0] : undefined;
+    return {
+      sql: text,
+      kind,
+      returnsRows: ROW_KINDS.has(kind) || RETURNING_RE.test(text),
+      ...(attach ? { attach } : {}),
+    };
+  });
+}
+
 /** Split a script into statements on top-level `;` (comments and literals are
  *  respected). Empty fragments are dropped. */
 export function splitSqlStatements(sql: string): string[] {

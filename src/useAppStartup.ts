@@ -17,6 +17,7 @@ import {
 } from './components/panels/ribbon-external/externalPanels';
 import { registerKioskToggle, registerSoloToggle } from './components/panels/ribbon-home/soloPanels';
 import { ribbonMeasurementsActions } from './components/panels/ribbon-measurements/ribbonMeasurements.actions';
+import { ribbonSelectionTransformActions } from './components/panels/ribbon-selection-transform/ribbonSelectionTransform.actions';
 import { registerSqlAssetsOpener } from './components/panels/sql-assets/sqlAssetsPanel';
 import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
 import {
@@ -222,9 +223,10 @@ export function useAppStartup(manager: DockManager): void {
         const next = findTopTabs(manager.saveLayout().root)?.activePanel;
         noteActiveRibbon(next);
         if (next !== activeRibbon) {
-          // leaving the Measurements ribbon disarms its tool ("Off when
-          // ribbon switch", default on)
+          // leaving the Measurements or Transform ribbon disarms what it had
+          // armed ("Auto disable", default on for both)
           ribbonMeasurementsActions.ribbonChanged(activeRibbon, next);
+          ribbonSelectionTransformActions.ribbonChanged(activeRibbon, next);
           activeRibbon = next;
         }
       } catch {
@@ -239,6 +241,7 @@ export function useAppStartup(manager: DockManager): void {
       if (sel !== selectedSlot) {
         selectedSlot = sel;
         ribbonMeasurementsActions.layoutSwitched();
+        ribbonSelectionTransformActions.layoutSwitched();
       }
     });
     return () => {

@@ -1,4 +1,11 @@
-import { IconCrosshair, IconFocusCentered, IconLock, IconRestore, IconX } from '@tabler/icons-react';
+import {
+  IconArrowsExchange,
+  IconCrosshair,
+  IconFocusCentered,
+  IconLock,
+  IconRestore,
+  IconX,
+} from '@tabler/icons-react';
 import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { selectionState } from '../../../state/viewer/selection.state';
 import { ribbonSelectionTransformActions as act } from './ribbonSelectionTransform.actions';
@@ -81,6 +88,17 @@ export function TransformGizmoGroups() {
             />
           </>
         )}
+      </RibbonSection>
+
+      <RibbonSection title="Options">
+        <RibbonButton
+          icon={<IconArrowsExchange />}
+          label="Auto disable"
+          selected={s.offOnRibbonSwitch}
+          tooltip="Automatically disarm the gizmo, pivot placement and move-to-click when you leave this ribbon: switching to another ribbon tab, or changing layout via the Layout ribbon or the F-keys. Keeps a mode that reacts to viewport clicks from staying armed while you work elsewhere. A locked pivot is kept — it is a position, not a mode. Default on."
+          shortcut="transform.offOnSwitch"
+          onClick={() => act.toggleOffOnRibbonSwitch()}
+        />
       </RibbonSection>
     </>
   );

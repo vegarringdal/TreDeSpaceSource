@@ -60,7 +60,7 @@ struct CullParams {
   ortho_far: f32,
   sort_mode: u32,    // 1 = route transparent meshlets to the sorted blend list
   sort_far: f32,     // perspective sort-key range end (view depth from the eye)
-  pad0: f32,
+  new_cap: u32,      // max meshlets pass 2 may newly draw in one frame (0 = no cap)
   pad1: f32,
 };
 
@@ -357,6 +357,9 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
 
 const CULL2_BODY = /* wgsl */ `
 @group(1) @binding(1) var hzb: texture_2d<f32>;
+// per-frame budget for NEWLY visible meshlets, shared by every model's pass-2
+// dispatch and cleared before the pass (see new_cap)
+@group(1) @binding(2) var<storage, read_write> new_budget: atomic<u32>;
 
 // Conservative screen-space AABB of a view-space sphere (niagara's
 // projectSphere). c.z is positive distance in front of the camera.
@@ -377,6 +380,17 @@ fn project_sphere(c: vec3f, r: f32, aabb: ptr<function, vec4f>) -> bool {
   );
   box = box.xwzy * vec4f(0.5, -0.5, 0.5, -0.5) + vec4f(0.5); // clip -> uv
   *aabb = box;
+  return true;
+}
+
+/** Draw a meshlet that was NOT visible last frame, charging it to this
+ *  frame's budget. Over budget it is skipped and reported as not drawn — the
+ *  caller then leaves its visibility bit clear. new_cap 0 = no budget. */
+fn emit_new(m: MeshletCull, i: u32) -> bool {
+  if (params.new_cap > 0u && atomicAdd(&new_budget, 1u) >= params.new_cap) {
+    return false;
+  }
+  emit(m, i);
   return true;
 }
 
@@ -445,8 +459,12 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // wrongly occlude (same rule as native cull.slang)
   let moved = tid != 0u || live;
   let visible = frustum_cone_visible(m, moved) && (moved || occlusion_visible(m));
-  if (visible && vis[i] == 0u) { emit(m, i); } // not drawn in pass 1
-  vis[i] = select(0u, 1u, visible);
+  var drawn = vis[i] == 1u; // already drawn in pass 1, never charged again
+  if (visible && !drawn) { drawn = emit_new(m, i); }
+  // a meshlet the budget turned away stays "not yet drawn", so the next frame
+  // retests it against a HZB that now holds what DID get drawn — most of the
+  // backlog is genuinely occluded by then instead of arriving all at once
+  vis[i] = select(0u, 1u, visible && drawn);
 }
 `;
 

@@ -17,7 +17,12 @@ import type { ColorRuleSpec } from '../../lib/modeldb/modeldbWorker';
 import { readJson, sqlStoreDir, writeJson } from '../../lib/opfs/opfs';
 import { sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements, stripSqlComments } from '../../lib/sqlite/sqlAttach';
-import { buildReportStatements, filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
+import {
+  buildReportStatements,
+  filterArgsStatements,
+  pickDropdownColumns,
+  treeViewArgsStatements,
+} from '../../lib/sqlite/sqlReport';
 import type { Statement } from '../../lib/sqlite/types';
 import { killHint } from '../sqlAssets/sqlKillHint';
 import { viewerActions } from '../viewer/viewer.actions';
@@ -360,8 +365,10 @@ export const sqlReportsActions = {
     consoleActions.log('warn', `Reports: deleted "${report.name}"`);
   },
 
-  /** Options for a DROPDOWN `filter`: its `dropdownSql` (≤25 rows, first two
-   *  columns id + value) with `?` bound to the search term — `query`, or the
+  /** Options for a DROPDOWN `filter`: its `dropdownSql` (≤25 rows; the id and
+   *  the shown text picked by {@link pickDropdownColumns} — named `id` /
+   *  `label` columns in any order, else the first two positionally) with `?`
+   *  bound to the search term — `query`, or the
    *  filter's `searchValue` (usually '%') while the box is empty. Runs with
    *  the same scratch tables a report run gets, rebuilt on every call:
    *  FILTER_ARGS from the report's current filter values (the editor's draft
@@ -399,7 +406,8 @@ export const sqlReportsActions = {
     // the dropdown select is the LAST statement (setup ATTACHes precede it)
     const last = (result.data?.length ?? 0) - 1;
     const rows = (last >= 0 ? (result.data?.[last] as unknown[][]) : []) ?? [];
-    return rows.map((r) => ({ value: String(r[0]), label: String(r[1] ?? r[0]) }));
+    const { idIdx, labelIdx } = pickDropdownColumns(last >= 0 ? result.columns?.[last] : null);
+    return rows.map((r) => ({ value: String(r[idIdx]), label: String(r[labelIdx] ?? r[idIdx]) }));
   },
 
   // -----------------------------------------------------------------------------

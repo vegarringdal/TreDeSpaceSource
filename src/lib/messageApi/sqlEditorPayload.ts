@@ -57,6 +57,12 @@ function parseFilter(v: unknown, i: number): ReportFilter {
     }
     f[field] = val;
   }
+  if (v.single !== undefined) {
+    if (typeof v.single !== 'boolean') {
+      throw new PayloadError(`filters[${i}].single must be a boolean`);
+    }
+    f.single = v.single;
+  }
   if (v.selected !== undefined) {
     if (!Array.isArray(v.selected) || v.selected.some((x) => typeof x !== 'string')) {
       throw new PayloadError(`filters[${i}].selected must be a string[]`);

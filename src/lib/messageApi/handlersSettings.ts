@@ -19,7 +19,6 @@ import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { initialViewerState, type ViewerState, viewerState } from '../../state/viewer/viewer.state';
 import { pickViewer, SETTINGS_TAB_KEYS } from '../../state/viewer/viewerSettingsGroups';
 import { probeAdapters, sameAdapter } from '../render/gpuProbe';
-import { suggestVramBudgetMb } from '../render/vramHint';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
 import { validateViewerPatch } from './settingsPatch';
 
@@ -134,7 +133,6 @@ export const settingsHandlers: Record<string, ApiHandler> = {
       limits: r.adapterLimits,
       deviceMemoryGb: r.adapterHints.deviceMemoryGb,
       isMobile: r.adapterHints.isMobile,
-      suggestedVramBudgetMb: suggestVramBudgetMb(r.adapterHints),
     };
   },
 };

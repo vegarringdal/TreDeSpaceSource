@@ -19,6 +19,7 @@ export const VIEWER_STORAGE_NAMES = [
   'quickColors',
   'ribbonColor',
   'ribbonMeasurements',
+  'ribbonSelectionTransform',
   'pickerSwatches',
   'gizmoLabels',
   'globalReset',

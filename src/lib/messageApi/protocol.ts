@@ -3,6 +3,7 @@
 // the envelope routing live in wire.ts (no app imports, unit-tested) and are
 // re-exported here so handlers keep one import.
 import { storeExists } from '../../state/stores/stores.state';
+import { colorToHex } from '../color/hexColor';
 import { ApiError, isRecord } from './wire';
 
 export { ApiError, type ApiErrorCode, isRecord, PROTOCOL } from './wire';
@@ -59,6 +60,20 @@ export function strOpt(v: unknown, what: string, fallback: string, max = 1024): 
   return v === undefined || v === null ? fallback : str(v, what, max);
 }
 
+/** Optional colour: `undefined` / `null` → `fallback`, a `'#rrggbb'` code or a
+ *  CSS colour name → canonical lowercase hex. The fallback types the result,
+ *  so `null` expresses "follow the panel style". */
+export function colorOpt<T extends string | null>(v: unknown, what: string, fallback: T): string | T {
+  if (v === undefined || v === null) {
+    return fallback;
+  }
+  const hex = typeof v === 'string' ? colorToHex(v) : null;
+  if (hex === null) {
+    throw new ApiError('bad-payload', `${what} must be a '#rrggbb' hex colour or a CSS colour name`);
+  }
+  return hex;
+}
+
 export function boolOpt(v: unknown, what: string, fallback: boolean): boolean {
   if (v === undefined || v === null) {
     return fallback;
@@ -90,6 +105,14 @@ export function vec3Opt(
   fallback: readonly [number, number, number],
 ): [number, number, number] {
   return v === undefined || v === null ? [fallback[0], fallback[1], fallback[2]] : vec3(v, what);
+}
+
+export function vec2Opt(v: unknown, what: string, fallback: readonly [number, number]): [number, number] {
+  if (v === undefined || v === null) {
+    return [fallback[0], fallback[1]];
+  }
+  const [x, y] = numTuple(v, what, 2);
+  return [x, y];
 }
 
 export function quat(v: unknown, what: string): [number, number, number, number] {

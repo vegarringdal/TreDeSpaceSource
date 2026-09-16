@@ -4,6 +4,143 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.16** (>0.0.123):
+  The same over the API: `labels.set` / `labels.add` take a label with NO
+  `text` — it is labelled by its own `fullname`, the way the panel's tag import
+  does — and `stripSlash` (defaulting to the panel toggle) drops the leading
+  “/” from what is shown. So a host can now write
+  `labelsAdd(tags.map((fullname) => ({ fullname })))` instead of repeating the
+  name in every entry. A `text` that IS sent is used verbatim.
+
+- **2026.09.16** (>0.0.123):
+  Tag import can drop the leading “/” from the label text. Labels → Import tags
+  gained "Label text without leading /": the label reads `A-82BB010A-509-Q01`
+  instead of `/A-82BB010A-509-Q01`, while the label stays linked to the model's
+  real fullname — so selection, colouring, "Selected to viewpoints" and a later
+  `labels.get` round-trip all still resolve. Off by default, with a hotkey like
+  the snap option beside it.
+
+- **2026.09.16** (>0.0.123):
+  `sql.check` now also reports the statements. Alongside `dbs` it answers with
+  `statements`: the script broken into what it would actually RUN — comments
+  stripped, split on top-level `;` with string literals respected — each entry
+  carrying its `sql`, the lower-cased leading `kind` keyword, `returnsRows`
+  (the select / with / values / pragma / explain forms, plus anything with a
+  RETURNING clause) and, for an ATTACH, the `attach` path. A host can now count
+  the queries, refuse a script that writes, or tell "empty" from "only
+  comments" without running anything. Same parser the runner locks with, so the
+  pre-flight and the run agree by construction.
+
+- **2026.09.16** (>0.0.123):
+  RVM import wrote empty files. The streaming writer reads each chunk's length
+  from the copy it has just TRANSFERRED to the writer worker — and transferring
+  detaches the buffer, so the view reports length 0. The running offset never
+  advanced: every chunk landed at offset 0, `close` reported a size of 0 and
+  the writer truncated each output to nothing. An import therefore "succeeded"
+  with a cooked file of 0 bytes, then failed with "could not read
+  status_file.json: Unexpected end of JSON input" and "Offset is outside the
+  bounds of the DataView". Length is now read before the transfer. The
+  converter itself was never at fault — with the app's options the core emits
+  351 665 bytes for HA-INST.RVM, and the RVM direct-cook parity test passes.
+
+- **2026.09.16** (>0.0.122):
+  The Transform ribbon got "Auto disable", the option the Measurements ribbon
+  already had. Leaving the ribbon — another tab, or a layout switch from the
+  Layout ribbon or the F-keys — disarms everything on it that reacts to a
+  viewport click: the gizmo, pivot placement, Item Pivot and move-to-click.
+  Without it a one-shot like move-to-click stays armed invisibly while you work
+  elsewhere, and the next click in the 3D view moves the selection. A LOCKED
+  pivot is kept, being a position rather than a mode. Default on, persisted per
+  browser, with a hotkey like its Measurements twin.
+
+- **2026.09.16** (>0.0.122):
+  A frame can no longer be asked to draw the whole model at once. Unhiding a
+  lot in one go (select all → Hide → Unhide, Clear all overrides, an opacity
+  reset) makes every meshlet visible against a depth pyramid that holds
+  NOTHING — occlusion culling has nothing to cull against, so the next frame
+  rasterises the entire scene in a single unpreemptible submit. On a 6M-meshlet
+  model that is enough to hang the GPU. Settings → Rendering → Culling →
+  "Meshlets per frame" (`newMeshletCap`, **default 175 000**; 0 = no cap) bounds
+  how many
+  the occlusion pass may newly draw in one frame: the rest keep their "not yet
+  drawn" bit and are retested next frame, when the pyramid holds what did get
+  drawn and most of the backlog is genuinely occluded — so it converges in a
+  few frames, each cheaper than the last, instead of one frame that never
+  finishes. The renderer stays out of idle while a backlog exists (a 4-byte
+  readback per frame while the cap is on), and the stats gained a "meshlets per
+  frame (cap)" row showing wanted vs cap, so a machine's cap can be measured
+  rather than guessed. Alongside it, "Frames after stop" (`settleFrames`,
+  default 20) keeps the renderer working for a set number of frames once the
+  view settles, so a deferred backlog finishes arriving even if the readback
+  lags; accumulation frames count toward that window instead of adding to it,
+  so turning AA on does not multiply the work. A converged frame that would
+  have been HELD (post re-presented, nothing scene-side encoded) now takes the
+  full path while a backlog or the settle window is outstanding — held frames
+  draw no geometry, so they could never have drained one. Both defaults are
+  picked to be reached only by the pathological frame: orbiting, selecting and
+  colouring never approach the cap, since none of them alter visibility, and
+  with TAA on its 32 accumulation frames absorb the settle window whole.
+
+- **2026.09.16** (>0.0.122):
+  The pixel cut can stay on at rest. Until now sub-pixel meshlets were dropped
+  only while the camera moved (`pxCut`, 6 px) and came back the moment it
+  stopped, so a frame at rest draws every cluster in the frustum however small
+  it lands on screen. The new "Always cut" (`pxCutAlways`, default 1 px, 0 =
+  off) is a FLOOR under that cut: a cluster whose projected radius stays below
+  it is skipped at rest too, and the moving cut simply raises the floor — so
+  coming to a stop can no longer draw MORE than the moving frames did.
+  `protectDist` still shields near geometry, and the key is on
+  `settings.rendering.set` with a hotkey stepper like the others. Motivation:
+  a mass unhide (select all → Hide → J / Alt+R) makes every item visible in one
+  frame with an empty HiZ, which hangs the GPU on the machines that cannot
+  absorb it; dropping what is smaller than a pixel takes the worst of that
+  frame away.
+
+- **2026.09.16** (>0.0.122):
+  The VRAM budget suggestion is gone. WebGPU cannot see a GPU's VRAM, so the
+  number was a guess from system RAM — and on the machines that need a ceiling
+  most it guessed 4 GB+, the opposite of helpful. Removed: the "Suggested … MB
+  for this GPU" row with its Use button, the `render.vramUseSuggested` hotkey,
+  the `suggestVramBudgetMb` heuristic and the `suggestedVramBudgetMb` field of
+  `gpu.info.get` (a breaking change for a host that read it). Max VRAM stays a
+  plain number the user sets; `deviceMemoryGb` and `isMobile` still ship in the
+  GPU info for a host that wants to reason about it itself.
+
+- **2026.09.16** (>0.0.122):
+  A report's dropdown filter can be single-select. New `single` flag on a
+  DROPDOWN filter (checkbox in the filter editor, `single` on the `sql.editor`
+  draft): the run-time picker then takes ONE option and closes, instead of
+  collecting several. The value stays a list of ids, so the SQL contract is
+  unchanged — a single-select filter simply seeds at most one FILTER_ARGS row,
+  enforced when the statements are built so a host-set draft can't smuggle in
+  more. Default is multi, as before.
+
+- **2026.09.16** (>0.0.122):
+  A report's dropdown SQL is read by column NAME. The options query mapped its
+  result positionally — first column the id, second the shown text — so
+  `select '10%' as label, '10' as id` fed the LABEL into FILTER_ARGS and showed
+  the id in the list, with nothing to warn you. Columns named `id` and `label`
+  now decide, whichever order they come in (`value` still names the shown text,
+  as the old "(id, value)" contract had it, unless a `label` column claims that
+  side). A query naming neither column keeps the positional reading, so reports
+  written before this resolve unchanged.
+
+- **2026.09.16** (>0.0.122):
+  Scene labels placed over the client API carry their own look. `labels.set` /
+  `labels.add` take `bg`, `textColor`, `opacity` and `leaderColor` per label
+  (hex or a CSS colour name) plus an `offset` in screen px, which is what draws
+  the leader line back to the anchor — a host can now lay out an annotated view
+  in one call instead of placing labels and asking the user to drag and restyle
+  them. `snap: true` resolves a `fullname` to the nearest child item when the
+  subtree's bounds centre falls in empty air (bent pipe runs, L-shaped
+  assemblies), the same rule the Labels panel's "Snap to item" applies to tag
+  imports; omitted, each label follows that toggle. Every omitted field still
+  falls back to the panel's current style, so existing payloads are unchanged.
+  The leader colour became a per-label value: `labels.get` reports it (null =
+  follows the panel) and the panel's "Leader line" picker now applies to the
+  selected labels, like the other Style rows. The demo playground got a
+  "labels.add (styled + snap)" button that sends the whole shape.
+
 - **2026.09.15** (>0.0.121):
   Clicking no longer replays the whole scene. Item picking rendered the entire
   geometry a SECOND time through the pick pipelines just to read one texel —

@@ -326,6 +326,21 @@ response: { count: 3, fullnames: ['/SITE/AREA-1/LINE-01/PIPE-01'],
 ### labels.set / labels.add
 Replace / append scene labels. Two anchor forms: a world-space point, or a
 `fullname` (anchored to the item's bounds center — the tag-import path).
+Leaving `text` out labels the item by its own fullname, exactly as the panel's
+tag import does; `stripSlash` then drops the model's leading `/` from what is
+SHOWN (the label still links to the full name, so selection and colouring
+match) and defaults to the panel's "Label text without leading /" toggle. A
+`text` you send is used verbatim. With
+`snap: true` a `fullname` whose subtree center falls in empty air (a bent pipe
+run, an L-shaped assembly) anchors on the nearest child item's center instead;
+omitted, it follows the Labels panel's "Snap to item" toggle.
+
+Every style field is per label and falls back to the panel's current style
+when omitted: `bg` and `textColor` (`'#rrggbb'` or a CSS colour name),
+`opacity` (0-1), and `leaderColor` for the label's leader line and border.
+`offset` is the screen-px displacement from the anchor — the same value
+dragging a label produces, and non-zero is what draws the leader line.
+
 `sphere` draws a sphere IN the scene at the anchor — depth tested against the
 model, so the point reads at its true depth: `{ size, color, solid, opacity }`
 (radius in m, `#rrggbb`; `solid: true` fills it, shaded, at `opacity` 0..1
@@ -334,7 +349,9 @@ current marker, or omitted for the panel style (usually none).
 
 ```js
 payload: { labels: [
-  { text: 'Check **this** flange', fullname: '/TP400-PIPE-01' },
+  { text: 'Check **this** flange', fullname: '/TP400-PIPE-01', snap: true,
+    bg: '#fff3c4', textColor: '#14161a', opacity: 0.9,
+    offset: [80, -60], leaderColor: '#c026d3' },   // sits up-right of the anchor, leader line drawn
   { text: 'Hand note', anchor: [12.5, 3.2, 8.0], sphere: { size: 0.2, color: '#ff8800', solid: true, opacity: 0.6 } },
 ] }
 response: { added: 2, missed: [] }   // missed = unresolvable fullnames
@@ -344,13 +361,14 @@ response: { added: 2, missed: [] }   // missed = unresolvable fullnames
 Every scene label as the Labels panel holds it: the `labels.set` fields plus
 `id`, the style, the offset the user dragged it to (screen px; a leader line
 is drawn when non-zero), the sphere marker and the per-label mute — so a host
-can store labels and later restore (`labels.set`) or diff them.
+can store labels and later restore (`labels.set`) or diff them. `leaderColor`
+is null while the label follows the panel's leader colour.
 
 ```js
 payload:  {}
 response: { labels: [
   { id: 3, text: 'Hand note', fullname: null, anchor: [12.5, 3.2, 8.0], offset: [0, 0],
-    bg: '#ffffff', opacity: 1, textColor: '#14161a',
+    bg: '#ffffff', opacity: 1, textColor: '#14161a', leaderColor: null,
     sphere: { size: 0.2, color: '#ff8800', solid: true, opacity: 0.6 }, muted: false } ] }
 ```
 
@@ -565,8 +583,8 @@ device was created on. Chrome fills in `device`/`description` only with
 tell GPUs apart. On Linux, Chrome usually exposes only the GPU its GPU
 process runs on, so both hints resolve to the same adapter even on dual-GPU
 machines. `deviceMemoryGb` is system RAM as the browser reports it (capped
-at 8), not VRAM — WebGPU has no VRAM size. `suggestedVramBudgetMb` is the
-budget the Settings panel would propose for this adapter (null = no opinion).
+at 8), not VRAM — WebGPU has no VRAM size, so the viewer offers no budget
+suggestion; the Max VRAM ceiling is the user's call (Settings → Rendering).
 `not-ready` before the renderer has a device.
 
 ```js
@@ -576,7 +594,7 @@ response: { active: { vendor: 'nvidia', architecture: 'ampere', device: '0x2484'
             hasMultipleGpus: true,
             features: { multiDrawIndirect: true, timestampQuery: true }, cullMode: 'mdi',
             limits: { maxBufferSize: 4294967296, maxStorageBufferBindingSize: 4294967292 },
-            deviceMemoryGb: 8, isMobile: false, suggestedVramBudgetMb: null }
+            deviceMemoryGb: 8, isMobile: false }
 ```
 
 ### view.sketch
@@ -1134,13 +1152,26 @@ exists; present entries carry `size`, `modified` and the import-time `md5`
 against its manifest and `sql.importUrl` only the missing or outdated files
 before calling `sql.query`.
 
+`statements` breaks the same script into what it would actually RUN: comments
+are stripped and it is split on top-level `;` (string literals respected), so
+a script that is only comments answers with an empty list. Each entry carries
+its `sql`, the lower-cased leading `kind` keyword, `returnsRows` (the
+`select` / `with` / `values` / `pragma` / `explain` forms, plus anything with
+a `RETURNING` clause) and, for an ATTACH, the `attach` path. Enough to count
+the queries, refuse a script that writes, or tell "empty" from "only
+comments" without running anything.
+
 ```js
-payload:  { sql: "ATTACH DATABASE 'sql_assets/main/tags.db' AS tags; SELECT …",
+payload:  { sql: "-- daily\nATTACH DATABASE 'sql_assets/main/tags.db' AS tags; SELECT * FROM tags.t",
             mainDb: 'sql_assets/main/meta.db' }
 response: { dbs: [
   { path: 'sql_assets/main/meta.db', exists: true,
     size: 61440, modified: 1721600000000, md5: '9e107d9d372bb6826bd81d3542a419d6' },
-  { path: 'sql_assets/main/tags.db', exists: false } ] }
+  { path: 'sql_assets/main/tags.db', exists: false } ],
+  statements: [
+    { sql: "ATTACH DATABASE 'sql_assets/main/tags.db' AS tags", kind: 'attach',
+      returnsRows: false, attach: 'sql_assets/main/tags.db' },
+    { sql: 'SELECT * FROM tags.t', kind: 'select', returnsRows: true } ] }
 ```
 
 ### sql.color
@@ -1264,11 +1295,16 @@ response: { replaced: true, mainDb: 'sql_assets/project-x/meta.db', chars: 91 }
 Read the **SQL Editor**'s draft — the report fields the user filled in: `title`
 (the report name), `description`, `mainDb`, `types`, `sql` and `filters` (the
 saved-report shape: `kind`, `key`, `label`, then `value` for an INPUT or
-`dropdownSql` / `searchValue` / `selected` for a DROPDOWN) — plus `databases`,
-the files a run would lock. A `dropdownSql` runs with FILTER_ARGS (the
-report's current filter values, the dropdown's own key holding the live
-search term) and TREE_VIEW_ARGS seeded exactly like a report run, so a
-dropdown can cascade on the other filters and read its own term. It is exactly what `sql.editor` takes back, so a
+`dropdownSql` / `searchValue` / `selected` / `single` for a DROPDOWN —
+`single: true` lets its user pick one option instead of several, the value
+staying a list of at most one id) — plus `databases`,
+the files a run would lock. A `dropdownSql` returns an `id` column (what the
+pick binds into FILTER_ARGS) and a `label` column (what the user reads) —
+taken by NAME, in any order; a query naming neither is read positionally,
+first column the id. It runs with FILTER_ARGS (the report's current filter
+values, the dropdown's own key holding the live search term) and
+TREE_VIEW_ARGS seeded exactly like a report run, so a dropdown can cascade on
+the other filters and read its own term. It is exactly what `sql.editor` takes back, so a
 host can store the draft (the editor has no Save of its own) and later restore
 it unchanged.
 

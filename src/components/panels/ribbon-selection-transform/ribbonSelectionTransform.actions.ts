@@ -61,6 +61,45 @@ export const ribbonSelectionTransformActions = {
     const step = Math.max(0.01, +(ribbonSelectionTransformState.get().step + dir * 0.25).toFixed(2));
     ribbonSelectionTransformState.set({ step });
   },
+  /** The "Auto disable" preference (default on): leaving the ribbon disarms
+   *  every mode that reacts to viewport clicks. */
+  setOffOnRibbonSwitch(on: boolean) {
+    ribbonSelectionTransformState.set({ offOnRibbonSwitch: on });
+    log(`Auto disable → ${on ? 'on' : 'off'}`);
+  },
+  toggleOffOnRibbonSwitch() {
+    ribbonSelectionTransformActions.setOffOnRibbonSwitch(!ribbonSelectionTransformState.get().offOnRibbonSwitch);
+  },
+  /** App startup feeds every active-ribbon change here: leaving the Transform
+   *  ribbon with something armed disarms it (when the preference is on).
+   *  Arriving on it, or moving between other ribbons, does nothing. */
+  ribbonChanged(prev: string | undefined, next: string | undefined) {
+    if (prev === 'ribbonSelectionTransform' && next !== 'ribbonSelectionTransform') {
+      ribbonSelectionTransformActions.disarmForSwitch();
+    }
+  },
+  /** A layout slot was activated (Layout ribbon / F-keys) — same rule. */
+  layoutSwitched() {
+    ribbonSelectionTransformActions.disarmForSwitch();
+  },
+  /** Gizmo off, pivot placement cancelled, move-to-click disarmed. A LOCKED
+   *  pivot is a value rather than an armed mode, so it stays. */
+  disarmForSwitch() {
+    const s = ribbonSelectionTransformState.get();
+    if (!s.offOnRibbonSwitch) {
+      return;
+    }
+    if (s.gizmoMode === 'none' && !s.pivotSetting && !s.pivotFromItem && !s.moveToClickArmed) {
+      return;
+    }
+    ribbonSelectionTransformState.set({
+      gizmoMode: 'none',
+      pivotSetting: false,
+      pivotFromItem: false,
+      moveToClickArmed: false,
+    });
+    log('Auto disable → disarmed on ribbon switch');
+  },
   /** Toggle the viewport gizmo; clicking the active mode hides it. */
   setGizmoMode(mode: 'move' | 'rotate' | 'scale') {
     const cur = ribbonSelectionTransformState.get().gizmoMode;

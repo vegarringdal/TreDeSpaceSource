@@ -19,6 +19,23 @@ export interface ViewerState {
   meshletVis: boolean;
   pxCut: number; // 0 = off; pixels, applied while the camera moves
   pxCutEnabled: boolean;
+  /** Always-on floor for the pixel cut (px, 0 = off): meshlets whose projected
+   *  radius stays under this are dropped even with the camera at rest — a
+   *  sub-pixel cluster cannot be seen, and skipping them bounds what a mass
+   *  unhide can throw at one frame. `protectDist` shields near geometry. */
+  pxCutAlways: number;
+  /** Max meshlets the occlusion pass may newly draw in ONE frame (0 = no cap).
+   *  A mass unhide makes everything visible against an empty HiZ, which is the
+   *  heaviest frame the renderer can produce; the cap spreads it over a few
+   *  frames instead, each one cheaper than the last as the HiZ fills in.
+   *  Default 175 000 — a normal camera move never reaches it. */
+  newMeshletCap: number;
+  /** Frames to keep rendering after everything settles (the camera stops, a
+   *  state change lands), so geometry the cap deferred finishes arriving.
+   *  Accumulation (AA) frames count toward it, never on top of it. 0 = off;
+   *  default 20, which the 32 accumulation frames absorb entirely when TAA
+   *  is on. */
+  settleFrames: number;
   protectDist: number;
   /** pick threshold %: items at/above are clickable; below pass through (Shift inverts) */
   pickOpacityPct: number;
@@ -187,6 +204,9 @@ export const initialViewerState: ViewerState = {
   meshletVis: false,
   pxCut: 6,
   pxCutEnabled: true,
+  pxCutAlways: 1,
+  newMeshletCap: 175_000,
+  settleFrames: 20,
   protectDist: 15,
   pickOpacityPct: 10.1,
   fastAA: false,

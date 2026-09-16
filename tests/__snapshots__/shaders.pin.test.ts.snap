@@ -3,10 +3,10 @@
 exports[`shader text pins > produces byte-identical WGSL for every entry point and variant 1`] = `
 {
   "cubeBlitWgsl()": "ecada98894e2e0d8aad79f9af408f69e06f2fd666f21559fb17f2d3ffa0dccd5",
-  "cullWgsl(false,false)": "5003f6b92fa17d79ca65e27e04753c2252abcd47a8df8cada91bf7fa585ecea7",
-  "cullWgsl(false,true)": "bbee8b1826ecabcbc55700aa9d54a5f72783b4a8e26dcd1add7f27287d6c01d0",
-  "cullWgsl(true,false)": "747a9f778280698307bafa897d70c6f1c1c30887b8e95bac6124621b990585bf",
-  "cullWgsl(true,true)": "00c89312b34743c9e2d6d2426e3f7cc36f7115f7b34b7dc35283f02c976bfa80",
+  "cullWgsl(false,false)": "3b898bf91bf9d589d62ebabb142afb44ec605a4e254909377a316e70ef888e20",
+  "cullWgsl(false,true)": "737d37ab97ef6112e3e846d97cc50925b684c56c4e78c484eba65ff86e644f01",
+  "cullWgsl(true,false)": "7e9d057e405bc353e3b1a04e5576db4619ba15668414f8776d798f5af672044c",
+  "cullWgsl(true,true)": "efde5949dbba32112972dd19625c97e72ed9d156ee80413c765902c710d31b5b",
   "hzbWgsl(false)": "817e184faf1f80ff6fe5713c1c12a2ed879a07d3c10b0e5463ab223f3388ed43",
   "hzbWgsl(true)": "19dcbba481bec69f35b464fcc8f2d5a2e290d22a31ea0b8ae56588ad9ddb24ac",
   "lineWgsl()": "4cde66c8bbc9a5dc64e7c9fbe620ca120abbcc036c0d322278e20b39941a0fbf",

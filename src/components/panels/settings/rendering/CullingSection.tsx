@@ -4,6 +4,9 @@ import { useViewer } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
 import { TransparencySection } from './TransparencySection';
 
+/** The "New per frame" field reads in thousands; the setting itself counts meshlets. */
+const MESHLETS_PER_K = 1000;
+
 /** Rendering → Transparency, Culling and Picking. */
 export function CullingSection() {
   const v = useViewer();
@@ -76,6 +79,46 @@ export function CullingSection() {
           decShortcut="render.protectDist.dec"
           incShortcut="render.protectDist.inc"
           onChange={(x) => act.update({ protectDist: x })}
+        />
+        <NumberInput
+          label="Always cut"
+          labelPosition="split"
+          value={v.pxCutAlways}
+          min={0}
+          max={8}
+          step={1}
+          unit="px"
+          tooltip="Independent of the moving cut above: drop meshlets this small with the camera at rest too — a sub-pixel cluster cannot be seen, and skipping them caps what a mass unhide can throw at one frame. Protect distance shields near geometry from this cut as well. 0 = off"
+          decShortcut="render.cutSizeAlways.dec"
+          incShortcut="render.cutSizeAlways.inc"
+          onChange={(x) => act.update({ pxCutAlways: x })}
+        />
+        <NumberInput
+          label="Meshlets per frame"
+          labelPosition="split"
+          // the setting counts meshlets; the field reads in thousands (25k, 50k …)
+          value={v.newMeshletCap / MESHLETS_PER_K}
+          min={0}
+          step={25}
+          precision={0}
+          unit="k"
+          tooltip="Cap on meshlets the occlusion pass may newly draw in ONE frame, in thousands. Unhiding a lot at once makes everything visible against an empty depth pyramid — the single heaviest frame there is, enough to hang a weak GPU. The cap spreads it over a few frames, each cheaper than the last as the pyramid fills in. 0 = no cap"
+          decShortcut="render.newMeshletCap.dec"
+          incShortcut="render.newMeshletCap.inc"
+          onChange={(x) => act.update({ newMeshletCap: Math.round(x * MESHLETS_PER_K) })}
+        />
+        <NumberInput
+          label="Frames after stop"
+          labelPosition="split"
+          value={v.settleFrames}
+          min={0}
+          max={600}
+          step={5}
+          unit="frames"
+          tooltip="Keep rendering this many frames once the view settles, so geometry the cap above deferred finishes arriving. Accumulation (AA) frames count toward this window rather than adding to it. 0 = off"
+          decShortcut="render.settleFrames.dec"
+          incShortcut="render.settleFrames.inc"
+          onChange={(x) => act.update({ settleFrames: x })}
         />
       </SettingsSection>
 

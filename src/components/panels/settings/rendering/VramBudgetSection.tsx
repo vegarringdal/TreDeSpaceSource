@@ -3,7 +3,6 @@ import { residency } from '../../../../state/viewer/residency';
 import { getRenderer, viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
-import { VramSuggestedRow } from './VramSuggestedRow';
 
 const swapSpeeds = [
   { value: 'relaxed', label: 'Relaxed', hint: 'one swap at a time', shortcut: 'render.vramSwap.relaxed' },
@@ -59,7 +58,6 @@ export function VramBudgetSection() {
         incShortcut="render.maxVram.inc"
         onChange={(x) => act.update({ maxVramMb: x })}
       />
-      <VramSuggestedRow current={v.maxVramMb} enabled={v.vramBudgetOn} />
       <RadioGroup
         options={swapSpeeds}
         value={v.vramSwapSpeed}

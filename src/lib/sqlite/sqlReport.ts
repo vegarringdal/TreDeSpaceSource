@@ -8,12 +8,47 @@ import { splitSqlStatements, stripSqlComments } from './sqlAttach';
 import type { Statement } from './types';
 
 /** FILTER_ARGS rows for one filter: INPUT → one (k,v); DROPDOWN → one per
- *  selected id. */
+ *  selected id, capped at ONE for a single-select dropdown (a draft set over
+ *  the host API can carry more ids than its picker would ever allow). */
 function filterRows(f: ReportFilter): [string, string][] {
   if (f.kind === 'INPUT') {
     return f.value != null && f.value !== '' ? [[f.key, f.value]] : [];
   }
-  return (f.selected ?? []).map((v) => [f.key, v]);
+  const selected = f.selected ?? [];
+  return (f.single ? selected.slice(0, 1) : selected).map((v) => [f.key, v]);
+}
+
+/** Which column of a `dropdownSql` result holds the id and which the text the
+ *  user reads. The pair used to be purely positional — column 0 the id,
+ *  column 1 the text — so a query written as `select … as label, … as id`
+ *  silently fed the LABEL into FILTER_ARGS. Named columns therefore win,
+ *  wherever they sit: `id` is the id, `label` is the text, and `value` is the
+ *  text unless a `label` column already claims that side (then `value` is the
+ *  Select's stored id). A result naming neither keeps the positional reading,
+ *  so reports written before this resolve unchanged. */
+export function pickDropdownColumns(columns: readonly string[] | null | undefined): {
+  idIdx: number;
+  labelIdx: number;
+} {
+  const names = (columns ?? []).map((c) =>
+    String(c ?? '')
+      .trim()
+      .toLowerCase(),
+  );
+  const at = (name: string): number => names.indexOf(name);
+  const named = { id: at('id'), label: at('label'), value: at('value') };
+  const id = named.id >= 0 ? named.id : named.label >= 0 ? named.value : -1;
+  const label = named.label >= 0 ? named.label : named.value === id ? -1 : named.value;
+  if (id < 0 && label < 0) {
+    return { idIdx: 0, labelIdx: names.length > 1 ? 1 : 0 };
+  }
+  // the named column takes its side; the other side is the first column left
+  const firstOther = (k: number): number => {
+    const i = names.findIndex((_, j) => j !== k);
+    return i < 0 ? k : i;
+  };
+  const idIdx = id >= 0 ? id : firstOther(label);
+  return { idIdx, labelIdx: label >= 0 ? label : firstOther(idIdx) };
 }
 
 /** Wrap the report's final SELECT for the consuming type. `sql` must be a bare

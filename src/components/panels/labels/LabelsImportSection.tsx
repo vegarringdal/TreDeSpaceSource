@@ -8,7 +8,7 @@ import { useLoadedStores } from '../../../state/viewer/storeScope';
 export function LabelsImportSection() {
   const [paste, setPaste] = useState('');
   const [importing, setImporting] = useState(false);
-  const { snapToItem, importStore } = labelsState.use();
+  const { snapToItem, importStore, importStripSlash } = labelsState.use();
   const loadedStores = useLoadedStores();
   const storeOptions = [
     { value: '', label: 'All stores' },
@@ -42,6 +42,13 @@ export function LabelsImportSection() {
         onChange={act.setSnapToItem}
         shortcut="labels.import.snap"
         tooltip="A tag with children anchors at its bounding-box center — on a bent pipe run that point hangs in empty air. This snaps the anchor to the nearest child item instead."
+      />
+      <Checkbox
+        label="Label text without leading /"
+        checked={importStripSlash}
+        onChange={act.setImportStripSlash}
+        shortcut="labels.import.stripSlash"
+        tooltip="Show the tag without the model's leading “/” in the label itself. The label stays linked to the full name, so selection, colouring and viewpoints still match."
       />
       <Select
         label="Store"

@@ -17,6 +17,8 @@ export interface SceneLabel {
   bg: string;
   opacity: number;
   textColor: string;
+  /** leader line + border colour for THIS label; null/absent = the panel's */
+  leaderColor?: string | null;
   /** 3D wireframe sphere at the anchor, depth tested — null/absent = none */
   sphere?: SphereMarker | null;
 }
@@ -40,12 +42,16 @@ export interface LabelsState {
   /** tag import: resolve tags only among models loaded from this store
    *  ('' = all stores) — guards against same-named models across stores */
   importStore: string;
+  /** tag import: drop the leading '/' from the label TEXT (the linked
+   *  fullname keeps it, so selection and colouring still match) */
+  importStripSlash: boolean;
   /** style applied to newly created labels AND to the current selection */
   bg: string;
   opacity: number;
   textColor: string;
   /** sphere marker for new labels / the selection; null = none */
   sphere: SphereMarker | null;
+  /** leader line + border colour for new labels / the selection */
   leaderColor: string;
   /** explode layout shape + how many times explode has been pressed */
   explodeShape: 'circle' | 'box';
@@ -67,6 +73,7 @@ export const labelsState = createStore<LabelsState>({
   richText: false,
   snapToItem: false,
   importStore: '',
+  importStripSlash: false,
   bg: '#ffffff',
   opacity: 1,
   textColor: '#14161a',

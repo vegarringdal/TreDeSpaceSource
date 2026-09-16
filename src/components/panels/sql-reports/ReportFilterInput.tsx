@@ -10,8 +10,9 @@ type ReportFilterInputProps = Readonly<{
   onChange: (v: string | string[]) => void;
 }>;
 
-/** One filter's run-time input: a text box (INPUT) or an async multi Select
- *  driven by the filter's dropdownSql (DROPDOWN). */
+/** One filter's run-time input: a text box (INPUT) or an async Select driven
+ *  by the filter's dropdownSql (DROPDOWN) — multi, or one pick when the
+ *  filter is `single`. Either way the value handed up is a list of ids. */
 export function ReportFilterInput({ report, filter, value, onChange }: ReportFilterInputProps) {
   const label = filter.label || filter.key;
   if (filter.kind === 'INPUT') {
@@ -26,18 +27,31 @@ export function ReportFilterInput({ report, filter, value, onChange }: ReportFil
     );
   }
 
+  const selected = stringsOr(value, undefined) ?? [];
+  const loadOptions = (q: string) => act.dropdownOptions(report, filter, q);
+
   return (
     <label className="flex items-center gap-2 text-slate-400 text-xs">
       <span className="w-[90px] shrink-0 truncate">{label}</span>
       <div className="min-w-0 flex-1">
-        <Select
-          multiple
-          value={stringsOr(value, undefined) ?? []}
-          searchable
-          placeholder="Select…"
-          loadOptions={(q) => act.dropdownOptions(report, filter, q)}
-          onChange={onChange}
-        />
+        {filter.single ? (
+          <Select
+            value={selected[0] ?? null}
+            searchable
+            placeholder="Select…"
+            loadOptions={loadOptions}
+            onChange={(v) => onChange(v ? [v] : [])}
+          />
+        ) : (
+          <Select
+            multiple
+            value={selected}
+            searchable
+            placeholder="Select…"
+            loadOptions={loadOptions}
+            onChange={onChange}
+          />
+        )}
       </div>
     </label>
   );

@@ -30,7 +30,17 @@ export function pickViewer<K extends keyof ViewerState>(state: ViewerState, keys
 
 export const VIEWER_SECTION_KEYS = {
   antialiasing: keys('fastAA', 'aaSamples', 'msaa4x', 'pixelRatio', 'useDevicePixelRatio', 'smartPixelRatio'),
-  culling: keys('fpsLimit', 'freezeCull', 'protectDist', 'pxCut', 'pxCutEnabled', 'vertexPull'),
+  culling: keys(
+    'fpsLimit',
+    'freezeCull',
+    'newMeshletCap',
+    'protectDist',
+    'pxCut',
+    'pxCutAlways',
+    'pxCutEnabled',
+    'settleFrames',
+    'vertexPull',
+  ),
   picking: keys('pickOpacityPct'),
   vramBudget: keys(
     'vramBudgetOn',
