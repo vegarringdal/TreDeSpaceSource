@@ -13,7 +13,8 @@ export type MeasureToolKind = 'point' | 'line' | 'path' | 'area' | 'diameter' | 
  *  (perpendicular / parallel) or along a world axis from the previous point. */
 export type MeasureLock = 'none' | 'perp' | 'parallel' | 'x' | 'y' | 'z';
 
-const KIND_LABEL: Record<MeasureToolKind, string> = {
+/** Display name per tool — the list/ribbon label and the default measurement name. */
+export const KIND_LABEL: Record<MeasureToolKind, string> = {
   point: 'Point',
   line: 'Line',
   path: 'Path',

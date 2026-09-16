@@ -5,6 +5,36 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.09.16** (>0.0.123):
+  Measuring on a touch device works. Five things were stacked against it. A tap
+  had to land within 4 px of where the finger went down — a mouse tolerance,
+  while a deliberate tap on glass wanders ~10 px — so a large share of taps
+  silently did nothing; the gate is now 14 px for touch and stays 4 px for a
+  mouse or pen. One-finger camera movement had no dead zone, so the tap that
+  DID register also spun the view under the finger (and kept spinning through
+  the exponential settle); a finger now has to travel 10 px before it orbits,
+  and crossing that re-bases the delta so the drag does not jump. Touch has no
+  hover, so the snap preview only existed while a finger was down and then
+  stuck: the last probe left a phantom rubber band and snap glyph pinned in the
+  world until the next one. It is now cleared on lift, with in-flight probes
+  dropped so they cannot resurrect it. Path and Area could not be FINISHED at
+  all without a keyboard — Enter/Esc/Backspace and an unreliable double-tap
+  were the only ways — so a bar now appears over the viewport whenever points
+  are down, showing the tool and the point count with touch-sized Finish
+  (disabled until the measurement has enough points), Undo and Cancel; it works
+  the same with a mouse. And the snap radii, tuned in pixels for a cursor,
+  double for a touch probe.
+
+  Aiming got the piece it was missing: a finger covers exactly the pixel it is
+  placing. Press and hold for 450 ms without moving and the touch is taken away
+  from the camera — the view freezes — and a crosshair rises 56 px above the
+  contact point (flipping below near the top edge, clamped inside the
+  viewport). That crosshair is the placement point, it carries the live snap
+  preview and is tinted by what it has found (corner / edge / face, matching
+  the overlay's glyphs), dragging nudges it, and lifting places the point
+  there. A drag that starts before the hold elapses is an ordinary orbit and
+  places nothing, so one-finger navigation is untouched.
+
+- **2026.09.16** (>0.0.123):
   The same over the API: `labels.set` / `labels.add` take a label with NO
   `text` — it is labelled by its own `fullname`, the way the panel's tag import
   does — and `stripSlash` (defaulting to the panel toggle) drops the leading

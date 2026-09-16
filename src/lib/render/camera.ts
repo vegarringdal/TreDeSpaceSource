@@ -25,6 +25,12 @@ const EL_CLAMP = 89 * DEG;
 const NEAR_RATIO = 1 / 12500;
 const NEAR_MIN = 0.001;
 const EL_CLAMP_ANIM = 89.99 * DEG;
+/** How far a finger may wander before it counts as a drag rather than a tap.
+ *  A tap on glass routinely travels several pixels, and without this dead zone
+ *  every tap nudged the view (and kept nudging it through the exponential
+ *  settle). Crossing it re-bases the delta, so the orbit starts from where the
+ *  drag was recognised instead of jumping by the slop. */
+const TOUCH_SLOP = 10;
 
 export class CameraController {
   target = new Float32Array([0, 0, 0]);
@@ -70,6 +76,13 @@ export class CameraController {
   private tAz = 0.6;
   private tEl = 0.5;
   private tDist = 10;
+
+  /** Live touches, keyed by pointer id: current position, the position it went
+   *  down at, and whether it has passed TOUCH_SLOP. Instance state (not an
+   *  `attach` local) so claimPointer can reach it. */
+  private touches = new Map<number, { x: number; y: number; x0: number; y0: number; dragging: boolean }>();
+  /** Touches a viewport tool has taken over — see claimPointer. */
+  private claimed = new Set<number>();
 
   // input accumulators, consumed once per update()
   private orbitDX = 0;
@@ -547,12 +560,27 @@ export class CameraController {
     return this.keys.has(' ');
   }
 
+  /** Hand a live touch over to a viewport tool (the measure aim loupe). The
+   *  camera drops it from its gesture set and ignores EVERY touch gesture while
+   *  anything is claimed, so the view stays frozen while the tool aims — a
+   *  second finger landing mid-aim must not slide the scene out from under the
+   *  crosshair. Released automatically when the finger lifts. */
+  claimPointer(pointerId: number) {
+    this.touches.delete(pointerId);
+    this.claimed.add(pointerId);
+  }
+
+  releasePointer(pointerId: number) {
+    this.claimed.delete(pointerId);
+  }
+
   // pick(x, y, goto): goto=false re-pivots (alt+LMB), goto=true flies there (Space+LMB)
   attach(canvas: HTMLCanvasElement, pick: (x: number, y: number, goto: boolean) => void) {
     let button = -1;
-    // touch gestures: one finger = look/orbit, two fingers = pan (their
-    // centroid) + pinch = dolly. Mouse keeps the button-based mapping below.
-    const touches = new Map<number, { x: number; y: number }>();
+    // touch gestures: one finger = look/orbit (past TOUCH_SLOP), two fingers =
+    // pan (their centroid) + pinch = dolly. Mouse keeps the button-based
+    // mapping below.
+    const touches = this.touches;
     const centroidDist = () => {
       const pts = [...touches.values()];
       const cx = (pts[0].x + pts[1].x) / 2;
@@ -564,7 +592,7 @@ export class CameraController {
     canvas.addEventListener('pointerdown', (e) => {
       this.pointerActive = true;
       if (e.pointerType === 'touch') {
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, dragging: false });
         canvas.setPointerCapture(e.pointerId);
         return;
       }
@@ -583,6 +611,7 @@ export class CameraController {
     });
     const endTouch = (e: PointerEvent) => {
       touches.delete(e.pointerId);
+      this.claimed.delete(e.pointerId);
       if (e.pointerType !== 'touch') {
         button = -1;
       }
@@ -593,22 +622,37 @@ export class CameraController {
     canvas.addEventListener('pointermove', (e) => {
       if (e.pointerType === 'touch') {
         const prev = touches.get(e.pointerId);
-        if (!prev) {
+        if (!prev || this.claimed.size > 0) {
           return;
         }
         if (touches.size === 1) {
+          // dead zone: a tap must not orbit. The first move past the slop
+          // re-bases the origin so the drag starts from here, not from the
+          // touch-down point.
+          if (!prev.dragging) {
+            if (Math.hypot(e.clientX - prev.x0, e.clientY - prev.y0) <= TOUCH_SLOP) {
+              return;
+            }
+            prev.dragging = true;
+            prev.x = e.clientX;
+            prev.y = e.clientY;
+            return;
+          }
           this.orbitDX += e.clientX - prev.x;
           this.orbitDY += e.clientY - prev.y;
-          touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          prev.x = e.clientX;
+          prev.y = e.clientY;
         } else if (touches.size === 2) {
           const before = centroidDist();
-          touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          prev.x = e.clientX;
+          prev.y = e.clientY;
           const after = centroidDist();
           this.panDX += after.cx - before.cx;
           this.panDY += after.cy - before.cy;
           this.wheel += (after.d - before.d) / 60; // pinch = dolly
         } else {
-          touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          prev.x = e.clientX;
+          prev.y = e.clientY;
         }
         return;
       }

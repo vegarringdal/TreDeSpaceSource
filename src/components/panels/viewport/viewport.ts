@@ -10,6 +10,8 @@ import { measurementsActions } from '../../../state/viewer/measurements.actions'
 import { type MeasureHit, measurementsState } from '../../../state/viewer/measurements.state';
 import { setClipShapeSeed } from '../clip-shapes/ribbonClipShapes.actions';
 import { buildClip } from './clipPack';
+import { attachMeasureAim, type MeasureAim } from './measureAim';
+import { attachMeasureBar } from './measureBar';
 import { shapeGizmoTarget } from './shapeGizmo';
 
 /** Adapt the renderer's probe (null fields) to the state's MeasureHit (optional). */
@@ -17,12 +19,28 @@ function toHit(p: MeasureProbe | null): MeasureHit | null {
   return p ? { point: p.point, normal: p.normal ?? undefined, edgeDir: p.edgeDir ?? undefined, kind: p.kind } : null;
 }
 
+/** How much the snap radii widen for a finger: the contact patch is far bigger
+ *  and less precise than a mouse cursor, so the user's pixel radii (tuned for a
+ *  cursor) under-snap badly on touch. */
+const TOUCH_SNAP_MULT = 2;
+
 /** Snap config for the measure probe — the Face tool needs a face hit (its
  *  reference plane comes from the surface normal), so corner/edge snap is
- *  bypassed while it is active. */
-function measureSnap() {
+ *  bypassed while it is active. `coarse` widens the radii for a touch probe. */
+function measureSnap(coarse = false) {
   const s = measurementsState.get();
-  return s.activeKind === 'face' ? { ...s.snap, corner: false, edge: false } : s.snap;
+  const snap = s.activeKind === 'face' ? { ...s.snap, corner: false, edge: false } : s.snap;
+  if (!coarse) {
+    return snap;
+  }
+  return { ...snap, cornerPx: snap.cornerPx * TOUCH_SNAP_MULT, edgePx: snap.edgePx * TOUCH_SNAP_MULT };
+}
+
+/** Tap tolerance between pointerdown and click: a mouse barely moves, a finger
+ *  routinely wanders ~10px on a deliberate tap. The old single 4px gate silently
+ *  swallowed a large share of touch taps. */
+function tapSlop(pointerType: string): number {
+  return pointerType === 'touch' ? 14 : 4;
 }
 
 import type { PanelDefinition } from '@treDeSpaceUI/dockable';
@@ -267,6 +285,8 @@ export const viewport: PanelDefinition = {
     let clipGizmo: ClipGizmo | null = null;
     let measureOverlay: MeasureOverlay | null = null;
     let labelOverlay: LabelOverlay | null = null;
+    let measureAim: MeasureAim | null = null;
+    let measureBar: { dispose(): void } | null = null;
     let residencyBoxes: ResidencyBoxOverlay | null = null;
     let removeMeasureKeys: (() => void) | null = null;
     let unsubLabels: (() => void) | null = null;
@@ -580,6 +600,13 @@ export const viewport: PanelDefinition = {
       measureOverlay = new MeasureOverlay(host, renderer);
       labelOverlay = new LabelOverlay(host, renderer);
       residencyBoxes = new ResidencyBoxOverlay(host, renderer);
+      measureBar = attachMeasureBar(host);
+      measureAim = attachMeasureAim({
+        host,
+        canvas,
+        camera: renderer.camera,
+        probe: (x, y) => renderer.probeMeasureAsync(x, y, measureSnap(true)).then(toHit),
+      });
       // The cube is DRAWN by the renderer (GPU overlay — so canvas captures
       // include it); the DOM ViewGizmo stays as invisible hit zones + handle.
       const cubeZones = buildViewCubeGeometry().zoneIds; // pick.id → zone id
@@ -623,10 +650,10 @@ export const viewport: PanelDefinition = {
       }
 
       // plain click (no drag, no modifier) -> pick the item under the cursor
-      let downAt = { x: 0, y: 0 };
+      let downAt = { x: 0, y: 0, type: 'mouse' };
       let heldDigit = 0; // 1-9 while held (digit+click level select)
       canvas.addEventListener('pointerdown', (e) => {
-        downAt = { x: e.clientX, y: e.clientY };
+        downAt = { x: e.clientX, y: e.clientY, type: e.pointerType };
       });
       canvas.addEventListener('click', (e) => {
         if (e.altKey) {
@@ -635,7 +662,10 @@ export const viewport: PanelDefinition = {
         if (renderer.camera.spaceHeld) {
           return; // space+click flies the camera
         }
-        if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) {
+        if (measureAim?.consumedClick()) {
+          return; // the press-and-hold loupe already placed this point
+        }
+        if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > tapSlop(downAt.type)) {
           return;
         }
         // label reposition armed: consume the click, move that label's anchor
@@ -677,7 +707,7 @@ export const viewport: PanelDefinition = {
         // probed surface (auto-finishes Line/Diameter). No item selection.
         if (measurementsState.get().activeKind) {
           measurementsActions.setPerp(e.shiftKey);
-          void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap()).then((p) => {
+          void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap(downAt.type === 'touch')).then((p) => {
             const hit = toHit(p);
             if (hit) {
               measurementsActions.addPoint(hit);
@@ -741,9 +771,15 @@ export const viewport: PanelDefinition = {
 
       // Live rubber-band: probe the surface under the cursor while a tool is
       // active (one probe in flight at a time). Cleared when off-surface.
+      //
+      // Touch has no cursor, so the preview only exists while a finger is down:
+      // `hoverGen` is bumped when one lifts, dropping the probe still in flight
+      // — otherwise its result pinned a phantom rubber-band and snap glyph to
+      // the last place the finger happened to be.
       let hoverBusy = false;
+      let hoverGen = 0;
       canvas.addEventListener('pointermove', (e) => {
-        if (!measurementsState.get().activeKind) {
+        if (!measurementsState.get().activeKind || measureAim?.aiming()) {
           return;
         }
         measurementsActions.setPerp(e.shiftKey);
@@ -751,11 +787,25 @@ export const viewport: PanelDefinition = {
           return;
         }
         hoverBusy = true;
-        void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap()).then((p) => {
+        const gen = hoverGen;
+        const touch = e.pointerType === 'touch';
+        void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap(touch)).then((p) => {
           hoverBusy = false;
+          if (gen !== hoverGen || measureAim?.aiming()) {
+            return;
+          }
           measurementsActions.setHover(toHit(p));
         });
       });
+      const endTouchHover = (e: PointerEvent) => {
+        if (e.pointerType !== 'touch') {
+          return;
+        }
+        hoverGen++;
+        measurementsActions.setHover(null);
+      };
+      canvas.addEventListener('pointerup', endTouchHover);
+      canvas.addEventListener('pointercancel', endTouchHover);
 
       // Hover outline: throttled item pick under the cursor (one in flight,
       // ~30 Hz). Only when enabled, no buttons held, and no measure tool —
@@ -935,6 +985,8 @@ export const viewport: PanelDefinition = {
       measureOverlay?.dispose();
       labelOverlay?.dispose();
       residencyBoxes?.dispose();
+      measureAim?.dispose();
+      measureBar?.dispose();
       removeMeasureKeys?.();
       unsubLabels?.();
       for (const off of unsubOptions) {
