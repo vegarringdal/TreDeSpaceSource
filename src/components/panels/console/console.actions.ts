@@ -1,3 +1,4 @@
+import { downloadText } from '../../../lib/download';
 import { type ConsoleState, consoleState, type LogLevel } from './console.state';
 
 let seq = 0;
@@ -53,6 +54,35 @@ export const consoleActions = {
   /** Show / hide one level in the panel (a view filter — nothing is dropped). */
   toggleLevel(level: LogLevel) {
     consoleState.set((s) => ({ shown: { ...s.shown, [level]: !s.shown[level] } }));
+  },
+
+  /** Everything the panel holds as plain text — every level, whatever the
+   *  view filter, startup block first — under a header naming the build,
+   *  the browser, the pixel ratio and the viewport, so a log sent from
+   *  another device says where it came from. */
+  exportText(): string {
+    const s = consoleState.get();
+    const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
+    const head = [
+      `TreDeSpace console log — ${new Date().toISOString()}`,
+      `version: ${version}`,
+      `userAgent: ${navigator.userAgent}`,
+      `devicePixelRatio: ${window.devicePixelRatio}`,
+      `viewport: ${window.innerWidth}x${window.innerHeight}`,
+    ];
+    if (s.rotated > 0) {
+      head.push(`(${s.rotated} older lines rotated out)`);
+    }
+    head.push('');
+    const body = s.lines.map((l) => `[${l.level}] ${l.text}`);
+
+    return [...head, ...body].join('\n');
+  },
+
+  /** Save the export as a .txt — the "send me the log" button. */
+  download() {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    downloadText(`tredespace-console-${stamp}.txt`, consoleActions.exportText(), 'text/plain');
   },
 };
 

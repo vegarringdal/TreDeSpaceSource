@@ -4,9 +4,13 @@
 // double-click, and undo/cancel were Backspace/Escape: all unreachable on a
 // tablet, where a double-tap is unreliable and there is no keyboard. This bar
 // appears over the viewport only while points are down, with touch-sized
-// targets, and mirrors those three keys for everyone.
+// targets, and mirrors those three keys for everyone. A fixed-count
+// measurement (Line, Diameter, …) with all its points placed shows OK instead
+// of Finish: it is kept on OK, Enter, or the next placed point, and until then
+// its last point can be undone — auto-finishing on the last point left no
+// way to do that.
 import { measurementsActions } from '../../../state/viewer/measurements.actions';
-import { KIND_LABEL, measurementsState, minPoints } from '../../../state/viewer/measurements.state';
+import { awaitsOk, KIND_LABEL, measurementsState, minPoints } from '../../../state/viewer/measurements.state';
 
 // -----------------------------------------------------------------------------
 // constants
@@ -77,6 +81,7 @@ export function attachMeasureBar(host: HTMLElement): { dispose(): void } {
   const finish = makeButton(ICON_CHECK, 'Finish', 'Finish this measurement (Enter, or double-click)', () =>
     measurementsActions.finish(),
   );
+  const finishLabel = finish.querySelector('span');
   const undo = makeButton(ICON_UNDO, 'Undo', 'Remove the last point (Backspace)', () =>
     measurementsActions.undoPoint(),
   );
@@ -103,6 +108,13 @@ export function attachMeasureBar(host: HTMLElement): { dispose(): void } {
       return;
     }
     status.textContent = `${KIND_LABEL[s.activeKind]} · ${n} ${n === 1 ? 'point' : 'points'}`;
+    const ok = awaitsOk(s.activeKind, n);
+    if (finishLabel) {
+      finishLabel.textContent = ok ? 'OK' : 'Finish';
+    }
+    finish.title = ok
+      ? 'Keep this measurement (Enter) — placing the next point keeps it too'
+      : 'Finish this measurement (Enter, or double-click)';
     setEnabled(finish, n >= minPoints(s.activeKind));
   };
 

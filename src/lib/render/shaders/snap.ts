@@ -14,28 +14,42 @@
 // WebGPU inserts implicit barriers between dispatches, so both passes can share
 // one compute pass. Hidden items are skipped; committed item transforms apply.
 //
+// LAYOUT RULE — raw words, no struct with vec3 members, no struct passed by
+// value. The first version declared `MeshletInfo { aabb_min: vec3f, cg: u32,
+// aabb_scale: vec3f, item: u32 }` and dequantized with
+// `info.aabb_min + q * info.aabb_scale` inside a helper that took the struct
+// as a parameter. Qualcomm Adreno 7xx (Chrome for Android, 2026-09) compiles
+// that to `aabb_min + q * aabb_min`: every cast hit a phantom triangle
+// millions of metres wide a few metres in front of the camera (the point
+// then sat on the sight line at the wrong depth — "floating in the air"),
+// and the seam cast's item exclusion, in another struct-parameter helper,
+// never matched. The same expression in the vertex-pull render shader, with
+// no struct parameter, is fine on that GPU, and a component-wise `bitcast`
+// read of the same `aabb_scale` in the same invocation returned the right
+// value. So this shader reads its records as u32 words (as cull.ts does)
+// into plain locals, passes scalars and vectors to its helpers, and rejects
+// any triangle with a vertex outside the meshlet's bounding sphere as a last
+// net — a decoded vertex can never leave its meshlet's AABB, so only a
+// misread lands there. plans/fix_pad_measurement.md §9–10 has the logs.
+//
 // Result words: [0]=t bits · [1]=valid · [2]=u · [3]=v · [4..6]=A · [7..9]=B ·
 // [10..12]=C · [13]=global item id + 1 · [14]=item flags · [15]=item color word.
+// [16..31] are read diagnostics for the measure trace — what the winning
+// invocation READ: [16]=meshlet · [17]=triangle · [18..20]=local indices ·
+// [21..26]=raw qverts words of A, B, C · [27..29]=aabb_scale bits ·
+// [30]=base_vertex · [31]=first_index (a driver that misreads a buffer shows
+// up as the column that disagrees with the CPU readback).
 // `exclude` lets a SECOND cast along the same sight line skip the first hit's
 // item (and every item with an opacity override) to find the surface just
 // behind it — the seam snap (measureSnap.ts seamProbe).
 export function measureSnapWgsl(): string {
   return /* wgsl */ `
-// logical view of one packed 36-byte cull record (cullWgsl layout, raw words)
-struct MeshletGeo {
-  center: vec3f,
-  radius: f32,
-  index_count: u32,
-  first_index: u32,
-  base_vertex: u32,
-};
+// one packed 36-byte cull record (cullWgsl layout, raw words): center xyz,
+// radius, cone, index_count, first_index, pad, base_vertex
 const SNAP_MESHLET_WORDS = 9u;
-struct MeshletInfo {
-  aabb_min: vec3f,
-  cg: u32,
-  aabb_scale: vec3f,
-  item: u32,
-};
+// one MeshletInfo record (pack.ts INFO_STRIDE_WORDS): aabb_min xyz, cg,
+// aabb_scale xyz, item
+const SNAP_INFO_WORDS = 8u;
 struct ItemState {
   flags: u32,
   color: u32,
@@ -49,20 +63,9 @@ struct SnapParams {
   exclude: vec4u,
 };
 
-@group(0) @binding(0) var<storage, read_write> result: array<atomic<u32>, 16>;
+@group(0) @binding(0) var<storage, read_write> result: array<atomic<u32>, 32>;
 @group(0) @binding(1) var<storage, read> geo: array<u32>;
-
-fn load_geo(mi: u32) -> MeshletGeo {
-  let o = mi * SNAP_MESHLET_WORDS;
-  var m: MeshletGeo;
-  m.center = vec3f(bitcast<f32>(geo[o]), bitcast<f32>(geo[o + 1u]), bitcast<f32>(geo[o + 2u]));
-  m.radius = bitcast<f32>(geo[o + 3u]);
-  m.index_count = geo[o + 5u];
-  m.first_index = geo[o + 6u];
-  m.base_vertex = geo[o + 8u];
-  return m;
-}
-@group(0) @binding(2) var<storage, read> minfo: array<MeshletInfo>;
+@group(0) @binding(2) var<storage, read> info_words: array<u32>;
 @group(0) @binding(3) var<storage, read> micro_indices: array<u32>; // u16 pairs
 @group(0) @binding(4) var<storage, read> qverts: array<vec2u>;      // u16x4 per vertex
 @group(0) @binding(5) var<storage, read> item_states: array<ItemState>;
@@ -70,6 +73,24 @@ fn load_geo(mi: u32) -> MeshletGeo {
 @group(0) @binding(7) var<uniform> sp: SnapParams;
 // ModelUni.info (scene.ts): x = this model's global item id base
 @group(0) @binding(8) var<uniform> model_info: vec4u;
+
+fn geo_center(mi: u32) -> vec3f {
+  let o = mi * SNAP_MESHLET_WORDS;
+  return vec3f(bitcast<f32>(geo[o]), bitcast<f32>(geo[o + 1u]), bitcast<f32>(geo[o + 2u]));
+}
+fn geo_radius(mi: u32) -> f32 { return bitcast<f32>(geo[mi * SNAP_MESHLET_WORDS + 3u]); }
+fn geo_index_count(mi: u32) -> u32 { return geo[mi * SNAP_MESHLET_WORDS + 5u]; }
+fn geo_first_index(mi: u32) -> u32 { return geo[mi * SNAP_MESHLET_WORDS + 6u]; }
+fn geo_base_vertex(mi: u32) -> u32 { return geo[mi * SNAP_MESHLET_WORDS + 8u]; }
+fn info_min(mi: u32) -> vec3f {
+  let o = mi * SNAP_INFO_WORDS;
+  return vec3f(bitcast<f32>(info_words[o]), bitcast<f32>(info_words[o + 1u]), bitcast<f32>(info_words[o + 2u]));
+}
+fn info_scale(mi: u32) -> vec3f {
+  let o = mi * SNAP_INFO_WORDS + 4u;
+  return vec3f(bitcast<f32>(info_words[o]), bitcast<f32>(info_words[o + 1u]), bitcast<f32>(info_words[o + 2u]));
+}
+fn info_item(mi: u32) -> u32 { return info_words[mi * SNAP_INFO_WORDS + 7u]; }
 
 // An opacity override below 1 (explicit, or a colour override with alpha) —
 // mirrors item_opacity in scene.ts minus the baked material alpha
@@ -89,9 +110,9 @@ fn is_invisible(st: ItemState) -> bool {
 }
 
 // invisible items never hit; a seam cast also skips the excluded / transparent ones
-fn skip_item(info: MeshletInfo, st: ItemState) -> bool {
+fn skip_item(item: u32, st: ItemState) -> bool {
   if (is_invisible(st)) { return true; }
-  if (sp.exclude.x != 0u && info.item + model_info.x + 1u == sp.exclude.x) { return true; }
+  if (sp.exclude.x != 0u && item + model_info.x + 1u == sp.exclude.x) { return true; }
   if (sp.exclude.y != 0u && is_transparent(st)) { return true; }
   return false;
 }
@@ -117,56 +138,74 @@ fn ray_tri(o: vec3f, d: vec3f, A: vec3f, B: vec3f, C: vec3f) -> vec4f {
 }
 
 // One meshlet-local vertex → world space (dequant + committed item transform).
-fn vert_world(m: MeshletGeo, info: MeshletInfo, local: u32, tid: u32) -> vec3f {
-  let v = qverts[m.base_vertex + local];
+fn vert_world(base_vertex: u32, amin: vec3f, ascale: vec3f, local: u32, tid: u32) -> vec3f {
+  let v = qverts[base_vertex + local];
   let q = vec3f(f32(v.x & 0xffffu), f32(v.x >> 16u), f32(v.y & 0xffffu));
-  var world = info.aabb_min + q * info.aabb_scale;
+  var world = amin + q * ascale;
   if (tid != 0u) {
     world = (transforms[tid] * vec4f(world, 1.0)).xyz;
   }
   return world;
 }
 
-fn local_index(m: MeshletGeo, tri: u32, corner: u32) -> u32 {
-  let gi = m.first_index + tri * 3u + corner;
+fn local_index(first_index: u32, tri: u32, corner: u32) -> u32 {
+  let gi = first_index + tri * 3u + corner;
   let word = micro_indices[gi >> 1u];
-  return select(word & 0xffffu, word >> 16u, (gi & 1u) == 1u);
+  if ((gi & 1u) == 1u) { return word >> 16u; }
+  return word & 0xffffu;
 }
 
-// Cheap ray↔bounding-sphere reject (center moved by the item transform, like
-// the cull shader). Purely an early-out — misses nothing the loop would hit.
-fn sphere_miss(m: MeshletGeo, tid: u32) -> bool {
-  var c = m.center;
-  if (tid != 0u) {
-    c = (transforms[tid] * vec4f(c, 1.0)).xyz;
-  }
+// Cheap ray↔bounding-sphere reject (center already moved by the item
+// transform, like the cull shader). Purely an early-out — misses nothing the
+// loop would hit.
+fn sphere_miss(c: vec3f, radius: f32) -> bool {
   let oc = c - sp.ray_origin.xyz;
   let along = dot(oc, sp.ray_dir.xyz);
   let d2 = dot(oc, oc) - along * along;
   // radius unscaled by the transform — pad generously (2×) to stay conservative
-  let r = m.radius * 2.0;
+  let r = radius * 2.0;
   return along < -r || d2 > r * r;
+}
+
+// The last net (see the header): a decoded vertex lies inside its meshlet's
+// AABB, which the bounding sphere covers — a vertex further out than the
+// sphere plus a margin is a misread, never geometry.
+fn outside_sphere(p: vec3f, c: vec3f, radius: f32) -> bool {
+  let lim = radius * 1.25 + 0.05;
+  let d = p - c;
+  return dot(d, d) > lim * lim;
 }
 
 @compute @workgroup_size(64)
 fn snapMin(@builtin(global_invocation_id) gid: vec3u) {
   let mi = gid.x;
   if (mi >= arrayLength(&geo) / SNAP_MESHLET_WORDS) { return; }
-  let m = load_geo(mi);
-  let info = minfo[mi];
-  let st = item_states[info.item];
-  if (skip_item(info, st)) { return; }
-  if (sphere_miss(m, st.tidx)) { return; }
+  let item = info_item(mi);
+  let st = item_states[item];
+  if (skip_item(item, st)) { return; }
+  var c = geo_center(mi);
+  if (st.tidx != 0u) {
+    c = (transforms[st.tidx] * vec4f(c, 1.0)).xyz;
+  }
+  let r = geo_radius(mi);
+  if (sphere_miss(c, r)) { return; }
+  let amin = info_min(mi);
+  let ascale = info_scale(mi);
+  let bv = geo_base_vertex(mi);
+  let fi = geo_first_index(mi);
   let o = sp.ray_origin.xyz;
   let d = sp.ray_dir.xyz;
-  let tris = m.index_count / 3u;
+  let tris = geo_index_count(mi) / 3u;
   for (var tri = 0u; tri < tris; tri++) {
-    let A = vert_world(m, info, local_index(m, tri, 0u), st.tidx);
-    let B = vert_world(m, info, local_index(m, tri, 1u), st.tidx);
-    let C = vert_world(m, info, local_index(m, tri, 2u), st.tidx);
-    let h = ray_tri(o, d, A, B, C);
-    if (h.w > 0.0) {
-      atomicMin(&result[0], bitcast<u32>(h.x));
+    let A = vert_world(bv, amin, ascale, local_index(fi, tri, 0u), st.tidx);
+    let B = vert_world(bv, amin, ascale, local_index(fi, tri, 1u), st.tidx);
+    let C = vert_world(bv, amin, ascale, local_index(fi, tri, 2u), st.tidx);
+    let sane = !(outside_sphere(A, c, r) || outside_sphere(B, c, r) || outside_sphere(C, c, r));
+    if (sane) {
+      let h = ray_tri(o, d, A, B, C);
+      if (h.w > 0.0) {
+        atomicMin(&result[0], bitcast<u32>(h.x));
+      }
     }
   }
 }
@@ -175,37 +214,71 @@ fn snapMin(@builtin(global_invocation_id) gid: vec3u) {
 fn snapWrite(@builtin(global_invocation_id) gid: vec3u) {
   let mi = gid.x;
   if (mi >= arrayLength(&geo) / SNAP_MESHLET_WORDS) { return; }
-  let m = load_geo(mi);
-  let info = minfo[mi];
-  let st = item_states[info.item];
-  if (skip_item(info, st)) { return; }
-  if (sphere_miss(m, st.tidx)) { return; }
+  let item = info_item(mi);
+  let st = item_states[item];
+  if (skip_item(item, st)) { return; }
+  var c = geo_center(mi);
+  if (st.tidx != 0u) {
+    c = (transforms[st.tidx] * vec4f(c, 1.0)).xyz;
+  }
+  let r = geo_radius(mi);
+  if (sphere_miss(c, r)) { return; }
+  let amin = info_min(mi);
+  let ascale = info_scale(mi);
+  let bv = geo_base_vertex(mi);
+  let fi = geo_first_index(mi);
   let best_t = bitcast<f32>(atomicLoad(&result[0]));
   let o = sp.ray_origin.xyz;
   let d = sp.ray_dir.xyz;
-  let tris = m.index_count / 3u;
+  let tris = geo_index_count(mi) / 3u;
   for (var tri = 0u; tri < tris; tri++) {
-    let A = vert_world(m, info, local_index(m, tri, 0u), st.tidx);
-    let B = vert_world(m, info, local_index(m, tri, 1u), st.tidx);
-    let C = vert_world(m, info, local_index(m, tri, 2u), st.tidx);
-    let h = ray_tri(o, d, A, B, C);
-    // tolerance absorbs fp reassociation between the two passes
-    if (h.w > 0.0 && h.x <= best_t * 1.0001) {
-      atomicStore(&result[1], 1u);
-      atomicStore(&result[2], bitcast<u32>(h.y));
-      atomicStore(&result[3], bitcast<u32>(h.z));
-      atomicStore(&result[4], bitcast<u32>(A.x));
-      atomicStore(&result[5], bitcast<u32>(A.y));
-      atomicStore(&result[6], bitcast<u32>(A.z));
-      atomicStore(&result[7], bitcast<u32>(B.x));
-      atomicStore(&result[8], bitcast<u32>(B.y));
-      atomicStore(&result[9], bitcast<u32>(B.z));
-      atomicStore(&result[10], bitcast<u32>(C.x));
-      atomicStore(&result[11], bitcast<u32>(C.y));
-      atomicStore(&result[12], bitcast<u32>(C.z));
-      atomicStore(&result[13], info.item + model_info.x + 1u);
-      atomicStore(&result[14], st.flags);
-      atomicStore(&result[15], st.color);
+    let ia = local_index(fi, tri, 0u);
+    let ib = local_index(fi, tri, 1u);
+    let ic = local_index(fi, tri, 2u);
+    let A = vert_world(bv, amin, ascale, ia, st.tidx);
+    let B = vert_world(bv, amin, ascale, ib, st.tidx);
+    let C = vert_world(bv, amin, ascale, ic, st.tidx);
+    let sane = !(outside_sphere(A, c, r) || outside_sphere(B, c, r) || outside_sphere(C, c, r));
+    if (sane) {
+      let h = ray_tri(o, d, A, B, C);
+      // tolerance absorbs fp reassociation between the two passes
+      if (h.w > 0.0 && h.x <= best_t * 1.0001) {
+        atomicStore(&result[1], 1u);
+        atomicStore(&result[2], bitcast<u32>(h.y));
+        atomicStore(&result[3], bitcast<u32>(h.z));
+        atomicStore(&result[4], bitcast<u32>(A.x));
+        atomicStore(&result[5], bitcast<u32>(A.y));
+        atomicStore(&result[6], bitcast<u32>(A.z));
+        atomicStore(&result[7], bitcast<u32>(B.x));
+        atomicStore(&result[8], bitcast<u32>(B.y));
+        atomicStore(&result[9], bitcast<u32>(B.z));
+        atomicStore(&result[10], bitcast<u32>(C.x));
+        atomicStore(&result[11], bitcast<u32>(C.y));
+        atomicStore(&result[12], bitcast<u32>(C.z));
+        atomicStore(&result[13], item + model_info.x + 1u);
+        atomicStore(&result[14], st.flags);
+        atomicStore(&result[15], st.color);
+        // read diagnostics (see the header): the winner's inputs, re-read
+        let va = qverts[bv + ia];
+        let vb = qverts[bv + ib];
+        let vc = qverts[bv + ic];
+        atomicStore(&result[16], mi);
+        atomicStore(&result[17], tri);
+        atomicStore(&result[18], ia);
+        atomicStore(&result[19], ib);
+        atomicStore(&result[20], ic);
+        atomicStore(&result[21], va.x);
+        atomicStore(&result[22], va.y);
+        atomicStore(&result[23], vb.x);
+        atomicStore(&result[24], vb.y);
+        atomicStore(&result[25], vc.x);
+        atomicStore(&result[26], vc.y);
+        atomicStore(&result[27], bitcast<u32>(ascale.x));
+        atomicStore(&result[28], bitcast<u32>(ascale.y));
+        atomicStore(&result[29], bitcast<u32>(ascale.z));
+        atomicStore(&result[30], bv);
+        atomicStore(&result[31], fi);
+      }
     }
   }
 }

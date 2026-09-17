@@ -22,6 +22,8 @@ const WORLD_AXES: V3[] = [
 ];
 const AXIS_COLORS = ['#ef4444', '#22c55e', '#3b82f6'];
 const RING_SEGS = 48;
+/** How far the white halo extends beyond every line and handle, in px. */
+const HALO_PX = 1.5;
 const SNAP = (15 * Math.PI) / 180;
 
 export interface PlaneTarget {
@@ -89,6 +91,34 @@ function closestAxisParam(o: V3, d: V3, ro: V3, rd: V3): number {
 }
 
 /** Plane-local frame: [normal, in-plane u, in-plane v] (stable basis). */
+/** White halo copies of one part's elements: the same geometry HALO_PX
+ *  wider on every side, drawn under everything so coloured handles and axis
+ *  lines read on a dark model, a white sketch and a same-coloured pipe
+ *  alike. Hit-only elements (transparent strokes) get none, nor does
+ *  anything marked `data-plain` — the grey guide line along an active drag
+ *  axis, which haloed as well got heavy. The copies carry no handle id or
+ *  pointer style. */
+function haloParts(part: string): string[] {
+  const out: string[] = [];
+  for (const raw of part.split('/>')) {
+    const el = raw.trim();
+    if (!el || el.includes('stroke="transparent"') || el.includes('data-plain')) {
+      continue;
+    }
+    const sw = /stroke-width="([\d.]+)"/.exec(el);
+    const width = (sw ? Number(sw[1]) : 0) + HALO_PX * 2;
+    const base = el
+      .replace(/ data-h="[^"]*"/, '')
+      .replace(/ style="[^"]*"/, '')
+      .replace(/ opacity="[^"]*"/, '')
+      .replace(/ stroke-width="[^"]*"/, '')
+      .replace(/ stroke="[^"]*"/, '')
+      .replace(/ fill="(?!none")[^"]*"/, ' fill="#fff"');
+    out.push(`${base} stroke="#fff" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" />`);
+  }
+  return out;
+}
+
 function planeAxes(n: V3): [V3, V3, V3] {
   const ref: V3 = Math.abs(n[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1];
   let u = cross(n, ref);
@@ -147,6 +177,11 @@ type Drag =
 export class ClipGizmo {
   private svg: SVGSVGElement;
   private drag: Drag | null = null;
+  /** pointer id owning the current drag (-1 = none) — other pointers are ignored */
+  private dragPointer = -1;
+  /** handle size multiplier: 2 on coarse-pointer (touch) devices, where a
+   *  12 px handle is ~2 mm of glass */
+  private readonly hit: number;
   private host: HTMLElement;
   private renderer: Renderer;
   private targets: () => GizmoTargets;
@@ -156,11 +191,16 @@ export class ClipGizmo {
     this.renderer = renderer;
     this.targets = targets;
     this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    this.svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;';
+    // touch-action:none — without it the browser takes a finger drag on a
+    // handle as a scroll after a few pixels and cancels the pointer
+    this.svg.style.cssText =
+      'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;touch-action:none;';
     host.appendChild(this.svg);
+    this.hit = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 2 : 1;
 
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);
+    window.addEventListener('pointercancel', this.onUp);
   }
 
   /** True while a handle drag is in progress (any target). */
@@ -171,6 +211,7 @@ export class ClipGizmo {
   dispose() {
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
+    window.removeEventListener('pointercancel', this.onUp);
     this.svg.remove();
   }
 
@@ -204,7 +245,7 @@ export class ClipGizmo {
   }
 
   private onMove = (e: PointerEvent) => {
-    if (!this.drag) {
+    if (!this.drag || e.pointerId !== this.dragPointer) {
       return;
     }
     const t = this.targets();
@@ -307,13 +348,36 @@ export class ClipGizmo {
     }
   };
 
-  private onUp = () => {
+  private onUp = (e: PointerEvent) => {
+    if (e.pointerId !== this.dragPointer) {
+      return;
+    }
     const d = this.drag;
     if (d && (d.kind === 'smove' || d.kind === 'sscale' || d.kind === 'srotate') && d.last) {
       this.targets().sel?.onCommit(d.last);
     }
     this.drag = null;
+    this.renderer.camera.releasePointer(this.dragPointer);
+    this.dragPointer = -1;
   };
+
+  /** Own the pointer for the drag. Captured on the HOST, not the handle: the
+   *  SVG is rebuilt every frame while the dragged object moves, which
+   *  destroys the handle under the finger — a mouse survives that (its
+   *  events retarget by hit test) but a touch stays locked to its original
+   *  element, so the drag went dead while its state stayed set, and the
+   *  next touch both moved the object and orbited the camera. Claiming the
+   *  pointer from the camera also keeps a second finger from orbiting
+   *  mid-drag (the measure loupe's mechanism). */
+  private holdPointer(id: number) {
+    this.dragPointer = id;
+    try {
+      this.host.setPointerCapture(id);
+    } catch {
+      // not an active pointer (synthetic event): the window listeners still work
+    }
+    this.renderer.camera.claimPointer(id);
+  }
 
   private ringPath(center: V3, normal: V3, radius: number): string | null {
     // basis in the ring plane
@@ -361,6 +425,7 @@ export class ClipGizmo {
 
   /** Re-render the overlay (called once per frame from the viewport tick). */
   update() {
+    const h = this.hit;
     const t = this.targets();
     const parts: string[] = [];
 
@@ -390,7 +455,7 @@ export class ClipGizmo {
       }
       if (pts.length > 1) {
         parts.push(
-          `<path d="${pts.join('')}" fill="none" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6 4" opacity="0.8" />`,
+          `<path data-plain="" d="${pts.join('')}" fill="none" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6 4" opacity="0.8" />`,
         );
       }
     }
@@ -412,7 +477,7 @@ export class ClipGizmo {
               continue;
             }
             parts.push(
-              `<rect data-h="face:${a}:${dir}" x="${ts[0] - 6}" y="${ts[1] - 6}" width="12" height="12" fill="${AXIS_COLORS[a]}" stroke="#0008" style="pointer-events:auto;cursor:grab" />`,
+              `<rect data-h="face:${a}:${dir}" x="${ts[0] - 6 * h}" y="${ts[1] - 6 * h}" width="${12 * h}" height="${12 * h}" fill="${AXIS_COLORS[a]}" stroke="#0008" style="pointer-events:auto;cursor:grab" />`,
             );
           }
         }
@@ -422,7 +487,7 @@ export class ClipGizmo {
           if (ts) {
             parts.push(
               `<line x1="${cs[0]}" y1="${cs[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${AXIS_COLORS[0]}" stroke-width="2.5" />`,
-              `<rect data-h="scale:0" x="${ts[0] - 6}" y="${ts[1] - 6}" width="12" height="12" fill="${AXIS_COLORS[0]}" stroke="#0008" style="pointer-events:auto;cursor:grab" />`,
+              `<rect data-h="scale:0" x="${ts[0] - 6 * h}" y="${ts[1] - 6 * h}" width="${12 * h}" height="${12 * h}" fill="${AXIS_COLORS[0]}" stroke="#0008" style="pointer-events:auto;cursor:grab" />`,
             );
           }
         }
@@ -435,7 +500,7 @@ export class ClipGizmo {
           }
           parts.push(
             `<path d="${path}" fill="none" stroke="${AXIS_COLORS[a]}" stroke-width="2.5" />`,
-            `<path data-h="rotate:${a}" d="${path}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:grab" />`,
+            `<path data-h="rotate:${a}" d="${path}" fill="none" stroke="transparent" stroke-width="${14 * h}" style="pointer-events:stroke;cursor:grab" />`,
           );
         }
       } else if (cs) {
@@ -449,8 +514,8 @@ export class ClipGizmo {
           parts.push(
             `<line x1="${cs[0]}" y1="${cs[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${col}" stroke-width="2.5" />`,
             t.box.mode === 'move'
-              ? `<circle data-h="move:${a}" cx="${ts[0]}" cy="${ts[1]}" r="7" fill="${col}" style="pointer-events:auto;cursor:grab" />`
-              : `<rect data-h="scale:${a}" x="${ts[0] - 6}" y="${ts[1] - 6}" width="12" height="12" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
+              ? `<circle data-h="move:${a}" cx="${ts[0]}" cy="${ts[1]}" r="${7 * h}" fill="${col}" style="pointer-events:auto;cursor:grab" />`
+              : `<rect data-h="scale:${a}" x="${ts[0] - 6 * h}" y="${ts[1] - 6 * h}" width="${12 * h}" height="${12 * h}" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
           );
         }
       }
@@ -468,7 +533,7 @@ export class ClipGizmo {
           }
           parts.push(
             `<path d="${path}" fill="none" stroke="${AXIS_COLORS[a]}" stroke-width="2.5" />`,
-            `<path data-h="srotate:${a}" d="${path}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:grab" />`,
+            `<path data-h="srotate:${a}" d="${path}" fill="none" stroke="transparent" stroke-width="${14 * h}" style="pointer-events:stroke;cursor:grab" />`,
           );
         }
       } else if (cs) {
@@ -481,8 +546,8 @@ export class ClipGizmo {
           parts.push(
             `<line x1="${cs[0]}" y1="${cs[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${col}" stroke-width="2.5" ${t.sel.mode === 'pivot' ? 'stroke-dasharray="5 3"' : ''} />`,
             t.sel.mode === 'scale'
-              ? `<rect data-h="sscale:${a}" x="${ts[0] - 6}" y="${ts[1] - 6}" width="12" height="12" fill="${col}" style="pointer-events:auto;cursor:grab" />`
-              : `<circle data-h="smove:${a}" cx="${ts[0]}" cy="${ts[1]}" r="7" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
+              ? `<rect data-h="sscale:${a}" x="${ts[0] - 6 * h}" y="${ts[1] - 6 * h}" width="${12 * h}" height="${12 * h}" fill="${col}" style="pointer-events:auto;cursor:grab" />`
+              : `<circle data-h="smove:${a}" cx="${ts[0]}" cy="${ts[1]}" r="${7 * h}" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
           );
         }
       }
@@ -509,7 +574,7 @@ export class ClipGizmo {
             }
             parts.push(
               `<path d="${path}" fill="none" stroke="${AXIS_COLORS[ax]}" stroke-width="2" />`,
-              `<path data-h="protate:${ax}:${pi}" d="${path}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:grab" />`,
+              `<path data-h="protate:${ax}:${pi}" d="${path}" fill="none" stroke="transparent" stroke-width="${14 * h}" style="pointer-events:stroke;cursor:grab" />`,
             );
           }
           const ts = this.toScreen(add(a, pl.normal, 2.5));
@@ -529,7 +594,7 @@ export class ClipGizmo {
             const col = ax === 0 ? pl.color : AXIS_COLORS[ax];
             parts.push(
               `<line x1="${as[0]}" y1="${as[1]}" x2="${ts[0]}" y2="${ts[1]}" stroke="${col}" stroke-width="2.5" ${ax === 0 ? 'stroke-dasharray="4 3"' : ''} />`,
-              `<circle data-h="pmove:${ax}:${pi}" cx="${ts[0]}" cy="${ts[1]}" r="7" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
+              `<circle data-h="pmove:${ax}:${pi}" cx="${ts[0]}" cy="${ts[1]}" r="${7 * h}" fill="${col}" style="pointer-events:auto;cursor:grab" />`,
             );
           }
         }
@@ -537,7 +602,9 @@ export class ClipGizmo {
       }
     });
 
-    const html = parts.join('');
+    // halos first, then every coloured element on top of all of them
+    const halo = parts.flatMap(haloParts);
+    const html = `<g opacity="0.9">${halo.join('')}</g>${parts.join('')}`;
     if (this.svg.innerHTML !== html) {
       this.svg.innerHTML = html;
       for (const el of this.svg.querySelectorAll('[data-h]')) {
@@ -546,6 +613,9 @@ export class ClipGizmo {
           e.stopPropagation();
           e.preventDefault();
           this.beginDrag((el.getAttribute('data-h') ?? '').split(':'), e);
+          if (this.drag) {
+            this.holdPointer(e.pointerId);
+          }
         });
       }
     }

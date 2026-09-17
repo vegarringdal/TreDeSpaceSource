@@ -99,10 +99,81 @@ const SETTLE_ZERO_READS = 2;
  *  setting then costs a fast machine half a second and a slow one several. */
 const SETTLE_CEILING_MS = 500;
 
+/** Snap raycast result words: 16 for the hit (measureSnap.ts SnapHit) plus 16
+ *  read diagnostics for the measure trace (shaders/snap.ts header). */
+const SNAP_RESULT_WORDS = 32;
+
 interface PendingPick {
   x: number; // full-res pixel (for unprojection)
   y: number;
   mode: 'pivot' | 'fly' | 'probe' | 'measure'; // probe: record; measure: snap+normal
+}
+
+/** The view a pick's depth texel was rendered with: the stable (un-jittered,
+ *  absolute) view-projection and the target size. Captured when the pick is
+ *  encoded and used for everything that follows — the unprojection, the
+ *  measure raycast's sight line, the snap radii — because the readback and
+ *  the two casts land frames later, and on a slow GPU the camera is still
+ *  settling from the last swipe for seconds (update() clamps dt to 33 ms, so
+ *  a settle tail of 0.5 s at 60 fps takes ~3 s at 10 fps). Unprojecting the
+ *  texel through a LATER matrix puts the point off the surface, and a ray
+ *  through the later camera hits somewhere else entirely. Selection never
+ *  showed it: it reads an id, not a depth. `t` / `tag`: encode time and the
+ *  measure-trace label (options.traceKey). */
+type PickView = Readonly<{ vp: Float32Array; w: number; h: number; t: number; tag: string }>;
+
+// measure-trace formatting
+const fmt3 = (v: number): string => v.toFixed(3);
+const fmtV3 = (p: readonly number[]): string => `(${fmt3(p[0])}, ${fmt3(p[1])}, ${fmt3(p[2])})`;
+const fmtPx = (q: [number, number] | null): string => (q ? `(${q[0].toFixed(1)},${q[1].toFixed(1)})` : 'behind');
+const dist3 = (a: readonly number[], b: readonly number[]): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const fmtHit = (h: SnapHit | null): string =>
+  h
+    ? `hit t=${fmt3(h.t)} item=${h.item} uv=(${fmt3(h.u)},${fmt3(h.v)}) A=${fmtV3(h.A)} B=${fmtV3(h.B)} C=${fmtV3(h.C)}`
+    : 'miss';
+
+type Ray = { origin: [number, number, number]; dir: [number, number, number] };
+
+/** Unproject device pixel (fx, fy) at NDC depth d through an inverted
+ *  view-projection; null when degenerate. */
+function unprojectPixel(
+  inv: Float32Array,
+  w: number,
+  h: number,
+  fx: number,
+  fy: number,
+  d: number,
+): [number, number, number] | null {
+  const ndcX = ((fx + 0.5) / w) * 2 - 1;
+  const ndcY = 1 - ((fy + 0.5) / h) * 2;
+  const c = [ndcX, ndcY, d, 1];
+  const o = new Float64Array(4);
+  for (let r = 0; r < 4; r++) {
+    o[r] = inv[r] * c[0] + inv[4 + r] * c[1] + inv[8 + r] * c[2] + inv[12 + r] * c[3];
+  }
+  if (Math.abs(o[3]) < 1e-12) {
+    return null;
+  }
+  return [o[0] / o[3], o[1] / o[3], o[2] / o[3]];
+}
+
+/** Sight line through a device pixel of `view`: near-plane origin (correct
+ *  for perspective and ortho alike — a camera-position origin would be
+ *  oblique in ortho) and unit direction, in absolute world space. */
+function rayThroughPixel(view: PickView, px: number, py: number): Ray | null {
+  const inv = invert4(view.vp);
+  if (!inv) {
+    return null;
+  }
+  // reversed-Z: depth 1 = near, small depth = far
+  const a = unprojectPixel(inv, view.w, view.h, px, py, 1);
+  const b = unprojectPixel(inv, view.w, view.h, px, py, 0.001);
+  if (!a || !b) {
+    return null;
+  }
+  const dir: [number, number, number] = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const l = Math.hypot(...dir) || 1;
+  return { origin: a, dir: [dir[0] / l, dir[1] / l, dir[2] / l] };
 }
 
 const RECORD_STRIDE = 20; // drawIndexedIndirect: 5 x u32
@@ -549,6 +620,15 @@ export class Renderer {
   private pickDepthBind: GPUBindGroup | null = null;
   private pendingPick: PendingPick | null = null;
   private pickInFlight = false;
+  /** Measure-probe trace sink (Settings → Stats → verbose trace): one line per
+   *  stage of every depth pick — encode, depth, unprojection, sight line, each
+   *  raycast, and the result re-projected through the pick's own view and the
+   *  current one. The viewport routes it to the Console panel, so a device
+   *  without DevTools can still show where a measurement goes wrong. */
+  onTrace: ((line: string) => void) | null = null;
+  private pickSeq = 0;
+  /** raw words of the last snap cast, for the trace's read cross-check */
+  private lastCastWords = new Uint32Array(SNAP_RESULT_WORDS);
   /** Last CSS-derived backing size seen and when it last changed (4.4). */
   private pendingW = 0;
   private pendingH = 0;
@@ -571,28 +651,15 @@ export class Renderer {
   }
 
   /** World-space ray through a canvas CSS pixel (for gizmo interaction). */
-  screenRay(cssX: number, cssY: number): { origin: [number, number, number]; dir: [number, number, number] } | null {
+  screenRay(cssX: number, cssY: number): Ray | null {
+    return rayThroughPixel(this.currentView(), cssX * this.dpr, cssY * this.dpr);
+  }
+
+  /** The view of the last rendered frame — what a pick encoded now is bound
+   *  to (PickView). */
+  private currentView(tag = ''): PickView {
     const canvas = this.hostCanvas;
-    const inv = invert4(this.lastVP);
-    if (!inv) {
-      return null;
-    }
-    const ndcX = ((cssX * this.dpr + 0.5) / canvas.width) * 2 - 1;
-    const ndcY = 1 - ((cssY * this.dpr + 0.5) / canvas.height) * 2;
-    const un = (d: number): [number, number, number] => {
-      const c = [ndcX, ndcY, d, 1];
-      const w = [0, 0, 0, 0];
-      for (let r = 0; r < 4; r++) {
-        w[r] = inv[r] * c[0] + inv[4 + r] * c[1] + inv[8 + r] * c[2] + inv[12 + r] * c[3];
-      }
-      return [w[0] / w[3], w[1] / w[3], w[2] / w[3]];
-    };
-    // reversed-Z: depth 1 = near, small depth = far
-    const a = un(1);
-    const b = un(0.001);
-    const dir: [number, number, number] = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-    const l = Math.hypot(...dir) || 1;
-    return { origin: a, dir: [dir[0] / l, dir[1] / l, dir[2] / l] };
+    return { vp: Float32Array.from(this.lastVP), w: canvas.width, h: canvas.height, t: performance.now(), tag };
   }
 
   /** Record the world position under a canvas pixel without moving the camera. */
@@ -1088,12 +1155,12 @@ export class Renderer {
     });
     this.snapResultBuf = dev.createBuffer({
       label: 'snapResultBuf',
-      size: 64, // 16 u32 words (t, valid, u, v, A, B, C)
+      size: SNAP_RESULT_WORDS * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
     this.snapStagingBuf = dev.createBuffer({
       label: 'snapStagingBuf',
-      size: 64,
+      size: SNAP_RESULT_WORDS * 4,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
     this.snapParamsBuf = dev.createBuffer({
@@ -2056,14 +2123,22 @@ export class Renderer {
     this.lastKey = ''; // force a re-render (clears the viewport)
   }
 
+  private trace(line: () => string) {
+    if (this.options.traceKey && this.onTrace) {
+      this.onTrace(line());
+    }
+  }
+
   // Read back the picked depth (the nearest sample under the full-res cursor
-  // pixel), unproject to world space, re-pivot the camera.
-  private async resolvePick(p: PendingPick) {
+  // pixel), unproject it through the view it was rendered with (PickView),
+  // then answer the requester / re-pivot / fly.
+  private async resolvePick(p: PendingPick, view: PickView) {
     const buf = this.pickBuf!;
     await buf.mapAsync(GPUMapMode.READ);
     const depth = new Float32Array(buf.getMappedRange())[0];
     buf.unmap();
     this.pickInFlight = false;
+    this.trace(() => `${view.tag} depth=${depth.toExponential(3)} +${(performance.now() - view.t).toFixed(0)}ms`);
     const probeDone = (pt: [number, number, number] | null) => {
       this.probeResolve?.(pt);
       this.probeResolve = null;
@@ -2072,40 +2147,45 @@ export class Renderer {
       this.measureResolve?.(m);
       this.measureResolve = null;
     };
-    const inv = invert4(this.lastVP);
+    const inv = invert4(view.vp);
     if (depth <= BACKDROP_DEPTH_MAX || !inv) {
+      this.trace(() => `${view.tag} ${inv ? 'background' : 'degenerate view'} → null`);
       probeDone(null);
       measureDone(null);
       return; // reversed-Z: 0 = background, nothing hit; a backdrop item counts as none
     }
-    const canvas = this.hostCanvas;
-    // Unproject a full-res pixel (fx, fy) + depth to world; null if degenerate.
-    const unproj = (fx: number, fy: number, d: number): [number, number, number] | null => {
-      const ndcX = ((fx + 0.5) / canvas.width) * 2 - 1;
-      const ndcY = 1 - ((fy + 0.5) / canvas.height) * 2;
-      const c = [ndcX, ndcY, d, 1];
-      const w = new Float32Array(4);
-      for (let r = 0; r < 4; r++) {
-        w[r] = inv[r] * c[0] + inv[4 + r] * c[1] + inv[8 + r] * c[2] + inv[12 + r] * c[3];
-      }
-      if (Math.abs(w[3]) < 1e-12) {
-        return null;
-      }
-      return [w[0] / w[3], w[1] / w[3], w[2] / w[3]];
-    };
-    const point = unproj(p.x, p.y, depth);
+    const point = unprojectPixel(inv, view.w, view.h, p.x, p.y, depth);
     if (!point) {
+      this.trace(() => `${view.tag} unproject degenerate → null`);
       probeDone(null);
       measureDone(null);
       return;
     }
+    this.trace(() => `${view.tag} unproject=${fmtV3(point)}`);
     this.lastClickWorld = point; // every successful pick remembers its point
 
     if (p.mode === 'measure') {
       // True mesh ray-cast (port of the native measure_snap compute): exact,
       // view-independent corner/edge/face. Face fallback on a miss/failure.
-      const probe = await this.raycastMeasure(p.x, p.y).catch(() => null);
-      measureDone(probe ?? { point, normal: null, edgeDir: null, kind: 'face' });
+      const probe = await this.raycastMeasure(p.x, p.y, view).catch((e: unknown) => {
+        this.trace(() => `${view.tag} raycast threw: ${String(e)}`);
+        return null;
+      });
+      const result: MeasureProbe = probe ?? { point, normal: null, edgeDir: null, kind: 'face' };
+      this.trace(() => {
+        const canvas = this.hostCanvas;
+        const atEncode = projectToScreen(view.vp, view.w, view.h, result.point);
+        const atNow = projectToScreen(this.lastVP, canvas.width, canvas.height, result.point);
+        const off = (q: [number, number] | null) =>
+          q ? Math.hypot(q[0] - p.x - 0.5, q[1] - p.y - 0.5).toFixed(1) : '-';
+        return (
+          `${view.tag} result ${result.kind}${probe ? '' : ' (depth fallback)'} point=${fmtV3(result.point)} ` +
+          `Δdepth=${fmt3(dist3(result.point, point))}m reproj@encode=${fmtPx(atEncode)} Δ${off(atEncode)}px ` +
+          `reproj@now=${fmtPx(atNow)} Δ${off(atNow)}px total=${(performance.now() - view.t).toFixed(0)}ms ` +
+          `gpuError=${this.gpuError || 'none'}`
+        );
+      });
+      measureDone(result);
     } else {
       probeDone(point);
       if (p.mode === 'fly') {
@@ -2127,33 +2207,42 @@ export class Renderer {
   // transparent counts as not there) to find the surface just behind; where
   // the two triangle planes meet within the edge radius, the seam wins over a
   // face hit (seamProbe). Priority: corner > seam corner > edge > seam edge > face.
-  private async raycastMeasure(px: number, py: number): Promise<MeasureProbe | null> {
+  private async raycastMeasure(px: number, py: number, view: PickView): Promise<MeasureProbe | null> {
     if (this.snapInFlight || this.models.length === 0) {
+      this.trace(() => `${view.tag} raycast skipped: ${this.snapInFlight ? 'a cast is still in flight' : 'no models'}`);
       return null;
     }
-    // sight line through the cursor pixel: near-plane origin (correct for both
-    // perspective and ortho — a camera-position ray in ortho would be oblique)
-    const ray = this.screenRay(px / this.dpr, py / this.dpr);
+    // sight line through the cursor pixel OF THE FRAME THE DEPTH CAME FROM
+    const ray = rayThroughPixel(view, px, py);
     if (!ray) {
+      this.trace(() => `${view.tag} raycast skipped: degenerate view`);
       return null;
     }
+    this.trace(() => `${view.tag} ray origin=${fmtV3(ray.origin)} dir=${fmtV3(ray.dir)}`);
     this.snapInFlight = true;
     try {
       const a = await this.castSnapRay(ray, 0, false);
+      this.trace(() => `${view.tag} cast1 ${fmtHit(a)} +${(performance.now() - view.t).toFixed(0)}ms`);
+      if (a && this.options.traceKey && this.onTrace) {
+        await this.traceCastReads(view.tag, a);
+      }
       if (!a) {
         return null; // no triangle hit
       }
       const snap = this.measureSnap;
-      const w2p = (p: [number, number, number]) => this.worldToPixel(p);
+      const w2p = (p: [number, number, number]) => projectToScreen(view.vp, view.w, view.h, p);
       const base = classifySnap(a.A, a.B, a.C, a.u, a.v, ray.dir, px, py, snap, w2p);
+      this.trace(() => `${view.tag} classify ${base.kind} point=${fmtV3(base.point)} snap=${JSON.stringify(snap)}`);
       if (!snap.enabled || !snap.seam || base.kind === 'corner' || isTransparentItem(a.flags, a.color)) {
         return base;
       }
       const b = await this.castSnapRay(ray, a.item, true);
+      this.trace(() => `${view.tag} cast2 ${fmtHit(b)}`);
       const seam = b ? seamProbe(a, b, ray, px, py, snap, w2p, (t) => this.pixelFootprint(t)) : null;
       if (!seam) {
         return base;
       }
+      this.trace(() => `${view.tag} seam ${seam.kind} point=${fmtV3(seam.point)}`);
       if (seam.kind === 'corner' || base.kind === 'face') {
         return seam;
       }
@@ -2168,6 +2257,54 @@ export class Renderer {
     const h = this.hostCanvas.height;
     const halfTan = Math.tan(this.camera.fovY / 2);
     return this.options.orthographic ? (2 * this.camera.focusDist * halfTan) / h : (2 * t * halfTan) / h;
+  }
+
+  /** Measure-trace cross-check for the winning triangle: what the snap
+   *  shader READ (meshlet, triangle, local indices, raw vertex words, AABB
+   *  scale) next to a CPU readback of the same GPU buffers decoded the same
+   *  way. A driver that misreads one of them shows it as the first column
+   *  that differs. Trace only — it reads the whole model back. */
+  private async traceCastReads(tag: string, hit: SnapHit) {
+    const w = this.lastCastWords;
+    const loc = this.itemFromGlobalId(hit.item - 1) ?? this.itemFromGlobalId(hit.item);
+    const mi = w[16];
+    const tri = w[17];
+    const hex = (v: number) => v.toString(16).padStart(8, '0');
+    const sc4 = (v: readonly number[]) => `(${v.map((x) => x.toPrecision(4)).join(', ')})`;
+    const gScale = Array.from(new Float32Array(w.buffer, 27 * 4, 3));
+    this.trace(
+      () =>
+        `${tag} gpu read: model=${loc?.model ?? '?'} mi=${mi} tri=${tri} idx=(${w[18]},${w[19]},${w[20]}) ` +
+        `base_vertex=${w[30]} first_index=${w[31]} scale=${sc4(gScale)} ` +
+        `rawv A=${hex(w[21])}/${hex(w[22])} B=${hex(w[23])}/${hex(w[24])} C=${hex(w[25])}/${hex(w[26])}`,
+    );
+    if (!loc) {
+      return;
+    }
+    const g = await this.readModelGeometry(loc.model);
+    if (!g) {
+      return;
+    }
+    const cull = new Uint32Array(g.cull);
+    const infoU = new Uint32Array(g.meshletInfo);
+    const infoF = new Float32Array(g.meshletInfo);
+    const idx16 = new Uint16Array(g.indices16);
+    const pos = new Uint16Array(g.positionsQ);
+    const indexCount = cull[mi * 9 + 5];
+    const firstIndex = cull[mi * 9 + 6];
+    const baseVertex = cull[mi * 9 + 8];
+    const min = [infoF[mi * 8], infoF[mi * 8 + 1], infoF[mi * 8 + 2]];
+    const sc = [infoF[mi * 8 + 4], infoF[mi * 8 + 5], infoF[mi * 8 + 6]];
+    const li = [0, 1, 2].map((c) => idx16[firstIndex + tri * 3 + c]);
+    const q = li.map((l) => [pos[(baseVertex + l) * 4], pos[(baseVertex + l) * 4 + 1], pos[(baseVertex + l) * 4 + 2]]);
+    const p = q.map((v) => [min[0] + v[0] * sc[0], min[1] + v[1] * sc[1], min[2] + v[2] * sc[2]]);
+    this.trace(
+      () =>
+        `${tag} cpu read: meshlets=${g.meshletCount} mi=${mi} item=${infoU[mi * 8 + 7]} index_count=${indexCount} ` +
+        `first_index=${firstIndex} base_vertex=${baseVertex} idx=(${li.join(',')}) min=${fmtV3(min)} ` +
+        `scale=${sc4(sc)} q=${q.map((v) => `(${v.join(',')})`).join(' ')} ` +
+        `A=${fmtV3(p[0])} B=${fmtV3(p[1])} C=${fmtV3(p[2])}`,
+    );
   }
 
   /** One snap cast: the closest triangle along `ray` over every model.
@@ -2186,7 +2323,7 @@ export class Renderer {
     new Uint32Array(params, 32, 4).set([excludeItem, skipTransparent ? 1 : 0, 0, 0]);
     dev.queue.writeBuffer(this.snapParamsBuf, 0, params);
     // clear: t = 0xFFFFFFFF for the atomicMin, everything else 0
-    const clear = new Uint32Array(16);
+    const clear = new Uint32Array(SNAP_RESULT_WORDS);
     clear[0] = 0xffffffff;
     dev.queue.writeBuffer(this.snapResultBuf, 0, clear);
 
@@ -2220,12 +2357,13 @@ export class Renderer {
       }
     }
     pass.end();
-    enc.copyBufferToBuffer(this.snapResultBuf, 0, this.snapStagingBuf, 0, 64);
+    enc.copyBufferToBuffer(this.snapResultBuf, 0, this.snapStagingBuf, 0, SNAP_RESULT_WORDS * 4);
     dev.queue.submit([enc.finish()]);
 
     await this.snapStagingBuf.mapAsync(GPUMapMode.READ);
     const words = new Uint32Array(this.snapStagingBuf.getMappedRange()).slice();
     this.snapStagingBuf.unmap();
+    this.lastCastWords = words;
     if (words[1] === 0) {
       return null; // no triangle hit
     }
@@ -2241,13 +2379,6 @@ export class Renderer {
       flags: words[14],
       color: words[15],
     };
-  }
-
-  /** World point → device-pixel coords (same convention as the rasterizer);
-   *  null when at/behind the projection plane. */
-  private worldToPixel(p: [number, number, number]): [number, number] | null {
-    const canvas = this.hostCanvas;
-    return projectToScreen(this.lastVP, canvas.width, canvas.height, p);
   }
 
   /** Far end of the perspective sort-key range (cull.ts sort_bucket): the
@@ -3368,7 +3499,15 @@ export class Renderer {
     });
     enc.copyBufferToBuffer(this.pickOutBuf, 0, this.pickBuf, 0, 4);
     this.pickInFlight = true;
-    return () => this.resolvePick(pick).catch(() => (this.pickInFlight = false));
+    // bind the pick to the view its depth texel was rendered with — lastVP is
+    // this frame's (or, from submitPicksOnly, the last frame's) matrix
+    const view = this.currentView(`pick#${++this.pickSeq}`);
+    this.trace(
+      () =>
+        `${view.tag} encode ${pick.mode} px=(${pick.x},${pick.y}) target=${view.w}x${view.h} dpr=${this.dpr} ` +
+        `msaa=${this.targetsMsaa} cull=${this.cullMode} models=${this.models.length} gpuError=${this.gpuError || 'none'}`,
+    );
+    return () => this.resolvePick(pick, view).catch(() => (this.pickInFlight = false));
   }
 
   /** Encode the one-shot frame snapshot copy — the presented swapchain, once

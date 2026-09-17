@@ -4,6 +4,7 @@ import { downloadText } from '../../lib/download';
 import type { V3 } from '../../lib/math/quat';
 import {
   autoFinishAt,
+  awaitsOk,
   lockProject,
   type MeasureHit,
   type MeasureLock,
@@ -37,21 +38,33 @@ function near(a: V3, b: V3): boolean {
 }
 
 export const measurementsActions = {
-  /** Select the active tool (called from the ribbon). Switching cancels any
-   *  in-progress measurement. */
+  /** Select the active tool (called from the ribbon). Switching cancels an
+   *  unfinished measurement; one that is complete and only awaiting OK is
+   *  kept, as auto-finish would have kept it. */
   setTool(kind: MeasureToolKind | null) {
+    const s = measurementsState.get();
+    if (s.activeKind && awaitsOk(s.activeKind, s.inProgress.length)) {
+      this.finish();
+    }
     measurementsState.set({ activeKind: kind, inProgress: [], hover: null });
   },
 
-  /** Place a point from a hover-probe hit. Auto-finishes Line (2) / Diameter
-   *  (3); Path/Area stay open until finish(). With Shift (`perp`) the point is
-   *  the perpendicular foot on the previous point's normal ray; the raw click is
-   *  kept as `clicked` for the dashed helper + ΔXYZ staircase. */
+  /** Place a point from a hover-probe hit. Fixed-count kinds (Line/Face 2,
+   *  Diameter/Angle 3) then wait for OK — `awaitsOk` — and the next placed
+   *  point is that OK plus the first point of the next measurement, so the
+   *  click count stays what auto-finish cost; Point commits at once;
+   *  Path/Area stay open until finish(). With Shift (`perp`) the point is
+   *  the perpendicular foot on the previous point's normal ray; the raw click
+   *  is kept as `clicked` for the dashed helper + ΔXYZ staircase. */
   addPoint(hit: MeasureHit) {
-    const s = measurementsState.get();
+    let s = measurementsState.get();
     const kind = s.activeKind;
     if (!kind) {
       return;
+    }
+    if (awaitsOk(kind, s.inProgress.length)) {
+      this.finish();
+      s = measurementsState.get();
     }
     const prev = s.inProgress[s.inProgress.length - 1];
     let point: MeasurePoint =
@@ -66,8 +79,7 @@ export const measurementsActions = {
     }
     const inProgress = [...s.inProgress, point];
     measurementsState.set({ inProgress });
-    const auto = autoFinishAt(kind);
-    if (auto !== null && inProgress.length >= auto) {
+    if (autoFinishAt(kind) === 1) {
       this.finish();
     }
   },

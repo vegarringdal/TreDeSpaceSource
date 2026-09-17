@@ -12,6 +12,7 @@ import { setClipShapeSeed } from '../clip-shapes/ribbonClipShapes.actions';
 import { buildClip } from './clipPack';
 import { attachMeasureAim, type MeasureAim } from './measureAim';
 import { attachMeasureBar } from './measureBar';
+import { traceMeasureProbe } from './measureTrace';
 import { shapeGizmoTarget } from './shapeGizmo';
 
 /** Adapt the renderer's probe (null fields) to the state's MeasureHit (optional). */
@@ -599,11 +600,21 @@ export const viewport: PanelDefinition = {
       labelOverlay = new LabelOverlay(host, renderer);
       residencyBoxes = new ResidencyBoxOverlay(host, renderer);
       measureBar = attachMeasureBar(host);
+      // measure-probe trace (Settings → Stats → verbose trace → Console)
+      const traceDeps = { host, canvas, renderer };
+      renderer.onTrace = (line) => consoleActions.log('info', line);
       measureAim = attachMeasureAim({
         host,
         canvas,
         camera: renderer.camera,
-        probe: (x, y) => renderer.probeMeasureAsync(x, y, measureSnap()).then(toHit),
+        probe: (x, y) => {
+          const done = traceMeasureProbe(traceDeps, 'loupe', x, y);
+          return renderer.probeMeasureAsync(x, y, measureSnap()).then((p) => {
+            const hit = toHit(p);
+            done?.(hit);
+            return hit;
+          });
+        },
       });
       // The cube is DRAWN by the renderer (GPU overlay — so canvas captures
       // include it); the DOM ViewGizmo stays as invisible hit zones + handle.
@@ -705,8 +716,17 @@ export const viewport: PanelDefinition = {
         // probed surface (auto-finishes Line/Diameter). No item selection.
         if (measurementsState.get().activeKind) {
           measurementsActions.setPerp(e.shiftKey);
+          const target = e.target instanceof Element ? e.target.tagName : '?';
+          const done = traceMeasureProbe(
+            traceDeps,
+            'tap',
+            e.offsetX,
+            e.offsetY,
+            `client=(${e.clientX},${e.clientY}) target=${target} pointer=${downAt.type}`,
+          );
           void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap()).then((p) => {
             const hit = toHit(p);
+            done?.(hit);
             if (hit) {
               measurementsActions.addPoint(hit);
             }

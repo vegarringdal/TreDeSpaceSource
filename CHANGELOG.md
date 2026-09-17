@@ -4,6 +4,91 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.17** (>0.0.127):
+  Transform / clip gizmo readability: every axis line, ring and handle now
+  sits on a white halo 1.5 px wider on each side (a copy of the same
+  geometry drawn underneath, halos first so no colour is ever covered), so
+  the standard and six-axis gizmos read on a dark model, a white sketch and
+  a same-coloured pipe alike. The grey guide line along the axis of an
+  active drag stays plain — haloed too, it got heavy. Hit areas are
+  unchanged.
+- **2026.09.17** (>0.0.127):
+  Measuring: Line, Face, Diameter and Angle no longer commit themselves on
+  their last point. The measurement stays in progress with the on-canvas bar
+  showing OK / Undo / Cancel, so a misplaced last point can be undone — on
+  a tablet the bar is the only way, and it used to vanish with the point
+  that needed undoing. OK, Enter, or simply placing the next point keeps it
+  (that point also starts the next measurement, so the click count is what
+  auto-finish cost); switching tools keeps a complete one too. Point still
+  commits on its single tap; Path and Area are unchanged.
+- **2026.09.17** (>0.0.127):
+  Transform / rotate / scale gizmo on touch: a finger drag on a handle went
+  dead after the first frame and the camera orbited instead. The gizmo
+  rebuilds its SVG every frame while the dragged object moves, which
+  destroys the handle under the finger; a mouse survives that (events
+  retarget by hit test) but a touch stays locked to its original element, so
+  the drag state stayed set with no events, and the next touch both moved
+  the object and orbited. The drag now captures its pointer on the panel
+  host, claims it from the camera for its duration (a second finger cannot
+  orbit mid-drag — the loupe's mechanism), ignores other pointers, ends on
+  pointercancel, and the overlay has touch-action:none so the browser never
+  takes the drag as a scroll. Handles are twice the size on coarse-pointer
+  devices, where 12 px was about 2 mm of glass.
+- **2026.09.17** (>0.0.127):
+  Touch measuring on the tablet — root cause and fix. The measure raycast's
+  read cross-check showed every input read correctly (indices, raw vertex
+  words, even the AABB scale when read component-wise) and the dequantized
+  vertex still wrong: Qualcomm Adreno 7xx compiles the snap shader's
+  `info.aabb_min + q * info.aabb_scale`, inside a helper that took the
+  `MeshletInfo` struct as a parameter, as `aabb_min + q * aabb_min`. Every
+  cast therefore hit a phantom triangle millions of metres wide a few metres
+  in front of the camera (the floating point), and the seam cast's item
+  exclusion — another struct-parameter helper — never matched. The shader now
+  reads its records as raw `u32` words into plain vectors, passes only
+  scalars and vectors to its helpers, and rejects any triangle with a vertex
+  outside its meshlet's bounding sphere as a last net. The PC never showed
+  it because its driver compiles the struct correctly.
+- **2026.09.17** (>0.0.127):
+  Measure trace, second round: the tablet's log showed every measure raycast
+  hitting one phantom triangle 6.5 million metres wide, a plane ~10 m in
+  front of the camera — a point exactly on the tapped pixel but at the wrong
+  depth (that is the floating point). The cooked data has no such meshlet
+  (full and coarse packs scanned locally), the depth pick and item pick on
+  the same device are right, so the snap compute shader is reading its
+  buffers wrongly on that GPU. The snap result now carries what the winning
+  invocation READ (meshlet, triangle, local indices, raw vertex words, AABB
+  scale), and the trace prints it next to a CPU readback of the same GPU
+  buffers decoded the same way, so the misread column names itself.
+- **2026.09.17** (>0.0.127):
+  Console panel: a Download button (and the `console.download` hotkey) saves
+  the whole log as a .txt — every level, whatever the view filter, under a
+  header naming the build, browser, pixel ratio and viewport — so a trace
+  captured on a device without DevTools (the tablet) can be sent as a file.
+- **2026.09.17** (>0.0.127):
+  Measure-probe trace: with Settings → Stats → "Verbose trace" on, every
+  measurement probe (tap, loupe) logs to the Console panel — the input point
+  in CSS / client / host / canvas coordinates, then the renderer's depth
+  read, unprojection, sight line, both raycasts and the classified result
+  re-projected through the pick's own view and the current one, and finally
+  the CSS pixel the overlay draws the point at. For a device without
+  DevTools: touch measuring on the tablet is still wrong after two fixes
+  that both hold on the PC, and the numbers have to come from the pad
+  (plans/fix_pad_measurement.md §8).
+- **2026.09.17** (>0.0.127):
+  Touch measuring on a slow GPU: points landed off the tapped spot, in
+  mid-air, or elsewhere entirely while selection at the same tap was right
+  (plans/fix_pad_measurement.md §7). A depth pick answers frames after it
+  was encoded (readback, then two raycasts), and it unprojected its texel —
+  and cast its measure ray — through the CURRENT camera matrix, not the one
+  its frame was rendered with. The camera eases toward its orbit target with
+  a per-frame step clamped to 33 ms of simulated time, so after a swipe it
+  keeps moving for ~0.5 s at 60 fps but for seconds at 10 fps; every pick
+  resolved inside that tail used a different view than its depth texel.
+  Selection reads an id, not a depth, so it never showed it. Each pick now
+  carries the view-projection and target size of the frame it was encoded in
+  and uses them for the unprojection, the sight line and the snap radii.
+  The pick unprojection also accumulates in f64 now (it was f32), which
+  removes a little error along the sight line on scenes far from the origin.
 - **2026.09.17** (>0.0.126):
   Frame pacing on slow GPUs: the render loop now keeps at most ONE frame in
   flight (`Renderer.gpuBusy`, cleared by the queue's work-done promise; the

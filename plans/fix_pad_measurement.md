@@ -1,8 +1,13 @@
 # fix_pad_measurement — tablet loupe places the measure point behind the crosshair
 
-> **Status:** PLANNED — cause confirmed by reading the code, fix not started
-> (director: no edits for now).
-> **Last updated:** 2026-09-17 · **Plan version:** 1.0
+> **Status:** ROOT CAUSE FOUND AND FIXED 2026-09-17 (§10): the tablet's
+> Adreno driver miscompiles the snap shader's dequantization when the info
+> record is a struct parameter; the shader now reads raw words and passes
+> scalars. VERIFIED by the director on the tablet 2026-09-17 ("looks like
+> its working now"). Earlier theories: §3 (per-request resolvers)
+> implemented and reverted; §7 (encode-time view) kept — correct, but not
+> this bug. DONE.
+> **Last updated:** 2026-09-17 · **Plan version:** 4.1
 > **Related:** memory note `touch-measure-model` (earlier, different cause:
 > snap radii vs pixel ratio — NOT this one).
 > File/line references were checked against the repo on 2026-09-17 (branch
@@ -249,3 +254,146 @@ sooner. Also worth a Stats row so the depth can be seen rather than guessed.
 Measure first: Stats → GPU timings (timestamp-query, may be unavailable on
 Android) against the frame interval; GPU ms above the interval means the
 queue, not the CPU, is the lag.
+
+## 7. The real cause: picks resolved through a later camera (2026-09-17)
+
+Found after §3 was reverted, from the director's clue that SELECTION at the
+same tap is right while the measure point is not. Selection reads an id
+texel; measuring reads a depth texel and then does geometry with a matrix.
+
+- `resolvePick` unprojected the depth texel through `this.lastVP` **at
+  resolve time** — after the readback's `mapAsync`, one or more frames after
+  the pick was encoded. `raycastMeasure` built its sight line from `lastVP`
+  later still (after the readback, before the casts), and `worldToPixel` for
+  the snap radii used it again after both casts.
+- `camera.update()` eases azimuth / elevation / distance toward their targets
+  with `s = 1 - exp(-10 dt)` and **clamps dt to 33 ms** (native clamp). The
+  tail down to the 1e-5 settle threshold is ~35 frames: ~0.5 s at 60 fps, but
+  3–4 s of wall-clock at 10 fps because each slow frame only advances the
+  ease by 33 ms. On the pad every tap within seconds of the last swipe — and
+  every loupe probe, since the 450 ms hold does not outlast the tail — was
+  resolved with a matrix that differed from the one its depth was rendered
+  with.
+- Consequences: the unprojected point leaves the surface (the "floating"
+  point), and the ray through the later camera hits a different spot (the
+  "not where I tapped" point). The frame-pacing change of the same day did
+  not cause this; it made the frames fewer, not the tail shorter.
+
+**Fix:** `PickView` — the stable view-projection and target size captured in
+`encodeDepthPick`, carried with the pick, and used for the unprojection, the
+sight line (`rayThroughPixel`) and the snap-radius projection. `screenRay`
+(ClipGizmo) keeps using the current view through the same helper. The
+unprojection now accumulates in f64 (it was `Float32Array`).
+
+**Not changed, for the director to decide:** the 33 ms dt clamp. On a slow
+GPU it makes every eased camera motion (and WASD travel) run at a fraction of
+real time and keeps the renderer re-rendering through the whole tail —
+part of "it keeps rendering after I stop". Raising the clamp to ~100 ms
+would keep the protection against a stalled tab while letting a 10 fps
+device settle in wall-clock time.
+
+**Verify on the pad:** orbit, then tap immediately — before the fix the point
+is off, after it lands on the tapped spot. Tap after standing still for 5 s
+— right both before and after. Loupe: hold, drag, lift — lands in the
+crosshair even right after a swipe.
+
+## 8. Measure-probe trace (2026-09-17) — get the numbers from the pad
+
+Settings → Stats → "Verbose trace" (hotkey `stats.trace`), open the Console
+panel, arm a measure tool, tap once. Lines, in order:
+
+- `measure tap: css=(x,y) client=(x,y) target=CANVAS pointer=touch
+  canvasRect=(l,t wxh) hostRect=(l,t wxh) canvas=WxH css=WxH
+  devicePixelRatio=… visualViewport=scale @(x,y)` — the input. `css` must
+  equal `client − canvasRect.left/top`; `canvasRect` and `hostRect` must
+  coincide; `canvas` should be `css × pixel ratio`; `visualViewport` scale
+  must be 1 (pinch-zoomed page otherwise).
+- `pick#N encode measure px=(x,y) target=WxH dpr=… msaa=… cull=… models=…
+  gpuError=…` — the device pixel the renderer reads; `px ≈ css × dpr`.
+- `pick#N depth=… +ms` then `pick#N unproject=(x,y,z)` — the depth texel and
+  the point on the surface under it (or `background`).
+- `pick#N ray origin dir`, `cast1 hit t=… item=… uv=… A/B/C` or `miss`,
+  `classify kind point snap=…`, `cast2 …`, `seam …` — the mesh raycast.
+- `pick#N result kind point=… Δdepth=…m reproj@encode=(px,py) Δ…px
+  reproj@now=(px,py) Δ…px total=…ms gpuError=…` — the answer. `Δdepth` is
+  the distance between the raycast point and the depth point (same surface:
+  small). `reproj@encode Δ` is how far from the tapped pixel the answer
+  projects in the frame it was picked in — must be within the snap radius.
+  `reproj@now Δ` is the same through the current camera: large only if the
+  camera moved since.
+- `measure tap: kind point=… drawAt=(x,y) Δ…px from input` — the CSS pixel
+  MeasureOverlay draws the marker at, from the host rect and the current
+  view. Small Δ with a marker visibly elsewhere means the overlay's
+  placement (CSS), not the pick.
+
+The first line where a number is wrong names the stage. Selection uses the
+same `css` / `px`, so with a correct input line the fault is between
+`encode` and `drawAt`.
+
+## 9. What the pad's trace showed (2026-09-17, evening)
+
+Every one of 42 measure raycasts hit the same triangle: A=(99.8, 277.35,
+24.0), B=(6540493, 277.35, 65436.5), C=(99.8, 277.35, 65436.5) — a plane at
+y = 277.35, 6.5 million metres wide, about 10 m in front of the camera. The
+depth texel under the same pixel was 14–21 m further along the ray, and the
+result re-projected onto the tapped pixel exactly. So the point is on the
+sight line but at the wrong depth: it floats in the air. The depth pick, the
+item pick and the bounds all agree with the data.
+
+The cooked data does not contain that triangle: the STRU sample converted
+and cooked locally (`rvm` CLI → `cookGlb` → `parseModel`, and the same
+through `coarsenTdp`) has 0 of 9144 full / 4214 coarse meshlets with an
+extent over 1 km. The phantom's `aabb_scale` = (99.8, ?, 0.998) is not in
+any record. Conclusion: the snap compute shader (`shaders/snap.ts`) reads
+one of its buffers wrongly on the tablet's Adreno driver — the vertex-pull
+render shader decodes the same buffers with the same formulas and draws
+correctly on the same device.
+
+Next: the shader now reports what the winning invocation read
+(meshlet, triangle, local indices, raw vertex words, `aabb_scale` bits) and
+the trace prints it next to a CPU readback of the same GPU buffers
+(`traceCastReads`). The column that disagrees names the misread; the fix
+then restructures that read (raw word reads instead of the `vec3f` struct,
+explicit counts instead of `arrayLength`, no `select`) or, failing that,
+rejects triangles outside the meshlet's bounding sphere.
+
+## 10. Root cause — Adreno miscompiles the struct-parameter dequantization
+
+The read cross-check (§9's next step) on the pad, one representative pair:
+
+```
+gpu read:  idx=(0,1,2) scale=(0.00007829, 0.000002289, 0.000008850) rawv C=0000ffff/00000000
+           → GPU C = (6554255.5, 286.675, 24.410)
+cpu read:  idx=(0,1,2) scale=(0.00007829, 0.000002289, 0.000008850) q_C=(65535,0,0)
+           min=(100.010, 286.675, 24.410) → CPU C = (105.141, 286.675, 24.410)
+```
+
+Every input the shader read matched the CPU readback — local indices, raw
+vertex words, and the AABB scale when stored component-wise with `bitcast`.
+The dequantized vertex was still `min + q * min`: 100.01 + 65535 × 100.01 =
+6554255, and for A's z axis 24.41 + 1695 × 24.41 = 41399. So the driver
+substitutes the struct's first `vec3f` member (`aabb_min`) for its second
+(`aabb_scale`) inside `vert_world`, which took the whole `MeshletInfo`
+struct as a parameter. `skip_item` took the same struct by value and read
+`info.item` from it, which is why the seam cast's exclusion never matched
+(cast2 always re-hit cast1's item). The vertex-pull render shader evaluates
+the same expression on the loaded struct directly, with no struct parameter,
+and renders correctly on the same device — that is why only measuring broke.
+
+**Fix (`shaders/snap.ts`, 2026-09-17):** records are read as raw `u32` words
+(`geo_*`, `info_*` helpers, like cull.ts) into plain `vec3f` / scalar locals;
+every helper takes scalars and vectors, never a struct; and a bounding-sphere
+sanity net (`outside_sphere`, radius × 1.25 + 5 cm) drops any triangle whose
+decoded vertex lies outside its meshlet — a real vertex cannot, so only a
+misread lands there. The read diagnostics (§8) stay in the result words.
+
+**Rule for every WGSL file in this project:** do not pass structs with
+`vec3` members by value to functions, and prefer raw-word reads for records
+that mix `vec3f` and `u32`. The cull shader already does this; the scene
+shaders use the struct only on the loaded value.
+
+**Verify on the pad:** trace on, one tap: `cast1` must report a triangle
+whose vertices are within centimetres of the `unproject` point (Δdepth
+small), the `gpu read`/`cpu read` A/B/C must agree, and `cast2` must report
+a different item than `cast1` or a miss. The loupe crosshair and the placed
+point should coincide.

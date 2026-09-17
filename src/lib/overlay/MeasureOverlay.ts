@@ -4,6 +4,7 @@
 // renderer's live view-projection matrix, so it is correct for both the
 // perspective and orthographic cameras.
 import {
+  awaitsOk,
   circle as circleOf,
   displayName,
   faceGap,
@@ -122,10 +123,12 @@ export class MeasureOverlay {
       }
     }
 
-    // In-progress preview: placed points + a rubber-band to the live hover.
+    // In-progress preview: placed points + a rubber-band to the live hover
+    // (none once a fixed-count measurement has all its points and only
+    // awaits OK — the next point starts a new one)
     if (s.activeKind && s.inProgress.length > 0) {
       const pts: MeasurePoint[] = [...s.inProgress];
-      if (s.hover) {
+      if (s.hover && !awaitsOk(s.activeKind, s.inProgress.length)) {
         const prev = pts[pts.length - 1];
         let pos = prev && s.perp ? perpProject(prev, s.hover.point) : s.hover.point;
         if (s.lock !== 'none') {

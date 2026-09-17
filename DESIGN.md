@@ -83,7 +83,21 @@ own. Key facts, kept here so the port history isn't lost:
   Möller–Trumbore ray-cast over the meshlet-packed geometry (two-pass u32
   atomic arg-min), CPU classification corner/edge/face by screen-pixel
   distance to the hit triangle's vertices/edges (sensitivity in px,
-  Settings in the Measurements panel).
+  Settings in the Measurements panel). **Layout rule for this shader
+  (2026-09-17):** it reads the cull and info records as raw `u32` words into
+  plain `vec3f` locals and passes only scalars/vectors to its helpers — no
+  struct with `vec3` members, none passed by value. Qualcomm Adreno 7xx
+  compiled the original `info.aabb_min + q * info.aabb_scale` (struct
+  parameter) as `aabb_min + q * aabb_min`, so every cast on a tablet hit a
+  phantom triangle millions of metres wide in front of the camera; the same
+  expression in the vertex-pull render shader was fine. A bounding-sphere
+  sanity net rejects any decoded vertex outside its meshlet as a last resort.
+  This is the known Adreno GLSL-compiler flaw with sequential `vec3` struct
+  members (the fix is the usual "flatten / read through locals" family).
+  scene.ts keeps its `MeshletInfo` struct because it evaluates the loaded
+  value directly, never through a parameter copy, and renders correctly on
+  the same device; if that ever changes, switch it to raw words as well.
+  Full trail: plans/fix_pad_measurement.md §9–10.
 - **Seam snap** (2026-09-04): a corner made by one item penetrating another is
   no vertex of either mesh, so the plain snap missed it. When the hit is not a
   real corner, a SECOND cast along the same sight line skips the hit item — and
@@ -175,7 +189,10 @@ own. Key facts, kept here so the port history isn't lost:
   corner X), Shift = perpendicular placement with dashed helper + right-angle
   mark, ΔXYZ staircase legs + labels, SVG overlay (projection-correct for
   perspective and ortho), list panel with per-row collapsibles, JSON
-  save/load, mute, decimals.
+  save/load, mute, decimals. Fixed-count tools (Line / Face / Diameter /
+  Angle) stay in progress after their last point until OK, Enter or the
+  next placed point (`awaitsOk`, 2026-09-17), so the last point can be undone
+  from the on-canvas bar — the only way on a tablet; Point commits at once.
 - **Clip Shapes**: add sphere/cylinder/box (fits the selection on add),
   per-shape gizmo (move/rotate/scale mapped per kind), Fit Sel / +2m /
   Center, outline helpers, ShapeSet JSON save/load.

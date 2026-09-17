@@ -3430,6 +3430,15 @@ export const HOTKEYS: HotkeyDef[] = [
     description: 'Toggle error lines in the Console (a view filter — nothing is dropped)',
     run: () => consoleActions.toggleLevel('error'),
   },
+  {
+    id: 'console.download',
+    category: 'View',
+    label: 'Console: download as .txt',
+    defaultKeys: 'ALT + 1401',
+    description:
+      'Download the whole Console as a text file — every level, whatever the filter — to send with a bug report',
+    run: () => consoleActions.download(),
+  },
 ];
 
 /** Register the table and start the engine. Called once at app boot.

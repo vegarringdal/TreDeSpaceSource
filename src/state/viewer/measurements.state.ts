@@ -40,6 +40,16 @@ export function autoFinishAt(kind: MeasureToolKind): number | null {
   return null; // path / area
 }
 
+/** A fixed-count measurement (Line / Face / Diameter / Angle) that has all
+ *  its points stays IN PROGRESS until OK, Enter, or the next placed point:
+ *  the last point can still be undone or the whole thing cancelled, which
+ *  the on-canvas bar is the only way to do on a tablet. Point commits at
+ *  once — one tap, nothing to review. Open-ended kinds never wait. */
+export function awaitsOk(kind: MeasureToolKind, placed: number): boolean {
+  const auto = autoFinishAt(kind);
+  return auto !== null && auto > 1 && placed >= auto;
+}
+
 /** Minimum points for a meaningful result. */
 export function minPoints(kind: MeasureToolKind): number {
   if (kind === 'point') {
