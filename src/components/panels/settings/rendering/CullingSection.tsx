@@ -21,7 +21,8 @@ export function CullingSection() {
         title="Culling"
         info={
           <>
-            GPU-side culling and frame pacing. The FPS limit caps the render loop; Cut size drops meshlets smaller than
+            GPU-side culling and frame pacing. The FPS limit caps the render loop (a frame never starts before the
+            previous one has finished on the GPU, so a slow GPU runs below it); Cut size drops meshlets smaller than
             that many pixels while the camera moves, and Protect distance keeps the nearby ones; Freeze cull stops
             updating the visible set (debugging); Vertex pull is the culling path that needs no multi-draw extension.
           </>

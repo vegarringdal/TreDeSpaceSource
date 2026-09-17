@@ -4,6 +4,22 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.17** (>0.0.126):
+  Frame pacing on slow GPUs: the render loop now keeps at most ONE frame in
+  flight (`Renderer.gpuBusy`, cleared by the queue's work-done promise; the
+  viewport tick skips while it is set). The FPS limit only ever paced how
+  often the CPU *submitted* a frame — it never waited for the GPU — so a GPU
+  slower than the limit accumulated a queue of stale frames: input lag, the
+  scene still redrawing after the camera had stopped, click/hover picks
+  answering only after the whole queue, and the settle window held open for
+  a dozen full redraws because its budget readbacks trailed the queue too.
+  The effective rate is now min(FPS limit, GPU rate) with one frame of
+  latency; fast GPUs see no change, slow ones trade up to one vsync of GPU
+  idle per frame for it. Picks on a complete scene no longer redraw it: the
+  depth target, G-buffer and cull lists of the last frame are still valid, so
+  the pick passes submit alone without acquiring the swapchain (before, with
+  no post pass every hover or click pick was a full scene draw; with post, a
+  hold frame).
 - **2026.09.17** (>0.0.125):
   `viewpoints.set` and `viewpoints.setUrl` can run the first viewpoint, not
   just load it. Loading a set left it merely selected, so a host restoring a

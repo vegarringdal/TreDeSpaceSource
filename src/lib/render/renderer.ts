@@ -53,7 +53,7 @@ import { isMobileDevice } from './device';
 import { type DrawList, drawListOf, type GpuModel, TRANSPARENT_LIST, vpArgsOffsetOf } from './gpuModel';
 import { type AdapterFacts, adapterFacts } from './gpuProbe';
 import { GpuTimings } from './gpuTimings';
-import { ItemPickPass } from './itemPickPass';
+import { ItemPickPass, type PickGbuffer } from './itemPickPass';
 import {
   classifySnap,
   isTransparentItem,
@@ -694,6 +694,19 @@ export class Renderer {
   private lastKey = '';
   private lastVpKey = '';
   idle = false;
+  /** A submitted command buffer the GPU has not finished executing. The
+   *  viewport tick skips while this is set, so at most ONE frame is ever in
+   *  flight. Without it a GPU slower than the FPS limit accumulated a queue
+   *  of stale frames: input lag, the scene still redrawing after the camera
+   *  stopped, picks answering only after the whole queue, and a settle
+   *  window held open by budget readbacks that trailed the queue (a dozen
+   *  full redraws after every camera stop). Cost: up to one vsync of GPU
+   *  idle per frame, since the next frame waits for the next tick —
+   *  latency over throughput, deliberately. */
+  gpuBusy = false;
+  /** the frame uniform block of the last encoded frame — a pick-only submit
+   *  replays the scene from it (transparent scenes) without rebuilding it */
+  private lastFrameData = new ArrayBuffer(FRAME_SIZE);
 
   // periodic draw-count readback for the HUD
   private statsBuf!: GPUBuffer;
@@ -2618,10 +2631,12 @@ export class Renderer {
     // Idle / TAA accumulation. While the scene is unchanged, TAA keeps
     // rendering jittered frames into the running average until converged;
     // only then (or immediately without TAA) does the renderer go idle.
-    // Converged frames forced anyway (outline hover/pulse, picks, snapshots)
-    // take the HOLD path: skip the scene re-render, re-present the converged
+    // Converged frames forced anyway (outline hover/pulse, snapshots) take
+    // the HOLD path: skip the scene re-render, re-present the converged
     // accumulation, and draw only the overlays — so animated overlays never
     // corrupt or restart the accumulated image (native hover-fast-path idea).
+    // Picks alone need not even that: a complete scene answers them from the
+    // last frame's targets (submitPicksOnly), the swapchain untouched.
     // Burst hold (residency): every scene frame is sample 0 — converged at
     // once, no AO. Releasing the hold breaks the key once so exactly one full
     // convergence follows the burst.
@@ -2659,18 +2674,14 @@ export class Renderer {
     if (key === this.lastKey) {
       const taaConverged = holdAccum || !opt.fastAA || this.accumIdx >= this.aaMax - 1;
       const aoConverged = holdAccum || opt.aoMode === 0 || this.aoAccum >= this.aaMax - 1;
-      if (
-        taaConverged &&
-        aoConverged &&
-        settled &&
-        !this.pendingPick &&
-        !this.pendingSnap &&
-        !this.itemPick.hasPending &&
-        !outlineWork &&
-        // the cap deferred meshlets: more frames are owed before the scene is
-        // complete (a late readback re-arms this and the next tick renders)
-        !this.capBacklog
-      ) {
+      // the scene is complete: accumulation done, nothing owed by the cap (a
+      // late readback re-arms capBacklog and the next tick renders), no
+      // snapshot waiting on it and no outline animating
+      const complete = taaConverged && aoConverged && settled && !this.pendingSnap && !outlineWork && !this.capBacklog;
+      if (complete) {
+        if (this.pendingPick || this.itemPick.hasPending) {
+          this.submitPicksOnly(canvas);
+        }
         this.idle = true;
         this.frames = 0;
         this.lastStat = performance.now();
@@ -2789,6 +2800,7 @@ export class Renderer {
     // blend-pass slot: bit1 blend pass, bit2 Background mode, bit3 sorted list
     fu[FRAME_SLOT.flags + 2] |= (opt.transparencyBackdrop ? 6 : 2) | (sortActive ? 8 : 0);
     dev.queue.writeBuffer(this.frameBuf, 256, frameData);
+    this.lastFrameData = frameData;
     const cullActive = cullMode !== 'full' && this.models.length > 0 && !opt.freezeCull && !hold;
 
     if (cullActive) {
@@ -3239,7 +3251,7 @@ export class Renderer {
       this.pickPipeline,
       this.pickVpPipeline,
       this.timings,
-      this.idTex && this.depth ? { id: this.idTex, depth: this.depth, msaa: this.targetsMsaa } : null,
+      this.pickGbuffer(),
     );
 
     // snapshots copy the presented swapchain (post output + view cube), and
@@ -3249,6 +3261,7 @@ export class Renderer {
     const tsJob = this.timings.resolve(enc);
 
     dev.queue.submit([enc.finish()]);
+    this.awaitGpu(dev);
     pickJob?.();
     snapJob?.();
     itemPickJob?.();
@@ -3273,6 +3286,60 @@ export class Renderer {
       this.frames = 0;
       this.lastStat = now;
     }
+  }
+
+  /** Hold the loop until everything submitted so far has executed — the one
+   *  frame in flight (see `gpuBusy`). A lost device rejects; the flag clears
+   *  either way so a recovering loop is never stuck. */
+  private awaitGpu(dev: GPUDevice) {
+    this.gpuBusy = true;
+    const clear = () => {
+      this.gpuBusy = false;
+    };
+    dev.queue.onSubmittedWorkDone().then(clear, clear);
+  }
+
+  /** The last scene frame's G-buffer + depth for the fast item pick, or null
+   *  before the first frame. */
+  private pickGbuffer(): PickGbuffer | null {
+    return this.idTex && this.depth ? { id: this.idTex, depth: this.depth, msaa: this.targetsMsaa } : null;
+  }
+
+  /** Answer queued picks on a COMPLETE scene without drawing it again: the
+   *  depth target, the G-buffer and the cull lists of the last scene frame
+   *  are all still valid, so only the pick passes encode and the swapchain
+   *  is never acquired (the canvas keeps showing the last presented frame).
+   *  Before this, every hover or click pick on a converged scene cost a hold
+   *  frame with post on and a FULL scene draw without — the whole model
+   *  redrawn to read one texel. */
+  private submitPicksOnly(canvas: HTMLCanvasElement) {
+    const dev = this.device;
+    const enc = dev.createCommandEncoder({ label: 'picksOnly' });
+    const pickJob = this.encodeDepthPick(enc, dev);
+    const itemPickJob = this.itemPick.encode(
+      enc,
+      dev,
+      canvas,
+      this.options,
+      this.cullMode,
+      this.lastFrameData,
+      this.frameBuf,
+      this.countsBuf,
+      this.models,
+      this.pickPipeline,
+      this.pickVpPipeline,
+      this.timings,
+      this.pickGbuffer(),
+    );
+    if (!pickJob && !itemPickJob) {
+      return; // both readbacks still in flight — the next tick retries
+    }
+    const tsJob = this.timings.resolve(enc);
+    dev.queue.submit([enc.finish()]);
+    this.awaitGpu(dev);
+    pickJob?.();
+    itemPickJob?.();
+    tsJob?.();
   }
 
   /** Encode the depth pick (Space/Alt/probe/measure aim): one compute

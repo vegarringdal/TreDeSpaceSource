@@ -902,6 +902,12 @@ export const viewport: PanelDefinition = {
         if (host.clientWidth === 0 || host.clientHeight === 0) {
           return; // hidden tab
         }
+        // GPU back-pressure: one frame in flight (Renderer.gpuBusy). Checked
+        // BEFORE the limiter so a skipped tick never advances the fixed step
+        // — a slow GPU must not be owed frames it can never deliver
+        if (renderer.gpuBusy) {
+          return;
+        }
         // FPS limiter: fixed-step pacing with drift snap (Settings → Rendering)
         const minDt = 1000 / viewerState.get().fpsLimit;
         if (now - lastFrameT < minDt - 0.5) {
