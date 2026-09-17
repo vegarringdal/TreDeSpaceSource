@@ -87,6 +87,18 @@ export type { MeasureProbe, MeasureSnap } from './measureSnap';
  *  the CSS size has held still this long. */
 const RESIZE_SETTLE_MS = 80;
 
+/** Budget readbacks reporting "pass 2 drew nothing new" that end the settle
+ *  window. One is already the occlusion's fixed point; a second costs a frame
+ *  or two and covers a readback landing out of step with the frame that
+ *  armed it. */
+const SETTLE_ZERO_READS = 2;
+
+/** Wall-clock ceiling on the settle window, applied once a readback for the
+ *  current scene has actually answered. Without it the window is paid in
+ *  FRAMES, and a frame on a weak GPU is worth ten on a fast one — the same
+ *  setting then costs a fast machine half a second and a slow one several. */
+const SETTLE_CEILING_MS = 500;
+
 interface PendingPick {
   x: number; // full-res pixel (for unprojection)
   y: number;
@@ -397,9 +409,10 @@ export class Renderer {
     // frame after a mass unhide, which would otherwise draw the whole model
     // against an empty HZB in a single unpreemptible submit
     newMeshletCap: 0,
-    // keep rendering this many frames after everything settles (camera stop,
-    // state change), so a capped backlog finishes arriving. AA frames count
-    // toward it — they are real scene frames, not extra ones.
+    // ceiling on the frames kept rendering after everything settles (camera
+    // stop, state change) so a capped backlog finishes arriving — the window
+    // normally ends earlier, when the cull reports pass 2 drew nothing new.
+    // AA frames count toward it — they are real scene frames, not extra ones.
     settleFrames: 0,
     // pick rule (native mesh_pick): items at/above this opacity %% are clickable
     // and block clicks; below it clicks pass through. Shift inverts the band.
@@ -693,9 +706,22 @@ export class Renderer {
   newVisibleWanted = 0;
   /** the cap deferred geometry: keep rendering until the backlog is drawn */
   private capBacklog = false;
+  /** frameCounter the in-flight budget readback was armed on — a readback
+   *  resolving from before the last key change describes the OLD scene and
+   *  must not count toward convergence */
+  private capReadFrame = 0;
+  /** consecutive budget readbacks (from the current scene state) reporting
+   *  that pass 2 drew nothing new — the occlusion has reached its fixed point */
+  private zeroNewReads = 0;
+  /** a budget readback for the CURRENT scene state has answered: until it
+   *  has, the settle window's time ceiling stays shut, so the renderer can
+   *  never idle on a stale "nothing owed" from the previous state */
+  private capReadFresh = false;
   /** frameCounter when the scene last changed (camera included) — the settle
-   *  window is measured from here */
+   *  window's frame ceiling is measured from here */
   private keyChangeFrame = 0;
+  /** wall clock of the same moment, for the settle window's time ceiling */
+  private keyChangeT = 0;
   private lastCountRead = 0;
   /** Per-slot drawn-meshlet counts from the last readback (~2 Hz, plus the
    *  first still frame after any scene change) — 0 means the model was
@@ -2255,16 +2281,32 @@ export class Renderer {
     this.drawnResolvedT = this.lastCountRead;
   }
 
-  /** Read back how many meshlets pass 2 WANTED to draw. At or above the cap
-   *  the budget turned some away, so the backlog keeps the renderer out of
-   *  idle until a frame comes in under it. */
+  /** Read back how many meshlets pass 2 WANTED to draw, which answers two
+   *  questions. At or above the cap the budget turned some away, so the
+   *  backlog keeps the renderer out of idle until a frame comes in under it.
+   *  At exactly zero the pass found nothing new: pass 1 already drew
+   *  everything visible, so the next frame's depth — and therefore its HZB —
+   *  is identical and cannot disocclude anything further. That fixed point is
+   *  the real "the scene is complete" signal the settle window waits for.
+   *
+   *  The readback trails the frame that armed it by a frame or two, so a
+   *  result from before the last key change describes the previous scene and
+   *  is discarded rather than counted. */
   private async resolveCapBudget() {
     await this.newBudgetReadBuf.mapAsync(GPUMapMode.READ, 0, 4);
     this.newVisibleWanted = new Uint32Array(this.newBudgetReadBuf.getMappedRange(0, 4))[0];
     this.newBudgetReadBuf.unmap();
+    const armedOn = this.capReadFrame;
     this.capReadInFlight = false;
     const cap = Math.max(0, Math.floor(this.options.newMeshletCap));
     this.capBacklog = cap > 0 && this.newVisibleWanted >= cap;
+    if (armedOn <= this.keyChangeFrame) {
+      this.zeroNewReads = 0;
+      return;
+    }
+
+    this.capReadFresh = true;
+    this.zeroNewReads = this.newVisibleWanted === 0 ? this.zeroNewReads + 1 : 0;
   }
 
   // (Re)create depth / offscreen color / MSAA targets, the HZB pyramid and the
@@ -2595,11 +2637,24 @@ export class Renderer {
       this.traceKeyChange(this.lastKey, key);
     }
 
-    // frames rendered since the last change of any kind, the camera coming to
-    // a stop included: the window a capped backlog gets to finish arriving in.
-    // Accumulation frames COUNT toward it — they already redraw the scene, so
-    // AA never adds frames on top of the window.
-    const settled = this.frameCounter - this.keyChangeFrame >= Math.max(0, Math.floor(opt.settleFrames));
+    // Has everything the cap deferred arrived? The budget readback answers it
+    // directly: pass 2 reporting nothing new is the occlusion's fixed point
+    // (resolveCapBudget). Waiting on that instead of on a frame count is what
+    // keeps a weak GPU from paying a fixed toll of full-cost redraws after
+    // every camera stop — the camera coming to rest changes the pixel cut, so
+    // the window opens on EVERY stop whether or not anything was deferred.
+    //
+    // settleFrames is the ceiling for the case where the readback never
+    // settles (a meshlet oscillating across the occlusion boundary keeps the
+    // count off zero forever), not a floor every change has to pay. The wall
+    // clock caps it as well, but only once a readback for this scene has
+    // answered — never idle on a stale count from the previous state.
+    // Without culling nothing can be deferred in the first place.
+    const cullConverges = this.drawCountsUsable && this.models.length > 0;
+    const settleCeiling =
+      this.frameCounter - this.keyChangeFrame >= Math.max(0, Math.floor(opt.settleFrames)) ||
+      (this.capReadFresh && performance.now() - this.keyChangeT >= SETTLE_CEILING_MS);
+    const settled = !cullConverges || this.zeroNewReads >= SETTLE_ZERO_READS || settleCeiling;
     let hold = false;
     if (key === this.lastKey) {
       const taaConverged = holdAccum || !opt.fastAA || this.accumIdx >= this.aaMax - 1;
@@ -2636,6 +2691,9 @@ export class Renderer {
       this.aoAccum = 0;
       this.accumResets++;
       this.keyChangeFrame = this.frameCounter;
+      this.keyChangeT = performance.now();
+      this.zeroNewReads = 0;
+      this.capReadFresh = false;
     }
     this.lastKey = key;
     this.idle = false;
@@ -3156,11 +3214,14 @@ export class Renderer {
       statsBytes = this.models.length * COUNT_SLOT * COUNT_SLOTS;
       enc.copyBufferToBuffer(this.countsBuf, 0, this.statsBuf, 0, statsBytes);
     }
-    // the cap's own readback is NOT throttled like the stats: it decides
-    // whether meshlets are still owed, so it runs every frame the cap is on
+    // the budget readback is NOT throttled like the stats: it decides both
+    // whether meshlets are still owed and whether the scene has converged at
+    // all, so it runs every culled frame — with the cap off as well, where
+    // only the convergence half is in play. Four bytes.
     let capRead = false;
-    if (cullActive && opt.newMeshletCap > 0 && !this.capReadInFlight) {
+    if (cullActive && !this.capReadInFlight) {
       this.capReadInFlight = true;
+      this.capReadFrame = this.frameCounter;
       capRead = true;
       enc.copyBufferToBuffer(this.newBudgetBuf, 0, this.newBudgetReadBuf, 0, 4);
     }
@@ -3194,7 +3255,8 @@ export class Renderer {
     tsJob?.();
     if (capRead) {
       this.resolveCapBudget().catch(() => (this.capReadInFlight = false));
-    } else if (opt.newMeshletCap <= 0) {
+    } else if (!cullActive) {
+      // held or unculled frames encode no cull, so the counter says nothing
       this.capBacklog = false;
       this.newVisibleWanted = 0;
     }

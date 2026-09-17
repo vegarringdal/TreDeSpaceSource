@@ -19,6 +19,7 @@ export function ViewpointsSection() {
   const [label, setLabel] = useState('Bookmark');
   const [url, setUrl] = useState('');
   const [showViewer, setShowViewer] = useState(true);
+  const [activateFirst, setActivateFirst] = useState(false);
 
   const handleGet = () => {
     void run('viewpoints.get', {}, async () => {
@@ -46,7 +47,9 @@ export function ViewpointsSection() {
     }
 
     const cfg = parsed;
-    void run('viewpoints.set', { config: '(textarea)', showViewer }, () => c().viewpointsSet(cfg, { showViewer }));
+    void run('viewpoints.set', { config: '(textarea)', showViewer, activateFirst }, () =>
+      c().viewpointsSet(cfg, { showViewer, activateFirst }),
+    );
   };
 
   const handleSetUrl = () => {
@@ -56,7 +59,9 @@ export function ViewpointsSection() {
       return;
     }
 
-    void run('viewpoints.setUrl', { url: u, showViewer }, () => c().viewpointsSetUrl(u, { showViewer }));
+    void run('viewpoints.setUrl', { url: u, showViewer, activateFirst }, () =>
+      c().viewpointsSetUrl(u, { showViewer, activateFirst }),
+    );
   };
 
   const handleShowButton = () => {
@@ -86,6 +91,12 @@ export function ViewpointsSection() {
           onChange={setShowViewer}
           label="show viewer panel"
           tooltip="After set/setUrl, dock the Viewpoint Viewer panel on the right and make it active"
+        />
+        <Checkbox
+          checked={activateFirst}
+          onChange={setActivateFirst}
+          label="activate first"
+          tooltip="After set/setUrl, RUN the first viewpoint of the loaded set — camera, clipping, labels, measurements, Set Color rules and selection"
         />
       </Row>
       <TextArea value={config} onChange={setConfig} rows={3} placeholder="viewpoints.get fills this…" />

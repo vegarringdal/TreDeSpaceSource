@@ -115,7 +115,7 @@ export function CullingSection() {
           max={600}
           step={5}
           unit="frames"
-          tooltip="Keep rendering this many frames once the view settles, so geometry the cap above deferred finishes arriving. Accumulation (AA) frames count toward this window rather than adding to it. 0 = off"
+          tooltip="Ceiling on the frames kept rendering once the view settles, so geometry the cap above deferred can finish arriving. The window normally ends well before it: the cull reports the frame its second pass draws nothing new, and the renderer stops there — so a slow machine is not billed a fixed number of full-cost redraws after every camera stop. Accumulation (AA) frames count toward this window rather than adding to it. 0 = off"
           decShortcut="render.settleFrames.dec"
           incShortcut="render.settleFrames.inc"
           onChange={(x) => act.update({ settleFrames: x })}

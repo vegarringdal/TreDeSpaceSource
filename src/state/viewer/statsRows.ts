@@ -81,11 +81,14 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
     {
       key: 'newCap',
       label: 'meshlets per frame (cap)',
-      // >= the cap means the budget deferred meshlets to the next frames
-      value:
-        st.newMeshletCap > 0
+      // what pass 2 wanted to draw that pass 1 had not: >= the cap means the
+      // budget deferred some to the next frames, and 0 means the occlusion has
+      // converged — the signal that ends the settle window
+      value: !culls
+        ? NONE
+        : st.newMeshletCap > 0
           ? `${r.newVisibleWanted.toLocaleString()} wanted / ${st.newMeshletCap.toLocaleString()}`
-          : NONE,
+          : `${r.newVisibleWanted.toLocaleString()} new`,
     },
     { key: 'jsHeap', label: 'js heap', value: `${mb(heap)} MB` },
     { key: 'frame', label: 'frame', value: r.idle ? 'idle' : 'rendering' },

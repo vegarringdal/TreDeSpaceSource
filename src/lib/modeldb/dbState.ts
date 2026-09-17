@@ -18,14 +18,50 @@ export const OPACITY_MASK = 0x7f << OPACITY_SHIFT;
 
 export const NO_PARENT = 0xffffffff;
 
+/** Set an opacity override on one item's flags.
+ *
+ *  **0 means HIDDEN, not a 0 % override.** Nothing in the app writes 0 into
+ *  the opacity band any more: the hide flag goes on instead and the band is
+ *  left exactly as it was, so unhiding restores whatever override the item
+ *  already carried. Every path that can set an opacity — the ribbon's Set
+ *  Opacity, a Set Color rule, `colorRules.apply`, a `sql.color` base coat —
+ *  goes through here so they cannot disagree about what 0 means.
+ *
+ *  Above 0 this leaves the hide flag alone, so the ribbon's Set Opacity never
+ *  changes visibility on its own. The RULE ENGINE adds the other half itself
+ *  (colorRules): a run replaces the previous one, so a rule matching an item
+ *  at any opacity but 0 also unhides it — otherwise moving a rule off 0 would
+ *  strand its items hidden. */
+export function withOpacityOverride(flags: number, pct: number): number {
+  if (opacityHides(pct)) {
+    return (flags | IS_HIDDEN) >>> 0;
+  }
+
+  const v = Math.max(0, Math.min(100, Math.round(pct)));
+  return ((flags & ~OPACITY_MASK) | HAS_OPACITY_OVERRIDE | (v << OPACITY_SHIFT)) >>> 0;
+}
+
+/** Whether an opacity value means "hide this" rather than "make it this
+ *  faint" — withOpacityOverride's 0 arm, for callers that must know which
+ *  way it went (a Set Color rule in `hide` mode unhides what it matches,
+ *  but not an item whose own rule asked for opacity 0). Rounds first, so a
+ *  fractional value that lands on 0 hides like a plain 0. */
+export function opacityHides(pct: number): boolean {
+  return Math.max(0, Math.min(100, Math.round(pct))) === 0;
+}
+
 /** Invisible AS THE USER SEES IT: the hide flag, an explicit opacity override
  *  of 0, or a colour override whose alpha is 0 (the explicit override wins
- *  when both are set, like the scene shader's item_opacity). Set Color's
- *  "hidden" toggle and `sql.color`'s default-hidden base coat hide through
- *  opacity 0, and an item nobody can see must behave like a hidden one
- *  everywhere: the tree badge, fit-visible, the residency budget and —
- *  mirrored in WGSL — the cull and snap shaders. The baked material alpha is
- *  not consulted (the cull cannot see it either). */
+ *  when both are set, like the scene shader's item_opacity). An item nobody
+ *  can see must behave like a hidden one everywhere: the tree badge,
+ *  fit-visible, the residency budget and — mirrored in WGSL — the cull and
+ *  snap shaders. The baked material alpha is not consulted (the cull cannot
+ *  see it either).
+ *
+ *  The opacity-0 arm is kept for STATE THAT ALREADY EXISTS — viewpoints and
+ *  snapshots saved before opacity 0 became the hide flag (withOpacityOverride)
+ *  store the packed bits verbatim — and for a colour alpha of 0, which is
+ *  still a real override. Nothing writes an opacity-0 override now. */
 export function isEffectivelyHidden(flags: number, color: number): boolean {
   if (flags & IS_HIDDEN) {
     return true;

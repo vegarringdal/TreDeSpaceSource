@@ -433,6 +433,24 @@ A `multi` line may carry its own colour after a TAB/space/comma —
 `name<TAB>#ff0000:50` (colour[:opacity 0-100], `default` = original colour) —
 which is how a per-row colour list is fed in.
 
+An `opacity` of **0 hides** rather than writing a 0 % override: it sets the
+same hidden flag the tree's hide does, and leaves whatever opacity override
+the items already carry untouched. That is true wherever an opacity can be
+set — a rule, a `color:opacity` suffix, a `sql.color` base coat, the viewer's
+own Set Opacity — so `0` means the one thing everywhere.
+
+Because a rule run REPLACES the previous one, the reverse holds here and in
+`sql.color`: a rule matching an item at any opacity **but** 0 also unhides it,
+so moving a rule off 0 brings its items back on the next run. (A fully opaque
+rule sends no `opacity` at all, and that unhides too.) Two things follow. A
+base coat over the whole model — `default-white`, `default-transparent`, or
+`custom-color` with `base: 'white'`/`'transparent'` — matches everything at a
+non-zero opacity, so such a run clears hand-made hides along with the rest of
+the previous state; `default-hidden` is unaffected, since it hides first and
+unhides only its hits. And under `mode: 'hide'`, which unhides what the rules
+match, a rule asking for opacity 0 still hides its own matches: the explicit 0
+wins.
+
 ```js
 payload: { mode: 'append', run: true, replaceRules: true, // false = add to the rules already there
   rules: [
@@ -914,21 +932,38 @@ active viewpoint's scene mute is undone first, exactly like the panel's Load.
 side column is recreated if pruned) and makes it active — load-and-present in
 one call.
 
+A load leaves the first viewpoint SELECTED but not running. `activateFirst:
+true` runs it as well — camera, clipping, labels, measurements, Set Color
+rules and selection, exactly as clicking it in the panel does — so a host can
+restore a whole session in one command. `activated` reports whether one ran;
+it is false when the flag is off or the set came back empty.
+
+It is built for page load, so it waits for the viewport to finish booting
+before it runs: the viewport boots in parallel with the API and `app.ready`
+normally reports `gpu: 'booting'`, so activating the moment the API answers
+would apply the whole viewpoint EXCEPT its camera. A viewport that fails to
+boot stops the wait rather than running it out — the viewpoint still applies,
+there is just no camera to move. The response then resolves once the viewpoint
+has been APPLIED — its rules have run and its selection is set — while the
+camera is still gliding into place, the same half-second move a click in the
+panel makes. Viewpoints carry model-relative content, so load the models first
+or the selection finds nothing to match.
+
 ```js
-payload:  { config: { version: 1, viewpoints: [ … ] }, showViewer: true }
-response: { loaded: 3 }
+payload:  { config: { version: 1, viewpoints: [ … ] }, showViewer: true, activateFirst: true }
+response: { loaded: 3, activated: true }
 ```
 
 ### viewpoints.setUrl
 Same as `viewpoints.set`, but the VIEWER downloads the config from a URL —
 a hosted `viewpoints.json` (fetched under the viewer origin's CORS, like the
-other *Url commands). `showViewer` works identically. Fails with a download
-error when the fetch fails, `bad-payload` when the file isn't a viewpoints
-config.
+other *Url commands). `showViewer` and `activateFirst` work identically. Fails
+with a download error when the fetch fails, `bad-payload` when the file isn't
+a viewpoints config.
 
 ```js
-payload:  { url: 'https://cdn.example.com/plant-7/viewpoints.json', showViewer: true }
-response: { loaded: 3 }
+payload:  { url: 'https://cdn.example.com/plant-7/viewpoints.json', showViewer: true, activateFirst: true }
+response: { loaded: 3, activated: true }
 ```
 
 ### viewpoints.addFromLabels
@@ -1197,7 +1232,7 @@ colour is `'#rrggbb'` or one of the ~147 names `colors.names` lists:
 | mode | base coat | hits |
 | --- | --- | --- |
 | `{ type: 'default-white' }` | white, opaque | their own colour, else yellow |
-| `{ type: 'default-hidden' }` | opacity 0 (an isolate) | their own colour, else yellow |
+| `{ type: 'default-hidden' }` | everything hidden (an isolate) | their own colour, else yellow |
 | `{ type: 'default-transparent', opacity? }` | white at `opacity` (default 0.1) | their own colour, else yellow |
 | `{ type: 'default-set' }` | the viewer's LIVE Set Color rules | their own colour, else yellow |
 | `{ type: 'custom-color', color, opacity?, base?, baseOpacity? }` | `base`: `white` (default) / `transparent` / `hidden` / `none` | `color` |
@@ -1678,10 +1713,9 @@ response: { matched: true }
 ```
 
 ### nav.fitVisible
-Frame everything currently VISIBLE — every item that is not hidden (an
-opacity-0 override — Set Color's hidden toggle, `sql.color`'s `default-hidden`
-base coat — counts as hidden, exactly as the tree's hidden badge does), moved
-geometry included — as tightly as the viewport allows (the same framing as
+Frame everything currently VISIBLE — every item that is not hidden (a
+leftover opacity-0 override counts as hidden too, exactly as the tree's hidden
+badge does), moved geometry included — as tightly as the viewport allows (the same framing as
 "fly to selection", applied to the visible set), under the clipping in force:
 with the default clip box or extra clip shapes on, the frame is the visible
 box cut down to the volumes' envelope (inverted shapes are holes and are

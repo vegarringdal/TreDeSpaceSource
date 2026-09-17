@@ -1316,7 +1316,7 @@ export interface SetColorConfig {
 export type ColorMode =
   /** everything white, the hits in their own colours (yellow by default) */
   | { type: 'default-white' }
-  /** everything faded to opacity 0, the hits re-shown — an isolate */
+  /** everything hidden, the hits re-shown — an isolate */
   | { type: 'default-hidden' }
   /** white base at `opacity` (default 0.1): the model stays faintly visible */
   | { type: 'default-transparent'; opacity?: number }
@@ -2100,9 +2100,9 @@ export class TredespaceClient {
   navOrbit(fullname: string, opts?: { select?: boolean; wait?: boolean }): Promise<Result<{ matched: boolean }>> {
     return this.send('nav.orbit', { fullname, select: opts?.select ?? false, wait: opts?.wait ?? false });
   }
-  /** Frame everything currently VISIBLE — every item that is not hidden (an
-   *  opacity-0 override, Set Color's hidden toggle or `sql.color`'s
-   *  `default-hidden` base coat, counts as hidden), moved geometry included —
+  /** Frame everything currently VISIBLE — every item that is not hidden (a
+   *  leftover opacity-0 override counts as hidden too), moved geometry
+   *  included —
    *  as tightly as the viewport allows, under the
    *  clipping in force: with the clip box / shapes on, the frame is the
    *  visible box cut down to their envelope (holes ignored), and every
@@ -2642,19 +2642,43 @@ export class TredespaceClient {
    *  JSON file — same shape). Viewpoints carry model-relative content
    *  (fullnames, positions, color rules), so restore them alongside the same
    *  loaded models. `showViewer: true` then docks the Viewpoint Viewer panel
-   *  on the RIGHT and makes it active, ready to present. */
-  viewpointsSet(config: ViewpointsConfig, opts?: { showViewer?: boolean }): Promise<Result<{ loaded: number }>> {
-    return this.send('viewpoints.set', { config, ...(opts?.showViewer ? { showViewer: true } : {}) });
+   *  on the RIGHT and makes it active, ready to present.
+   *  `activateFirst: true` also RUNS the first viewpoint of the loaded set —
+   *  camera, clipping, labels, measurements, Set Color rules and selection,
+   *  as clicking it in the panel does — so a host can restore a session in
+   *  one call. A load on its own only selects it. `activated` says whether
+   *  one ran (false for an empty set). Built for page load: it waits for the
+   *  viewport to finish booting first (`app.ready` normally reports
+   *  `gpu: 'booting'`, and activating before the renderer exists would apply
+   *  the viewpoint except its camera), then resolves once the viewpoint is
+   *  applied, with the camera still gliding into place. */
+  viewpointsSet(
+    config: ViewpointsConfig,
+    opts?: { showViewer?: boolean; activateFirst?: boolean },
+  ): Promise<Result<{ loaded: number; activated: boolean }>> {
+    return this.send('viewpoints.set', {
+      config,
+      ...(opts?.showViewer ? { showViewer: true } : {}),
+      ...(opts?.activateFirst ? { activateFirst: true } : {}),
+    });
   }
 
   /** REPLACE the current viewpoint set from a hosted viewpoints JSON file the
    *  VIEWER downloads itself (viewer-origin CORS, like the other *Url
    *  commands) — same blob shape as `viewpointsGet` / a panel-saved file.
    *  `showViewer: true` then docks the Viewpoint Viewer panel on the RIGHT
-   *  and makes it active, ready to present the loaded set (also available on
-   *  `viewpointsSet`). */
-  viewpointsSetUrl(url: string, opts?: { showViewer?: boolean }): Promise<Result<{ loaded: number }>> {
-    return this.send('viewpoints.setUrl', { url, ...(opts?.showViewer ? { showViewer: true } : {}) });
+   *  and makes it active, ready to present the loaded set, and
+   *  `activateFirst: true` runs the first viewpoint of that set — both behave
+   *  exactly as on `viewpointsSet`. */
+  viewpointsSetUrl(
+    url: string,
+    opts?: { showViewer?: boolean; activateFirst?: boolean },
+  ): Promise<Result<{ loaded: number; activated: boolean }>> {
+    return this.send('viewpoints.setUrl', {
+      url,
+      ...(opts?.showViewer ? { showViewer: true } : {}),
+      ...(opts?.activateFirst ? { activateFirst: true } : {}),
+    });
   }
 
   /** Add one viewpoint per label with a linked fullname — what the Labels

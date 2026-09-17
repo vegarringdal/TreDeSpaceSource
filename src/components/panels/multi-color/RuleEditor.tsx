@@ -121,7 +121,7 @@ export function RuleEditor({
         </div>
         <Button
           active={rule.opacity === 0}
-          tooltip="Quick set: opacity 0 — matched items become hidden"
+          tooltip="Quick set: opacity 0 — matched items are hidden. This sets the hide flag rather than a 0 % override; move the rule off 0 and its items come back on the next run"
           onClick={() => act.updateRule(idx, { opacity: 0 })}
         >
           0

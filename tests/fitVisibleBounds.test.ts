@@ -25,7 +25,7 @@ describe('visibleWorldBounds (fit visible)', () => {
     expect(visibilityApi.visibleWorldBounds()).toEqual({ min: [-50, -50, -50], max: [101, 101, 101] });
   });
 
-  it('skips the hide flag AND an opacity-0 override (Set Color hidden, sql.color default-hidden)', () => {
+  it('skips the hide flag AND an opacity-0 override left over from older saved state', () => {
     m.states[1 * 2] = IS_HIDDEN;
     m.states[2 * 2] = HAS_OPACITY_OVERRIDE; // opacity bits 0 → drawn at zero alpha
     expect(visibilityApi.visibleWorldBounds()).toEqual({ min: [0, 0, 0], max: [1, 1, 1] });

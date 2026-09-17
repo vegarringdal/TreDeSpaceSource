@@ -9,8 +9,9 @@ import { measurementsActions } from '../../state/viewer/measurements.actions';
 import { measurementsState } from '../../state/viewer/measurements.state';
 import { selectionState } from '../../state/viewer/selection.state';
 import { readSphereMarker } from '../../state/viewer/sphereMarker';
-import { viewerActions } from '../../state/viewer/viewer.actions';
+import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { viewpointsActions } from '../../state/viewer/viewpoints.actions';
+import { viewpointsState } from '../../state/viewer/viewpoints.state';
 import { packedFromBytes } from '../color/packedNames';
 import {
   ApiError,
@@ -27,6 +28,7 @@ import {
   vec2Opt,
   vec3,
 } from './protocol';
+import { getGpuState } from './transport';
 
 /** Map key for a label anchor lookup: case-insensitive, leading '/' ignored —
  *  `findLabelAnchors` answers with the MODEL's real fullname, which may carry
@@ -177,6 +179,44 @@ function readMeasurement(x: Record<string, unknown>, i: number) {
   };
 }
 
+const RENDERER_POLL_MS = 30;
+const RENDERER_WAIT_MS = 30_000;
+
+/** Wait for the viewport to register its renderer.
+ *
+ *  This flag is made for page load, and the viewport boots in PARALLEL with
+ *  the API — `app.ready` normally reports `gpu: 'booting'` — so a host calling
+ *  it as early as it can would otherwise activate against no renderer.
+ *  `activate` reaches the camera through an optional chain, so that loses the
+ *  pose in silence while labels, clipping, rules and selection all land: a
+ *  viewpoint applied everywhere except the one part you can see. Waiting for
+ *  the boot to resolve either way keeps that from happening. */
+async function waitForRenderer(): Promise<void> {
+  const until = performance.now() + RENDERER_WAIT_MS;
+  while (!getRenderer() && getGpuState() === 'booting' && performance.now() < until) {
+    await new Promise((resolve) => setTimeout(resolve, RENDERER_POLL_MS));
+  }
+}
+
+/** `activateFirst` on a viewpoint load: run the first viewpoint of the set
+ *  that just landed, exactly as clicking it in the panel does — camera,
+ *  clipping, labels, measurements, Set Color rules and selection. The load
+ *  leaves the set merely SELECTED, so without this a host has to follow up
+ *  with a click. Resolves false when off or the set is empty.
+ *
+ *  A viewport that failed to boot stops the wait rather than running it out,
+ *  and the viewpoint still applies — there is simply no camera to move. */
+async function activateFirstViewpoint(wanted: boolean): Promise<boolean> {
+  const first = viewpointsState.get().list[0];
+  if (!wanted || !first) {
+    return false;
+  }
+
+  await waitForRenderer();
+  await viewpointsActions.activate(first.id);
+  return true;
+}
+
 const setOrAddMeasurements: ApiHandler = ({ type, p }) => {
   const inputs = records(p.measurements, 'measurements');
   const cur = measurementsState.get();
@@ -277,7 +317,7 @@ export const sceneHandlers: Record<string, ApiHandler> = {
 
   'viewpoints.get': () => ({ config: viewpointsActions.configJson() }),
 
-  'viewpoints.set': ({ p }) => {
+  'viewpoints.set': async ({ p }) => {
     if (!isRecord(p.config)) {
       throw new ApiError('bad-payload', 'config must be an object (the shape viewpoints.get returns)');
     }
@@ -290,7 +330,7 @@ export const sceneHandlers: Record<string, ApiHandler> = {
     if (p.showViewer === true) {
       openViewpointViewerPanelRight();
     }
-    return { loaded };
+    return { loaded, activated: await activateFirstViewpoint(p.activateFirst === true) };
   },
 
   'viewpoints.setUrl': async ({ p, signal }) => {
@@ -317,7 +357,7 @@ export const sceneHandlers: Record<string, ApiHandler> = {
     if (p.showViewer === true) {
       openViewpointViewerPanelRight();
     }
-    return { loaded };
+    return { loaded, activated: await activateFirstViewpoint(p.activateFirst === true) };
   },
 
   'viewpoints.addFromLabels': async ({ p }) => {

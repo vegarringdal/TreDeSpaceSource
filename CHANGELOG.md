@@ -4,6 +4,86 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.17** (>0.0.125):
+  `viewpoints.set` and `viewpoints.setUrl` can run the first viewpoint, not
+  just load it. Loading a set left it merely selected, so a host restoring a
+  session had `showViewer` to put the panel on screen but no way to put the
+  SCENE where the viewpoint says it should be — someone still had to click.
+  `activateFirst: true` now applies that first viewpoint the way a click does:
+  camera, projection, sketch mode, clip box, planes and shapes, labels,
+  measurements, the viewpoint's Set Color rules (run, not just loaded) and its
+  selection. The reply carries `activated` alongside `loaded`, false when the
+  flag is off or the config held no viewpoints, and it resolves once the
+  viewpoint has been applied — the camera is still gliding through its
+  half-second move, as after a click. Since the point of it is restoring a
+  session AT PAGE LOAD, it waits for the viewport to finish booting before it
+  runs: the viewport boots in parallel with the API, `app.ready` normally
+  reports `gpu: 'booting'`, and the camera is the one part of a viewpoint
+  reached through an optional chain — activating that early would have applied
+  everything except the view you actually see, in silence. A viewport that
+  fails to boot ends the wait instead of running it out. Both commands take
+  the flag, and the demo's Viewpoints section has a checkbox for it beside
+  "show viewer panel".
+
+- **2026.09.17** (>0.0.125):
+  Opacity 0 is hiding, not a 0 % override. Setting an item to zero opacity
+  always meant "make it invisible", but it was recorded as an opacity override
+  of 0, which left the item in a half-state: invisible, yet not hidden as far
+  as anything that works on the hide flag was concerned, and with whatever
+  opacity it used to carry overwritten. Every path that can set an opacity —
+  the ribbon's Set Opacity, a Set Color rule (including its "0" quick-set), a
+  `color:opacity` suffix in a pasted list, `colorRules.apply`, a `sql.color`
+  base coat — now routes through one place, and 0 there sets the hide flag and
+  leaves the opacity band alone. So hiding by opacity is the same hide
+  everything else does, and unhiding restores the override the item already
+  had instead of dropping it. From the ribbon that is the whole story: Set
+  Opacity above 0 does not touch visibility, so it never unhides behind your
+  back.
+  Set Color and `sql.color` carry the other half, because a run there
+  REPLACES the one before it. A rule matching an item at any opacity but 0
+  also unhides it, so moving a rule off 0 brings its items back on the next
+  run instead of stranding them hidden in the editor that hid them — and
+  since a fully opaque rule is sent as no opacity at all, that case unhides
+  too. Two things follow. A base coat over the whole model
+  (`default-white`, `default-transparent`, `custom-color` with a white or
+  transparent base) matches everything at a non-zero opacity, so such a run
+  now clears hand-made hides along with the rest of the previous state.
+  `default-hidden` is unaffected: it used to isolate by painting the model at
+  opacity 0 and repainting the hits, which would now set a flag the hit rule
+  cannot clear, so it runs as the `hide` run mode instead — hide everything,
+  unhide the matches — which is what an isolate always meant. Under that mode
+  a rule explicitly asking for opacity 0 still hides its own matches: the
+  explicit 0 wins.
+  Reading is unchanged — an opacity-0 override in a viewpoint or snapshot
+  saved before today still counts as hidden everywhere, the cull and snap
+  shaders included.
+
+- **2026.09.17** (>0.0.125):
+  The renderer stops when the scene is actually finished instead of counting
+  frames to twenty. "Frames after stop" was a floor every change had to pay:
+  the camera coming to rest changes the pixel cut, which changes the frame
+  key, which opened the window on EVERY stop — whether or not the meshlet cap
+  had deferred anything — and all twenty were full-cost redraws of an image
+  that was already complete. A frame is not a fixed unit of time, so the same
+  setting cost a fast machine about half a second and a slow one several, and
+  for that whole stretch the GPU was saturated and the UI janked with it.
+  There was a precise signal for this all along, already read back every
+  frame: the cull's second pass counts the meshlets it draws that the first
+  pass had not, and when that count reaches zero the two-pass occlusion is at
+  its fixed point — the depth buffer, and so the depth pyramid, cannot change
+  again, so nothing further can be disoccluded. The renderer now settles on
+  that count, typically within a handful of frames on any machine. The counter
+  is charged with the cap switched off as well (it used to be short-circuited
+  away), and the four-byte readback now runs on every culled frame rather than
+  only when the cap is on. "Frames after stop" keeps its name and its default
+  but is now a CEILING rather than a floor, covering the case where the count
+  never reaches zero — a meshlet oscillating across the occlusion boundary
+  holds it off one forever — and a wall-clock ceiling caps that fallback too,
+  so no machine can spend seconds there. The mass-unhide protection is
+  untouched: a saturated cap still blocks idle on its own terms, independently
+  of the window. The Stats row reads "N new" with the cap off, so how long the
+  scene takes to converge can be watched directly.
+
 - **2026.09.16** (>0.0.123):
   Measuring on a touch device works. Five things were stacked against it. A tap
   had to land within 4 px of where the finger went down — a mouse tolerance,

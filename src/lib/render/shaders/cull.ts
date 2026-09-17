@@ -154,11 +154,12 @@ fn emit(m: MeshletCull, i: u32) {
 
 // Invisible as the user sees it — the hide flag, an explicit opacity override
 // of 0, or a colour override with alpha 0 (the explicit override wins, like
-// the scene shader's item_opacity). Set Color's "hidden" toggle and sql.color's
-// default-hidden base coat hide through opacity 0, and such an item must cost
-// nothing: not rasterized, not blended — and, writing no depth, it would punch
-// a hole in the HZB that un-occludes everything behind it. Mirrors
-// isEffectivelyHidden (dbState.ts) and the snap shader's is_invisible.
+// the scene shader's item_opacity). Such an item must cost nothing: not
+// rasterized, not blended — and, writing no depth, it would punch a hole in
+// the HZB that un-occludes everything behind it. The opacity-0 arm is for
+// state saved before opacity 0 became the hide flag; nothing writes one now
+// (withOpacityOverride). Mirrors isEffectivelyHidden (dbState.ts) and the
+// snap shader's is_invisible.
 fn item_hidden(i: u32) -> bool {
   let st = item_states_cull[info_words[i * 8u + 7u]];
   if ((st.flags & 1u) != 0u) { return true; }
@@ -385,9 +386,14 @@ fn project_sphere(c: vec3f, r: f32, aabb: ptr<function, vec4f>) -> bool {
 
 /** Draw a meshlet that was NOT visible last frame, charging it to this
  *  frame's budget. Over budget it is skipped and reported as not drawn — the
- *  caller then leaves its visibility bit clear. new_cap 0 = no budget. */
+ *  caller then leaves its visibility bit clear. new_cap 0 = no budget.
+ *
+ *  The counter is charged even with the cap off: a frame where pass 2 finds
+ *  NOTHING new is the fixed point of the two-pass occlusion, and that — not a
+ *  frame count — is what takes the renderer idle (renderer.ts settle window). */
 fn emit_new(m: MeshletCull, i: u32) -> bool {
-  if (params.new_cap > 0u && atomicAdd(&new_budget, 1u) >= params.new_cap) {
+  let charged = atomicAdd(&new_budget, 1u);
+  if (params.new_cap > 0u && charged >= params.new_cap) {
     return false;
   }
   emit(m, i);

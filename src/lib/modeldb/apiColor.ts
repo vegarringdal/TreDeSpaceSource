@@ -21,14 +21,15 @@ import {
   OPACITY_MASK,
   OPACITY_SHIFT,
   type StateUpdate,
+  withOpacityOverride,
 } from './dbState';
 import { packStates, transferUpdates } from './hierarchyIndex';
 
 export const colorApi = {
   /** Opacity override 0-100 on the selection (native flag bits 25-31).
+   *  0 hides instead of writing a 0 % override — see withOpacityOverride.
    *  Undoable (state domain). */
   setOpacityOnSelection(pct: number): StateUpdate[] {
-    const v = Math.max(0, Math.min(100, Math.round(pct)));
     const updates: StateUpdate[] = [];
     const step: ColorUndoRecord[] = [];
     models.forEach((m, idx) => {
@@ -40,7 +41,7 @@ export const colorApi = {
       }
       step.push(captureColorRuns(idx));
       for (const it of m.selected) {
-        m.states[it * 2] = ((m.states[it * 2] & ~OPACITY_MASK) | HAS_OPACITY_OVERRIDE | (v << OPACITY_SHIFT)) >>> 0;
+        m.states[it * 2] = withOpacityOverride(m.states[it * 2], pct);
       }
       updates.push(packStates(m, idx));
     });

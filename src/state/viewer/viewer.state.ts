@@ -30,11 +30,12 @@ export interface ViewerState {
    *  frames instead, each one cheaper than the last as the HiZ fills in.
    *  Default 175 000 — a normal camera move never reaches it. */
   newMeshletCap: number;
-  /** Frames to keep rendering after everything settles (the camera stops, a
-   *  state change lands), so geometry the cap deferred finishes arriving.
-   *  Accumulation (AA) frames count toward it, never on top of it. 0 = off;
-   *  default 20, which the 32 accumulation frames absorb entirely when TAA
-   *  is on. */
+  /** CEILING on the frames kept rendering after everything settles (the
+   *  camera stops, a state change lands) so geometry the cap deferred can
+   *  finish arriving. Normally the renderer stops long before it: the cull
+   *  reports when its second pass drew nothing new, and that fixed point ends
+   *  the window. This bounds the case where that count never reaches zero.
+   *  Accumulation (AA) frames count toward it, never on top of it. 0 = off. */
   settleFrames: number;
   protectDist: number;
   /** pick threshold %: items at/above are clickable; below pass through (Shift inverts) */

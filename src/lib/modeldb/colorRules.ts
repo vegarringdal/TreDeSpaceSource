@@ -14,8 +14,9 @@ import {
   models,
   NO_PARENT,
   OPACITY_MASK,
-  OPACITY_SHIFT,
+  opacityHides,
   type StateUpdate,
+  withOpacityOverride,
 } from './dbState';
 import { ensureGlobalIndex, hitEntry, hitModel, liveHits } from './globalNameIndex';
 import { bfsOrder, ensureNames, entryDepths, itemsUnder, packStates, updateBuffers } from './hierarchyIndex';
@@ -477,13 +478,18 @@ export function applyColorRules(
           }
           const opacity = opa && opa[e] !== NONE ? opa[e] : rule.opacityPct;
           if (opacity != null) {
-            const v = Math.max(0, Math.min(100, Math.round(opacity)));
-            m.states[it * 2] = ((m.states[it * 2] & ~OPACITY_MASK) | HAS_OPACITY_OVERRIDE | (v << OPACITY_SHIFT)) >>> 0;
+            m.states[it * 2] = withOpacityOverride(m.states[it * 2], opacity);
           } else {
             m.states[it * 2] = (m.states[it * 2] & ~(OPACITY_MASK | HAS_OPACITY_OVERRIDE)) >>> 0;
           }
-          if (mode === 'hide') {
-            m.states[it * 2] &= ~IS_HIDDEN; // matched = visible
+          // A rule run REPLACES what the previous one did, so a match that is
+          // not an explicit opacity 0 is meant to be seen: clear a hide an
+          // earlier run left behind (a rule moved off 0 must bring its items
+          // back). Note the Set editor sends a fully opaque rule as no opacity
+          // at all, so `null` has to unhide too. This is also how `hide` mode
+          // unhides what it matches — one rule covers both.
+          if (!(opacity != null && opacityHides(opacity))) {
+            m.states[it * 2] &= ~IS_HIDDEN;
           }
         }
         if (acc) {
@@ -602,13 +608,18 @@ export function applyColorRules(
         }
         const opacity = itemOpacity?.get(it) ?? rule.opacityPct;
         if (opacity != null) {
-          const v = Math.max(0, Math.min(100, Math.round(opacity)));
-          m.states[it * 2] = ((m.states[it * 2] & ~OPACITY_MASK) | HAS_OPACITY_OVERRIDE | (v << OPACITY_SHIFT)) >>> 0;
+          m.states[it * 2] = withOpacityOverride(m.states[it * 2], opacity);
         } else {
           m.states[it * 2] = (m.states[it * 2] & ~(OPACITY_MASK | HAS_OPACITY_OVERRIDE)) >>> 0;
         }
-        if (mode === 'hide') {
-          m.states[it * 2] &= ~IS_HIDDEN; // matched = visible
+        // A rule run REPLACES what the previous one did, so a match that is
+        // not an explicit opacity 0 is meant to be seen: clear a hide an
+        // earlier run left behind (a rule moved off 0 must bring its items
+        // back). Note the Set editor sends a fully opaque rule as no opacity
+        // at all, so `null` has to unhide too. This is also how `hide` mode
+        // unhides what it matches — one rule covers both.
+        if (!(opacity != null && opacityHides(opacity))) {
+          m.states[it * 2] &= ~IS_HIDDEN;
         }
       }
       if (acc) {

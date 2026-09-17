@@ -64,8 +64,8 @@ export const visibilityApi = {
   },
 
   /** World AABB of every item that is visible AS THE USER SEES IT — no hide
-   * flag and no opacity-0 override (Set Color's hidden toggle, sql.color's
-   * `default-hidden` base coat), i.e. isEffectivelyHidden — and
+   * flag and no opacity-0 override left over from older saved state,
+   * i.e. isEffectivelyHidden — and
    * has geometry, across all live models: what "fit visible" frames.
    * Transformed items contribute their moved box. null when nothing visible
    * is left. */

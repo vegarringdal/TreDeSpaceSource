@@ -161,6 +161,10 @@ export function setGpuState(state: GpuState) {
   gpu = state;
 }
 
+export function getGpuState(): GpuState {
+  return gpu;
+}
+
 /** The `app.ready` payload — also `app.info`'s response. */
 export function readyPayload() {
   return { version: readyVersion, api: PROTOCOL, commands: commandNames, events: [...API_EVENTS], gpu };

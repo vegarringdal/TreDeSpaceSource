@@ -84,14 +84,29 @@ export type PackedColorMode =
 const DEFAULT_BASE_OPACITY = 0.1;
 
 /** The base coat a `custom-color` mode paints first, or null for 'none'. */
-function baseRule(kind: 'white' | 'transparent' | 'hidden' | 'none', opacity?: number): ColorRule | null {
-  if (kind === 'none') {
-    return null;
-  }
+/** A base coat as the rule that paints it plus the run mode it needs.
+ *
+ *  `hidden` is no longer a coat at all: it used to paint everything at
+ *  opacity 0, and opacity 0 now means the hide flag rather than a 0 %
+ *  override (withOpacityOverride), so the coat would set a flag the hit rule
+ *  below could not clear. An isolate is instead the `hide` run mode, which is
+ *  what it always meant — hide everything, then let the rules unhide exactly
+ *  what they match. */
+function baseCoat(
+  kind: 'white' | 'transparent' | 'hidden' | 'none',
+  opacity?: number,
+): { rule: ColorRule | null; mode: ColorRulesMode } {
   if (kind === 'hidden') {
-    return everythingRule({ color: null, opacity: 0 });
+    return { rule: null, mode: 'hide' };
   }
-  return everythingRule({ color: '#ffffff', opacity: kind === 'white' ? 1 : (opacity ?? DEFAULT_BASE_OPACITY) });
+  if (kind === 'none') {
+    return { rule: null, mode: 'append' }; // nothing to clear — layer over the model
+  }
+
+  return {
+    rule: everythingRule({ color: '#ffffff', opacity: kind === 'white' ? 1 : (opacity ?? DEFAULT_BASE_OPACITY) }),
+    mode: 'reset',
+  };
 }
 
 /** Run LOCAL (unsaved) rule specs the same way the panel's Run does:
@@ -140,11 +155,8 @@ function colorModeSpecs(
 ): { specs: ColorRuleSpec[]; runMode: ColorRulesMode; label: string } {
   switch (mode.type) {
     case 'default-hidden':
-      return {
-        specs: [ruleToSpec(everythingRule({ color: null, opacity: 0 })), packedSpec(p)],
-        runMode: 'reset',
-        label: 'hidden',
-      };
+      // an isolate: `hide` blanks the scene and the rule unhides its matches
+      return { specs: [packedSpec(p)], runMode: 'hide', label: 'hidden' };
     case 'default-transparent':
       return {
         specs: [
@@ -163,11 +175,10 @@ function colorModeSpecs(
       };
     }
     case 'custom-color': {
-      const base = baseRule(mode.base ?? 'white', mode.baseOpacity);
+      const { rule, mode: runMode } = baseCoat(mode.base ?? 'white', mode.baseOpacity);
       return {
-        specs: [...(base ? [ruleToSpec(base)] : []), packedSpec(p, mode.color, mode.opacity)],
-        // with no base coat there is nothing to clear — layer over the model
-        runMode: base ? 'reset' : 'append',
+        specs: [...(rule ? [ruleToSpec(rule)] : []), packedSpec(p, mode.color, mode.opacity)],
+        runMode,
         label: `custom ${mode.color}`,
       };
     }
