@@ -4,9 +4,9 @@ import { sqlEditorState } from '../../../state/sqlAssets/sqlEditor.state';
 import type { ReportType } from '../../../state/sqlReports/sqlReports.state';
 
 /** Route the current SQL through the report consumers (like a saved report):
- *  the four coloring modes on one row, then SQL Table and the SQL Detail
- *  binding on the next. Each button is enabled only while its output type is
- *  checked in the draft's Types. */
+ *  the four coloring modes plus Color Selection on one row, then SQL Table and
+ *  the SQL Detail binding on the next. Each button is enabled only while its
+ *  output type is checked in the draft's Types. */
 export function SqlEditorReportRow() {
   const { running, draft } = sqlEditorState.use();
   const can = (t: ReportType): boolean => !running && draft.types.includes(t);
@@ -45,6 +45,14 @@ export function SqlEditorReportRow() {
           onClick={() => void act.colorSet()}
         >
           Color Set
+        </Button>
+        <Button
+          disabled={!can('COLORING')}
+          shortcut="sql.editor.colorSelection"
+          tooltip="Select the result in the viewer: every returned fullname becomes the selection (replaces the current one; colors untouched, fullname_color ignored)"
+          onClick={() => void act.colorSelection()}
+        >
+          Color Selection
         </Button>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">

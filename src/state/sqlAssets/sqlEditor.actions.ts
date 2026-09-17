@@ -359,6 +359,19 @@ export const sqlEditorActions = {
     }
   },
 
+  /** Select the result in the viewer: every returned fullname becomes the
+   *  selection (replacing the current one). Only the fullname column is used;
+   *  a fullname_color column is ignored. Colors are left as they are. */
+  async colorSelection() {
+    const rows = await sqlReportsActions.runColoring(editorReport());
+    if (!rows) {
+      return;
+    }
+    const r = await sqlReportsActions.colorSelection(rows);
+    const missed = r.missed ? ` (${r.missed} not in the model)` : '';
+    consoleActions.log('info', `SQL: selected ${r.matched} of ${rows.count} fullname(s)${missed}`);
+  },
+
   /** Bind the current SQL to the SQL Detail panel — clicks run it against the
    *  clicked hierarchy. SQL that reads TREE_VIEW_ARGS itself is bound as
    *  written; anything else is wrapped to the clicked item's fullname first

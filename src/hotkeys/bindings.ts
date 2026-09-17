@@ -1734,6 +1734,15 @@ export const HOTKEYS: HotkeyDef[] = [
     context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
+    id: 'sql.editor.colorSelection',
+    category: 'SQL',
+    label: 'SQL Editor: color selection',
+    defaultKeys: 'ALT + 1291',
+    description: 'Run the editor SQL and select every returned fullname in the viewer',
+    run: () => void sqlEditorActions.colorSelection(),
+    context: () => sqlEditorState.get().draft.types.includes('COLORING'),
+  },
+  {
     id: 'sql.editor.asDetail',
     category: 'SQL',
     label: 'SQL Editor: use as detail',

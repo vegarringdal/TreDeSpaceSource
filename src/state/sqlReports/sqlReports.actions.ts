@@ -119,24 +119,34 @@ async function runColorSpecs(
   mode: 'reset' | 'append' | 'hide',
   opts: SqlRunOpts = {},
 ) {
-  await timedColor(label, () => viewerActions.applyColorRules(specs, mode), opts);
+  await timedApply(
+    { title: 'Set Color', message: 'Applying to the model… please wait', log: `Set Color: ${label}` },
+    () => viewerActions.applyColorRules(specs, mode),
+    opts,
+  );
 }
 
-/** Run a coloring apply behind a "please wait" dialog and log how long it took
- *  (the apply can churn over hundreds of thousands of items). */
-async function timedColor(label: string, run: () => Promise<unknown>, opts: SqlRunOpts = {}) {
+/** Run a model apply (a coloring, a selection) behind a "please wait" dialog
+ *  and log how long it took — the model worker can churn over hundreds of
+ *  thousands of items, so the UI says what it is waiting for. Quiet callers
+ *  (host API) get the log line only. */
+async function timedApply<T>(
+  ui: { title: string; message: string; log: string },
+  run: () => Promise<T>,
+  opts: SqlRunOpts = {},
+): Promise<T> {
   const t0 = performance.now();
   if (!opts.quiet) {
-    dialogs.loading('Applying to the model… please wait', 'Set Color');
+    dialogs.loading(ui.message, ui.title);
   }
   try {
-    await run();
+    return await run();
   } finally {
     if (!opts.quiet) {
       dialogs.hideLoading();
     }
+    consoleActions.log('info', `${ui.log} in ${(performance.now() - t0).toFixed(0)} ms`);
   }
-  consoleActions.log('info', `Set Color: ${label} in ${(performance.now() - t0).toFixed(0)} ms`);
 }
 
 /** How a run reports itself. The in-app buttons take the defaults (progress
@@ -558,10 +568,22 @@ export const sqlReportsActions = {
     await sqlReportsActions.colorPackedMode(p, { type: 'default-set' }, opts);
   },
 
-  async colorSelection(p: PackedNames, opts: { append?: boolean } = {}) {
+  /** Select a packed result in the viewer instead of painting it — only the
+   *  names are used (fullname_color is ignored). `append` adds to the current
+   *  selection. The model worker resolves the names, so the wait sits behind
+   *  a "Setting selection" dialog like the coloring applies (unless `quiet`).
+   *  Returns how many names resolved and how many were unknown. */
+  async colorSelection(
+    p: PackedNames,
+    opts: { append?: boolean } & SqlRunOpts = {},
+  ): Promise<{ matched: number; missed: number }> {
     if (!p.count) {
       return { matched: 0, missed: 0 };
     }
-    return await viewerActions.selectByPacked(p, opts);
+    return timedApply(
+      { title: 'Selection', message: 'Setting selection… please wait', log: 'Selection: set from SQL' },
+      () => viewerActions.selectByPacked(p, { append: opts.append }),
+      opts,
+    );
   },
 };

@@ -1259,8 +1259,9 @@ response: { mode: 'default-transparent', rows: 412339, ms: 1840 }
 ```
 
 ### sql.select
-Select what a query returns, through the same packed path as `sql.color` — the
-query's `fullname` column resolved inside the viewer, nothing shipped back.
+Select what a query returns — the SQL editor's **Color Selection** button, over
+the API — through the same packed path as `sql.color`: the query's `fullname`
+column resolved inside the viewer, nothing shipped back.
 `append` adds to the current selection. Same `filters` / `attach` / `progress`
 options.
 

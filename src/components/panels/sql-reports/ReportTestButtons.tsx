@@ -41,6 +41,12 @@ export function ReportTestButtons({ eff }: { eff: () => ReportDef }) {
         Color Set
       </Button>
       <Button
+        tooltip="Select the result in the viewer: every returned fullname becomes the selection (colors untouched)"
+        onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorSelection(rows))}
+      >
+        Color Selection
+      </Button>
+      <Button
         tooltip="Bind this draft to the SQL Detail panel (follows viewport clicks). ALT+click prints the bound SQL."
         onClick={(e) => {
           bindDetailReport(eff());

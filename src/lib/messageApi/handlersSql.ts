@@ -445,8 +445,8 @@ export const sqlHandlers: Record<string, ApiHandler> = {
   // Select what a query returns (fullname column), packed all the way into the
   // model DB. `append` adds to the current selection.
   'sql.select': async ({ p }) => {
-    const { packed, ms } = await packedFor(p, 'api select', 'sql.select:progress');
-    const r = await sqlReportsActions.colorSelection(packed, { append: p.append === true });
+    const { packed, opts, ms } = await packedFor(p, 'api select', 'sql.select:progress');
+    const r = await sqlReportsActions.colorSelection(packed, { append: p.append === true, quiet: opts.quiet });
     return { rows: packed.count, matched: r.matched, missed: r.missed, ms };
   },
 

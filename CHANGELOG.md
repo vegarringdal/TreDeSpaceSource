@@ -4,6 +4,16 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.17** (>0.0.128):
+  SQL Editor: a **Color Selection** button (hotkey `sql.editor.colorSelection`)
+  next to the four coloring modes — runs the draft like a coloring report and
+  selects every returned fullname in the viewer instead of painting it
+  (replaces the current selection; colors untouched, `fullname_color` ignored).
+  The Console logs how many names resolved. The SQL Reports editor's Test row
+  got the same button, and EVENTS.md's `sql.select` names it as the API twin.
+  While the model worker resolves the names a "Setting selection… please
+  wait" dialog is up (the reports panel's Selection button and the API's
+  `sql.select` share it; `progress: true` keeps it down, as for `sql.color`).
 - **2026.09.17** (>0.0.127):
   Transform / clip gizmo readability: every axis line, ring and handle now
   sits on a white halo 1.5 px wider on each side (a copy of the same
