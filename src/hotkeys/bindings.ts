@@ -2276,6 +2276,22 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => multiColor.clearRules(),
   },
   {
+    id: 'multiColor.expandAll',
+    category: 'Color',
+    label: 'Set Color: expand all rules',
+    defaultKeys: 'ALT + 1061',
+    description: 'Open every rule section of the Set Color editor',
+    run: () => multiColor.expandAll(),
+  },
+  {
+    id: 'multiColor.collapseAll',
+    category: 'Color',
+    label: 'Set Color: collapse all rules',
+    defaultKeys: 'ALT + 1062',
+    description: 'Fold every rule section of the Set Color editor shut',
+    run: () => multiColor.collapseAll(),
+  },
+  {
     id: 'camera.focusClick',
     category: 'Camera',
     label: 'Focus last click',

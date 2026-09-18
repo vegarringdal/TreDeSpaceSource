@@ -31,6 +31,7 @@ export function useDemoEvents(
         cl.onInstanceChanged((e) => line('out', `⚡ instance.changed ${JSON.stringify(e.data)}`)),
         cl.onThemeChanged((e) => line('out', `⚡ theme.changed ${e.theme}`)),
         cl.onDialogChanged((e) => line('out', `⚡ dialog.changed ${e.state} ${e.id} "${e.name}"`)),
+        cl.onHotkeysChanged((e) => line('out', `⚡ hotkeys.changed ${e.ids.join(', ')}`)),
         cl.onViewpointsBookmark((e) =>
           line('out', `⚡ viewpoints.bookmark "${e.label}" — ${e.config.viewpoints.length} viewpoint(s) attached`),
         ),
@@ -46,7 +47,7 @@ export function useDemoEvents(
       setListening(true);
       line(
         'ok',
-        '← listening for tree.select + instance.changed + theme.changed + viewpoints.bookmark + dialog.changed + relay.changed + client.closed',
+        '← listening for tree.select + instance.changed + theme.changed + viewpoints.bookmark + dialog.changed + hotkeys.changed + relay.changed + client.closed',
       );
     },
     [line],

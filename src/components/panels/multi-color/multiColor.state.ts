@@ -35,6 +35,10 @@ export interface MultiColorState {
   rules: ColorRule[];
   /** per-rule match counts from the last run (null before any run) */
   counts: (number | null)[];
+  /** UI only: rule i's section folded shut — parallel to `rules`, a missing
+   *  entry reads as open; follows a rule through insert / move / remove and
+   *  is never saved (not in the JSON file, a viewpoint or the API). */
+  collapsed: readonly boolean[];
   running: boolean;
 }
 
@@ -89,6 +93,7 @@ export const emptyMultiColorState = (): MultiColorState => ({
   mode: 'reset',
   rules: [emptyRule()],
   counts: [],
+  collapsed: [],
   running: false,
 });
 

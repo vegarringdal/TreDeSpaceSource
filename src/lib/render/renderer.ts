@@ -46,6 +46,21 @@ function emptyPack(itemCount: number): GpuPackedModel {
   };
 }
 
+/** A worker StateUpdate as the renderer needs it (structural; no modeldb import). */
+export type ItemStateUpdate = { model: number; states: Uint32Array; transparent: boolean };
+
+/** Any colour group with baked alpha below 1 — the model's initial
+ *  `transparent` before its first state update (a fresh model has no
+ *  overrides, so this is the whole answer until one arrives). */
+function hasBakedAlpha(cgColors: Float32Array): boolean {
+  for (let i = 3; i < cgColors.length; i += 4) {
+    if (cgColors[i] < 1) {
+      return true;
+    }
+  }
+  return false;
+}
+
 import type { GizmoFace } from '../overlay/ViewGizmo';
 import { trackDeviceAllocations } from './allocationTracker';
 import { CameraController } from './camera';
@@ -1753,6 +1768,7 @@ export class Renderer {
       countOffset1,
       countOffset2,
       countOffsetT,
+      transparent: hasBakedAlpha(cgColors),
     };
   }
 
@@ -1880,12 +1896,16 @@ export class Renderer {
 
   /** Upload fresh per-item state for one model (from the worker). Dead slots
    * are skipped — state producers keep emitting for unloaded-but-live DbModels. */
-  writeItemStates(model: number, states: Uint32Array, quiet = false) {
-    const m = this.models[model];
+  writeItemStates(u: ItemStateUpdate, quiet = false) {
+    const m = this.models[u.model];
     if (!m || m.dead) {
       return;
     }
-    this.device.queue.writeBuffer(m.itemStateBuf, 0, states, 0, Math.min(states.length, m.itemCount * 3));
+    // the per-model blend gate travels WITH the states, so it can never lag
+    // what the GPU sees (a lagging gate would route glass to a list nobody
+    // scans — one frame of vanished items)
+    m.transparent = u.transparent;
+    this.device.queue.writeBuffer(m.itemStateBuf, 0, u.states, 0, Math.min(u.states.length, m.itemCount * 3));
     if (!quiet) {
       this.stateVersion++; // re-render even when idle
     }
@@ -3099,8 +3119,10 @@ export class Renderer {
         pass.setPipeline(blend ? blendPipeline : renderPipeline);
         for (const m of this.models) {
           // meshletCount 0 also covers a fully-cut coarse variant, whose
-          // minimum-sized geometry buffers would fail draw-time binding checks
-          if (m.dead || m.meshletCount === 0) {
+          // minimum-sized geometry buffers would fail draw-time binding checks.
+          // The blend pass skips a model with nothing transparent: its sorted
+          // list is empty (and the no-cull full list would only degenerate).
+          if (m.dead || m.meshletCount === 0 || (blend && !m.transparent)) {
             continue;
           }
           pass.setBindGroup(0, m.renderBind, frameOffset);
@@ -3116,7 +3138,7 @@ export class Renderer {
       } else {
         pass.setPipeline(blend ? vpBlendPipeline : vpPipeline);
         for (const m of this.models) {
-          if (m.dead || m.meshletCount === 0) {
+          if (m.dead || m.meshletCount === 0 || (blend && !m.transparent)) {
             continue;
           }
           pass.setBindGroup(0, m.renderBind, frameOffset);
@@ -3170,7 +3192,7 @@ export class Renderer {
         enc.clearBuffer(this.newBudgetBuf);
         if (sortActive) {
           for (const m of this.models) {
-            if (!m.dead && m.meshletCount > 0) {
+            if (!m.dead && m.meshletCount > 0 && m.transparent) {
               enc.clearBuffer(m.sortBuf, 0, SORT_CLEAR_BYTES);
             }
           }
@@ -3226,15 +3248,18 @@ export class Renderer {
         cull2.end();
 
         if (sortActive) {
-          // sorted blend list: per model, scan the bucket histogram into
-          // scatter bases (one workgroup), then scatter the candidates into
-          // recordBufT back-to-front (indirect dispatch, one thread each).
-          // Two passes: the scan WRITES the dispatch args the scatter reads
-          // as indirect, and one pass may not use a buffer both ways.
+          // sorted blend list: per model WITH transparency, scan the bucket
+          // histogram into scatter bases (one workgroup), then scatter the
+          // candidates into recordBufT back-to-front (indirect dispatch, one
+          // thread each). Two passes: the scan WRITES the dispatch args the
+          // scatter reads as indirect, and one pass may not use a buffer both
+          // ways. A model without glass is skipped outright — its transparent
+          // count slot stays at the frame's clear (0), so every pass that
+          // replays the list draws nothing for it.
           const scan = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'begin') });
           scan.setPipeline(this.sortScanPipeline);
           for (const m of this.models) {
-            if (m.dead || m.meshletCount === 0) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent) {
               continue;
             }
             scan.setBindGroup(0, m.sortScanBind);
@@ -3244,7 +3269,7 @@ export class Renderer {
           const scatter = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'end') });
           scatter.setPipeline(vp ? this.sortScatterVpPipeline : this.sortScatterPipeline);
           for (const m of this.models) {
-            if (m.dead || m.meshletCount === 0) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent) {
               continue;
             }
             scatter.setBindGroup(0, vp ? m.sortScatterVpBind : m.sortScatterBind);

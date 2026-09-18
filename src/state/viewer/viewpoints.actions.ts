@@ -52,7 +52,13 @@ function uid(): string {
 export const viewpointRulesActions = makeMultiColorActions(viewpointRulesState);
 
 function loadRulesFromViewpoint(vp: Viewpoint) {
-  viewpointRulesState.set({ mode: vp.colorRules.mode, rules: clone(vp.colorRules.rules), counts: [], running: false });
+  viewpointRulesState.set({
+    mode: vp.colorRules.mode,
+    rules: clone(vp.colorRules.rules),
+    counts: [],
+    collapsed: [],
+    running: false,
+  });
 }
 
 /** True when the viewpoint Set Color editor differs from the saved record. */

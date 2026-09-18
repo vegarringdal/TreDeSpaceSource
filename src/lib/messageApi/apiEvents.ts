@@ -10,6 +10,7 @@ export const API_EVENTS = [
   'tree.select',
   'instance.changed',
   'dialog.changed',
+  'hotkeys.changed',
   'viewpoints.bookmark',
   'assets.importUrl:progress',
   'assets.load:progress',

@@ -1,4 +1,4 @@
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { Button, Select, type SelectOption, TextArea, TextInput } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
 import type { FilterRow } from './multiColor.state';
@@ -75,7 +75,7 @@ export function FilterRowEditor({ ruleIdx, idx, row }: { ruleIdx: number; idx: n
         />
         <Button
           iconOnly
-          icon={<IconX size={14} />}
+          icon={<IconTrash size={14} />}
           tooltip="Remove this filter row"
           onClick={() => act.removeFilter(ruleIdx, idx)}
         />

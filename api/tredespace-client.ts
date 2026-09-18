@@ -526,6 +526,33 @@ export interface ConsoleLine {
   text: string;
 }
 
+/** One keyboard shortcut from {@link TredespaceClient.hotkeysList} — the same
+ *  record the viewer's own tooltips and Settings → Hotkeys panel are built
+ *  from. */
+export interface HotkeyInfo {
+  /** stable dotted id, e.g. `'transform.undo'` — what {@link TredespaceClient.hotkeysRun} takes */
+  id: string;
+  /** UI group, e.g. `'View'`, `'Selection'` */
+  category: string;
+  label: string;
+  /** one or two sentences written to work as a tooltip body */
+  description: string;
+  /** the LIVE key combo in display grammar (`'ALT + 101'`, `'CTRL&Z'`,
+   *  `'[F1] + 2'`) — the user's rebind when there is one, else the default */
+  keys: string;
+  defaultKeys: string;
+  /** true when the user has rebound or otherwise overridden this shortcut */
+  isCustom: boolean;
+  /** whether the combo also fires while a text field has focus */
+  allowInInput: boolean;
+}
+
+/** `hotkeys.changed`: the shortcuts whose binding just changed (rebind,
+ *  reset, keymap import) — re-read them with {@link TredespaceClient.hotkeysList}. */
+export interface HotkeysChangedEvent {
+  ids: string[];
+}
+
 /** Which kinds `model.reset` actually reset (an empty request resets all). */
 export interface ModelResetResult {
   color: boolean;
@@ -1620,6 +1647,7 @@ export interface TredespaceEventMap {
   'tree.select': TreeSelectEvent;
   'instance.changed': { data: Record<string, unknown> };
   'dialog.changed': DialogChangedEvent;
+  'hotkeys.changed': HotkeysChangedEvent;
   'viewpoints.bookmark': ViewpointsBookmarkEvent;
   'assets.importUrl:progress': ImportUrlProgress;
   'assets.load:progress': LoadProgress;
@@ -3120,6 +3148,29 @@ export class TredespaceClient {
     return this.send('console.add', { text, ...(level ? { level } : {}) });
   }
 
+  /** Every keyboard shortcut the viewer has, as data — id, category, label, a
+   *  tooltip-ready description and the LIVE key combo (the user's rebind when
+   *  there is one). It is the record the viewer's own tooltip footers are
+   *  built from, so a host can show the same shortcuts in its own UI and drive
+   *  them with {@link hotkeysRun}. `category` keeps one group only. Bindings
+   *  change when the user rebinds — {@link onHotkeysChanged} says when to
+   *  re-read. */
+  hotkeysList(opts?: { category?: string }): Promise<Result<{ hotkeys: HotkeyInfo[] }>> {
+    return this.send('hotkeys.list', { ...opts });
+  }
+  /** Fire a shortcut's action by id, exactly as pressing its keys would.
+   *  FIRE-AND-FORGET: `ran: true` means the action was DISPATCHED — never that
+   *  it finished or what it did; most actions carry on asynchronously and
+   *  report nothing back. When a result matters, use the dedicated command
+   *  instead (`selection.*`, `colorRules.*`, `camera.*`, …). `ran: false`
+   *  means the shortcut's own guard blocked it right now (its panel or tool is
+   *  not active); an unknown id is `not-found`. Some shortcuts assume UI state
+   *  — a selection, an open panel — and silently do nothing without it, just
+   *  as the key would. */
+  hotkeysRun(id: string): Promise<Result<{ ran: boolean }>> {
+    return this.send('hotkeys.run', { id });
+  }
+
   /** Replace (default) or merge the viewer's shared instance data — one JSON
    *  object per viewer window, for cross-dialog coordination. Every host gets
    *  an `instance.changed` event afterwards. */
@@ -3314,6 +3365,14 @@ export class TredespaceClient {
   /** Typed convenience for instance-data changes (any dialog called instance.set). */
   onInstanceChanged(handler: (e: { data: Record<string, unknown> }) => void, opts?: SubscribeOptions): () => void {
     return this.on('instance.changed', (p) => handler(p as { data: Record<string, unknown> }), opts);
+  }
+
+  /** Typed convenience for `hotkeys.changed`: the user rebound, reset or
+   *  otherwise changed the listed shortcuts — re-read them with
+   *  {@link hotkeysList} so host-side tooltips keep matching the keys that
+   *  actually work. */
+  onHotkeysChanged(handler: (e: HotkeysChangedEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('hotkeys.changed', (p) => handler(p as HotkeysChangedEvent), opts);
   }
 
   /** Typed convenience for the local `client.closed` event: this client's link

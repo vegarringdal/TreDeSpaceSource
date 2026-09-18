@@ -3,6 +3,7 @@
 // it reaches neither a saved report nor a host reading the draft). A flat
 // boolean[] parallel to `filters`; a missing entry reads as expanded, so the
 // array may be shorter than the filter list after an external draft change.
+// The Set Color editor reuses the same helpers for its rule sections.
 
 export type FilterCollapse = readonly boolean[];
 
@@ -45,6 +46,13 @@ export function moveFilterCollapsed(c: FilterCollapse, i: number, dir: -1 | 1, c
 /** Mirror of removeReportFilter. */
 export function removeFilterCollapsed(c: FilterCollapse, i: number): boolean[] {
   return c.filter((_, k) => k !== i);
+}
+
+/** Mirror of an insert BEFORE `i`: the new entry starts open. */
+export function insertFilterCollapsed(c: FilterCollapse, i: number): boolean[] {
+  const out = padCollapse(c, i);
+  out.splice(i, 0, false);
+  return out;
 }
 
 function padCollapse(c: FilterCollapse, len: number): boolean[] {

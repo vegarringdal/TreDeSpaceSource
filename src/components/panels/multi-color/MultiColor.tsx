@@ -6,6 +6,7 @@ import { viewerActions } from '../../../state/viewer/viewer.actions';
 import type { ColorRulesMode } from './multiColor.state';
 import { MultiColorCtx, MultiColorProvider } from './multiColorContext';
 import { RuleEditor } from './RuleEditor';
+import { RulesListHeader } from './RulesListHeader';
 
 export { MultiColorProvider };
 
@@ -105,12 +106,20 @@ export function MultiColor() {
           </div>
         </Collapsible>
       </div>
+      <RulesListHeader />
 
       {/* only the RULES scroll — Common above stays visible however many rules */}
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
         {s.rules.map((rule, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: rules are positional
-          <RuleEditor key={i} idx={i} rule={rule} count={s.counts[i] ?? null} total={s.rules.length} />
+          <RuleEditor
+            // biome-ignore lint/suspicious/noArrayIndexKey: rules are positional
+            key={i}
+            idx={i}
+            rule={rule}
+            count={s.counts[i] ?? null}
+            total={s.rules.length}
+            collapsed={s.collapsed[i] === true}
+          />
         ))}
       </div>
     </PanelBody>

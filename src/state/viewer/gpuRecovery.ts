@@ -145,7 +145,7 @@ async function rebuildModels(renderer: Renderer): Promise<RebuildResult> {
     live.push(slot);
   }
   for (const u of await db.statesFor(live)) {
-    renderer.writeItemStates(u.model, u.states);
+    renderer.writeItemStates(u);
   }
   renderer.writeTransforms(await db.transformsNow());
   if (lost.length > 0) {

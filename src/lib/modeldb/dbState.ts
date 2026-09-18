@@ -149,7 +149,38 @@ export interface TreeNode {
   selectedUnder: number;
 }
 
-export type StateUpdate = { model: number; states: Uint32Array<ArrayBuffer> };
+/** True when the model has anything the blend pass must draw — the same set
+ *  the cull's `meshlet_transparent` can route to the sorted list: a
+ *  baked-transparent colour group, an opacity override strictly between 0
+ *  and 100, or a colour override whose alpha is strictly between 0 and 255
+ *  (0 is invisible and culled first; 100 / 255 draws opaque). Rides on every
+ *  StateUpdate so the renderer's per-model gate never lags the states. */
+export function modelHasTransparency(m: DbModel): boolean {
+  if (m.bakedTransparent) {
+    return true;
+  }
+  for (let i = 0; i < m.itemCount; i++) {
+    const flags = m.states[i * 2];
+    if (flags & HAS_OPACITY_OVERRIDE) {
+      const pct = (flags & OPACITY_MASK) >>> OPACITY_SHIFT;
+      if (pct > 0 && pct < 100) {
+        return true;
+      }
+      continue;
+    }
+    if (flags & HAS_COLOR_OVERRIDE) {
+      const a = (m.states[i * 2 + 1] >>> 24) & 255;
+      if (a > 0 && a < 255) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** One model's interleaved GPU item states, plus whether the model has
+ *  anything for the blend pass (modelHasTransparency at pack time). */
+export type StateUpdate = { model: number; states: Uint32Array<ArrayBuffer>; transparent: boolean };
 
 function emptyHierarchy(): Hierarchy {
   return {

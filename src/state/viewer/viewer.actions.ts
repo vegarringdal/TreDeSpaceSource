@@ -151,7 +151,7 @@ export function applyStateUpdates(updates: StateUpdate[]) {
     return;
   }
   for (const u of updates) {
-    renderer.writeItemStates(u.model, u.states);
+    renderer.writeItemStates(u);
   }
   refreshHasTransparency();
   if (updates.length) {

@@ -17,9 +17,9 @@ import {
   HAS_COLOR_OVERRIDE,
   HAS_OPACITY_OVERRIDE,
   IS_HIDDEN,
+  modelHasTransparency,
   models,
   OPACITY_MASK,
-  OPACITY_SHIFT,
   type StateUpdate,
   withOpacityOverride,
 } from './dbState';
@@ -154,31 +154,7 @@ export const colorApi = {
    *  culled like a hidden item (isEffectivelyHidden), 100 / alpha 255 draws
    *  opaque — neither may switch the whole-scene blend replay on. */
   hasTransparency(): boolean {
-    for (const m of models) {
-      if (m.removed) {
-        continue;
-      }
-      if (m.bakedTransparent) {
-        return true;
-      }
-      for (let i = 0; i < m.itemCount; i++) {
-        const flags = m.states[i * 2];
-        if (flags & HAS_OPACITY_OVERRIDE) {
-          const pct = (flags & OPACITY_MASK) >>> OPACITY_SHIFT;
-          if (pct > 0 && pct < 100) {
-            return true;
-          }
-          continue;
-        }
-        if (flags & HAS_COLOR_OVERRIDE) {
-          const a = (m.states[i * 2 + 1] >>> 24) & 255;
-          if (a > 0 && a < 255) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
+    return models.some((m) => !m.removed && modelHasTransparency(m));
   },
 
   /** Apply a packed RGBA8 color override to the current selection.

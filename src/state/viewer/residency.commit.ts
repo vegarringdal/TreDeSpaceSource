@@ -47,7 +47,7 @@ function rebuildSlot(
   r.removeModels([rec.slot], { quiet });
   r.reviveModel(rec.slot, packed, { edges: rec.edges, quiet });
   for (const u of states) {
-    r.writeItemStates(u.model, u.states, quiet);
+    r.writeItemStates(u, quiet);
   }
 }
 

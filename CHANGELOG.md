@@ -4,6 +4,38 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.18** (>0.0.129):
+  Client API: `colorRules.apply` no longer rejects an empty `rules` list —
+  it runs like any other rule set, so `{ rules: [], mode: 'reset' }` clears
+  the colour/opacity overrides again.
+  Client API: **`hotkeys.list`** returns the whole shortcut table as data (id,
+  category, label, tooltip-ready description, the LIVE key combo including the
+  user's rebinds) and **`hotkeys.run`** fires a shortcut by id — fire-and-forget,
+  the response only confirms dispatch, never completion. A `hotkeys.changed`
+  event (the affected ids) fires on rebind / reset / keymap import so host-side
+  tooltips can refresh. SDK `hotkeysList` / `hotkeysRun` / `onHotkeysChanged`,
+  a demo section and a docs tile; library: `hotkeysActions.list()` + `run(id)`
+  (honours the def's `context` guard).
+  Rendering: blend-mode transparency now gates its per-model work on a
+  **per-model** flag — every worker state update carries `transparent`
+  (baked alpha or a live transparent override), and a model with nothing to
+  blend skips the sort clear, scan, scatter and the blend draw. Before, every
+  loaded model paid that fixed toll as soon as ONE item anywhere went
+  transparent (the "one glass item costs 12 ms" report on a large
+  multi-model scene); now only the models that hold glass do. Check Stats →
+  `sort` to confirm.
+  Pad: three more big buttons in the View section — **Hide** (H), **Reset
+  all** (Alt+R: unhide all + reset every colour/opacity override) and **Clear
+  sel.** (Esc) — the same actions as the Home ribbon, sized for touch.
+  Set Color: a **Rules** header row with **Expand all / Collapse all**
+  (hotkeys `multiColor.expandAll` / `multiColor.collapseAll`), like the SQL
+  editor's filters; each rule's insert-before / move up / move down / On-Off
+  buttons moved into its section header, so a folded rule can still be
+  reordered or disabled (delete stays beside the rule name, out of reach of a
+  stray header click). The fold state follows a rule through insert, move
+  and remove and is UI-only (never saved). The Color **Default | Custom**
+  control (and the Opacity / Store column with it) is wider so the words no
+  longer truncate.
 - **2026.09.17** (>0.0.128):
   SQL Editor: a **Color Selection** button (hotkey `sql.editor.colorSelection`)
   next to the four coloring modes — runs the draft like a coloring report and

@@ -166,7 +166,17 @@ own. Key facts, kept here so the port history isn't lost:
   an earlier-loaded model stays under a later one's where they overlap) and a
   "front faces only" variant that would show the true slider opacity at the
   price of the far wall; freeze-cull keeps whatever list the last cull built,
-  so switching modes while frozen shows stale routing.
+  so switching modes while frozen shows stale routing. **Per-model gate**
+  (2026-09-18): every worker `StateUpdate` carries `transparent`
+  (`modelHasTransparency`: baked alpha or a live transparent override — the
+  same set the cull's `meshlet_transparent` can route), the renderer keeps it
+  on the `GpuModel`, and a model with nothing to blend skips the sort clear,
+  scan, scatter and the blend draw. Blend mode's fixed per-model toll (a
+  clear + two dispatches + a draw per loaded model, each with its barrier) is
+  therefore paid only by models that have glass; one transparent item costs
+  its own model's commands, not every model's. The gate rides with the
+  states rather than the async whole-scene `hasTransparency` refresh because
+  a gate that lags the states would route glass to a list nobody scans.
 - **Marker spheres** (2026-09-04): labels and measurement points can carry a
   sphere drawn in the scene, depth tested — wireframe rings through the
   clip-helper line list, or `solid` fills as instances of one unit sphere

@@ -24,6 +24,22 @@ export interface HotkeyDef {
   context?: () => boolean; // extra guard — must return true for the shortcut to fire
 }
 
+/** One shortcut as plain data — what a settings panel, a command palette or
+ *  a host API shows: the def's metadata plus the LIVE combo (`keys`, the
+ *  user's override when there is one). From `hotkeysActions.list()`. */
+export interface HotkeyInfo {
+  id: string;
+  category: string;
+  label: string;
+  description: string;
+  /** effective combo in display grammar, e.g. "ALT + 101" */
+  keys: string;
+  defaultKeys: string;
+  /** true when the user has overridden anything on this shortcut */
+  isCustom: boolean;
+  allowInInput: boolean;
+}
+
 interface Override {
   keys?: Sequence;
   allowInInput?: boolean;
@@ -93,6 +109,45 @@ export const hotkeysActions = {
     hotkeysState.set({ defs: map, order });
     rebuild();
     engine.start();
+  },
+
+  /** Every registered shortcut as plain data, in registration order, with
+   *  its LIVE combo — the one record for a settings panel, a command palette
+   *  or a host API. */
+  list(): HotkeyInfo[] {
+    const { defs, order, overrides } = hotkeysState.get();
+    return order.map((id) => {
+      const d = defs[id];
+      const ov = overrides[id];
+      return {
+        id,
+        category: d.category,
+        label: d.label,
+        description: d.description,
+        keys: formatSequence(effective(d, ov)),
+        defaultKeys: d.defaultKeys,
+        isCustom: id in overrides,
+        allowInInput: ov?.allowInInput ?? d.allowInInput ?? false,
+      };
+    });
+  },
+
+  /** Fire a shortcut's action by id, as pressing its keys would: the def's
+   *  `context` guard is honoured ('blocked' when it says no) and the
+   *  announcer gets the same line. Fire-and-forget — the action may carry on
+   *  asynchronously; 'ran' only means it was dispatched. */
+  run(id: string): 'ran' | 'blocked' | 'unknown' {
+    const { defs, overrides } = hotkeysState.get();
+    const d = defs[id];
+    if (!d) {
+      return 'unknown';
+    }
+    if (d.context && !d.context()) {
+      return 'blocked';
+    }
+    announce?.(`⌨ ${d.label} · ${formatSequence(effective(d, overrides[id]))}`);
+    d.run();
+    return 'ran';
   },
 
   /** Effective (override or default) sequence for one id. */

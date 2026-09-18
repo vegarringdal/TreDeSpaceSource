@@ -3,6 +3,9 @@ import {
   IconArrowBigUp,
   IconArrowsMaximize,
   IconCurrentLocation,
+  IconDeselect,
+  IconEraser,
+  IconEyeOff,
   IconFocus2,
   IconFocusCentered,
   IconLayoutDistributeVertical,
@@ -68,6 +71,27 @@ export function PadViewGroups() {
           tooltip="Close every panel except the main one — click again to restore the layout"
           shortcut="view.soloPanels"
           onClick={() => toggleSoloPanels()}
+        />
+        <RibbonButton
+          icon={<IconEyeOff />}
+          label="Hide"
+          tooltip="Hide the selected items"
+          shortcut="selection.hide"
+          onClick={() => void viewerActions.hideSelection()}
+        />
+        <RibbonButton
+          icon={<IconEraser />}
+          label="Reset all"
+          tooltip="Unhide all + reset every color and opacity override (whole model)"
+          shortcut="selection.clearOverrides"
+          onClick={() => void viewerActions.clearAllOverrides()}
+        />
+        <RibbonButton
+          icon={<IconDeselect />}
+          label="Clear sel."
+          tooltip="Deselect everything"
+          shortcut="selection.clear"
+          onClick={() => void viewerActions.clearSelection()}
         />
       </RibbonSection>
 

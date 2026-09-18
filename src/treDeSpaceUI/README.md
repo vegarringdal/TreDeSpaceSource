@@ -1417,7 +1417,14 @@ hotkeysActions.resetOne(id)
 hotkeysActions.resetAll()
 hotkeysActions.exportJson()               // keymap deltas as portable JSON
 hotkeysActions.importJson(text)           // → { applied, skipped, conflicts }
+hotkeysActions.list()                     // every def as plain data + its LIVE combo (`keys`), registration order
+hotkeysActions.run(id)                    // fire an action by id (honours `context`) → 'ran' | 'blocked' | 'unknown'
 ```
+
+`list()` / `run(id)` are how the table reaches things outside React — a
+command palette, a host API. `run` is fire-and-forget (a def's `run` returns
+nothing), and once ids are exposed that way they are a public contract: rename
+one and every caller breaks.
 
 `hotkeysState` is the underlying `createStore` — `hotkeysState.use()` in a
 settings panel re-renders on any registry change (`defs`, `order`,

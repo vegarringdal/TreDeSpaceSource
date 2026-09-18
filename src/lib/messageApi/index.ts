@@ -19,6 +19,7 @@ import { assetHandlers } from './handlersAssets';
 import { consoleHandlers } from './handlersConsole';
 import { customHandlers } from './handlersCustom';
 import { externalAppsHandlers } from './handlersExternalApps';
+import { hotkeyHandlers, installHotkeyEvents } from './handlersHotkeys';
 import { sceneHandlers } from './handlersScene';
 import { settingsHandlers } from './handlersSettings';
 import { sqlHandlers } from './handlersSql';
@@ -51,6 +52,7 @@ const handlers: Record<string, ApiHandler> = {
   ...externalAppsHandlers,
   ...consoleHandlers,
   ...customHandlers,
+  ...hotkeyHandlers,
 };
 registerCommandList(Object.keys(handlers));
 
@@ -63,6 +65,7 @@ export function initMessageApi() {
   }
   installed = true;
   installDialogEvents();
+  installHotkeyEvents();
   applyUrlParamOrigins();
   window.addEventListener('message', (e) => void onMessage(e));
   // the app says goodbye on the way out (reload, navigation, close, bfcache)

@@ -42,6 +42,12 @@ export interface GpuModel {
   modelUniBuf: GPUBuffer; // {item_base}
   itemBase: number; // global id-buffer offset (0 = background)
   itemCount: number;
+  /** Anything for the blend pass in this model — the worker's
+   *  modelHasTransparency, refreshed by every state update (baked colour
+   *  alpha at upload). Gates the per-model sort clear / scan / scatter and
+   *  the blend draw, so blend mode's fixed per-model cost is paid only by
+   *  models that have glass. */
+  transparent: boolean;
   cullBind1: GPUBindGroup; // MDI emit
   cullBind2: GPUBindGroup;
   cullVpBind1: GPUBindGroup; // vertex-pull emit

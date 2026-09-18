@@ -164,9 +164,6 @@ export const viewerHandlers: Record<string, ApiHandler> = {
   // run a rule set directly — the Set Color panel's own rules are untouched
   'colorRules.apply': async ({ p }) => {
     const rules = apiRules(p.rules, 'rules');
-    if (!rules.length) {
-      throw new ApiError('bad-payload', 'rules must be a non-empty rule[]');
-    }
     const mode = p.mode === 'append' || p.mode === 'hide' ? p.mode : 'reset';
     const matches = await viewerActions.applyColorRules(await specsForRules(rules), mode);
     return { ran: true, matches };

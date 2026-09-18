@@ -2,6 +2,13 @@ import type { Store } from '@treDeSpaceUI/lib/createStore';
 import { parseColor } from '../../../lib/color/hexColor';
 import { parseMultiColumn } from '../../../lib/color/multiColorParse';
 import type { ColorRuleSpec } from '../../../lib/modeldb/modeldbWorker';
+import {
+  insertFilterCollapsed,
+  moveFilterCollapsed,
+  removeFilterCollapsed,
+  setAllFiltersCollapsed,
+  toggleFilterCollapsed,
+} from '../../../state/sqlReports/filterCollapse';
 import { loadedIndicesForStore } from '../../../state/viewer/storeScope';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { dialogs } from '../../dialogs/dialogs.actions';
@@ -99,6 +106,7 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       store.set((s) => ({
         rules: [...s.rules.slice(0, i), emptyRule(), ...s.rules.slice(i)],
         counts: [...s.counts.slice(0, i), null, ...s.counts.slice(i)],
+        collapsed: insertFilterCollapsed(s.collapsed, i),
       }));
     },
 
@@ -113,7 +121,7 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
         [rules[i], rules[j]] = [rules[j], rules[i]];
         const counts = [...s.counts];
         [counts[i], counts[j]] = [counts[j] ?? null, counts[i] ?? null];
-        return { rules, counts };
+        return { rules, counts, collapsed: moveFilterCollapsed(s.collapsed, i, dir, s.rules.length) };
       });
     },
 
@@ -121,12 +129,26 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       store.set((s) => ({
         rules: s.rules.filter((_, k) => k !== i),
         counts: s.counts.filter((_, k) => k !== i),
+        collapsed: removeFilterCollapsed(s.collapsed, i),
       }));
     },
 
     /** Delete every rule (the run mode is kept). */
     clearRules() {
-      store.set({ rules: [], counts: [] });
+      store.set({ rules: [], counts: [], collapsed: [] });
+    },
+
+    /** Fold / unfold rule i's section (UI only; the flag travels with the rule). */
+    toggleCollapsed(i: number) {
+      store.set((s) => ({ collapsed: toggleFilterCollapsed(s.collapsed, i) }));
+    },
+
+    expandAll() {
+      store.set((s) => ({ collapsed: setAllFiltersCollapsed(s.rules.length, false) }));
+    },
+
+    collapseAll() {
+      store.set((s) => ({ collapsed: setAllFiltersCollapsed(s.rules.length, true) }));
     },
 
     updateRule: patchRule,
@@ -230,6 +252,7 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
           mode: data.mode === 'append' || data.mode === 'hide' ? data.mode : 'reset',
           rules,
           counts: [],
+          collapsed: [],
         });
         consoleActions.log('info', `Set Color → loaded ${rules.length} rule${rules.length === 1 ? '' : 's'} from file`);
       } catch (e) {

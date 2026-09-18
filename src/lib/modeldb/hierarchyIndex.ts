@@ -2,7 +2,14 @@
 // maps, cached name arrays, and the interleaved GPU state upload.
 import * as Comlink from 'comlink';
 import type { Hierarchy } from '../model/format';
-import { type DbModel, IS_SELECTED, isEffectivelyHidden, NO_PARENT, type StateUpdate } from './dbState';
+import {
+  type DbModel,
+  IS_SELECTED,
+  isEffectivelyHidden,
+  modelHasTransparency,
+  NO_PARENT,
+  type StateUpdate,
+} from './dbState';
 
 const decoder = new TextDecoder();
 
@@ -164,7 +171,7 @@ export function interleaveStates(m: DbModel): Uint32Array<ArrayBuffer> {
  *  transferUpdates) — Comlink never looks inside an array for marks. */
 export function packStates(m: DbModel, modelIdx: number): StateUpdate {
   m.stateVersion = (m.stateVersion ?? 0) + 1;
-  return { model: modelIdx, states: interleaveStates(m) };
+  return { model: modelIdx, states: interleaveStates(m), transparent: modelHasTransparency(m) };
 }
 
 /** Buffers of a StateUpdate list, for the transfer mark on a wrapper object

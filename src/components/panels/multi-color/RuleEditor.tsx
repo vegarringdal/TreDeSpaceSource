@@ -1,4 +1,4 @@
-import { IconArrowDown, IconArrowUp, IconPlus, IconRowInsertTop, IconX } from '@tabler/icons-react';
+import { IconArrowDown, IconArrowUp, IconPlus, IconRowInsertTop, IconTrash } from '@tabler/icons-react';
 import {
   Button,
   Collapsible,
@@ -22,17 +22,20 @@ const COLOR_OPTIONS = [
 /** First custom colour a rule gets when switched off Default. */
 const DEFAULT_RULE_COLOR = '#ff8800';
 
-/** One color rule: name/order/enable controls, color + opacity, filter rows. */
+/** One color rule: a collapsible section with insert-before / move / enable /
+ *  delete in its header, then name, color + opacity, store and filter rows. */
 export function RuleEditor({
   idx,
   rule,
   count,
   total,
+  collapsed,
 }: {
   idx: number;
   rule: ColorRule;
   count: number | null;
   total: number;
+  collapsed: boolean;
 }) {
   const { act } = useContext(MultiColorCtx);
   const loadedStores = useLoadedStores();
@@ -44,6 +47,42 @@ export function RuleEditor({
     ...(rule.store && !loadedStores.includes(rule.store) ? [{ value: rule.store, label: rule.store }] : []),
   ];
 
+  const actions = (
+    <>
+      <Button
+        iconOnly
+        size="sm"
+        icon={<IconRowInsertTop size={13} />}
+        tooltip="Insert a new rule BEFORE this one"
+        onClick={() => act.insertRuleBefore(idx)}
+      />
+      <Button
+        iconOnly
+        size="sm"
+        icon={<IconArrowUp size={13} />}
+        disabled={idx === 0}
+        tooltip="Move this rule up (rules run top to bottom)"
+        onClick={() => act.moveRule(idx, -1)}
+      />
+      <Button
+        iconOnly
+        size="sm"
+        icon={<IconArrowDown size={13} />}
+        disabled={idx === total - 1}
+        tooltip="Move this rule down (rules run top to bottom)"
+        onClick={() => act.moveRule(idx, 1)}
+      />
+      <Button
+        size="sm"
+        active={rule.enabled}
+        tooltip="Enable / disable this rule — disabled rules are skipped by Run"
+        onClick={() => act.toggleRule(idx)}
+      >
+        {rule.enabled ? 'On' : 'Off'}
+      </Button>
+    </>
+  );
+
   return (
     <Collapsible
       title={
@@ -53,8 +92,11 @@ export function RuleEditor({
         </span>
       }
       aside={count != null ? `${count} matched` : undefined}
-      defaultOpen
+      actions={actions}
+      open={!collapsed}
+      onToggle={() => act.toggleCollapsed(idx)}
     >
+      {/* delete lives down here, not in the header, so a header click can't hit it by mistake */}
       <div className="flex items-center gap-1">
         <TextInput
           className="min-w-0 flex-1"
@@ -64,38 +106,16 @@ export function RuleEditor({
         />
         <Button
           iconOnly
-          icon={<IconRowInsertTop size={14} />}
-          tooltip="Insert a new rule BEFORE this one"
-          onClick={() => act.insertRuleBefore(idx)}
+          icon={<IconTrash size={14} />}
+          tooltip="Delete this rule"
+          onClick={() => act.removeRule(idx)}
         />
-        <Button
-          iconOnly
-          icon={<IconArrowUp size={14} />}
-          disabled={idx === 0}
-          tooltip="Move this rule up (rules run top to bottom)"
-          onClick={() => act.moveRule(idx, -1)}
-        />
-        <Button
-          iconOnly
-          icon={<IconArrowDown size={14} />}
-          disabled={idx === total - 1}
-          tooltip="Move this rule down (rules run top to bottom)"
-          onClick={() => act.moveRule(idx, 1)}
-        />
-        <Button
-          active={rule.enabled}
-          tooltip="Enable / disable this rule — disabled rules are skipped by Run"
-          onClick={() => act.toggleRule(idx)}
-        >
-          {rule.enabled ? 'On' : 'Off'}
-        </Button>
-        <Button iconOnly icon={<IconX size={14} />} tooltip="Delete this rule" onClick={() => act.removeRule(idx)} />
       </div>
 
       <div className="flex items-center gap-1.5">
         <span className="w-14 shrink-0 text-neutral-400 text-xs">Color</span>
         <SegmentedControl
-          className="w-28 shrink-0"
+          className="w-40 shrink-0"
           grow
           options={COLOR_OPTIONS}
           value={rule.color == null ? 'default' : 'custom'}
@@ -109,7 +129,7 @@ export function RuleEditor({
       </div>
       <div className="flex items-center gap-1.5">
         <span className="w-14 shrink-0 text-neutral-400 text-xs">Opacity</span>
-        <div className="w-28">
+        <div className="w-40">
           <NumberInput
             value={rule.opacity}
             min={0}
@@ -139,7 +159,7 @@ export function RuleEditor({
       <div className="flex items-center gap-1.5">
         <span className="w-14 shrink-0 text-neutral-400 text-xs">Store</span>
         <Select
-          className="w-28 shrink-0"
+          className="w-40 shrink-0"
           tooltip="Scope this rule to models loaded from one store — All stores matches every loaded model"
           options={storeOptions}
           value={rule.store}

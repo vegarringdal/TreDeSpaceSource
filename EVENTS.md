@@ -1900,6 +1900,41 @@ payload:  { text: 'Host: sync finished', level: 'info' }
 response: { id: 391 }
 ```
 
+### hotkeys.list
+The viewer's keyboard-shortcut table as data — every shortcut's stable `id`,
+`category`, `label`, a tooltip-ready `description`, and `keys`: the LIVE combo
+in the display grammar (`ALT + 101`, `CTRL&Z`, `[F1] + 2`) — the user's rebind
+when there is one, else `defaultKeys`. It is the same record the viewer's own
+tooltip footers and the Settings → Hotkeys panel are built from, in
+registration order, so a host can show the same shortcuts in its own UI and
+drive them with `hotkeys.run`. `category` (optional) keeps one group only.
+Rebinds change `keys`: listen for `hotkeys.changed` and re-read.
+
+```js
+payload:  { category: 'Transform' }   // or {} for every shortcut
+response: { hotkeys: [
+  { id: 'transform.undo', category: 'Transform', label: 'Undo transform',
+    description: 'Undo the last selection transform', keys: 'ALT + 101', defaultKeys: 'ALT + 101',
+    isCustom: false, allowInInput: false },
+  /* … */ ] }
+```
+
+### hotkeys.run
+Fire a shortcut's action by `id`, exactly as pressing its keys would (the
+Console gets the same "⌨ label · combo" line). **Fire-and-forget:** the
+response says the action was DISPATCHED, never that it finished or what it
+did — most actions carry on asynchronously and report nothing back, so when a
+result matters use the dedicated command instead (`selection.*`,
+`colorRules.*`, `camera.*`, …). `ran: false` means the shortcut's own guard
+blocked it right now (its panel or tool is not active); an unknown id is
+`not-found`. Some shortcuts assume UI state — a selection, an open panel — and
+silently do nothing without it, just as the key would.
+
+```js
+payload:  { id: 'transform.undo' }
+response: { ran: true }
+```
+
 ## Transports
 
 The envelope/commands above are TRANSPORT-AGNOSTIC — correlation ids do the
@@ -2070,6 +2105,19 @@ that dialog only.
              kind: 'dialog',         // or 'panel' — an external-app dock panel
              id: 'm3k9x-a1b2:0', tdsDialogId: '7f0c…-…', appId: 'm3k9x-a1b2',
              name: 'Report 42 — details', url: 'https://…/reports', hidden: false } }
+```
+
+### hotkeys.changed
+The user rebound, reset or otherwise changed one or more shortcuts — the
+Settings → Hotkeys panel, a keymap import, Reset all — and the payload lists
+the affected ids. A host that shows the viewer's shortcuts in its own UI
+re-reads them with `hotkeys.list` (the whole table, or just those ids) so its
+tooltips keep matching the keys that actually work. SDK:
+`onHotkeysChanged(handler)`.
+
+```js
+{ tredespace: 1, id: null, type: 'hotkeys.changed', ok: true,
+  payload: { ids: ['transform.undo', 'transform.redo'] } }
 ```
 
 ## External app hosting (Settings → External)

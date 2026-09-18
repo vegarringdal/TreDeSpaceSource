@@ -8,6 +8,7 @@ import { ColorRulesSection } from '../sections/ColorRulesSection';
 import { CustomEventsSection } from '../sections/CustomEventsSection';
 import { EventsSection } from '../sections/EventsSection';
 import { ExternalAppsSection } from '../sections/ExternalAppsSection';
+import { HotkeysSection } from '../sections/HotkeysSection';
 import { InstanceSection } from '../sections/InstanceSection';
 import { LabelsSection } from '../sections/LabelsSection';
 import { MeasurementsSection } from '../sections/MeasurementsSection';
@@ -98,6 +99,7 @@ export function ControlsColumn() {
         <MeasurementsSection />
         <ViewpointsSection />
         <AppSection />
+        <HotkeysSection />
         <SettingsSection />
         <ModelStoresSection />
         <SqlSection />
