@@ -25,7 +25,8 @@ export interface ColorRule {
   store: string;
 }
 
-/** Run mode: reset = clear every existing color/opacity override first;
+/** Run mode: reset = clear every existing color/opacity/hidden override
+ *  first (the Alt+R "Clear all" slate);
  *  append = layer on top; hide = hide EVERYTHING first — the rules unhide
  *  (and color) exactly what they match. */
 export type ColorRulesMode = 'reset' | 'append' | 'hide';

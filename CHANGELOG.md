@@ -4,6 +4,32 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.22** (>0.0.130):
+  @treDeSpaceUI light theme: the `[data-theme="light"]` map left 18 of the
+  colour tokens the library uses at their stock Tailwind values, so in light
+  mode the info/success/danger `Badge`, `InfoBox` and toast labels rendered
+  pale-on-pale — effectively invisible — and `Button variant="danger"` stayed a
+  near-black block; only `warning` survived, because `amber-200` was already
+  remapped. The tone text, the whole red ramp (the danger button and the Menu
+  danger entry share `text-red-200` with the chip, so the fills had to come up
+  as the text went down), and the green/sky/emerald accents now flip with the
+  theme. Dark is untouched — the change is entirely inside the light block.
+
+- **2026.09.22** (>0.0.130):
+  Set Color: the **Reset model** run mode now also unhides everything before
+  the rules run, matching Alt+R (color + opacity + hidden). It used to clear
+  only color and opacity, so items hidden earlier stayed hidden after a reset.
+
+- **2026.09.18** (>0.0.130):
+  Docs: new `tredespaceUIDocs.md` at the repo root — a self-contained
+  @tredespace/ui guide written to be handed to an AI (or a developer) at the
+  start of a NEW project: fresh-project setup, every widget with its full
+  variant table, the dockable shell wired up theme-ready, the state/hotkey
+  patterns, a migration mapping from other UI libraries, and a troubleshooting
+  matrix. Its theming chapter documents all 36 palette tokens and the rule that
+  decides which way each one moves between the themes — writing it is what
+  surfaced the light-map gap fixed above.
+
 - **2026.09.18** (>0.0.129):
   Client API: `colorRules.apply` no longer rejects an empty `rules` list —
   it runs like any other rule set, so `{ rules: [], mode: 'reset' }` clears

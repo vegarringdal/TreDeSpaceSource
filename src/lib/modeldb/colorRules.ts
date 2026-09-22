@@ -24,6 +24,10 @@ import { bfsOrder, ensureNames, entryDepths, itemsUnder, packStates, updateBuffe
 /** Escape a literal string for embedding in a RegExp (wildcard compile). */
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** Every override bit a `reset` run clears first — color, opacity band and
+ *  hidden — identical to the Alt+R / "Clear all" slate. */
+const RESET_MASK = (HAS_COLOR_OVERRIDE | HAS_OPACITY_OVERRIDE | OPACITY_MASK | IS_HIDDEN) >>> 0;
+
 /** The model's import-folder path segments (tree-panel top levels). */
 function groupSegments(m: DbModel): string[] {
   return m.group.split('/').filter((s) => s.length > 0);
@@ -72,7 +76,8 @@ export interface ColorRuleSpec {
  * its filter rows (append = union, remove = subtract, evaluated in order;
  * a matched entry colors its whole subtree, like selection) and then writes
  * color / opacity overrides directly on those items — the current selection
- * is untouched. Mode: `reset` clears every override first, `append` layers
+ * is untouched. Mode: `reset` clears every override first (color, opacity
+ * and hidden — the same slate as Alt+R / "Clear all"), `append` layers
  * on top, `hide` starts from an all-hidden override-free slate and the
  * rules UNHIDE (and color) exactly what they match. The whole run is ONE
  * step on the state undo stack. Returns per-rule match counts. */
@@ -282,13 +287,15 @@ export function applyColorRules(
       touched.add(idx);
     });
   } else if (mode === 'reset') {
+    // RESET MODEL: the same slate as Alt+R / "Clear all" — color, opacity
+    // AND hidden overrides all go, so a run always starts from the bare model
     models.forEach((m, idx) => {
       if (m.removed) {
         return;
       }
       const items: number[] = [];
       for (let i = 0; i < m.itemCount; i++) {
-        if (m.states[i * 2] & (HAS_COLOR_OVERRIDE | HAS_OPACITY_OVERRIDE)) {
+        if (m.states[i * 2] & RESET_MASK) {
           items.push(i);
         }
       }
@@ -297,7 +304,7 @@ export function applyColorRules(
       }
       captureOnce(idx);
       for (const i of items) {
-        m.states[i * 2] = (m.states[i * 2] & ~(HAS_COLOR_OVERRIDE | HAS_OPACITY_OVERRIDE | OPACITY_MASK)) >>> 0;
+        m.states[i * 2] = (m.states[i * 2] & ~RESET_MASK) >>> 0;
       }
       touched.add(idx);
     });

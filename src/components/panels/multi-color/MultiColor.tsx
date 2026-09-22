@@ -32,16 +32,16 @@ export function MultiColor() {
           info={
             <>
               Rules run top to bottom. Filters find items by name; <b>Default</b> colour / opacity 1 restore the
-              original mesh look. Mode <b>Reset model</b> clears existing overrides before running; <b>Append only</b>{' '}
-              layers on top; <b>Hide model</b> hides everything first — the rules unhide and colour only what they
-              match. Save/Load stores the rule set as JSON.
+              original mesh look. Mode <b>Reset model</b> clears every color, opacity and hidden override before running
+              (like Alt+R); <b>Append only</b> layers on top; <b>Hide model</b> hides everything first — the rules
+              unhide and colour only what they match. Save/Load stores the rule set as JSON.
             </>
           }
         >
           <div className="flex items-center gap-1.5">
             <Select
               className="min-w-0 flex-1"
-              tooltip="Reset model clears every existing color/opacity override before the rules run; Append only layers the rules on top of what is already colored; Hide model hides EVERYTHING first — the rules unhide and color only what they match"
+              tooltip="Reset model clears every existing color, opacity and hidden override before the rules run (like Alt+R); Append only layers the rules on top of what is already colored; Hide model hides EVERYTHING first — the rules unhide and color only what they match"
               options={MODE_OPTIONS}
               value={s.mode}
               onChange={(mode) => {

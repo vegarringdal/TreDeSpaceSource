@@ -43,6 +43,35 @@
   --color-amber-700: #d97706;
   --color-amber-950: #fef3c7;
   --color-red-400: #dc2626;
+
+  /* Tone surfaces (Badge / InfoBox / Toast). The tints themselves are the
+     `*-500` tokens at 10-40% alpha and read the same either way, so only the
+     TEXT flips — the way amber-200 above already does. Without these three the
+     chips are pale-on-pale and their labels vanish in light mode. */
+  --color-blue-200: #1e40af;
+  --color-green-200: #166534;
+  --color-red-200: #991b1b;
+
+  /* The danger Button flips as a SET — `text-red-200` is shared by the danger
+     chip above and the button's dark fill, so the fills have to come up as the
+     text goes down: bg-red-950/900 become the light fills, border-red-800/600
+     the borders, text-red-100 the hover text. text-red-300 is the Menu's
+     danger entry. */
+  --color-red-950: #fef2f2;
+  --color-red-900: #fee2e2;
+  --color-red-800: #fca5a5;
+  --color-red-600: #dc2626;
+  --color-red-300: #b91c1c;
+  --color-red-100: #7f1d1d;
+
+  /* Remaining accents: the success icon, the Link/TreeView hover, and the SQL
+     editor's keyword + string colours — all mid-light by default, so they need
+     darkening against a light ground. */
+  --color-green-400: #15803d;
+  --color-blue-300: #1d4ed8;
+  --color-sky-400: #0284c7;
+  --color-sky-300: #0369a1;
+  --color-emerald-400: #047857;
 }
 
 /* "Floating" flat scrollbars EVERYWHERE — square, visible track, and a thumb
