@@ -59,7 +59,7 @@ export function RibbonPanels() {
 
   return (
     <Ribbon>
-      <RibbonSection title="Panel (drag/drop to place where you want it)">
+      <RibbonSection title="Panel (Drag/Drop)">
         {panels.map((d) => {
           const Icon = PANEL_ICON[d.id] ?? IconLayoutBoard;
           // the live title — a rename from inside the panel (usePanelTitle,

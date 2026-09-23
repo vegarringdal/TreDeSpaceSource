@@ -9,7 +9,7 @@ export function ColorHiddenItemsGroup() {
   const none = selectionState.use().count === 0;
 
   return (
-    <RibbonSection title="Hidden items">
+    <RibbonSection title="Hidden Items">
       <RibbonButton
         size="mini"
         icon={<IconEyeOff />}

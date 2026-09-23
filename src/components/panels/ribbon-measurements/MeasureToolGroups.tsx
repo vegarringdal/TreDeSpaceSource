@@ -42,7 +42,7 @@ export function MeasureToolGroups() {
 
   return (
     <>
-      <RibbonSection title="Measure tool">
+      <RibbonSection title="Measure Tool">
         {TOOLS.map(({ id, label, Icon }) => (
           <RibbonButton
             key={id}

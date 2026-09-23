@@ -216,7 +216,7 @@ own. Key facts, kept here so the port history isn't lost:
   handles (one diameter handle scaling the radius symmetrically, top and
   bottom handles moving one end only — `mode: 'cylinder'`). The plane's
   gizmo has its own per-axis toggle, independent of the Helper marker.
-  Ribbon `Resize (main)` / `Move (main)` say which box they act on.
+  Ribbon `Resize (Main)` / `Move (Main)` say which box they act on.
 - **Selection transforms**: move/rotate/scale gizmo with custom pivot
   (lock/adjust/item-pivot), nudge/rotate-90° grids, move-to-click,
   per-domain undo/redo.

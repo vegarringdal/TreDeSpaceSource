@@ -15,7 +15,7 @@ export function ColorQuickColoringGroup() {
   const none = selectionState.use().count === 0;
 
   return (
-    <RibbonSection title="Quick coloring">
+    <RibbonSection title="Quick Coloring">
       {colors.map((c, i) => (
         <RibbonButton
           // biome-ignore lint/suspicious/noArrayIndexKey: fixed palette slots

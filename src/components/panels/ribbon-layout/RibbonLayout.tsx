@@ -40,9 +40,9 @@ export function RibbonLayout() {
   return (
     <Ribbon>
       {/* the 12 slots (F1-F12), mini buttons stack 3 per column */}
-      <RibbonSection title="Configured App Layouts (shortcut F1-F12)">{s.slots.map(slotButton)}</RibbonSection>
+      <RibbonSection title="Configured App Layouts (Shortcut F1-F12)">{s.slots.map(slotButton)}</RibbonSection>
 
-      <RibbonSection title="Override layouts">
+      <RibbonSection title="Override Layouts">
         <RibbonButton
           size="big"
           icon={<IconDeviceFloppy />}

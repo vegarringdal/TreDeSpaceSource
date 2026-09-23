@@ -9,7 +9,7 @@ export function RibbonClipShapes() {
   const s = clipShapesState.use();
   return (
     <Ribbon>
-      <RibbonSection title="Add shape">
+      <RibbonSection title="Add Shape">
         <RibbonButton icon={<IconCircle />} label="Sphere" shortcut="clip.shape.addSphere" onClick={act.addSphere} />
         <RibbonButton
           icon={<IconCylinder />}

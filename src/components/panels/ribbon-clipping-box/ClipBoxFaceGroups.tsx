@@ -24,7 +24,7 @@ export function ClipBoxFaceGroups() {
 
   return (
     <>
-      <RibbonSection title="Resize (main)">
+      <RibbonSection title="Resize (Main)">
         {FACES.flatMap(({ key, face, color }) =>
           ['+', '−'].map((sign) => (
             <RibbonButton
@@ -54,7 +54,7 @@ export function ClipBoxFaceGroups() {
         />
       </RibbonSection>
 
-      <RibbonSection title="Move (main)">
+      <RibbonSection title="Move (Main)">
         {FACES.map(({ key, face, color }) => (
           <RibbonButton
             key={key}

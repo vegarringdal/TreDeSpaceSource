@@ -9,7 +9,7 @@ export function ClipBoxSizeGroup() {
   const noSel = selectionState.use().count === 0;
 
   return (
-    <RibbonSection title="Box size">
+    <RibbonSection title="Box Size">
       <RibbonButton
         size="mini"
         label="Fit Sel"

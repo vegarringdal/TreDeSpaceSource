@@ -12,7 +12,7 @@ export function ColorOpacityGroup() {
   const none = selectionState.use().count === 0;
 
   return (
-    <RibbonSection title="Opacity override">
+    <RibbonSection title="Opacity Override">
       <RibbonNumber
         size="medium"
         unit="%"

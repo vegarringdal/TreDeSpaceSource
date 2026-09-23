@@ -9,12 +9,12 @@ import { ExternalAppButton, groupAppsBySection, usableApps } from './ExternalApp
 /** One ribbon button per configured external app, grouped by ribbon section. */
 export function RibbonExternal() {
   const { apps } = externalAppsState.use();
-  const sections = groupAppsBySection(usableApps(apps, 'external'), 'External apps');
+  const sections = groupAppsBySection(usableApps(apps, 'external'), 'External Apps');
 
   return (
     <Ribbon>
       {sections.length === 0 && (
-        <RibbonSection title="External apps">
+        <RibbonSection title="External Apps">
           <RibbonButton
             size="big"
             label="Configure…"

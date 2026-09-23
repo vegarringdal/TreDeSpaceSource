@@ -164,13 +164,27 @@ describe('a rule moved off opacity 0', () => {
     expect(m.states[2] & IS_HIDDEN).toBe(0);
   });
 
-  it('leaves an item no rule matches hidden', () => {
+  // Reset model is the Alt+R slate (colour + opacity + hidden), so a hand-hide
+  // on an item no rule matches goes with it; only Append only leaves what it
+  // does not match alone.
+  const a1Only: ColorRuleSpec = {
+    filters: [{ op: 'append', mode: 'contains', value: 'a1', level: 0 }],
+    colorRGBA8: 0xffff00ff,
+    opacityPct: 50,
+  };
+
+  it('reset mode unhides an item no rule matches (the Alt+R slate)', () => {
     m.states.fill(0);
     m.states[2] = IS_HIDDEN; // a2, hidden by hand
-    applyColorRules(
-      [{ filters: [{ op: 'append', mode: 'contains', value: 'a1', level: 0 }], colorRGBA8: 0xffff00ff, opacityPct: 50 }],
-      'reset',
-    );
+    applyColorRules([a1Only], 'reset');
+    expect(m.states[0] & IS_HIDDEN).toBe(0);
+    expect(m.states[2] & IS_HIDDEN).toBe(0);
+  });
+
+  it('append mode leaves an item no rule matches hidden', () => {
+    m.states.fill(0);
+    m.states[2] = IS_HIDDEN; // a2, hidden by hand
+    applyColorRules([a1Only], 'append');
     expect(m.states[0] & IS_HIDDEN).toBe(0);
     expect(m.states[2] & IS_HIDDEN).toBeTruthy();
   });

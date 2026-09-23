@@ -31,11 +31,11 @@ export function ClipBoxModeGroups() {
         />
       </RibbonSection>
 
-      <RibbonSection title="Cut dir">
+      <RibbonSection title="Cut Dir">
         <RibbonButton icon={<IconArrowsUpDown />} label="Flip" shortcut="clip.box.flip" onClick={act.flipCutDir} />
       </RibbonSection>
 
-      <RibbonSection title="Gizmo mode">
+      <RibbonSection title="Gizmo Mode">
         {MODES.map((m) => (
           <RibbonButton
             key={m}

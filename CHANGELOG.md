@@ -4,6 +4,18 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.23** (>0.0.132):
+  Tests: `opacityHides` still asserted the pre-0.0.131 Reset model run
+  (colour + opacity cleared, hand-hides kept), so the suite failed against
+  the Alt+R slate that mode has used since 0.0.131. The case now checks that
+  a reset run unhides an item no rule matches, and that an Append only run
+  is the one that leaves it hidden.
+  Ribbon: every section header is Title Case now (Add Shape, Cut Dir, Gizmo
+  Mode, Box Size, Hidden Items, Opacity Override, Quick Coloring, Measure
+  Tool, Override Layouts, External Apps, Resize/Move (Main), …), matching the
+  button labels done the same day — a few lower-case second words sat beside
+  Title Case neighbours. Host-defined external-app section names are shown as
+  the host wrote them.
 - **2026.09.23** (>0.0.131):
   Viewpoints: loading a viewpoint set (panel Load, `viewpoints.set`,
   `viewpoints.setUrl`) dropped the **Hide model** Set Color run mode to
