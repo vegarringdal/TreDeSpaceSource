@@ -52,7 +52,7 @@ export function HomeAssetsGroups() {
         />
         <RibbonButton
           icon={<IconTrashX />}
-          label="Wipe all"
+          label="Wipe All"
           tooltip="Wipe ALL locally saved data — settings, layout, hotkeys, viewpoints, rules AND every imported asset — then reload"
           shortcut="home.wipe.all"
           onClick={() => void act.wipeAllLocal()}

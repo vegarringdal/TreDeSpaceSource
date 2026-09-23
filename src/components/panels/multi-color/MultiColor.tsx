@@ -41,7 +41,11 @@ export function MultiColor() {
           <div className="flex items-center gap-1.5">
             <Select
               className="min-w-0 flex-1"
-              tooltip="Reset model clears every existing color, opacity and hidden override before the rules run (like Alt+R); Append only layers the rules on top of what is already colored; Hide model hides EVERYTHING first — the rules unhide and color only what they match"
+              tooltip={
+                'Reset model — clears every existing color, opacity and hidden override before the rules run (like Alt+R).\n\n' +
+                'Append only — layers the rules on top of what is already colored.\n\n' +
+                'Hide model — hides EVERYTHING first; the rules unhide and color only what they match.'
+              }
               options={MODE_OPTIONS}
               value={s.mode}
               onChange={(mode) => {

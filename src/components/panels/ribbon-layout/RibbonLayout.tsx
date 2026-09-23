@@ -1,4 +1,4 @@
-// Layout ribbon: 12 named dock-layout slots (F1-F12). Click a slot to select
+// App Layout ribbon: 12 named dock-layout slots (F1-F12). Click a slot to select
 // it and apply its saved layout (+ linked ribbon); Save stores the current
 // layout into the selected slot. Names are edited in Settings → Layouts.
 import { IconDeviceFloppy, IconLayoutDashboard } from '@tabler/icons-react';
@@ -39,10 +39,8 @@ export function RibbonLayout() {
   );
   return (
     <Ribbon>
-      {/* slots 1-9: one workspace per ribbon tab */}
-      <RibbonSection title="Ribbon">{s.slots.slice(0, 9).map(slotButton)}</RibbonSection>
-      {/* slots 10-12: the task workspaces (Viewpoint, SQL Editor, Assets) */}
-      <RibbonSection title="Misc">{s.slots.slice(9).map((slot, i) => slotButton(slot, i + 9))}</RibbonSection>
+      {/* the 12 slots (F1-F12), mini buttons stack 3 per column */}
+      <RibbonSection title="Configured App Layouts (shortcut F1-F12)">{s.slots.map(slotButton)}</RibbonSection>
 
       <RibbonSection title="Override layouts">
         <RibbonButton
@@ -56,7 +54,7 @@ export function RibbonLayout() {
         />
         <div className="flex w-44 flex-col justify-center gap-1">
           <Select
-            label="Linked ribbon"
+            label="Linked Ribbon"
             tooltip="Ribbon tab focused when this slot's layout is applied"
             options={ribbonOptions}
             value={selected?.ribbon ?? ''}
@@ -67,7 +65,7 @@ export function RibbonLayout() {
             }}
           />
           <Checkbox
-            label="Ribbon open"
+            label="Ribbon Open"
             disabled={s.selected == null}
             checked={selected?.ribbonOpen !== false}
             tooltip="Show the ribbon strip when this slot's layout is applied (default on)"

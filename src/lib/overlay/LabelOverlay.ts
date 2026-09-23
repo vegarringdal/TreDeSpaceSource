@@ -123,6 +123,12 @@ export class LabelOverlay {
         labelsActions.toggleSelect(id);
         return;
       }
+      // alt+click arms Move for this label (the panel's crosshair button):
+      // the next model click relocates its anchor
+      if (e.altKey) {
+        labelsActions.startReposition(id);
+        return;
+      }
       const l = labelsState.get().items.find((x) => x.id === id);
       if (!l) {
         return;

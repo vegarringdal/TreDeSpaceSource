@@ -9,7 +9,7 @@ import { LabelsListSection } from './LabelsListSection';
 import { LabelsStyleSection } from './LabelsStyleSection';
 
 /** Labels panel: place/import world-anchored text labels, style them and
- *  manage selection. Placement, drag and ctrl+select live in the viewport.
+ *  manage selection. Placement, drag, ctrl+select and alt+move live in the viewport.
  *  While a viewpoint's labels are live, the SCENE panel mutes (banner) and
  *  the same editor runs inside Labels (viewpoint) instead. */
 export function Labels() {

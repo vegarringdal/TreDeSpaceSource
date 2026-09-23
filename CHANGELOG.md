@@ -4,6 +4,39 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.23** (>0.0.131):
+  Viewpoints: loading a viewpoint set (panel Load, `viewpoints.set`,
+  `viewpoints.setUrl`) dropped the **Hide model** Set Color run mode to
+  Reset model, so a saved viewpoint that hid everything and unhid its
+  matches came back clearing overrides on a fully visible model. The loader
+  now keeps `hide` (the mode was added after the loader was written).
+  Labels: alt+click a label in the viewport arms Move for it (the same as
+  the row's crosshair button) — the next model click relocates its anchor.
+  Ctrl+click still selects; a plain drag still moves the box.
+  Ribbon: every multi-word button label is now Title Case (Invert Sel, Clear
+  Sel, Fly To, Go To Click, Position From Top, Wipe All, Auto Disable,
+  Colour Fill, Selection Tint, …) to match the Hide/Unhide group — a mix
+  of sentence and title case sat side by side before.
+  The Layout ribbon tab is now **App Layout** — it picks the visible ribbon
+  and panels and applies the F-key layout slots, and plain "Layout" read
+  like the Settings → Layouts tab. Tooltips and hotkey descriptions that
+  name the tab follow; the panel id (`ribbonLayout`) is unchanged, so saved
+  layouts and the API are unaffected.
+  App Layout ribbon: the slot buttons sit in ONE section, "Configured App
+  Layouts (shortcut F1-F12)", instead of the Ribbon (1-9) / Misc (10-12)
+  split — the slots are all the same thing, and the split hid that.
+  Clipping Plane ribbon: the plane legend — now just X / Y / Z with the
+  colour dot, and no wider than that — and the three Enable toggles lead as
+  their own **On/Off** section; Visibility keeps Helper and Gizmo.
+  `RibbonSlot` merges its `className` with `cn()` now, so a caller's
+  `min-w-0` can override its default minimum width.
+  Transform ribbon: the Move / Rotate / Scale section is titled **On/Off**
+  (was "Gizmo"), matching the Clipping Plane ribbon.
+  Set Color: the run-mode dropdown's tooltip is three short paragraphs, one
+  per mode (Reset model / Append only / Hide model), instead of one run-on
+  sentence.
+  Selection Color ribbon: the Clear All section is titled **Reset** (was
+  "Overrides").
 - **2026.09.22** (>0.0.130):
   @treDeSpaceUI light theme: the `[data-theme="light"]` map left 18 of the
   colour tokens the library uses at their stock Tailwind values, so in light

@@ -22,7 +22,7 @@ export function TransformStepGroups() {
         <RibbonButton
           size="big"
           icon={<IconTargetArrow />}
-          label="Move to Click"
+          label="Move To Click"
           selected={s.moveToClickArmed}
           disabled={none && !s.moveToClickArmed}
           tooltip="Arm, then click a point in the 3D view — the selection moves there with its bottom aligned to the clicked point (undoable)"

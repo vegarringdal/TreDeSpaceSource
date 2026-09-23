@@ -58,9 +58,9 @@ export function MeasureToolGroups() {
       <RibbonSection title="Options">
         <RibbonButton
           icon={<IconArrowsExchange />}
-          label="Auto disable"
+          label="Auto Disable"
           selected={s.offOnRibbonSwitch}
-          tooltip="Automatically turn the measure tool Off when you leave this ribbon: switching to another ribbon tab, or changing layout via the Layout ribbon or the F-keys. Keeps a measuring mode from staying armed while you work elsewhere, where every click would otherwise place a measurement point. Turn it off to keep the tool armed across ribbon and layout switches. Default on."
+          tooltip="Automatically turn the measure tool Off when you leave this ribbon: switching to another ribbon tab, or changing layout via the App Layout ribbon or the F-keys. Keeps a measuring mode from staying armed while you work elsewhere, where every click would otherwise place a measurement point. Turn it off to keep the tool armed across ribbon and layout switches. Default on."
           shortcut="measure.offOnSwitch"
           onClick={() => act.toggleOffOnRibbonSwitch()}
         />

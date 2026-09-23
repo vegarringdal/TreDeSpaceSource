@@ -2411,7 +2411,7 @@ and embed `https://your-site.example.com/tredespace/`. The build uses relative a
 origin, and with it `localStorage` and OPFS. The viewer stays out of the
 host's way: every key it writes is prefixed `tds:` (`tds:settings`,
 `tds:layouts`, …), its OPFS lives in `stores.json`, `model_assets/`,
-`sql_assets/` and `temp/`, and its resets — Home → Wipe all, the
+`sql_assets/` and `temp/`, and its resets — Home → Wipe All, the
 startup reset after a breaking change — touch only those. Before 0.0.85 the
 keys were bare names (`settings`, `viewer`, `layouts`, `hotkeys`, …) and
 the wipe (then "Clear all local data") wiped the whole origin; a host page that lost a key of

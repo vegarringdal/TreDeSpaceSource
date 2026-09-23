@@ -1,5 +1,5 @@
 // The app's dock workspace, shared by App.tsx (first-load / Reset panel layout)
-// and the default Layout slots (Settings → Layouts, Layout ribbon F1–F12). One
+// and the default Layout slots (Settings → Layouts, App Layout ribbon F1–F12). One
 // builder so every preset stays in sync with the real panel/ribbon ids.
 import { type DockState, type LayoutNode, split, tabs } from '@treDeSpaceUI/dockable';
 

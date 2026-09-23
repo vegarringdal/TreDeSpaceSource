@@ -73,7 +73,7 @@ export function useAppStartup(manager: DockManager): void {
     // Panel arrangement is NOT auto-remembered across refresh — the dock boots
     // into the default layout, then (after registerLayoutDock, below) into the
     // last SELECTED layout slot if there is one. Edits only stick when the user
-    // Saves them into a slot from the Layout ribbon.
+    // Saves them into a slot from the App Layout ribbon.
     registerExternalPanels(manager); // ensure ribbons + external panels exist
     manager.openPanel('ribbonLayout');
     manager.openPanel('ribbonExternal');
@@ -153,7 +153,7 @@ export function useAppStartup(manager: DockManager): void {
       return { dialogId: id, tdsDialogId: dialogIdFor(id) };
     });
     markApiReady(__APP_VERSION__);
-    // named layout slots (Layout ribbon, F1-F12) drive the manager through these
+    // named layout slots (App Layout ribbon, F1-F12) drive the manager through these
     registerLayoutDock({
       save: () => manager.saveLayout(),
       load: (state) => manager.loadLayout(state),
@@ -218,13 +218,13 @@ export function useAppStartup(manager: DockManager): void {
     const unsubLayout = manager.subscribe(() => {
       try {
         // remember the last REAL ribbon tab so a slot Save records it (not the
-        // Layout ribbon the user switches to for the Save click). The panel
+        // App Layout ribbon the user switches to for the Save click). The panel
         // arrangement itself is deliberately NOT persisted on edit.
         const next = findTopTabs(manager.saveLayout().root)?.activePanel;
         noteActiveRibbon(next);
         if (next !== activeRibbon) {
           // leaving the Measurements or Transform ribbon disarms what it had
-          // armed ("Auto disable", default on for both)
+          // armed ("Auto Disable", default on for both)
           ribbonMeasurementsActions.ribbonChanged(activeRibbon, next);
           ribbonSelectionTransformActions.ribbonChanged(activeRibbon, next);
           activeRibbon = next;
@@ -233,7 +233,7 @@ export function useAppStartup(manager: DockManager): void {
         // non-fatal
       }
     });
-    // a layout slot switch (Layout ribbon / F-keys) disarms it too, even when
+    // a layout slot switch (App Layout ribbon / F-keys) disarms it too, even when
     // the slot lands on the Measurements ribbon again
     let selectedSlot = layoutsState.get().selected;
     const unsubSlots = layoutsState.subscribe(() => {

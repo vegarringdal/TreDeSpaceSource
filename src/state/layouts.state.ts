@@ -1,4 +1,4 @@
-// Named dock-layout slots (Layout ribbon): 12 snapshot slots on F1-F12, each
+// Named dock-layout slots (App Layout ribbon): 12 snapshot slots on F1-F12, each
 // optionally linked to a ribbon tab that gets focused when the slot applies.
 // The DockManager itself lives in React (App.tsx registers accessors here).
 
@@ -147,7 +147,7 @@ function findTopTabs(node: LayoutNode): TabsNode | null {
 }
 
 // The last ribbon tab the user REALLY worked in. Clicking Save requires being
-// on the Layout ribbon, so a raw snapshot would always record ribbonLayout as
+// on the App Layout ribbon, so a raw snapshot would always record ribbonLayout as
 // the active tab — App.tsx feeds every focus change here and we patch the
 // remembered ribbon into the snapshot instead. Content-area tab groups need
 // no such fix: their activePanel rides in the snapshot untouched.

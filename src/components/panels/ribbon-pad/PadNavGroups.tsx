@@ -48,14 +48,14 @@ export function PadNavGroups() {
           onClick={() => viewerState.set((s) => ({ touchPads: !s.touchPads }))}
         />
         <PadPosInput
-          label="Position from top"
+          label="Position From Top"
           value={v.joystickY}
           decShortcut="view.joystick.y.dec"
           incShortcut="view.joystick.y.inc"
           onChange={(y) => viewerState.set({ joystickY: y })}
         />
         <PadPosInput
-          label="Position from sides"
+          label="Position From Sides"
           value={v.joystickX}
           decShortcut="view.joystick.x.dec"
           incShortcut="view.joystick.x.inc"

@@ -78,7 +78,7 @@ export const ribbonSelectionTransformActions = {
       ribbonSelectionTransformActions.disarmForSwitch();
     }
   },
-  /** A layout slot was activated (Layout ribbon / F-keys) — same rule. */
+  /** A layout slot was activated (App Layout ribbon / F-keys) — same rule. */
   layoutSwitched() {
     ribbonSelectionTransformActions.disarmForSwitch();
   },

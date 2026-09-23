@@ -11,8 +11,8 @@ export function LabelsCommonSection() {
       info={
         <>
           Click <b>New label</b>, then click in the model. Drag a label to move it (a leader line points back);
-          ctrl+click a label to select it. These rows place, mute, undo/redo, select, delete and explode/implode labels.
-          Max {MAX_LABELS} labels.
+          ctrl+click a label to select it; alt+click arms Move (the next model click relocates its anchor). These rows
+          place, mute, undo/redo, select, delete and explode/implode labels. Max {MAX_LABELS} labels.
         </>
       }
     >

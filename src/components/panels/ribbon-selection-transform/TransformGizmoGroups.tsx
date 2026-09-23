@@ -20,7 +20,7 @@ export function TransformGizmoGroups() {
 
   return (
     <>
-      <RibbonSection title="Gizmo">
+      <RibbonSection title="On/Off">
         {GIZMO_MODES.map((m) => (
           <RibbonButton
             key={m}
@@ -93,9 +93,9 @@ export function TransformGizmoGroups() {
       <RibbonSection title="Options">
         <RibbonButton
           icon={<IconArrowsExchange />}
-          label="Auto disable"
+          label="Auto Disable"
           selected={s.offOnRibbonSwitch}
-          tooltip="Automatically disarm the gizmo, pivot placement and move-to-click when you leave this ribbon: switching to another ribbon tab, or changing layout via the Layout ribbon or the F-keys. Keeps a mode that reacts to viewport clicks from staying armed while you work elsewhere. A locked pivot is kept — it is a position, not a mode. Default on."
+          tooltip="Automatically disarm the gizmo, pivot placement and move-to-click when you leave this ribbon: switching to another ribbon tab, or changing layout via the App Layout ribbon or the F-keys. Keeps a mode that reacts to viewport clicks from staying armed while you work elsewhere. A locked pivot is kept — it is a position, not a mode. Default on."
           shortcut="transform.offOnSwitch"
           onClick={() => act.toggleOffOnRibbonSwitch()}
         />

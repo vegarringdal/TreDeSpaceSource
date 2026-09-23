@@ -48,7 +48,7 @@ export const panels: PanelDefinition[] = [
   definePanel({ id: 'ribbonSelectionTransform', title: 'Transform', ...ribbon, component: RibbonSelectionTransform }),
   definePanel({ id: 'ribbonMeasurements', title: 'Measurements', ...ribbon, component: RibbonMeasurements }),
   definePanel({ id: 'ribbonPanels', title: 'Panels', ...ribbon, component: RibbonPanels }),
-  definePanel({ id: 'ribbonLayout', title: 'Layout', ...ribbon, component: RibbonLayout }),
+  definePanel({ id: 'ribbonLayout', title: 'App Layout', ...ribbon, component: RibbonLayout }),
   definePanel({ id: 'ribbonExternal', title: 'External', ...ribbon, component: RibbonExternal }),
   definePanel({ id: 'ribbonPad', title: 'Pad', ...ribbon, component: RibbonPad }),
 

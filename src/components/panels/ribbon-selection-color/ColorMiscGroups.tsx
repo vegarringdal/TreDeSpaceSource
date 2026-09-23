@@ -22,7 +22,7 @@ export function ColorMiscGroups() {
         <RibbonButton
           size="mini"
           icon={<IconArrowsShuffle />}
-          label="Invert sel"
+          label="Invert Sel"
           tooltip="Select everything that is not selected"
           shortcut="selection.invert"
           onClick={() => void act.invertSelection()}
@@ -38,18 +38,18 @@ export function ColorMiscGroups() {
         <RibbonButton
           size="mini"
           icon={<IconDeselect />}
-          label="Clear sel"
+          label="Clear Sel"
           disabled={none}
           shortcut="selection.clear"
           onClick={() => void act.clearSelection()}
         />
       </RibbonSection>
 
-      <RibbonSection title="Overrides">
+      <RibbonSection title="Reset">
         <RibbonButton
           size="big"
           icon={<IconEraser />}
-          label="Clear all"
+          label="Clear All"
           tooltip="Unhide all + reset every color and opacity override (whole model)"
           shortcut="selection.clearOverrides"
           onClick={() => void act.clearAllOverrides()}

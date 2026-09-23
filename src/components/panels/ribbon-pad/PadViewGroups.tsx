@@ -31,35 +31,35 @@ export function PadViewGroups() {
       <RibbonSection title="View">
         <RibbonButton
           icon={<IconPlaneTilt />}
-          label="Fly to"
+          label="Fly To"
           tooltip="Fly to the selection (fit its bounding box)"
           shortcut="camera.flyTo"
           onClick={() => void viewerActions.flyToSelection()}
         />
         <RibbonButton
           icon={<IconFocus2 />}
-          label="Focus click"
+          label="Focus Click"
           tooltip="Re-pivot on the last clicked point (same as Alt+click) — camera stays put"
           shortcut="camera.focusClick"
           onClick={() => viewerActions.focusLastClick()}
         />
         <RibbonButton
           icon={<IconCurrentLocation />}
-          label="Go to click"
+          label="Go To Click"
           tooltip="Fly to the last clicked point and pivot there — the Space+click move, after the fact"
           shortcut="camera.gotoClick"
           onClick={() => viewerActions.flyToLastClick()}
         />
         <RibbonButton
           icon={<IconFocusCentered />}
-          label="Focus sel."
+          label="Focus Sel."
           tooltip="Re-pivot on the selection center — camera stays put"
           shortcut="camera.focusSelection"
           onClick={() => void viewerActions.focusSelection()}
         />
         <RibbonButton
           icon={<IconArrowsMaximize />}
-          label="Fit visible"
+          label="Fit Visible"
           tooltip="Frame everything that is not hidden, cut to the clipping in force — hide, isolate or clip first to zoom onto a set"
           shortcut="camera.fitVisible"
           onClick={() => void viewerActions.fitVisible()}
@@ -81,14 +81,14 @@ export function PadViewGroups() {
         />
         <RibbonButton
           icon={<IconEraser />}
-          label="Reset all"
+          label="Reset All"
           tooltip="Unhide all + reset every color and opacity override (whole model)"
           shortcut="selection.clearOverrides"
           onClick={() => void viewerActions.clearAllOverrides()}
         />
         <RibbonButton
           icon={<IconDeselect />}
-          label="Clear sel."
+          label="Clear Sel."
           tooltip="Deselect everything"
           shortcut="selection.clear"
           onClick={() => void viewerActions.clearSelection()}

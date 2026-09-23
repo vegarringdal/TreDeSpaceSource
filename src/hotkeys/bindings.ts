@@ -1140,13 +1140,13 @@ export const HOTKEYS: HotkeyDef[] = [
     description: 'Wipe all locally saved data including imported assets, then reload',
     run: () => void home.wipeAllLocal(),
   },
-  // Layout slots: F1-F12 select + apply the 12 named layouts (Layout ribbon)
+  // Layout slots: F1-F12 select + apply the 12 named layouts (App Layout ribbon)
   ...Array.from({ length: 12 }, (_, i) => ({
     id: `layout.slot${i + 1}`,
     category: 'Layout',
     label: `Layout slot ${i + 1}`,
     defaultKeys: `F${i + 1}`,
-    description: `Select layout slot ${i + 1} and apply its saved panel layout (Layout ribbon)`,
+    description: `Select layout slot ${i + 1} and apply its saved panel layout (App Layout ribbon)`,
     run: () => layoutsActions.activate(i),
   })),
   {

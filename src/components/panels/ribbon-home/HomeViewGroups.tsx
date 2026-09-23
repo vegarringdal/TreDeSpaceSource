@@ -21,13 +21,13 @@ const SKETCH_COLOR_MODES: readonly { mode: SketchColorMode; label: string; toolt
   },
   {
     mode: 'fill',
-    label: 'Colour fill',
+    label: 'Colour Fill',
     tooltip: 'Colour fill: wash the mesh colours onto the paper (colourless meshes stay paper)',
     shortcut: 'view.sketchColor.fill',
   },
   {
     mode: 'edges',
-    label: 'Colour wire',
+    label: 'Colour Wire',
     tooltip: 'Colour wire: the ink takes the mesh colour (colourless meshes keep the sketch ink)',
     shortcut: 'view.sketchColor.edges',
   },
@@ -36,19 +36,19 @@ const SKETCH_COLOR_MODES: readonly { mode: SketchColorMode; label: string; toolt
 const SELECTION_STYLES: readonly { style: SelectionStyle; label: string; tooltip: string; shortcut: string }[] = [
   {
     style: 'tint',
-    label: 'Selection tint',
+    label: 'Selection Tint',
     tooltip: 'Show the selection as a colour tint only',
     shortcut: 'render.outline.styleTint',
   },
   {
     style: 'outline',
-    label: 'Selection outline',
+    label: 'Selection Outline',
     tooltip: 'Show the selection as an outline only (items keep their true colours)',
     shortcut: 'render.outline.styleOutline',
   },
   {
     style: 'both',
-    label: 'Selection both',
+    label: 'Selection Both',
     tooltip: 'Show the selection as both a colour tint and an outline',
     shortcut: 'render.outline.styleBoth',
   },

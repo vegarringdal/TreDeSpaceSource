@@ -587,7 +587,7 @@ export const viewpointsActions = {
       labels: Array.isArray(v.labels) ? v.labels : [],
       measurements: Array.isArray(v.measurements) ? v.measurements : [],
       colorRules: {
-        mode: v.colorRules?.mode === 'append' ? 'append' : 'reset',
+        mode: v.colorRules?.mode === 'append' || v.colorRules?.mode === 'hide' ? v.colorRules.mode : 'reset',
         // untouched default copies from older files collapse to "no rules"
         rules: (() => {
           const rules = normalizeRules(v.colorRules?.rules);

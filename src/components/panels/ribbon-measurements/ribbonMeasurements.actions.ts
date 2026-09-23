@@ -13,11 +13,11 @@ export const ribbonMeasurementsActions = {
     measurementsActions.setTool(tool === 'off' ? null : tool);
     log(`Tool → ${tool}`);
   },
-  /** The "Auto disable" preference (default on): leaving the ribbon turns
+  /** The "Auto Disable" preference (default on): leaving the ribbon turns
    *  the measure tool off. */
   setOffOnRibbonSwitch(on: boolean) {
     ribbonMeasurementsState.set({ offOnRibbonSwitch: on });
-    log(`Auto disable → ${on ? 'on' : 'off'}`);
+    log(`Auto Disable → ${on ? 'on' : 'off'}`);
   },
   toggleOffOnRibbonSwitch() {
     ribbonMeasurementsActions.setOffOnRibbonSwitch(!ribbonMeasurementsState.get().offOnRibbonSwitch);
@@ -30,7 +30,7 @@ export const ribbonMeasurementsActions = {
       ribbonMeasurementsActions.disarmForSwitch();
     }
   },
-  /** A layout slot was activated (Layout ribbon / F-keys) — same rule. */
+  /** A layout slot was activated (App Layout ribbon / F-keys) — same rule. */
   layoutSwitched() {
     ribbonMeasurementsActions.disarmForSwitch();
   },
