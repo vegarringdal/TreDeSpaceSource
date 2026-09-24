@@ -1,7 +1,9 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 
 export interface FilterRow {
-  op: 'append' | 'remove';
+  /** append = add the row's matches, remove = subtract them from the rows
+   *  above, keep = only what the rows above found that this row matches too */
+  op: 'append' | 'remove' | 'keep';
   mode: 'contains' | 'single' | 'multi' | 'starts' | 'ends' | 'wildcard';
   value: string;
   comment: string;

@@ -434,7 +434,11 @@ export interface MeasurementInput {
 }
 
 export interface FilterRowInput {
-  op: 'append' | 'remove';
+  /** append = add the row's matches to the rule's result; remove = subtract
+   *  them from the rows above; keep = keep only what the rows above in this
+   *  rule found that this row matches too (append a folder, then keep
+   *  `contains` HVAC) */
+  op: 'append' | 'remove' | 'keep';
   /** contains | single (equals, * at start/end) | starts | ends |
    *  wildcard (equals, * anywhere) | multi (one name per line — a line may
    *  carry its own colour after a TAB/space/comma: `name<TAB>#ff0000:50`,

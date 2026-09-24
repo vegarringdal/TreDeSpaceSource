@@ -4,6 +4,20 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.24** (>0.0.133):
+  Set Color: the import folders are part of the search at "All lvl". A row
+  now tests the folder names on every model's path as well as the entry
+  names, and a folder hit takes everything under that folder — Append and
+  Remove alike — the way a Lvl row already did for its own level. Before, a
+  folder name only matched when its exact level was picked, so a Contains on
+  a folder like `AREA-01.RVM` found nothing. A Multi or SQL-fed line naming a
+  folder may carry its own colour/opacity too; it lands on that folder's
+  models, with a deeper per-row value still winning.
+  Set Color: a third filter op, **Keep**, beside Append and Remove. It keeps
+  only what the rows above it in the same rule found that it matches too —
+  Append a folder name, then Keep `contains` HVAC, colours just the HVAC
+  under that folder. The running set is per rule, so a Keep never touches
+  other rules. Accepted by `colorRules.set/add/apply` as `op: 'keep'`.
 - **2026.09.23** (>0.0.132):
   Tests: `opacityHides` still asserted the pre-0.0.131 Reset model run
   (colour + opacity cleared, hand-hides kept), so the suite failed against

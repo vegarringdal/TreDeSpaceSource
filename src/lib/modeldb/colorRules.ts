@@ -36,7 +36,10 @@ function groupSegments(m: DbModel): string[] {
 /** One MultiColor rule, resolved UI-side into plain data for the worker. */
 export interface ColorRuleSpec {
   filters: {
-    op: 'append' | 'remove';
+    /** append = add the row's matches to the rule's result, remove =
+     *  subtract them, keep = intersect (only what the rows above found that
+     *  this row matches too) — in row order */
+    op: 'append' | 'remove' | 'keep';
     /** contains | single (equals, * at start/end) | starts | ends |
      *  wildcard (equals, * anywhere) | multi (one name per line) |
      *  packed (a PackedNames buffer set in `packed`; `value` unused) */
@@ -51,7 +54,8 @@ export interface ColorRuleSpec {
      *  Levels count like the tree panel — import-folder segments included,
      *  so 1 = top folder (the filter tests the folder name; a hit takes
      *  every model under it) and the model's root entries sit at
-     *  folderDepth+1. 0/omitted = match at any level (entry + subtree). */
+     *  folderDepth+1. 0/omitted = match at any level — the folder names
+     *  included, so a folder hit takes everything under it. */
     level?: number;
   }[];
   /** packed RGBA8 override, or null = DEFAULT (restore the original mesh color) */
@@ -73,7 +77,8 @@ export interface ColorRuleSpec {
 }
 
 /** Run the MultiColor rule sequence. Each rule resolves a set of items from
- * its filter rows (append = union, remove = subtract, evaluated in order;
+ * its filter rows (append = union, remove = subtract, keep = intersect — in
+ * order;
  * a matched entry colors its whole subtree, like selection) and then writes
  * color / opacity overrides directly on those items — the current selection
  * is untouched. Mode: `reset` clears every override first (color, opacity
@@ -115,14 +120,21 @@ export function applyColorRules(
   // A filter compiled to a descriptor (built ONCE per rule, not per model):
   //   'all'   → matches everything (blank filter): callers fill, no scan
   //   names[] → multi paste: resolve each via the model's nameIndex (O(tags));
-  //             keeps the raw name set for folder-level tests
+  //             keeps the names that are folder segments for the folder tests
   //   fn      → contains/equals wildcard: must scan entries
   type PerName = Map<number, [number, number][]>;
-  type Matcher =
-    | 'all'
-    | { byModel: Map<number, number[]>; names: Set<string>; perColor?: PerName; perOpacity?: PerName }
-    | { fn: (n: string) => boolean }
-    | null;
+  /** `folders`: the row's names that are an import-folder segment somewhere
+   *  (tiny — never the whole list); a packed row keeps those names' own
+   *  colour/opacity beside them. */
+  type NamesMatcher = {
+    byModel: Map<number, number[]>;
+    folders: Set<string>;
+    perColor?: PerName;
+    perOpacity?: PerName;
+    folderColor?: Map<string, number>;
+    folderOpacity?: Map<string, number>;
+  };
+  type Matcher = 'all' | NamesMatcher | { fn: (n: string) => boolean } | null;
   /** Union per-model [entry, value] lists (packed filters add theirs to the
    *  rule's perNameColor/perNameOpacity). Later entries win in the flood. */
   const mergePerName = (into: PerName | null, add: PerName | undefined): PerName | null => {
@@ -144,25 +156,43 @@ export function applyColorRules(
     }
     return into;
   };
+  // every import-folder segment of the live models (lowercased): the per-name
+  // modes keep just these of their names for the folder tests
+  const folderNames = new Set<string>();
+  models.forEach((m) => {
+    if (!m.removed) {
+      for (const seg of groupSegments(m)) {
+        folderNames.add(seg.toLowerCase());
+      }
+    }
+  });
   /** A packed list: decode each name ONCE, straight into per-model entry
-   *  lists (+ per-row color/opacity) — nothing per row is kept. The name Set
-   *  (folder-level tests) is only built when the row targets a level. */
-  const packedMatcher = (p: PackedNames, level: number): Matcher => {
+   *  lists (+ per-row color/opacity) — nothing per row is kept, except the
+   *  names that are folder segments (with their row's colour/opacity). */
+  const packedMatcher = (p: PackedNames): Matcher => {
     if (!p.count) {
       return null;
     }
     const byModel = new Map<number, number[]>();
     const perColor: PerName = new Map();
     const perOpacity: PerName = new Map();
-    const names = new Set<string>();
+    const folders = new Set<string>();
+    const folderColor = new Map<string, number>();
+    const folderOpacity = new Map<string, number>();
     const decoder = new TextDecoder();
     for (let i = 0; i < p.count; i++) {
       const name = packedName(p, i, decoder);
-      if (level > 0) {
-        names.add(name);
-      }
       const c = p.colors[i];
       const o = p.opacity[i];
+      if (folderNames.has(name)) {
+        folders.add(name);
+        if (c !== PACKED_NO_COLOR) {
+          folderColor.set(name, c);
+        }
+        if (o !== PACKED_NO_OPACITY) {
+          folderOpacity.set(name, o);
+        }
+      }
       liveHits(name, (h) => {
         const mi = hitModel(h);
         const e = hitEntry(h);
@@ -190,7 +220,7 @@ export function applyColorRules(
         }
       });
     }
-    return { byModel, names, perColor, perOpacity };
+    return { byModel, folders, perColor, perOpacity, folderColor, folderOpacity };
   };
   /** Resolve names ONCE via the global index into per-model entry lists —
    *  O(names) total instead of O(names × models). */
@@ -225,16 +255,33 @@ export function applyColorRules(
     }
     return byModel;
   };
+  /** The entries of a per-fullname record whose name is an import-folder
+   *  segment — those never resolve to an entry; the folder hits use them. */
+  const folderValues = (rec: Record<string, number> | undefined): Map<string, number> => {
+    const out = new Map<string, number>();
+    if (!rec) {
+      return out;
+    }
+    for (const [name, value] of Object.entries(rec)) {
+      if (folderNames.has(name)) {
+        out.set(name, value);
+      }
+    }
+    return out;
+  };
   const rowMatcher = (row: ColorRuleSpec['filters'][number]): Matcher => {
     if (row.mode === 'packed') {
-      return row.packed ? packedMatcher(row.packed, row.level ?? 0) : null;
+      return row.packed ? packedMatcher(row.packed) : null;
     }
     if (row.mode === 'multi') {
       const names = row.value
         .split(/\r?\n/)
         .map((l) => l.trim().toLowerCase())
         .filter((l) => l.length > 0);
-      return names.length ? { byModel: resolveNames(names), names: new Set(names) } : null;
+      if (!names.length) {
+        return null;
+      }
+      return { byModel: resolveNames(names), folders: new Set(names.filter((n) => folderNames.has(n))) };
     }
     let q = row.value.trim().toLowerCase();
     if (!q.replaceAll('*', '').length) {
@@ -322,28 +369,64 @@ export function applyColorRules(
     // to per-model entry lists here, not re-resolved for every model.
     const appendOnly = rule.filters.every((f) => f.op === 'append');
     const matchers = rule.filters.map((row) => ({ op: row.op, level: row.level ?? 0, m: rowMatcher(row) }));
-    /** Level-restricted row against one model's FOLDER segments: the filter
-     *  tests the folder NAME at that level; a hit takes the whole model
-     *  (undefined = the level is below the folders → entry matching). */
-    const folderNameHit = (m: DbModel, mt: Matcher, level: number): boolean | undefined => {
+    /** A row against one model's FOLDER segments — the import folders are
+     *  part of the search, and a folder hit takes the whole model. At a level
+     *  the row tests the folder NAME at that level only (undefined = the
+     *  level is below the folders → entry matching); at level 0 any folder
+     *  of the path, deepest first. Returns the hit segment, null for none. */
+    const folderHit = (m: DbModel, mt: Exclude<Matcher, 'all' | null>, level: number): string | null | undefined => {
       const segs = groupSegments(m);
       if (level > segs.length) {
         return undefined;
       }
-      const segName = segs[level - 1].toLowerCase();
-      if (mt === 'all' || mt === null) {
-        return mt === 'all';
+      const test = (seg: string): boolean => ('byModel' in mt ? mt.folders.has(seg) : mt.fn(seg));
+      if (level > 0) {
+        const seg = segs[level - 1].toLowerCase();
+        return test(seg) ? seg : null;
       }
-      return 'byModel' in mt ? mt.names.has(segName) : mt.fn(segName);
+      for (let i = segs.length - 1; i >= 0; i--) {
+        const seg = segs[i].toLowerCase();
+        if (test(seg)) {
+          return seg;
+        }
+      }
+      return null;
+    };
+    /** The per-name value of the deepest folder the rule hit on a model (a
+     *  folder's own row outranks its parent folder's, like entries). */
+    const folderValueOf = (m: DbModel, hit: Set<string>, values: Map<string, number>): number | undefined => {
+      if (!hit.size || !values.size) {
+        return undefined;
+      }
+      const segs = groupSegments(m);
+      for (let i = segs.length - 1; i >= 0; i--) {
+        const seg = segs[i].toLowerCase();
+        if (hit.has(seg)) {
+          const v = values.get(seg);
+          if (v !== undefined) {
+            return v;
+          }
+        }
+      }
+      return undefined;
     };
     // per-name colour/opacity resolved ONCE globally → per-model [entry, value];
-    // packed filters bring theirs pre-resolved
+    // packed filters bring theirs pre-resolved. A value on a FOLDER name (a
+    // Multi line "folder<TAB>red") is kept by name for the folder hits.
     let perColor = rule.perNameColor ? resolvePerName(rule.perNameColor) : null;
     let perOpacity = rule.perNameOpacity ? resolvePerName(rule.perNameOpacity) : null;
+    const folderColor = folderValues(rule.perNameColor);
+    const folderOpacity = folderValues(rule.perNameOpacity);
     for (const { m: mt } of matchers) {
       if (mt && mt !== 'all' && 'byModel' in mt) {
         perColor = mergePerName(perColor, mt.perColor);
         perOpacity = mergePerName(perOpacity, mt.perOpacity);
+        for (const [name, c] of mt.folderColor ?? []) {
+          folderColor.set(name, c);
+        }
+        for (const [name, o] of mt.folderOpacity ?? []) {
+          folderOpacity.set(name, o);
+        }
       }
     }
     const allowed = rule.models ? new Set(rule.models) : null;
@@ -364,6 +447,7 @@ export function applyColorRules(
         // -----------------------------------------------------------------------------
         const sMatch = acc ? clk() : 0;
         const sel = new Uint8Array(n);
+        const hitFolders = new Set<string>();
         let all = false;
         for (const { m: mt, level } of matchers) {
           if (!mt) {
@@ -373,16 +457,18 @@ export function applyColorRules(
             all = true;
             break;
           }
+          // the import folders are part of the search: a folder hit takes
+          // every root of this model (whole folder, model by model) — the
+          // flood below carries it down
+          const seg = folderHit(m, mt, level);
+          if (seg) {
+            for (const r of m.roots) {
+              sel[r] = 1;
+            }
+            hitFolders.add(seg);
+          }
           if (level > 0) {
-            // folder level: the filter tests the folder NAME — a hit takes
-            // every root of this model (whole folder, model by model)
-            const folderHit = folderNameHit(m, mt, level);
-            if (folderHit !== undefined) {
-              if (folderHit) {
-                for (const r of m.roots) {
-                  sel[r] = 1;
-                }
-              }
+            if (seg !== undefined) {
               continue;
             }
             // entry level: match ONLY the names at that depth — the flood
@@ -425,8 +511,8 @@ export function applyColorRules(
 
         // own per-name values (pre-resolved per model), then flood down
         const sProp = acc ? clk() : 0;
-        const col = perColor ? new Float64Array(n).fill(NONE) : null;
-        const opa = perOpacity ? new Int16Array(n).fill(NONE) : null;
+        const col = perColor || folderColor.size ? new Float64Array(n).fill(NONE) : null;
+        const opa = perOpacity || folderOpacity.size ? new Int16Array(n).fill(NONE) : null;
         if (col && perColor) {
           for (const [e, c] of perColor.get(idx) ?? []) {
             col[e] = c;
@@ -435,6 +521,24 @@ export function applyColorRules(
         if (opa && perOpacity) {
           for (const [e, o] of perOpacity.get(idx) ?? []) {
             opa[e] = Math.max(0, Math.min(100, Math.round(o)));
+          }
+        }
+        // a hit folder's own colour/opacity lands on the roots (a root's own
+        // per-name value, set above, still wins) and floods down with them
+        const fc = folderValueOf(m, hitFolders, folderColor);
+        if (col && fc !== undefined) {
+          for (const r of m.roots) {
+            if (col[r] === NONE) {
+              col[r] = fc;
+            }
+          }
+        }
+        const fo = folderValueOf(m, hitFolders, folderOpacity);
+        if (opa && fo !== undefined) {
+          for (const r of m.roots) {
+            if (opa[r] === NONE) {
+              opa[r] = Math.max(0, Math.min(100, Math.round(fo)));
+            }
           }
         }
         const order = bfsOrder(m);
@@ -507,44 +611,25 @@ export function applyColorRules(
       }
 
       // -----------------------------------------------------------------------------
-      // FALLBACK — rules with a `remove` filter: item-level add/delete in
-      // filter order (subtree walks). 'names' arrive pre-resolved per model.
+      // FALLBACK — rules with a `remove` / `keep` filter: item-level set ops
+      // in filter order (subtree walks). 'names' arrive pre-resolved per model.
       // -----------------------------------------------------------------------------
       const sMatch = acc ? clk() : 0;
       const result = new Set<number>();
-      const applyEntry = (e: number, op: 'append' | 'remove') => {
-        for (const it of itemsUnder(m, e)) {
-          if (op === 'remove') {
-            result.delete(it);
-          } else {
-            result.add(it);
+      const hitFolders = new Set<string>();
+      /** Every entry one row hits in this model — the folders first (see the
+       *  fast path), then the entries at the row's level or at any level.
+       *  Returns the hit folder segment, if any. */
+      const matchRow = (mt: Exclude<Matcher, 'all' | null>, level: number, hit: (e: number) => void): string | null => {
+        const seg = folderHit(m, mt, level);
+        if (seg) {
+          for (const r of m.roots) {
+            hit(r);
           }
-        }
-      };
-      for (const { op, m: mt, level } of matchers) {
-        if (!mt) {
-          continue;
-        }
-        if (mt === 'all') {
-          if (op === 'remove') {
-            result.clear();
-          } else {
-            for (let i = 0; i < m.itemCount; i++) {
-              result.add(i);
-            }
-          }
-          continue;
         }
         if (level > 0) {
-          // folder level: the filter tests the folder NAME (see fast path)
-          const folderHit = folderNameHit(m, mt, level);
-          if (folderHit !== undefined) {
-            if (folderHit) {
-              for (const r of m.roots) {
-                applyEntry(r, op);
-              }
-            }
-            continue;
+          if (seg !== undefined) {
+            return seg;
           }
           // entry level: match ONLY the names at that depth
           const entryLevel = level - groupSegments(m).length;
@@ -552,26 +637,67 @@ export function applyColorRules(
           if ('byModel' in mt) {
             for (const e of mt.byModel.get(idx) ?? []) {
               if (depth[e] === entryLevel) {
-                applyEntry(e, op);
+                hit(e);
               }
             }
           } else {
             for (let e = 0; e < n; e++) {
               if (depth[e] === entryLevel && mt.fn(names[e])) {
-                applyEntry(e, op);
+                hit(e);
               }
             }
           }
-          continue;
+          return null;
         }
         if ('byModel' in mt) {
           for (const e of mt.byModel.get(idx) ?? []) {
-            applyEntry(e, op);
+            hit(e);
           }
         } else {
           for (let e = 0; e < n; e++) {
             if (mt.fn(names[e])) {
-              applyEntry(e, op);
+              hit(e);
+            }
+          }
+        }
+        return seg ?? null;
+      };
+      for (const { op, m: mt, level } of matchers) {
+        if (!mt) {
+          continue;
+        }
+        if (mt === 'all') {
+          // blank filter: append takes every item, remove drops them all,
+          // keep changes nothing
+          if (op === 'remove') {
+            result.clear();
+          } else if (op === 'append') {
+            for (let i = 0; i < m.itemCount; i++) {
+              result.add(i);
+            }
+          }
+          continue;
+        }
+        // keep = intersect: the row's hits are collected on their own, and
+        // the result is cut down to them once the row is matched
+        const keep = op === 'keep' ? new Set<number>() : null;
+        const target = keep ?? result;
+        const seg = matchRow(mt, level, (e) => {
+          for (const it of itemsUnder(m, e)) {
+            if (op === 'remove') {
+              result.delete(it);
+            } else {
+              target.add(it);
+            }
+          }
+        });
+        if (seg && op !== 'remove') {
+          hitFolders.add(seg);
+        }
+        if (keep) {
+          for (const it of result) {
+            if (!keep.has(it)) {
+              result.delete(it);
             }
           }
         }
@@ -583,6 +709,10 @@ export function applyColorRules(
         return;
       }
       const sPerName = acc ? clk() : 0;
+      // a hit folder's own colour/opacity is the model-wide default under
+      // the entries' per-name values (deepest wins)
+      const fc = folderValueOf(m, hitFolders, folderColor);
+      const fo = folderValueOf(m, hitFolders, folderOpacity);
       const itemColor = perColor ? new Map<number, number>() : null;
       const itemOpacity = perOpacity ? new Map<number, number>() : null;
       if (itemColor && perColor) {
@@ -606,14 +736,14 @@ export function applyColorRules(
       const sWrite = acc ? clk() : 0;
       captureOnce(idx);
       for (const it of result) {
-        const color = itemColor?.get(it) ?? rule.colorRGBA8;
+        const color = itemColor?.get(it) ?? fc ?? rule.colorRGBA8;
         if (color != null && color >= 0) {
           m.states[it * 2] |= HAS_COLOR_OVERRIDE;
           m.states[it * 2 + 1] = color;
         } else {
           m.states[it * 2] &= ~HAS_COLOR_OVERRIDE;
         }
-        const opacity = itemOpacity?.get(it) ?? rule.opacityPct;
+        const opacity = itemOpacity?.get(it) ?? fo ?? rule.opacityPct;
         if (opacity != null) {
           m.states[it * 2] = withOpacityOverride(m.states[it * 2], opacity);
         } else {

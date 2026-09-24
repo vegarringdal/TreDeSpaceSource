@@ -412,6 +412,11 @@ and colour only what they match) or `keep` (leave the run mode the panel
 already has; a fresh panel's is `reset`). `colorRules.set` defaults to
 `reset`, `colorRules.add` to `keep` — so `{ replaceRules: false, mode:
 'keep' }` adds rules without disturbing a user's own set-up.
+A filter's `op` is `append` (add its matches to the rule's result), `remove`
+(subtract them from the rows above) or `keep` (keep only what the rows above
+in the same rule found that this row matches too — an `append` on a folder
+name followed by a `keep` `contains` HVAC colours just the HVAC under that
+folder). The running set is per rule: a `keep` never looks at other rules.
 Filter `mode` is one of
 `contains`, `single` (equals; `*` wildcard at start/end), `starts`, `ends`,
 `wildcard` (equals with `*` wildcards anywhere, e.g. `/85*pump*01`) or
@@ -420,7 +425,8 @@ A filter's optional `level` (1-9) applies the filter to the NAMES at that
 hierarchy level (tree-panel counting, import folders included) — each match
 includes its whole subtree. Level 1 tests the import-folder name, so a hit
 takes everything under the folder; the models' root entries sit at
-folderDepth+1. Omitted/0 = match at any level.
+folderDepth+1. Omitted/0 = match at any level, the import-folder names
+included (a folder hit takes everything under it).
 A rule's optional `store` scopes it to the models loaded from that store
 (a known store name, see `assets.stores`; omitted/'' = every store) — keeps a
 rule set safe when two stores hold same-named models. An unknown name is

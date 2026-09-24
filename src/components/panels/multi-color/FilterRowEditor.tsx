@@ -7,6 +7,7 @@ import { MultiColorCtx } from './multiColorContext';
 const OP_OPTIONS: readonly SelectOption<FilterRow['op']>[] = [
   { value: 'append', label: 'Append' },
   { value: 'remove', label: 'Remove' },
+  { value: 'keep', label: 'Keep' },
 ];
 
 const LEVEL_OPTIONS: readonly SelectOption[] = [
@@ -46,7 +47,7 @@ export function FilterRowEditor({ ruleIdx, idx, row }: { ruleIdx: number; idx: n
         />
         <Select
           className="min-w-0 flex-1"
-          tooltip="Append adds this row's matches to the rule's result; Remove subtracts them from the rows above"
+          tooltip="Append adds this row's matches to the rule's result; Remove subtracts them from the rows above; Keep keeps only what the rows above (in this rule) found that this row matches too — e.g. Append a folder, then Keep contains HVAC"
           options={OP_OPTIONS}
           value={row.op}
           onChange={(op) => {
@@ -68,7 +69,7 @@ export function FilterRowEditor({ ruleIdx, idx, row }: { ruleIdx: number; idx: n
         />
         <Select
           className="min-w-0 flex-1"
-          tooltip="The filter is applied to the NAMES at this hierarchy level (counted like the tree, import folders included) — each match includes its whole subtree. Lvl 1 tests the import folder name, so a hit takes everything under the folder. All lvl = match at any level"
+          tooltip="The filter is applied to the NAMES at this hierarchy level (counted like the tree, import folders included) — each match includes its whole subtree. Lvl 1 tests the import folder name, so a hit takes everything under the folder. All lvl = match at any level, the import folder names included"
           options={LEVEL_OPTIONS}
           value={String(row.level)}
           onChange={(v) => act.updateFilter(ruleIdx, idx, { level: Number(v ?? '') || 0 })}
