@@ -29,6 +29,12 @@ interface BaseProps<T extends string> extends LabelledProps {
   tooltip?: string;
   /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
   shortcut?: string;
+  /**
+   * Show the in-trigger × that clears the selection (default true). Turn it
+   * off for a fixed choice that can never be empty — a mode, an operator —
+   * so the label gets the × column back.
+   */
+  clearable?: boolean;
 }
 
 export interface SingleSelectProps<T extends string = string> extends BaseProps<T> {
@@ -48,7 +54,8 @@ export type SelectProps<T extends string = string> = SingleSelectProps<T> | Mult
 
 /**
  * A dropdown in the dock's visual language. Single or multi select, optional
- * search, full keyboard support (arrows / Enter / Escape / type-to-filter).
+ * search and clear, full keyboard support (arrows / Enter / Escape /
+ * type-to-filter).
  * Multi-select keeps the list open and shows checkmarks; the trigger sums up.
  * Generic over the value union, so `onChange` hands back the caller's own
  * string-literal type instead of a bare string.
@@ -60,6 +67,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     loadOptions,
     tooltip,
     shortcut,
+    clearable = true,
     disabled = false,
     className = '',
     label,
@@ -167,11 +175,11 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
           ) : (
             <span className="min-w-0 flex-1 truncate">{summary}</span>
           )}
-          {summary != null && !disabled && (
+          {clearable && summary != null && !disabled && (
             <span
               role="button"
               aria-label="Clear selection"
-              title="Clear"
+              data-tooltip="Clear"
               className="shrink-0 cursor-pointer px-0.5 text-slate-400 leading-none opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {

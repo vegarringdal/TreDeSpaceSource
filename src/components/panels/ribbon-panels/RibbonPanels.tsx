@@ -16,9 +16,11 @@ import {
   IconTable,
   IconTerminal2,
 } from '@tabler/icons-react';
-import { usePanelContext } from '@treDeSpaceUI/dockable';
+import { type PanelDefinition, usePanelContext } from '@treDeSpaceUI/dockable';
 import { Ribbon, RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { type ForwardRefExoticComponent, type RefAttributes, useSyncExternalStore } from 'react';
+import { isExternalPanelId } from '../ribbon-external/externalPanels';
+import { hasPanelToggle, panelToggleHotkeyId } from './panelToggle';
 
 const isRibbon = (dockableIn?: string | string[]) =>
   dockableIn === 'top' || (Array.isArray(dockableIn) && dockableIn.includes('top'));
@@ -44,8 +46,9 @@ const PANEL_ICON: Record<string, TablerIcon> = {
 };
 
 /** The Panels ribbon: one toggle per panel (selected when visible — stays in
- *  sync however a panel is opened/closed), plus save / restore / reset of the
- *  whole layout. Closing then toggling a panel back returns it where it was. */
+ *  sync however a panel is opened/closed), built-in panels in one section and
+ *  external-app panels in their own. Closing then toggling a panel back
+ *  returns it where it was; built-ins also toggle from their hotkey. */
 export function RibbonPanels() {
   const { manager } = usePanelContext();
   // re-render on any layout change (open/close/move/float)
@@ -56,40 +59,44 @@ export function RibbonPanels() {
 
   // The viewport is the app's canvas — it has no toggle (it must always exist).
   const panels = manager.allDefs().filter((d) => !isRibbon(d.dockableIn) && d.id !== 'viewport');
+  const internal = panels.filter((d) => !isExternalPanelId(d.id));
+  const external = panels.filter((d) => isExternalPanelId(d.id));
+
+  const renderToggle = (d: PanelDefinition) => {
+    const Icon = PANEL_ICON[d.id] ?? IconLayoutBoard;
+    // the live title — a rename from inside the panel (usePanelTitle,
+    // ui.dialog.rename) shows here too, not just on the tab
+    const title = manager.title(d.id);
+    return (
+      <RibbonButton
+        key={d.id}
+        size="mini"
+        // no min-width → each column sizes to its own widest label
+        // (buttons are w-full, so a column's 3 rows share that width).
+        // grab cursor (override the button's default pointer) signals the
+        // drag-to-place affordance.
+        className="!cursor-grab active:!cursor-grabbing touch-none"
+        icon={<Icon />}
+        label={title}
+        selected={manager.isOpen(d.id)}
+        shortcut={hasPanelToggle(d.id) ? panelToggleHotkeyId(d.id) : undefined}
+        tooltip={`Click to enable / disable · drag to place the ${title} panel where you want it`}
+        // drag it out like a tab; a plain click still toggles (the drag
+        // guard skips the click that follows a real drag)
+        onPointerDown={(e) => manager.dragPanelFrom(e.nativeEvent, d.id)}
+        onClick={() => {
+          if (!manager.consumeDragClick()) {
+            manager.togglePanel(d.id);
+          }
+        }}
+      />
+    );
+  };
 
   return (
     <Ribbon>
-      <RibbonSection title="Panel (Drag/Drop)">
-        {panels.map((d) => {
-          const Icon = PANEL_ICON[d.id] ?? IconLayoutBoard;
-          // the live title — a rename from inside the panel (usePanelTitle,
-          // ui.dialog.rename) shows here too, not just on the tab
-          const title = manager.title(d.id);
-          return (
-            <RibbonButton
-              key={d.id}
-              size="mini"
-              // no min-width → each column sizes to its own widest label
-              // (buttons are w-full, so a column's 3 rows share that width).
-              // grab cursor (override the button's default pointer) signals the
-              // drag-to-place affordance.
-              className="!cursor-grab active:!cursor-grabbing touch-none"
-              icon={<Icon />}
-              label={title}
-              selected={manager.isOpen(d.id)}
-              tooltip={`Click to enable / disable · drag to place the ${title} panel where you want it`}
-              // drag it out like a tab; a plain click still toggles (the drag
-              // guard skips the click that follows a real drag)
-              onPointerDown={(e) => manager.dragPanelFrom(e.nativeEvent, d.id)}
-              onClick={() => {
-                if (!manager.consumeDragClick()) {
-                  manager.togglePanel(d.id);
-                }
-              }}
-            />
-          );
-        })}
-      </RibbonSection>
+      <RibbonSection title="Internal Panels (Drag/Drop)">{internal.map(renderToggle)}</RibbonSection>
+      {external.length > 0 && <RibbonSection title="External Panels">{external.map(renderToggle)}</RibbonSection>}
     </Ribbon>
   );
 }

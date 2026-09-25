@@ -23,7 +23,8 @@ export interface StoreDef {
 }
 
 export interface StoresState {
-  /** Stores in display order — 'main' is always first and permanent. */
+  /** Stores in display order — 'main' is always first and permanent, the
+   *  rest alphabetical (the actions keep it sorted on every write). */
   stores: StoreDef[];
   /** stores.json has been read from OPFS. */
   ready: boolean;

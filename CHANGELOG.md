@@ -4,6 +4,47 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.25** (>0.0.134):
+  App Layout ribbon: the Save group is titled "Override Selected", and the
+  Ribbon Open checkbox is a Ribbon Open / Ribbon Closed switch.
+  App Layout ribbon: a second section, "Configured App Layout (ALT + F1-F12)",
+  adds 12 user slots named Config01-12 — empty until you Save into them, so
+  the F1-F12 presets stay as shipped. Settings → Layouts names and resets all
+  24; an existing install keeps its saved slots.
+  Viewpoint Editor: insert-before and move up / down moved from a viewpoint's
+  body into its section header, so the list can be arranged without opening
+  each one. The header badge (labels / measurements / selected) now also
+  counts the Set Color rules tied to the viewpoint ("0C" when none).
+  Panel tabs renamed: Labels → Label, Measurements → Measurement List (the
+  "(viewpoint)" twins become Label (viewpoint) and Measurement (viewpoint)),
+  Viewpoints → Viewpoint Editor, Clip Shapes
+  → Clip Shape List, SQL Reports → Sql Report. Titles and their hotkey labels
+  only; panel ids and saved layouts are untouched.
+  Ribbon tabs renamed: "Measurements" is now "Measurement" and "Panels" is
+  now "Panel" (tab titles only; panel ids, hotkeys and the Measurements dock
+  panel keep their names).
+  Panels ribbon: every built-in panel has a show / hide hotkey (ALT + 670 to
+  690, with Settings on CTRL+S, Set Color on CTRL+C, Label on CTRL+L,
+  Export on CTRL+E and Import Manager on CTRL+I; new
+  "Panels" category in the shortcut settings) and the toggle button's tooltip
+  shows it. The section is now "Internal Panels (Drag/Drop)", and
+  external-app panels sit in their own "External Panels" section (shown only
+  when an external app is set up as a panel).
+  Stores are listed alphabetically (case-insensitive, numeric-aware) with
+  `main` pinned first — in Model Assets, SQL Assets, the Hierarchy sections
+  and every store dropdown. The order is kept by the registry on load, add
+  and rename, so an existing stores.json is sorted the first time it is read.
+  Select: new `clearable` prop (default on) — off, the hover × that clears the
+  value is not rendered, so a fixed choice that can never be empty gives its
+  label the room back. The × also lost its native browser tooltip, which sat
+  on top of the styled one; it now uses the styled "Clear" like the text
+  fields. Set Color's op / match / level dropdowns are the first to opt out.
+  Set Color: a rule's filter rows can be reordered and inserted the way rules
+  can — insert-before, move up, move down and delete sit to the right of the
+  op dropdown, with insert-selected-name, match mode and level on the line
+  below (rows run top to bottom, so a Keep or Remove can be moved to where it
+  belongs instead of retyped). The dropdowns no longer truncate, and the
+  pattern and comment inputs are now labelled Value and Comment.
 - **2026.09.24** (>0.0.133):
   Set Color: the import folders are part of the search at "All lvl". A row
   now tests the folder names on every model's path as well as the entry

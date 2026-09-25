@@ -170,7 +170,7 @@ export function RuleEditor({
 
       {rule.filters.map((row, j) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
-        <FilterRowEditor key={j} ruleIdx={idx} idx={j} row={row} />
+        <FilterRowEditor key={j} ruleIdx={idx} idx={j} total={rule.filters.length} row={row} />
       ))}
       <Button icon={<IconPlus size={14} />} tooltip="Add a filter row to this rule" onClick={() => act.addFilter(idx)}>
         Add filter

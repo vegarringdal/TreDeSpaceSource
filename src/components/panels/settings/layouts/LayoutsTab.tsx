@@ -1,9 +1,10 @@
 import { IconRotate } from '@tabler/icons-react';
 import { Button, Collapsible, TextInput } from '@treDeSpaceUI/widgets';
-import { layoutsActions, layoutsState } from '../../../../state/layouts.state';
+import { layoutSlotKeyLabel, layoutsActions, layoutsState, TOTAL_LAYOUT_SLOTS } from '../../../../state/layouts.state';
 import { dialogs } from '../../../dialogs/dialogs.actions';
 
-/** Settings → Layouts tab: names + resets for the 12 F-key layout slots. */
+/** Settings → Layouts tab: names + resets for the 24 layout slots (F1-F12
+ *  presets, ALT+F1-F12 user slots). */
 export function LayoutsTab() {
   const layoutSlots = layoutsState.use().slots;
 
@@ -12,15 +13,14 @@ export function LayoutsTab() {
       title="Layout slot names"
       info={
         <>
-          Names for the 12 layout slots in the <b>Layout</b> ribbon (shortcuts F1–F12). Select a slot there and press
-          Save to store the current panel layout in it.
+          Names for the {TOTAL_LAYOUT_SLOTS} layout slots in the <b>Layout</b> ribbon (shortcuts F1–F12, then ALT+F1–F12
+          for the Config slots). Select a slot there and press Save to store the current panel layout in it.
         </>
       }
     >
       {layoutSlots.map((slot, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 12 fixed slots, never reordered
-        <div key={`F${i + 1}`} className="flex items-center gap-2">
-          <span className="w-10 shrink-0 text-slate-400 text-xs">{`F${i + 1}`}</span>
+        <div key={layoutSlotKeyLabel(i)} className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-slate-400 text-xs">{layoutSlotKeyLabel(i)}</span>
           {/* grows with the panel width, capped at 2× the standard field */}
           <div className="min-w-0 max-w-56 grow basis-28">
             <TextInput value={slot.name} onChange={(v) => layoutsActions.rename(i, v)} />
@@ -42,9 +42,12 @@ export function LayoutsTab() {
         shortcut="layouts.reset"
         onClick={() =>
           void dialogs
-            .confirm('Reset all 12 layout slots? Saved layouts are cleared and names restored to defaults.', {
-              okLabel: 'Reset layouts',
-            })
+            .confirm(
+              `Reset all ${TOTAL_LAYOUT_SLOTS} layout slots? Saved layouts are cleared and names restored to defaults.`,
+              {
+                okLabel: 'Reset layouts',
+              },
+            )
             .then((ok) => ok && layoutsActions.resetAll())
         }
       >

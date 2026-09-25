@@ -27,9 +27,17 @@ async function persist() {
   await writeJson(await rootDir(), STORES, { stores: storesState.get().stores });
 }
 
-/** Make sure 'main' exists and comes first. */
+const STORE_NAME_COLLATOR = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+
+/** The registry's display order: 'main' exists and comes first, the other
+ *  stores follow alphabetically (case-insensitive, "2" before "10"). Every
+ *  write goes through this so the panels and the store dropdowns agree. */
 function withMain(stores: StoreDef[]): StoreDef[] {
-  return stores.some((st) => st.name === MAIN_STORE) ? stores : [{ name: MAIN_STORE, description: '' }, ...stores];
+  const main = stores.find((st) => st.name === MAIN_STORE) ?? { name: MAIN_STORE, description: '' };
+  const rest = stores
+    .filter((st) => st.name !== MAIN_STORE)
+    .sort((a, b) => STORE_NAME_COLLATOR.compare(a.name, b.name));
+  return [main, ...rest];
 }
 
 export const storesActions = {
@@ -71,13 +79,13 @@ export const storesActions = {
     }
     await modelStoreDir(name);
     await sqlStoreDir(name);
-    storesState.set((s) => ({ stores: [...s.stores, { name, description }] }));
+    storesState.set((s) => ({ stores: withMain([...s.stores, { name, description }]) }));
     await persist();
     consoleActions.log('info', `Stores: created store "${name}"`);
   },
 
   async updateStore(name: string, patch: Partial<StoreDef>) {
-    storesState.set((s) => ({ stores: s.stores.map((st) => (st.name === name ? { ...st, ...patch } : st)) }));
+    storesState.set((s) => ({ stores: withMain(s.stores.map((st) => (st.name === name ? { ...st, ...patch } : st))) }));
     await persist();
   },
 

@@ -17,6 +17,7 @@ import {
 } from './components/panels/ribbon-external/externalPanels';
 import { registerKioskToggle, registerSoloToggle } from './components/panels/ribbon-home/soloPanels';
 import { ribbonMeasurementsActions } from './components/panels/ribbon-measurements/ribbonMeasurements.actions';
+import { registerPanelToggler } from './components/panels/ribbon-panels/panelToggle';
 import { ribbonSelectionTransformActions } from './components/panels/ribbon-selection-transform/ribbonSelectionTransform.actions';
 import { registerSqlAssetsOpener } from './components/panels/sql-assets/sqlAssetsPanel';
 import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
@@ -110,6 +111,8 @@ export function useAppStartup(manager: DockManager): void {
     if (new URLSearchParams(location.search).get('kiosk') === '1') {
       setKiosk(true);
     }
+    // Panels ribbon hotkeys: show / hide a built-in panel by id
+    registerPanelToggler((id) => manager.togglePanel(id));
     // ui.showPanel / ui.hidePanel: toggle a dock panel by id (e.g. 'hierarchy')
     registerPanelControl({
       has: (id) => !!manager.getPanel(id),

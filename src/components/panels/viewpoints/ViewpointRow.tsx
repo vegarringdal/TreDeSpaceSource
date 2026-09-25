@@ -2,10 +2,12 @@ import { IconListCheck, IconMapPinPlus, IconPalette, IconRuler } from '@tabler/i
 import { Badge, Button, Collapsible, TextArea, TextInput } from '@treDeSpaceUI/widgets';
 import { viewpointsActions as act } from '../../../state/viewer/viewpoints.actions';
 import type { Viewpoint } from '../../../state/viewer/viewpoints.state';
+import { ViewpointHeaderActions } from './ViewpointHeaderActions';
 import { ViewpointRowActions } from './ViewpointRowActions';
 
-/** One viewpoint's editor row: actions, name/description, copy-into buttons
- *  and the selected-on-activation fullname list. */
+/** One viewpoint's editor row: insert / reorder in the header with a badge of
+ *  what it stores, then actions, name/description, copy-into buttons and the
+ *  selected-on-activation fullname list. */
 export function ViewpointRow({
   vp,
   active,
@@ -30,12 +32,13 @@ export function ViewpointRow({
         </span>
       }
       aside={
-        <Badge tooltip="Labels · Measurements · Selected fullnames stored in this viewpoint">
-          {vp.labels.length}L {vp.measurements.length}M {vp.fullnames.length}S
+        <Badge tooltip="Labels · Measurements · Selected fullnames · Set Color rules stored in this viewpoint">
+          {vp.labels.length}L {vp.measurements.length}M {vp.fullnames.length}S {vp.colorRules.rules.length}C
         </Badge>
       }
+      actions={<ViewpointHeaderActions vpId={vp.id} idx={idx} total={total} />}
     >
-      <ViewpointRowActions vpId={vp.id} idx={idx} total={total} />
+      <ViewpointRowActions vpId={vp.id} />
 
       <TextInput
         label="Name"

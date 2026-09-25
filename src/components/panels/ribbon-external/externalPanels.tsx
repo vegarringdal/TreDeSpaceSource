@@ -41,6 +41,9 @@ export function makeExternalPanel(id: string, app: ExternalApp) {
 /** Deterministic panel id for single-instance apps — layout restore finds it. */
 export const externalPanelId = (appId: string) => `ext:${appId}`;
 
+/** True for an external app's panel id (`ext:<appId>[:<suffix>]`). */
+export const isExternalPanelId = (id: string) => id.startsWith('ext:');
+
 // multi-instance panels need a fresh id per open — shared by the ribbon button
 // and the API opener, and unique against ids restored from a saved layout
 let instanceSeq = 0;

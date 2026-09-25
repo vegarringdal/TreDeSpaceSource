@@ -1,5 +1,6 @@
-// Named dock-layout slots (App Layout ribbon): 12 snapshot slots on F1-F12, each
-// optionally linked to a ribbon tab that gets focused when the slot applies.
+// Named dock-layout slots (App Layout ribbon): 12 preset snapshot slots on
+// F1-F12 plus 12 user slots (Config01-12) on ALT+F1-F12, each optionally linked
+// to a ribbon tab that gets focused when the slot applies.
 // The DockManager itself lives in React (App.tsx registers accessors here).
 
 import type { DockState, LayoutNode, TabsNode } from '@treDeSpaceUI/dockable';
@@ -27,7 +28,17 @@ export interface LayoutSlot {
   custom?: boolean;
 }
 
+/** Preset slots (F1-F12) — the first section of the App Layout ribbon. */
 export const LAYOUT_SLOTS = 12;
+/** User slots (ALT+F1-F12, Config01-12) — the second section, empty by default. */
+export const USER_LAYOUT_SLOTS = 12;
+export const TOTAL_LAYOUT_SLOTS = LAYOUT_SLOTS + USER_LAYOUT_SLOTS;
+
+/** The key a slot index answers to, as shown next to its name: F1-F12, then
+ *  ALT+F1-F12 for the user slots. */
+export function layoutSlotKeyLabel(i: number): string {
+  return i < LAYOUT_SLOTS ? `F${i + 1}` : `ALT+F${i - LAYOUT_SLOTS + 1}`;
+}
 
 interface LayoutsState {
   slots: LayoutSlot[];
@@ -36,8 +47,12 @@ interface LayoutsState {
 }
 
 const defaultSlots = (): LayoutSlot[] => {
-  const slots: LayoutSlot[] = Array.from({ length: LAYOUT_SLOTS }, (_, i) => ({
-    name: `layout${String(i + 1).padStart(3, '0')}`,
+  const slots: LayoutSlot[] = Array.from({ length: TOTAL_LAYOUT_SLOTS }, (_, i) => ({
+    // the presets below overwrite 1-12; 13-24 stay Config01-12 for the user
+    name:
+      i < LAYOUT_SLOTS
+        ? `layout${String(i + 1).padStart(3, '0')}`
+        : `Config${String(i - LAYOUT_SLOTS + 1).padStart(2, '0')}`,
     layout: null,
     ribbon: null,
   }));

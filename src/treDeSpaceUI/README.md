@@ -341,7 +341,7 @@ type SelectOption<T extends string = string> =
   { value: T; label: string; hint?: string; disabled?: boolean };
 
 // shared: options?, placeholder?, searchable?, loadOptions?, tooltip?, shortcut?,
-//         disabled?, className? + the label props from §2
+//         clearable? (default true), disabled?, className? + the label props from §2
 type SingleSelectProps<T extends string = string> =
   { multiple?: false; value: T | null; onChange: (value: T | null) => void; /* +shared */ };
 type MultiSelectProps<T extends string = string> =
@@ -360,6 +360,11 @@ const MODES: readonly SelectOption<'reset' | 'append' | 'hide'>[] = [ … ];
 
 `loadOptions(query)` is called debounced with the current query; resolve with
 matching options, or throw/reject to show the error inside the list.
+
+The trigger shows a × on hover that clears the selection (`onChange(null)` /
+`[]`). Pass `clearable={false}` for a fixed choice that can never be empty — a
+mode, an operator, a level — the × is not rendered at all, so the label gets
+its column back in a narrow row.
 
 ### ColorSelect
 

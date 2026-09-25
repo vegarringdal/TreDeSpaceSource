@@ -1,13 +1,23 @@
-// App Layout ribbon: 12 named dock-layout slots (F1-F12). Click a slot to select
-// it and apply its saved layout (+ linked ribbon); Save stores the current
-// layout into the selected slot. Names are edited in Settings → Layouts.
+// App Layout ribbon: 12 preset dock-layout slots (F1-F12) and 12 user slots
+// (Config01-12, ALT+F1-F12). Click a slot to select it and apply its saved
+// layout (+ linked ribbon); Save stores the current layout into the selected
+// slot. Names are edited in Settings → Layouts.
 import { IconDeviceFloppy, IconLayoutDashboard } from '@tabler/icons-react';
 import { usePanelContext } from '@treDeSpaceUI/dockable';
-import { Checkbox, Ribbon, RibbonButton, RibbonSection, Select } from '@treDeSpaceUI/widgets';
-import { layoutsActions as act, layoutsState } from '../../../state/layouts.state';
+import { Ribbon, RibbonButton, RibbonSection, SegmentedControl, Select } from '@treDeSpaceUI/widgets';
+import { layoutsActions as act, LAYOUT_SLOTS, layoutsState } from '../../../state/layouts.state';
 
 const isRibbon = (dockableIn?: string | string[]) =>
   dockableIn === 'top' || (Array.isArray(dockableIn) && dockableIn.includes('top'));
+
+const RIBBON_OPEN_OPTIONS = [
+  {
+    value: 'open',
+    label: 'Ribbon Open',
+    tooltip: "Show the ribbon strip when this slot's layout is applied (default)",
+  },
+  { value: 'closed', label: 'Ribbon Closed', tooltip: "Collapse the ribbon strip when this slot's layout is applied" },
+] as const;
 
 export function RibbonLayout() {
   const { manager } = usePanelContext();
@@ -39,10 +49,16 @@ export function RibbonLayout() {
   );
   return (
     <Ribbon>
-      {/* the 12 slots (F1-F12), mini buttons stack 3 per column */}
-      <RibbonSection title="Configured App Layouts (Shortcut F1-F12)">{s.slots.map(slotButton)}</RibbonSection>
+      {/* the 12 preset slots (F1-F12), mini buttons stack 3 per column */}
+      <RibbonSection title="Configured App Layouts (Shortcut F1-F12)">
+        {s.slots.slice(0, LAYOUT_SLOTS).map(slotButton)}
+      </RibbonSection>
+      {/* the 12 user slots (ALT+F1-F12) — empty until the user saves into them */}
+      <RibbonSection title="Configured App Layout (ALT + F1-F12)">
+        {s.slots.slice(LAYOUT_SLOTS).map((slot, i) => slotButton(slot, LAYOUT_SLOTS + i))}
+      </RibbonSection>
 
-      <RibbonSection title="Override Layouts">
+      <RibbonSection title="Override Selected">
         <RibbonButton
           size="big"
           icon={<IconDeviceFloppy />}
@@ -64,14 +80,14 @@ export function RibbonLayout() {
               }
             }}
           />
-          <Checkbox
-            label="Ribbon Open"
+          <SegmentedControl
+            grow
+            options={RIBBON_OPEN_OPTIONS}
             disabled={s.selected == null}
-            checked={selected?.ribbonOpen !== false}
-            tooltip="Show the ribbon strip when this slot's layout is applied (default on)"
-            onChange={(open) => {
+            value={selected?.ribbonOpen === false ? 'closed' : 'open'}
+            onChange={(v) => {
               if (s.selected != null) {
-                act.setRibbonOpen(s.selected, open);
+                act.setRibbonOpen(s.selected, v === 'open');
               }
             }}
           />

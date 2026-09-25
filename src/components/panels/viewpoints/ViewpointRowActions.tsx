@@ -1,17 +1,10 @@
-import {
-  IconArrowDown,
-  IconArrowUp,
-  IconCamera,
-  IconPlayerPlay,
-  IconRowInsertTop,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconCamera, IconPlayerPlay, IconTrash } from '@tabler/icons-react';
 import { Button } from '@treDeSpaceUI/widgets';
 import { viewpointsActions as act } from '../../../state/viewer/viewpoints.actions';
 
-/** A viewpoint row's action bar: activate, update camera/clip, delete,
- *  insert-before and reorder. */
-export function ViewpointRowActions({ vpId, idx, total }: { vpId: string; idx: number; total: number }) {
+/** A viewpoint row's action bar: activate, update camera/clip, delete
+ *  (insert-before and reorder live in the section header). */
+export function ViewpointRowActions({ vpId }: { vpId: string }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       <Button
@@ -38,26 +31,6 @@ export function ViewpointRowActions({ vpId, idx, total }: { vpId: string; idx: n
       >
         Delete
       </Button>
-      <Button
-        iconOnly
-        icon={<IconRowInsertTop size={14} />}
-        tooltip="Insert a NEW empty viewpoint (current camera + clipping) before this one"
-        onClick={() => act.addViewpointBefore(vpId)}
-      />
-      <Button
-        iconOnly
-        icon={<IconArrowUp size={14} />}
-        disabled={idx === 0}
-        tooltip="Move this viewpoint up in the list"
-        onClick={() => act.move(vpId, -1)}
-      />
-      <Button
-        iconOnly
-        icon={<IconArrowDown size={14} />}
-        disabled={idx === total - 1}
-        tooltip="Move this viewpoint down in the list"
-        onClick={() => act.move(vpId, 1)}
-      />
     </div>
   );
 }

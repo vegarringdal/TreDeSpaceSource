@@ -167,6 +167,27 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       }
     },
 
+    /** Insert a fresh filter row directly BEFORE row j of rule i. */
+    insertFilterBefore(i: number, j: number) {
+      const rule = store.get().rules[i];
+      if (rule) {
+        patchRule(i, { filters: [...rule.filters.slice(0, j), emptyFilterRow(), ...rule.filters.slice(j)] });
+      }
+    },
+
+    /** Move filter row j of rule i one step up (-1) or down (+1) — the rows
+     *  run top to bottom, so the order decides what Keep / Remove act on. */
+    moveFilter(i: number, j: number, dir: -1 | 1) {
+      const rule = store.get().rules[i];
+      const k = j + dir;
+      if (!rule || k < 0 || k >= rule.filters.length) {
+        return;
+      }
+      const filters = [...rule.filters];
+      [filters[j], filters[k]] = [filters[k], filters[j]];
+      patchRule(i, { filters });
+    },
+
     /** The "+" on a filter row: put the LAST selected name (the current
      *  selection root — tree click, viewport pick, U / P) into the row:
      *  replaces the text, or in Multi mode appends it as a new line. */

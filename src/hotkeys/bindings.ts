@@ -30,6 +30,7 @@ import { ribbonClippingPlaneActions as plane } from '../components/panels/ribbon
 import { ribbonHomeActions as home } from '../components/panels/ribbon-home/ribbonHome.actions';
 import { toggleKiosk, toggleSoloPanels } from '../components/panels/ribbon-home/soloPanels';
 import { ribbonMeasurementsActions as measure } from '../components/panels/ribbon-measurements/ribbonMeasurements.actions';
+import { PANEL_TOGGLES, panelToggleHotkeyId, togglePanelById } from '../components/panels/ribbon-panels/panelToggle';
 import { ribbonSelectionColorActions as colorNum } from '../components/panels/ribbon-selection-color/ribbonSelectionColor.actions';
 import { ribbonSelectionColorState } from '../components/panels/ribbon-selection-color/ribbonSelectionColor.state';
 import { ribbonSelectionTransformActions as tx } from '../components/panels/ribbon-selection-transform/ribbonSelectionTransform.actions';
@@ -1148,6 +1149,15 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: `F${i + 1}`,
     description: `Select layout slot ${i + 1} and apply its saved panel layout (App Layout ribbon)`,
     run: () => layoutsActions.activate(i),
+  })),
+  // User layout slots: ALT+F1-F12 select + apply slots 13-24 (Config01-12)
+  ...Array.from({ length: 12 }, (_, i) => ({
+    id: `layout.slot${13 + i}`,
+    category: 'Layout',
+    label: `Layout slot ${13 + i} (Config${String(i + 1).padStart(2, '0')})`,
+    defaultKeys: `ALT&F${i + 1}`,
+    description: `Select user layout slot ${13 + i} and apply its saved panel layout (App Layout ribbon)`,
+    run: () => layoutsActions.activate(12 + i),
   })),
   {
     id: 'layout.save',
@@ -3464,6 +3474,15 @@ export const HOTKEYS: HotkeyDef[] = [
       'Download the whole Console as a text file — every level, whatever the filter — to send with a bug report',
     run: () => consoleActions.download(),
   },
+  // — Panels ribbon: show / hide a built-in panel (ALT + 670-690, five CTRL chords) —
+  ...PANEL_TOGGLES.map((p) => ({
+    id: panelToggleHotkeyId(p.id),
+    category: 'Panels',
+    label: `Panel: ${p.title}`,
+    defaultKeys: p.keys,
+    description: `Show / hide the ${p.title} panel — closing then toggling it back returns it where it was`,
+    run: () => togglePanelById(p.id),
+  })),
 ];
 
 /** Register the table and start the engine. Called once at app boot.
