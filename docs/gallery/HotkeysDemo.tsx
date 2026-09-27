@@ -12,6 +12,7 @@ const DEMO_BINDINGS = [
 /** Gallery section for the hotkeys module (engine + display grammar). */
 export function HotkeysDemo() {
   const [fired, setFired] = useState('');
+  const [muted, setMuted] = useState('');
   const [progress, setProgress] = useState('');
   const [grammar, setGrammar] = useState('ALT&F1 + 101');
   const [recorded, setRecorded] = useState('');
@@ -45,6 +46,9 @@ export function HotkeysDemo() {
       DEMO_BINDINGS.map((b) => ({ id: b.id, sequence: parseSequence(b.keys), run: () => setFired(b.label) })),
     );
     engine.setProgressListener((p) => setProgress(formatSequence(p)));
+    // a modifier sequence completed inside a text field (try the leader in the
+    // Grammar playground): reported instead of run, the keys typed as usual
+    engine.setMutedListener((r) => setMuted(DEMO_BINDINGS.find((b) => b.id === r.id)?.label ?? r.id));
     engine.start();
     return () => engine.stop();
   }, []);
@@ -52,9 +56,10 @@ export function HotkeysDemo() {
   return (
     <Section
       title="Hotkeys"
-      note="The keyboard-shortcut system: a dependency-free engine with a display grammar — A&B together, A + B then, [X] hold, digit runs (101), double-taps, modifier-only leaders — plus an app-level registry (hotkeysActions.register) with per-user overrides, localStorage persistence and keymap import/export. The Tooltip widget reads that registry for its shortcut footers. This demo drives a page-local HotkeyEngine; while this tab is open, try the bindings below (they pause while typing in a field)."
+      note="The keyboard-shortcut system: a dependency-free engine with a display grammar — A&B together, A + B then, [X] hold, digit runs (101), double-taps, modifier-only leaders — plus an app-level registry (hotkeysActions.register) with per-user overrides, localStorage persistence and keymap import/export. The Tooltip widget reads that registry for its shortcut footers. This demo drives a page-local HotkeyEngine; while this tab is open, try the bindings below. They pause while typing in a field — except pure F-key combos, which are never muted — and a muted press that carries Ctrl/Alt/Meta (the ALT&SHIFT leader inside the Grammar playground) is reported through setMutedListener / setHotkeyMutedNotifier instead of silently doing nothing."
       props={['HotkeyDef', 'Registered', 'Sequence']}
-      code={`import { formatSequence, hotkeysActions } from '@tredespace/ui/hotkeys';
+      code={`import { formatSequence, hotkeysActions, setHotkeyMutedNotifier } from '@tredespace/ui/hotkeys';
+import { toast } from '@tredespace/ui/widgets';
 
 hotkeysActions.register([
   {
@@ -63,6 +68,11 @@ hotkeysActions.register([
     run: () => fitView(),
   },
 ]);
+
+// tell the user why a shortcut did nothing while a text field had focus
+setHotkeyMutedNotifier(({ label, keys }) =>
+  toast.info(\`\${label} · \${keys}\`, { title: 'Shortcut muted while typing' }),
+);
 
 // render the effective (override or default) combo, e.g. in a tooltip:
 const combo = formatSequence(hotkeysActions.sequenceFor('view.fit') ?? []);`}
@@ -79,7 +89,8 @@ const combo = formatSequence(hotkeysActions.sequenceFor('view.fit') ?? []);`}
           ))}
           <p className="m-0 mt-1.5 text-slate-500 text-xs">
             In flight: <span className="text-slate-300">{progress || '—'}</span> · Last fired:{' '}
-            <span className="text-slate-300">{fired || '—'}</span>
+            <span className="text-slate-300">{fired || '—'}</span> · Muted while typing:{' '}
+            <span className="text-slate-300">{muted || '—'}</span>
           </p>
         </div>
         <div className="max-w-[320px]">

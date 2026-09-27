@@ -57,6 +57,10 @@ const NAMED_CODE_TO_DISPLAY: Record<string, string> = {
   Backspace: 'BACKSPACE',
 };
 const MOD_ORDER = ['Ctrl', 'Alt', 'Shift', 'Meta'];
+const FKEY_RE = /^F([1-9]|1[0-2])$/;
+// Modifiers that turn a key press into a command rather than typing (Shift
+// still types — an uppercase letter).
+const COMMAND_MODS = new Set(['Ctrl', 'Alt', 'Meta']);
 
 export class HotkeyParseError extends Error {}
 
@@ -100,7 +104,7 @@ function classify(tok: string): { mod?: string; key?: string } {
   if (NAMED[up]) {
     return { key: NAMED[up] };
   }
-  if (/^F([1-9]|1[0-2])$/.test(up)) {
+  if (FKEY_RE.test(up)) {
     return { key: up }; // F1..F12
   }
   if (/^[0-9]$/.test(tok)) {
@@ -281,7 +285,7 @@ function parseTapStep(step: string, seq: Combo[], heldMods: string[], heldKeys: 
     seq.push(makeCombo(heldMods, [...heldKeys, NAMED[up]]));
     return;
   }
-  if (/^F([1-9]|1[0-2])$/.test(up)) {
+  if (FKEY_RE.test(up)) {
     seq.push(makeCombo(heldMods, [...heldKeys, up]));
     return;
   }
@@ -338,6 +342,36 @@ function isEditable(t: EventTarget | null): boolean {
   return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
 }
 
+/** Split a canonical combo into its modifier names and key codes. */
+function comboParts(combo: Combo): { mods: string[]; keys: string[] } {
+  const parts = combo.split('&');
+  return {
+    mods: parts.filter((p) => MOD_ORDER.includes(p)),
+    keys: parts.filter((p) => !MOD_ORDER.includes(p)),
+  };
+}
+
+/** True when every step is F1–F12 (with any modifiers). Pressing such a
+ *  sequence inside a text field types nothing, so the field has no claim on
+ *  it — the registry uses this as the default for `allowInInput`. */
+export function isFunctionKeySequence(seq: Sequence): boolean {
+  return (
+    seq.length > 0 &&
+    seq.every((c) => {
+      const { keys } = comboParts(c);
+      return keys.length > 0 && keys.every((k) => FKEY_RE.test(k));
+    })
+  );
+}
+
+/** True when some step carries Ctrl, Alt or Meta, so the sequence cannot be
+ *  ordinary typing. Bare letters and digits, Shift chords and the named
+ *  editing keys (Tab, Escape, PageUp…) all mean something to a text field
+ *  itself; a muted hit on those is the user typing, not a missed shortcut. */
+export function hasCommandModifier(seq: Sequence): boolean {
+  return seq.some((c) => comboParts(c).mods.some((m) => COMMAND_MODS.has(m)));
+}
+
 export class HotkeyEngine {
   private registered: Registered[] = [];
   private held = new Set<string>(); // non-modifier codes currently down
@@ -346,8 +380,10 @@ export class HotkeyEngine {
   private pureModHold = true; // no non-modifier pressed since the modifiers went down
   private progress: Combo[] = [];
   private pending: Registered | null = null; // exact match awaiting a possible longer one
+  private pendingMuted = false; // the pending match was made inside a text field where it is muted
   private timer = 0;
   private onProgress: ((p: Combo[]) => void) | null = null;
+  private onMuted: ((r: Registered) => void) | null = null;
   private running = false;
 
   setBindings(list: Registered[]) {
@@ -356,6 +392,13 @@ export class HotkeyEngine {
   }
   setProgressListener(fn: (p: Combo[]) => void) {
     this.onProgress = fn;
+  }
+  /** Hear about a shortcut the user completed inside a text field where it is
+   *  muted (not `allowInInput`): the keys typed as usual and nothing ran. Only
+   *  sequences with a command modifier ({@link hasCommandModifier}) are
+   *  reported, so ordinary typing never triggers it. */
+  setMutedListener(fn: ((r: Registered) => void) | null) {
+    this.onMuted = fn;
   }
 
   start() {
@@ -388,6 +431,7 @@ export class HotkeyEngine {
   private reset() {
     this.progress = [];
     this.pending = null;
+    this.pendingMuted = false;
     clearTimeout(this.timer);
     this.timer = 0;
     this.onProgress?.([]);
@@ -395,10 +439,28 @@ export class HotkeyEngine {
   /** Timeout elapsed: a pending shorter match (a prefix of a longer binding,
    *  e.g. F when F+F also exists) now commits since no continuation arrived. */
   private fireTimeout = () => {
-    const p = this.pending;
-    this.reset();
-    p?.run();
+    this.commitPending();
   };
+  /** Commit the pending exact match (if any) and clear the in-flight state. */
+  private commitPending() {
+    const p = this.pending;
+    const muted = this.pendingMuted;
+    this.reset();
+    if (p) {
+      this.fire(p, muted);
+    }
+  }
+  /** Run a completed match — or, when it completed in shadow mode inside a
+   *  text field, report it to the muted listener instead. */
+  private fire(r: Registered, muted: boolean) {
+    if (!muted) {
+      r.run();
+      return;
+    }
+    if (hasCommandModifier(r.sequence)) {
+      this.onMuted?.(r);
+    }
+  }
   private arm(cand: Registered[]) {
     clearTimeout(this.timer);
     const ms = Math.min(...cand.map((r) => r.timeout ?? DEFAULT_TIMEOUT));
@@ -474,45 +536,59 @@ export class HotkeyEngine {
   }
 
   /** Advance the sequence with one committed combo (from a keydown or a released
-   *  modifier chord): match, fire, or arm the pending timeout. */
+   *  modifier chord): match, fire, or arm the pending timeout.
+   *
+   *  Inside a text field, bindings that are not `allowInInput` still take part
+   *  in the matching — as a *shadow*: the key is never claimed (it types as
+   *  usual) and a completed sequence goes to the muted listener instead of
+   *  running, so the host can tell the user why nothing happened. When any
+   *  candidate is live in the field, the step is handled exactly as outside
+   *  one and the muted candidates drop out. */
   private feed(combo: Combo, e: KeyboardEvent) {
     const inInput = isEditable(e.target);
-    const usable = (r: Registered) => (!inInput || r.allowInInput) && (r.context?.() ?? true);
+    const active = (r: Registered) => r.context?.() ?? true;
+    const isLive = (r: Registered) => !inInput || r.allowInInput === true;
 
     let next = [...this.progress, combo];
-    let cand = this.registered.filter((r) => usable(r) && startsWith(r.sequence, next));
+    let cand = this.registered.filter((r) => active(r) && startsWith(r.sequence, next));
 
     if (cand.length === 0) {
       // this key doesn't continue the sequence — commit any pending shorter
       // match (the in-progress sequence just ended), then try a fresh start.
-      const p = this.pending;
-      this.reset();
-      p?.run();
+      this.commitPending();
       next = [combo];
-      cand = this.registered.filter((r) => usable(r) && startsWith(r.sequence, next));
+      cand = this.registered.filter((r) => active(r) && startsWith(r.sequence, next));
       if (cand.length === 0) {
         return; // nothing matches — let the key through
       }
     }
 
-    // A matched shortcut fully owns the event: block the browser default AND
-    // stop it reaching other JS handlers (equivalent to the old `return false`).
-    e.preventDefault();
-    e.stopPropagation();
+    const live = cand.filter(isLive);
+    const muted = live.length === 0;
+    if (!muted) {
+      // A matched shortcut fully owns the event: block the browser default AND
+      // stop it reaching other JS handlers (equivalent to the old `return false`).
+      e.preventDefault();
+      e.stopPropagation();
+      cand = live;
+    }
     const exact = cand.find((r) => r.sequence.length === next.length) ?? null;
     const hasLonger = cand.some((r) => r.sequence.length > next.length);
     // exact with no possible extension → fire now (snappy single keys).
     if (exact && !hasLonger) {
       this.reset();
-      exact.run();
+      this.fire(exact, muted);
       return;
     }
     // partial, or an exact that could still extend (F vs F+F) → wait; the
     // pending exact fires on timeout if no continuation arrives.
     this.progress = next;
     this.pending = exact;
+    this.pendingMuted = muted;
     this.arm(cand);
-    this.onProgress?.(next);
+    if (!muted) {
+      this.onProgress?.(next);
+    }
   }
 }
 

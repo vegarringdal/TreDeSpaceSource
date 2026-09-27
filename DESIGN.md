@@ -249,7 +249,11 @@ own. Key facts, kept here so the port history isn't lost:
   `[X]` hold, runs (`101` = 1,0,1), double-tap, modifier-only leaders
   (`ALT&SHIFT + 2`), per-binding timeout/context, record UI, JSON
   export/import, exact-duplicate validation at boot, suspend-while-recording,
-  Console logging of fired shortcuts.
+  Console logging of fired shortcuts. Inside text fields shortcuts are muted
+  except pure F-key combos (`allowInInput` defaults to true for those, so the
+  layout slots work while typing); a muted press carrying Ctrl/Alt/Meta is
+  still matched as a shadow and surfaced as a "muted while typing" toast +
+  Console line instead of silently doing nothing.
 - Biome for format+lint (Tailwind class sorting via `useSortedClasses`;
   `cn()` = clsx + tailwind-merge). Prefer `?.` in UI code; `!` only for GPU
   invariants (Biome's autofix for that rule is disabled — it breaks both).

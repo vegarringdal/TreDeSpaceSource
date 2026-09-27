@@ -1345,7 +1345,8 @@ const defs: HotkeyDef[] = [
     description: 'Undo the last transform.',
     defaultKeys: 'CTRL&Z',
     run: () => undo(),
-    // allowInInput?: boolean       — fire even inside text fields (default false)
+    // allowInInput?: boolean       — fire even inside text fields (default: true for
+    //                                 a pure F-key combo, else false — see "Text fields")
     // timeout?: number             — ms between sequence steps (default 1500)
     // context?: () => boolean      — extra guard; must return true to fire
   },
@@ -1364,7 +1365,7 @@ in a central bindings table; everything else only references the `id`:
 | Key engine | `defaultKeys` (or the user's override) + `run`, `context`, `timeout`, `allowInInput` |
 | Tooltips | any control with `shortcut="<id>"` gets a footer showing the **current** combo; when the control has no `tooltip` of its own, the def's `description` becomes the tooltip body |
 | Settings / hotkeys panel | `category` groups the defs (one collapsible section per category, in registration order), `label` + `description` are the display text, `isCustom(id)` drives the Reset button |
-| Announcements | `label` + the formatted combo, via `setHotkeyAnnouncer` |
+| Announcements | `label` + the formatted combo, via `setHotkeyAnnouncer` (fired) and `setHotkeyMutedNotifier` (pressed inside a text field, where it is muted) |
 
 The structural recommendation that falls out of this:
 
@@ -1408,6 +1409,26 @@ A settings panel is built entirely from the store: `hotkeysState.use()` gives
 `recordSequence()` → `conflictsFor()` → `setOverride()`, and offer
 `exportJson`/`importJson` for sharing keymaps.
 
+### Text fields
+
+Inside an `<input>`, `<textarea>` or contentEditable element a shortcut is
+**muted** unless it is `allowInInput` — the keys type as usual. Two rules keep
+that from being a dead end:
+
+- **F-key combos are never muted.** `allowInInput` defaults to `true` when the
+  live combo is all `F1`–`F12` (any modifiers): pressing it types nothing, so
+  the field has no claim on it. The default follows the *effective* combo — a
+  binding rebound to letters is muted in fields again, one rebound onto F-keys
+  is not. An explicit `allowInInput` on the def, or the user's override, wins.
+- **A muted press is reported, not swallowed.** The engine keeps matching the
+  muted bindings as a shadow (never claiming the key), and when a full sequence
+  completes it calls the host's `setHotkeyMutedNotifier` hook with
+  `{ id, label, keys }` — show a toast saying why nothing happened. Only
+  sequences carrying Ctrl, Alt or Meta are reported: bare letters and digits,
+  Shift chords and the editing keys (Tab, Escape, PageUp…) are what typing
+  looks like, so a muted hit on those stays silent. A page-local
+  `HotkeyEngine` gets the same through `engine.setMutedListener(fn)`.
+
 ### The actions API
 
 ```ts
@@ -1447,7 +1468,11 @@ recordSequence({ idleMs? })   // capture keys for a "Record" button:
                               //   resolves on idle-pause or Enter, rejects on Escape;
                               //   suspends the live engine while recording
 suspendHotkeys() / resumeHotkeys() // manual engine suspension (nested-safe)
+isFunctionKeySequence(seq)    // every step F1–F12 (any modifiers) — the allowInInput default
+hasCommandModifier(seq)       // some step carries Ctrl/Alt/Meta — what a muted press must have to be reported
 setHotkeyAnnouncer(fn | null) // host hook: gets "⌨ label · combo" whenever a shortcut fires
+setHotkeyMutedNotifier(fn | null) // host hook: gets { id, label, keys } for a shortcut pressed
+                              //   inside a text field where it is muted (see "Text fields")
 ```
 
 ---

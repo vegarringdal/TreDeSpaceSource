@@ -4,6 +4,19 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.27** (>0.0.135):
+  Shortcuts inside text fields: pure F-key combos (F1–F12 with any modifiers,
+  so all 24 layout slots) now fire even while an input, textarea or editor has
+  focus — they type nothing, so the field has no claim on them. `allowInInput`
+  defaults to true for such a combo and follows the live binding (a slot
+  rebound to letters is muted again). Every other shortcut pressed while
+  typing is no longer silently swallowed: the engine keeps matching it as a
+  shadow (the keys still type) and, when the sequence completes, shows a
+  "Shortcut muted while typing" toast naming the shortcut, plus a Console
+  line. Only sequences carrying Ctrl/Alt/Meta are reported, so ordinary typing
+  never toasts. Library: `setHotkeyMutedNotifier`, `engine.setMutedListener`,
+  `isFunctionKeySequence`, `hasCommandModifier`; `hotkeys.list`'s
+  `allowInInput` reflects the F-key default.
 - **2026.09.25** (>0.0.134):
   App Layout ribbon: the Save group is titled "Override Selected", and the
   Ribbon Open checkbox is a Ribbon Open / Ribbon Closed switch.

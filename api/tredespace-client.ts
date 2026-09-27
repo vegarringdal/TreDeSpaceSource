@@ -547,7 +547,9 @@ export interface HotkeyInfo {
   defaultKeys: string;
   /** true when the user has rebound or otherwise overridden this shortcut */
   isCustom: boolean;
-  /** whether the combo also fires while a text field has focus */
+  /** whether the combo also fires while a text field has focus — true by
+   *  default for a pure F-key combo (F1–F12, any modifiers), which types
+   *  nothing; every other shortcut is muted there unless the user allows it */
   allowInInput: boolean;
 }
 

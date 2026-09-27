@@ -3,7 +3,15 @@
 // Codes are grouped (1xx transform, 2xx color, 5xx selection) and ASSIGNED, not
 // auto-numbered: inserting a binding must not renumber the others.
 
-import { type HotkeyDef, hotkeysActions, setHotkeyAnnouncer, validateBindings } from '@treDeSpaceUI/hotkeys';
+import {
+  type HotkeyDef,
+  hotkeysActions,
+  type MutedHotkey,
+  setHotkeyAnnouncer,
+  setHotkeyMutedNotifier,
+  validateBindings,
+} from '@treDeSpaceUI/hotkeys';
+import { toast } from '@treDeSpaceUI/widgets';
 import { openClipShapesPanel, requestClipShapesLoad } from '../components/panels/clip-shapes/clipShapesPanel';
 import { ribbonClipShapesActions as clipshape } from '../components/panels/clip-shapes/ribbonClipShapes.actions';
 import { consoleActions } from '../components/panels/console/console.actions';
@@ -3485,6 +3493,22 @@ export const HOTKEYS: HotkeyDef[] = [
   })),
 ];
 
+// One notice at a time: a repeated muted press replaces the previous toast
+// instead of stacking four of them.
+let mutedToastId: string | null = null;
+
+/** A shortcut was pressed inside a text field, where it is muted: say so in a
+ *  toast (and the Console trace) instead of silently doing nothing. */
+function showMutedShortcut(hit: MutedHotkey): void {
+  consoleActions.log('info', `⌨ muted while typing · ${hit.label} · ${hit.keys}`);
+  if (mutedToastId) {
+    toast.dismiss(mutedToastId);
+  }
+  mutedToastId = toast.info(`${hit.label} (${hit.keys}). Click outside the text field to use it.`, {
+    title: 'Shortcut muted while typing',
+  });
+}
+
 /** Register the table and start the engine. Called once at app boot.
  *  Validates the defaults first — in dev a bad default is a hard error so it's
  *  caught by the smoke test before it can ship; in prod it's logged and the
@@ -3500,5 +3524,6 @@ export function installHotkeys() {
     console.error(msg);
   }
   setHotkeyAnnouncer((msg) => consoleActions.log('info', msg));
+  setHotkeyMutedNotifier(showMutedShortcut);
   hotkeysActions.register(HOTKEYS);
 }

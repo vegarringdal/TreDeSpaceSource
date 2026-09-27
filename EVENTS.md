@@ -1915,6 +1915,10 @@ tooltip footers and the Settings → Hotkeys panel are built from, in
 registration order, so a host can show the same shortcuts in its own UI and
 drive them with `hotkeys.run`. `category` (optional) keeps one group only.
 Rebinds change `keys`: listen for `hotkeys.changed` and re-read.
+`allowInInput` says whether the shortcut also fires while a text field has
+focus — true for a pure F-key combo unless the user overrides it; every other
+shortcut is muted there (the viewer toasts a muted press instead of ignoring
+it).
 
 ```js
 payload:  { category: 'Transform' }   // or {} for every shortcut

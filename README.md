@@ -19,9 +19,9 @@ For better understanding/see it in action have a look at these links:
 
 ## Versioning
 
-> Still working on last checks, so not active yet.
+> Still working on last checks/polish.
 
-When app is stable version will be per YY.NUMBER.0.
+When app version model will will be per YY.NUMBER.0
 
 So for first stable version in 2026, it will be "26.1.0", next will be "26.2.0"
 

@@ -1,5 +1,12 @@
 import { createStore } from '../lib/createStore';
-import { formatSequence, HotkeyEngine, parseSequence, type Registered, type Sequence } from './engine';
+import {
+  formatSequence,
+  HotkeyEngine,
+  isFunctionKeySequence,
+  parseSequence,
+  type Registered,
+  type Sequence,
+} from './engine';
 
 // Optional host hook: called with a display line every time a shortcut fires
 // (this app routes it to the Console). Module-level for the same reason as the
@@ -11,6 +18,26 @@ export function setHotkeyAnnouncer(fn: ((message: string) => void) | null) {
   announce = fn;
 }
 
+/** A shortcut the user completed inside a text field where it is muted (not
+ *  `allowInInput`): the keys typed as usual and nothing ran. */
+export interface MutedHotkey {
+  id: string;
+  label: string;
+  /** the combo that was pressed, in display grammar */
+  keys: string;
+}
+
+// Optional host hook for muted presses (this app shows a toast). The engine
+// only reports sequences carrying Ctrl/Alt/Meta, so ordinary typing never
+// reaches it.
+let notifyMuted: ((hit: MutedHotkey) => void) | null = null;
+
+/** Host app: hear about shortcuts muted by text-field focus, to tell the user
+ *  why nothing happened. */
+export function setHotkeyMutedNotifier(fn: ((hit: MutedHotkey) => void) | null) {
+  notifyMuted = fn;
+}
+
 /** A shortcut definition (metadata + default + action). Registered at boot. */
 export interface HotkeyDef {
   id: string; // stable dotted id, e.g. "transform.undo"
@@ -19,7 +46,7 @@ export interface HotkeyDef {
   description: string;
   defaultKeys: string; // default combo in display grammar, e.g. "ALT + 101"
   run: () => void;
-  allowInInput?: boolean; // default false; user-overridable
+  allowInInput?: boolean; // default: true for a pure F-key combo, else false; user-overridable
   timeout?: number; // ms between steps for THIS shortcut
   context?: () => boolean; // extra guard — must return true for the shortcut to fire
 }
@@ -37,6 +64,7 @@ export interface HotkeyInfo {
   defaultKeys: string;
   /** true when the user has overridden anything on this shortcut */
   isCustom: boolean;
+  /** fires inside text fields too (explicit flag, or a pure F-key combo) */
   allowInInput: boolean;
 }
 
@@ -49,6 +77,12 @@ interface Override {
 // localStorage: Record<id, Override> — an app that namespaces its storage moves it (setStorageKey)
 let storageKey = 'hotkeys';
 const engine = new HotkeyEngine();
+engine.setMutedListener((r) => {
+  const d = hotkeysState.get().defs[r.id];
+  if (d) {
+    notifyMuted?.({ id: d.id, label: d.label, keys: formatSequence(r.sequence) });
+  }
+});
 
 function loadOverrides(): Record<string, Override> {
   try {
@@ -69,6 +103,14 @@ function effective(d: HotkeyDef, ov?: Override): Sequence {
   return ov?.keys ?? parseSequence(d.defaultKeys);
 }
 
+/** Effective "fires inside text fields": the user's override, else the def's
+ *  flag, else true for a pure F-key combo — it types nothing, so a field has
+ *  no claim on it. Tied to the LIVE sequence: rebinding an F-key slot to
+ *  letters mutes it in fields again, rebinding onto F-keys unmutes. */
+function allowsInput(d: HotkeyDef, seq: Sequence, ov?: Override): boolean {
+  return ov?.allowInInput ?? d.allowInInput ?? isFunctionKeySequence(seq);
+}
+
 function persist() {
   localStorage.setItem(storageKey, JSON.stringify(hotkeysState.get().overrides));
 }
@@ -86,7 +128,7 @@ function rebuild() {
         d.run();
       },
       timeout: overrides[d.id]?.timeout ?? d.timeout,
-      allowInInput: overrides[d.id]?.allowInInput ?? d.allowInInput,
+      allowInInput: allowsInput(d, sequence, overrides[d.id]),
       context: d.context,
     };
   });
@@ -119,15 +161,16 @@ export const hotkeysActions = {
     return order.map((id) => {
       const d = defs[id];
       const ov = overrides[id];
+      const seq = effective(d, ov);
       return {
         id,
         category: d.category,
         label: d.label,
         description: d.description,
-        keys: formatSequence(effective(d, ov)),
+        keys: formatSequence(seq),
         defaultKeys: d.defaultKeys,
         isCustom: id in overrides,
-        allowInInput: ov?.allowInInput ?? d.allowInInput ?? false,
+        allowInInput: allowsInput(d, seq, ov),
       };
     });
   },
