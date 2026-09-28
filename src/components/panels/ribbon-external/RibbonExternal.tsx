@@ -4,7 +4,7 @@
 // EVENTS.md.
 import { Ribbon, RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { externalAppsState } from '../../../state/externalApps.state';
-import { ExternalAppButton, groupAppsBySection, usableApps } from './ExternalAppButton';
+import { ExternalAppButton, externalRibbonSize, groupAppsBySection, usableApps } from './ExternalAppButton';
 
 /** One ribbon button per configured external app, grouped by ribbon section. */
 export function RibbonExternal() {
@@ -27,7 +27,7 @@ export function RibbonExternal() {
       {sections.map((s) => (
         <RibbonSection key={s.title} title={s.title}>
           {s.apps.map((a) => (
-            <ExternalAppButton key={a.id} app={a} />
+            <ExternalAppButton key={a.id} app={a} size={externalRibbonSize(a)} />
           ))}
         </RibbonSection>
       ))}

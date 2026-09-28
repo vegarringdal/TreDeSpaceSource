@@ -4,6 +4,35 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.28** (>0.0.136):
+  External-app ribbon buttons now stack by size: two medium or three small per
+  column (a medium and a small share one), on both the External and the Home
+  ribbon. `RibbonSection` packs columns by the `size` prop on each direct child
+  element, and the external button kept its size inside the component, so every
+  button was packed as `big` in a column of its own. The button now takes
+  `size` as a prop; the widget docs note the wrapper-component rule.
+  Home ribbon, Quick Clear: the two buttons read "Label" / "Measurement" —
+  the section title, eraser icon and tooltip already say clear.
+  Pad ribbon, Controller: the two joystick-position fields stack in one
+  column as "Top" / "Side" with the caption beside the field (plain
+  `RibbonNumber`s; the caption-over-field `PadPosInput` is gone).
+  Selection/hover outline no longer shakes while TAA converges. The outline
+  mask replays the scene with the frame's sub-pixel jitter and was composited
+  fresh each frame onto the stable TAA average, so it hopped around for the
+  whole 32-frame convergence after every camera stop. The edge classify now
+  blends into a history texture with the scene's running-average weight
+  (blend constant 1/(sample+1)), so the outline converges to the same
+  anti-aliased average as the scene; the average restarts with the scene's
+  and when the hovered item changes. A converged hold frame (pulse, hover)
+  re-composites the last blurred result and skips the mask replay and blurs.
+  Outline pass cost: the mask replayed the WHOLE visible scene depth-only
+  and discarded every fragment that was not outlined, so a selection cost a
+  large slice of the scene pass on every frame (8 ms next to a 21 ms scene
+  pass on a dense model). A per-model compute filter now emits only the
+  outlined items' visible meshlets into a fourth draw-record slot, and the
+  mask draws that list alone; the cost scales with what is outlined. +20 B
+  per meshlet of fixed VRAM (`MESHLET_RECORD_BYTES` 144 → 164).
+
 - **2026.09.27** (>0.0.135):
   Shortcuts inside text fields: pure F-key combos (F1–F12 with any modifiers,
   so all 24 layout slots) now fire even while an input, textarea or editor has

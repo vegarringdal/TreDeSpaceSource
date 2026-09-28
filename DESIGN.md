@@ -157,10 +157,14 @@ own. Key facts, kept here so the port history isn't lost:
   (rather than all back faces, then all front faces) makes a wall patch whose
   centre lies on the wall harmless — its arbitrary facing never interleaves
   with other meshlets — and orders side-by-side pipes correctly; nested
-  single-meshlet parts with the same centre remain arbitrary. Pick and
-  outline replay the transparent list too (their frame slots have routing
-  off; the second instance degenerates outside the split blend pass), and
-  the residency counts include it. Cost: `N + 2T` vertex work instead of
+  single-meshlet parts with the same centre remain arbitrary. The pick
+  replays the transparent list too (its frame slot has routing off; the
+  second instance degenerates outside the split blend pass), and the
+  residency counts include it. The outline mask does not replay the scene
+  lists at all: a per-model compute filter (`outlineListWgsl`) emits only the
+  outlined items' visible meshlets into a fourth draw slot, and the mask
+  draws that — a full replay with a per-fragment discard cost a large slice
+  of the scene pass on every frame with a selection. Cost: `N + 2T` vertex work instead of
   `2N`; +28 B per meshlet (`MESHLET_RECORD_BYTES` 116 → 144) and ~8 KB per
   model. Not done: cross-model interleaving (draws are per model, so glass of
   an earlier-loaded model stays under a later one's where they overlap) and a

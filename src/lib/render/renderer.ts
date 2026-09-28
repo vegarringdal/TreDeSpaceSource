@@ -193,12 +193,12 @@ function rayThroughPixel(view: PickView, px: number, py: number): Ray | null {
 
 const RECORD_STRIDE = 20; // drawIndexedIndirect: 5 x u32
 /** Fixed per-meshlet VRAM regardless of fill: cull 36 + info 32 + vis 4 +
- *  3 × RECORD_STRIDE draw records (pass 1, pass 2, sorted transparent) +
- *  8 sort candidate + 4 full-list. */
-const MESHLET_RECORD_BYTES = 144;
+ *  4 × RECORD_STRIDE draw records (pass 1, pass 2, sorted transparent,
+ *  outline mask) + 8 sort candidate + 4 full-list. */
+const MESHLET_RECORD_BYTES = 164;
 const COUNT_SLOT = 256; // storage-binding offset alignment
-/** Count slots per model: pass 1, pass 2, sorted transparent list. */
-const COUNT_SLOTS = 3;
+/** Count slots per model: pass 1, pass 2, sorted transparent list, outline list. */
+const COUNT_SLOTS = 4;
 const MAX_MODELS = 4096;
 const PARAMS_SIZE = 240; // CullParams in shaders/cull.ts
 /** Perspective sort-key span above the near plane before any model has bounds. */
@@ -1542,6 +1542,7 @@ export class Renderer {
     countOffset1: number,
     countOffset2: number,
     countOffsetT: number,
+    countOffsetO: number,
   ): GpuModel {
     const dev = this.device;
     const { positionsQ, indices16, cull, meshletInfo, cgColors } = packed;
@@ -1592,6 +1593,8 @@ export class Renderer {
     // sorted transparent list (DESIGN.md "Sorted blend pass"): the record
     // stride covers both MDI records and the doubled vertex-pull entries
     const recordBufT = mkRecords();
+    // outline mask list (outlinePass.ts): the outlined items' visible meshlets
+    const recordBufO = mkRecords();
     const candBuf = dev.createBuffer({
       label: 'modelCandBuf',
       size: Math.max(8, totalMeshlets * 8),
@@ -1717,6 +1720,7 @@ export class Renderer {
       recordBuf1,
       recordBuf2,
       recordBufT,
+      recordBufO,
       candBuf,
       sortBuf,
       sortArgsBuf,
@@ -1741,6 +1745,7 @@ export class Renderer {
       recordBuf1,
       recordBuf2,
       recordBufT,
+      recordBufO,
       candBuf,
       sortBuf,
       sortArgsBuf,
@@ -1762,12 +1767,24 @@ export class Renderer {
       vpGeoBind1: mkVpGeoBind(recordBuf1),
       vpGeoBind2: mkVpGeoBind(recordBuf2),
       vpGeoBindT: mkVpGeoBind(recordBufT),
+      vpGeoBindO: mkVpGeoBind(recordBufO),
+      outlineListBind: this.outline.createListBind(dev, {
+        meshletCull: meshletCullBuf,
+        records: recordBufO,
+        counts: this.countsBuf,
+        countOffset: countOffsetO,
+        vis: visBuf,
+        meshletInfo: meshletInfoBuf,
+        itemState: itemStateBuf,
+        modelUni: modelUniBuf,
+      }),
       vpGeoBindFull: mkVpGeoBind(fullListBuf),
       fullListBuf,
       fullArgsBuf,
       countOffset1,
       countOffset2,
       countOffsetT,
+      countOffsetO,
       transparent: hasBakedAlpha(cgColors),
     };
   }
@@ -1781,9 +1798,12 @@ export class Renderer {
     const countOffset1 = modelIdx * COUNT_SLOT * COUNT_SLOTS;
     const countOffset2 = countOffset1 + COUNT_SLOT;
     const countOffsetT = countOffset1 + 2 * COUNT_SLOT;
+    const countOffsetO = countOffset1 + 3 * COUNT_SLOT;
     const itemBase = this.nextItemBase;
     this.nextItemBase += packed.itemCount;
-    this.models.push(this.buildModelResources(packed, opts, itemBase, countOffset1, countOffset2, countOffsetT));
+    this.models.push(
+      this.buildModelResources(packed, opts, itemBase, countOffset1, countOffset2, countOffsetT, countOffsetO),
+    );
 
     for (let i = 0; i < 3; i++) {
       this.sceneMin[i] = Math.min(this.sceneMin[i], packed.boundsMin[i]);
@@ -1826,6 +1846,7 @@ export class Renderer {
       m.countOffset1,
       m.countOffset2,
       m.countOffsetT,
+      m.countOffsetO,
     );
     // quiet: the caller proved the slot draws nothing from this viewpoint, so
     // the converged picture stays valid — no re-render, no accumulation reset.
@@ -2090,6 +2111,7 @@ export class Renderer {
       m.recordBuf1.destroy();
       m.recordBuf2.destroy();
       m.recordBufT.destroy();
+      m.recordBufO.destroy();
       m.candBuf.destroy();
       m.sortBuf.destroy();
       m.sortArgsBuf.destroy();
@@ -2122,6 +2144,7 @@ export class Renderer {
       m.recordBuf1.destroy();
       m.recordBuf2.destroy();
       m.recordBufT.destroy();
+      m.recordBufO.destroy();
       m.candBuf.destroy();
       m.sortBuf.destroy();
       m.sortArgsBuf.destroy();
@@ -3339,7 +3362,10 @@ export class Renderer {
     }
 
     // outline overlay AFTER post (never enters the TAA history — the same
-    // reason the native renderer composites its hover outline inside TAA)
+    // reason the native renderer composites its hover outline inside TAA).
+    // It runs its OWN running average on the jittered edge signal, keyed to
+    // accumIdx, so it converges with the scene instead of hopping with the
+    // jitter; a hold frame only re-composites it.
     this.drawnHoverId = effHover;
     if (outlineOn) {
       this.outline.encode(
@@ -3355,8 +3381,12 @@ export class Renderer {
         this.depth!,
         swapView,
         effHover,
+        this.accumIdx,
+        hold,
         this.timings,
       );
+    } else {
+      this.outline.dropHistory();
     }
 
     // view cube on top of the finished frame (after post so TAA never smears it)

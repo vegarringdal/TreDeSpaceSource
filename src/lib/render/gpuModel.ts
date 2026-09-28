@@ -4,10 +4,12 @@
 import { SORT_COUNT_WORD } from './shaders/cull';
 
 /** A model's cull-produced draw lists: pass 1 (visible last frame), pass 2
- *  (newly visible) and the sorted transparent list the blend pass draws
- *  back-to-front (DESIGN.md "Sorted blend pass"). */
-export type DrawList = 1 | 2 | 3;
+ *  (newly visible), the sorted transparent list the blend pass draws
+ *  back-to-front (DESIGN.md "Sorted blend pass") and the outline list — the
+ *  outlined items' visible meshlets, built by the outline pass for its mask. */
+export type DrawList = 1 | 2 | 3 | 4;
 export const TRANSPARENT_LIST: DrawList = 3;
+export const OUTLINE_LIST: DrawList = 4;
 /** Byte offset of the MDI multi-draw count inside a model's transparent count
  *  slot (the sort scan writes the vertex-pull args at 0 and the plain count
  *  after them). */
@@ -29,6 +31,8 @@ export interface GpuModel {
   recordBuf2: GPUBuffer;
   /** Sorted transparent draw list (MDI records / vertex-pull entries). */
   recordBufT: GPUBuffer;
+  /** Outline mask draw list (outlinePass.ts), same record format. */
+  recordBufO: GPUBuffer;
   /** Transparent candidates from both cull passes: [meshlet, bucket] pairs. */
   candBuf: GPUBuffer;
   /** Bucket histogram → scatter bases, candidate count. */
@@ -59,6 +63,8 @@ export interface GpuModel {
   vpGeoBind1: GPUBindGroup; // VP render group 1 (pass-1 visible list)
   vpGeoBind2: GPUBindGroup;
   vpGeoBindT: GPUBindGroup; // sorted transparent list
+  vpGeoBindO: GPUBindGroup; // outline list
+  outlineListBind: GPUBindGroup; // outline list build (compute)
   vpGeoBindFull: GPUBindGroup; // static all-meshlets list (no-cull fallback)
   snapBind?: GPUBindGroup; // measurement snap compute (created lazily)
   fullListBuf: GPUBuffer;
@@ -66,6 +72,7 @@ export interface GpuModel {
   countOffset1: number;
   countOffset2: number;
   countOffsetT: number;
+  countOffsetO: number;
 }
 
 /** Record buffer + count-slot byte offset of one of a model's draw lists. */
@@ -75,6 +82,9 @@ export function drawListOf(m: GpuModel, list: DrawList): { buf: GPUBuffer; offse
   }
   if (list === 2) {
     return { buf: m.recordBuf2, offset: m.countOffset2, vpBind: m.vpGeoBind2 };
+  }
+  if (list === OUTLINE_LIST) {
+    return { buf: m.recordBufO, offset: m.countOffsetO, vpBind: m.vpGeoBindO };
   }
   return { buf: m.recordBufT, offset: m.countOffsetT + TRANSPARENT_COUNT_OFFSET, vpBind: m.vpGeoBindT };
 }
@@ -89,7 +99,8 @@ export function vpArgsOffsetOf(m: GpuModel, list: DrawList): number {
  *  transparent list — its second facing instance degenerates outside the
  *  blend pass; the no-cull fallback replays the static full list once)
  *  through `mdiPipeline` / `vpPipeline` with the render bind group at
- *  `frameOffset` — the pattern every id/mask re-render pass shares. */
+ *  `frameOffset` — the pattern every id/mask re-render pass shares. `lists`
+ *  narrows the replay to specific lists (the outline mask draws only its own). */
 export function replayDrawLists(
   pass: GPURenderPassEncoder,
   models: GpuModel[],
@@ -98,8 +109,9 @@ export function replayDrawLists(
   mdiPipeline: GPURenderPipeline,
   vpPipeline: GPURenderPipeline,
   frameOffset: number,
+  lists: readonly DrawList[] = cullMode === 'full' ? [1] : [1, 2, TRANSPARENT_LIST],
 ): void {
-  for (const list of cullMode === 'full' ? ([1] as const) : ([1, 2, TRANSPARENT_LIST] as const)) {
+  for (const list of lists) {
     if (cullMode === 'mdi') {
       pass.setPipeline(mdiPipeline);
       for (const m of models) {

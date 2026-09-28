@@ -1,8 +1,9 @@
 import { IconDeviceGamepad2, IconRotate3d, IconRotate360, IconWalk } from '@tabler/icons-react';
-import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
+import { RibbonButton, RibbonNumber, RibbonSection } from '@treDeSpaceUI/widgets';
 import { navActions, navState } from '../../../state/viewer/nav.state';
 import { useViewer, viewerState } from '../../../state/viewer/viewer.state';
-import { PadPosInput } from './PadPosInput';
+
+const JOYSTICK_FIELD_WIDTH = 96;
 
 /** Camera navigation mode and the on-screen joystick controls. */
 export function PadNavGroups() {
@@ -47,16 +48,32 @@ export function PadNavGroups() {
           shortcut="view.touchPads"
           onClick={() => viewerState.set((s) => ({ touchPads: !s.touchPads }))}
         />
-        <PadPosInput
-          label="Position From Top"
+        <RibbonNumber
+          size="medium"
+          label="Top"
+          fieldWidth={JOYSTICK_FIELD_WIDTH}
+          tooltip="Joystick position from the top edge"
           value={v.joystickY}
+          min={0}
+          max={100}
+          step={2}
+          precision={0}
+          unit="%"
           decShortcut="view.joystick.y.dec"
           incShortcut="view.joystick.y.inc"
           onChange={(y) => viewerState.set({ joystickY: y })}
         />
-        <PadPosInput
-          label="Position From Sides"
+        <RibbonNumber
+          size="medium"
+          label="Side"
+          fieldWidth={JOYSTICK_FIELD_WIDTH}
+          tooltip="Joystick position from the side edges"
           value={v.joystickX}
+          min={0}
+          max={100}
+          step={2}
+          precision={0}
+          unit="%"
           decShortcut="view.joystick.x.dec"
           incShortcut="view.joystick.x.inc"
           onChange={(x) => viewerState.set({ joystickX: x })}

@@ -12,6 +12,14 @@ import { makeExternalPanel, newExternalPanelId } from './externalPanels';
 // the state's "small" is the ribbon's "mini" (3 stacked per column)
 const RIBBON_SIZE: Record<ExternalApp['size'], RibbonSize> = { big: 'big', medium: 'medium', small: 'mini' };
 
+/** The ribbon size an app's button takes. Callers pass it as the element's
+ *  `size` prop — `RibbonSection` packs columns by reading that prop off each
+ *  direct child, so a size kept inside the component would leave every button
+ *  in its own column. */
+export function externalRibbonSize(app: ExternalApp): RibbonSize {
+  return RIBBON_SIZE[app.size];
+}
+
 function defaultTooltip(a: ExternalApp): string {
   if (a.newWindow) {
     return `Open ${a.url} in a new browser tab`;
@@ -22,8 +30,9 @@ function defaultTooltip(a: ExternalApp): string {
   return `Open ${a.url} as a panel${a.multiple ? ' (a new instance per click)' : ''}`;
 }
 
-/** Ribbon button that opens one external app. */
-export function ExternalAppButton({ app }: { app: ExternalApp }) {
+/** Ribbon button that opens one external app. `size` must be
+ *  `externalRibbonSize(app)` — it is a prop only so the section can pack it. */
+export function ExternalAppButton({ app, size }: { app: ExternalApp; size: RibbonSize }) {
   const { manager } = usePanelContext();
 
   const handleClick = () => {
@@ -48,8 +57,8 @@ export function ExternalAppButton({ app }: { app: ExternalApp }) {
 
   return (
     <RibbonButton
-      size={RIBBON_SIZE[app.size]}
-      className={app.size === 'big' ? '' : 'min-w-28'}
+      size={size}
+      className={size === 'big' ? '' : 'min-w-28'}
       icon={<IconWorld />}
       label={app.name}
       tooltip={app.tooltip.trim() || defaultTooltip(app)}

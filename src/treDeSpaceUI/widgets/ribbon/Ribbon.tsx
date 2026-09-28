@@ -21,6 +21,9 @@ export function Ribbon({ children, className = '' }: { children: ReactNode; clas
  * Children declare a `size` (big = 1 per column, medium = 2, mini = 3); the
  * section packs them into equal-width columns in order, and a column that is
  * not completely full centres its content vertically.
+ * The size is read off each DIRECT child element's props, so a component that
+ * wraps a RibbonButton must take `size` as its own prop (a size decided
+ * inside it is invisible here and the child is packed as `big`).
  */
 export function RibbonSection({
   title,

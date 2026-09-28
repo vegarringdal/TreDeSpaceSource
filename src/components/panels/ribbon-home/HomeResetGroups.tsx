@@ -9,7 +9,7 @@ export function HomeResetGroups() {
       <RibbonButton
         size="medium"
         icon={<IconEraser />}
-        label="Clear Label"
+        label="Label"
         tooltip="Delete the scene's labels — a live viewpoint's labels are muted instead, never deleted"
         shortcut="home.label.clear"
         onClick={() => void act.deleteLabels()}
@@ -17,7 +17,7 @@ export function HomeResetGroups() {
       <RibbonButton
         size="medium"
         icon={<IconEraser />}
-        label="Clear Measurement"
+        label="Measurement"
         tooltip="Delete the scene's measurements — a live viewpoint's measurements are muted instead, never deleted"
         shortcut="home.measurement.clear"
         onClick={() => void act.deleteMeasurements()}

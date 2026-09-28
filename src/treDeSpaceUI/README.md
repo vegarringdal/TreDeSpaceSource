@@ -1055,7 +1055,11 @@ The small single-purpose parts.
 An Office-style ribbon. `Ribbon` is the bar; `RibbonSection` is a titled group
 that packs children into columns by their `size` (big = 1 per column,
 medium = 2 stacked, mini = 3 stacked); `RibbonSlot` puts arbitrary content
-(a Select, a ColorSelect…) into the same sizing system.
+(a Select, a ColorSelect…) into the same sizing system. The section reads
+`size` off each direct child *element*, so a component of your own that wraps
+a `RibbonButton` must accept `size` as a prop and be given it at the call site
+— a size chosen inside the wrapper is invisible to the packer and the child
+lands in its own column as `big`.
 
 ```tsx
 <Ribbon>

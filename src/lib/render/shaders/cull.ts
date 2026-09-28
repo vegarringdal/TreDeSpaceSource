@@ -482,6 +482,65 @@ export function cullWgsl(pass2: boolean, vp: boolean): string {
   return (CULL_COMMON + emit + body).replaceAll('STAMP', vp ? 'stamp_args(gid);' : '');
 }
 
+/** Outline draw list (outlinePass.ts): one thread per meshlet, emits the
+ *  meshlets of outlined items — selected (include_selected) and/or the
+ *  hovered item — that the cull left visible (use_vis; off under the no-cull
+ *  full draw, which has no visibility words). Same record format as the
+ *  cull's emit, so the outline mask replays it through the scene pipelines.
+ *  Before this list the mask replayed the WHOLE scene and discarded per
+ *  fragment, costing a large slice of the scene pass on every frame. */
+export function outlineListWgsl(vp: boolean): string {
+  const emit = vp ? CULL_EMIT_VP : CULL_EMIT_MDI;
+  return /* wgsl */ `
+// slim view of the packed cull record: only what the emit needs
+struct MeshletCull {
+  index_count: u32,
+  first_index: u32,
+  base_vertex: u32,
+};
+const MESHLET_WORDS = 9u;
+@group(0) @binding(0) var<storage, read> meshlets: array<u32>;
+@group(0) @binding(3) var<storage, read> vis: array<u32>;
+@group(0) @binding(4) var<storage, read> info_words: array<u32>;
+struct ItemStateOutline {
+  flags: u32,
+  color: u32,
+  tidx: u32,
+};
+@group(0) @binding(5) var<storage, read> item_states: array<ItemStateOutline>;
+struct ModelUniOutline {
+  info: vec4u, // x = item_base (global id of local item 0)
+  global: mat4x4f,
+};
+@group(0) @binding(6) var<uniform> model_uni: ModelUniOutline;
+struct OutlineListParams {
+  hover_id: u32, // global item id, 0 = none
+  include_selected: u32,
+  use_vis: u32, // 1 = only meshlets the cull left visible
+  pad: u32,
+};
+@group(1) @binding(0) var<uniform> olp: OutlineListParams;
+${emit}
+fn load_slim(i: u32) -> MeshletCull {
+  let o = i * MESHLET_WORDS;
+  return MeshletCull(meshlets[o + 5u], meshlets[o + 6u], meshlets[o + 8u]);
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid: vec3u) {
+  STAMP
+  let i = gid.x;
+  if (i >= arrayLength(&meshlets) / MESHLET_WORDS) { return; }
+  if (olp.use_vis == 1u && vis[i] == 0u) { return; }
+  let local = info_words[i * 8u + 7u];
+  let sel = olp.include_selected == 1u && (item_states[local].flags & 4u) != 0u;
+  let hov = olp.hover_id != 0u && local + model_uni.info.x == olp.hover_id;
+  if (!(sel || hov)) { return; }
+  emit_opaque(load_slim(i), i);
+}
+`.replaceAll('STAMP', vp ? 'stamp_args(gid);' : '');
+}
+
 /** Sorted blend list, step 1 (one workgroup per model, after cull 2): turn
  *  the bucket histogram into exclusive bases in place, and publish the
  *  candidate count as the transparent draw slot ([372, 2n, 0, 0] vertex-pull
