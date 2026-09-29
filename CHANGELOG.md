@@ -4,6 +4,13 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.29** (>0.0.138):
+  Fixed a CI-only failure in the handshake unit test: it gave a healthy fake
+  worker 20 ms to answer, which a loaded runner can exceed on the first
+  MessageChannel round trip. A healthy worker now gets 500 ms; the 20 ms
+  budget stays only where every worker is silent. Test-only; the app's 1 s
+  handshake is unchanged.
+
 - **2026.09.29** (>0.0.137):
   Import workers must now answer a startup handshake. Comlink can lose a
   freshly created worker when many start at once: its first call never

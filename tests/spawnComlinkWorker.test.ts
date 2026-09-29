@@ -8,7 +8,13 @@ import { type Spawnable, spawnComlinkWorker, spawnComlinkWorkers } from '../src/
 
 type FakeWorker = Spawnable & { terminated: boolean };
 
-const TIMEOUT_MS = 20;
+/** Budget where a healthy worker must answer. Generous: a loaded CI runner
+ *  can stall the first MessageChannel round trip far past a few ms, and a
+ *  healthy answer returns at once — only a silent worker waits it out. */
+const ANSWER_TIMEOUT_MS = 500;
+
+/** Budget where every worker is silent, so nothing depends on speed. */
+const SILENT_TIMEOUT_MS = 20;
 
 /** A worker whose far end answers `ping` only when `healthy`. */
 function fakeWorker(healthy: boolean): FakeWorker {
@@ -46,7 +52,7 @@ function scripted(health: boolean[]) {
 describe('spawnComlinkWorker', () => {
   it('hands out a worker that answers on the first try', async () => {
     const { made, create } = scripted([true]);
-    const res = await spawnComlinkWorker(create, 'test', { timeoutMs: TIMEOUT_MS });
+    const res = await spawnComlinkWorker(create, 'test', { timeoutMs: ANSWER_TIMEOUT_MS });
     expect(res.error).toBeUndefined();
     expect(await res.data?.api.ping()).toBe(true);
     expect(made).toHaveLength(1);
@@ -55,7 +61,7 @@ describe('spawnComlinkWorker', () => {
 
   it('terminates a silent worker and respawns', async () => {
     const { made, create } = scripted([false, true]);
-    const res = await spawnComlinkWorker(create, 'test', { timeoutMs: TIMEOUT_MS });
+    const res = await spawnComlinkWorker(create, 'test', { timeoutMs: ANSWER_TIMEOUT_MS });
     expect(res.data?.worker).toBe(made[1]);
     expect(made[0].terminated).toBe(true);
     expect(made[1].terminated).toBe(false);
@@ -64,7 +70,7 @@ describe('spawnComlinkWorker', () => {
 
   it('gives up with an error after the retries, terminating every attempt', async () => {
     const { made, create } = scripted([]);
-    const res = await spawnComlinkWorker(create, 'test', { timeoutMs: TIMEOUT_MS, retries: 3 });
+    const res = await spawnComlinkWorker(create, 'test', { timeoutMs: SILENT_TIMEOUT_MS, retries: 3 });
     expect(res.data).toBeUndefined();
     expect(res.error?.msg).toMatch(/test worker did not answer/);
     expect(made).toHaveLength(4);
@@ -82,7 +88,8 @@ describe('spawnComlinkWorkers', () => {
       workers.push(w);
       return w;
     };
-    const res = await spawnComlinkWorkers(2, create, 'test', { timeoutMs: TIMEOUT_MS, retries: 1 });
+    // retries: 0 — the silent slot waits the answer budget once, not per retry
+    const res = await spawnComlinkWorkers(2, create, 'test', { timeoutMs: ANSWER_TIMEOUT_MS, retries: 0 });
     expect(res.data).toBeUndefined();
     expect(res.error).toBeDefined();
     expect(workers.every((w) => w.terminated)).toBe(true);
