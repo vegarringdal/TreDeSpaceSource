@@ -1,6 +1,7 @@
 // A small pool of cooker workers — created on demand, torn down after the
 // import batch so idle tabs hold no worker memory.
 import * as Comlink from 'comlink';
+import { spawnComlinkWorkers } from '../worker/spawnComlinkWorker';
 import type { CookerApi, CookOutcome, StoreTdpOutcome } from './cookerWorker';
 
 export type CookToOpfs = (glb: ArrayBuffer, outFileName: string, coarsePath?: string) => Promise<CookOutcome>;
@@ -16,11 +17,20 @@ export async function withCookerPool<T>(
   size: number,
   run: (cook: CookToOpfs, storeTdp: StoreTdpToOpfs, cookStandard: CookStandardToOpfs) => Promise<T>,
 ): Promise<T> {
-  const workers = Array.from(
-    { length: Math.max(1, size) },
+  // every slot must pass the startup handshake — a worker Comlink lost at
+  // birth would otherwise hang its first cook, and the batch, for good
+  const spawned = await spawnComlinkWorkers<CookerApi>(
+    Math.max(1, size),
     () => new Worker(new URL('./cookerWorker.ts', import.meta.url), { type: 'module' }),
+    'cooker',
   );
-  const apis = workers.map((w) => Comlink.wrap<CookerApi>(w));
+  if (spawned.error) {
+    throw new Error(spawned.error.msg);
+  }
+
+  const slots = spawned.data ?? [];
+  const workers = slots.map((s) => s.worker);
+  const apis = slots.map((s) => s.api);
   // round-robin with per-worker busy chaining: callers await their slot
   const busy = apis.map(() => Promise.resolve());
   let next = 0;

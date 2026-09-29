@@ -40,6 +40,9 @@ function opened(): Open {
 }
 
 const api = {
+  /** Startup handshake for spawnComlinkWorker. */
+  ping: () => true,
+
   /** Open the staged input and rebuild its index from index.bin;
    *  `onFaces(done)` reports this worker's running face count (the
    *  coordinator sums them). */

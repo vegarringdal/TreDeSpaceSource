@@ -22,6 +22,7 @@
 // The converter cooks the merged model itself: no GLB is built, serialised or
 // parsed anywhere on this path.
 import * as Comlink from 'comlink';
+import { spawnComlinkWorkers } from '../worker/spawnComlinkWorker';
 import {
   cacheName,
   INDEX_NAME,
@@ -100,11 +101,20 @@ async function fanOut(
   opts: StepOptions,
   onFaces: (done: number, busy: number) => void,
 ): Promise<{ table: RecordTable; stats: string[] }> {
-  const workers = Array.from(
-    { length: k },
+  // every sub-worker must pass the startup handshake; a failure throws, and
+  // the caller falls back to tessellating in this worker
+  const spawned = await spawnComlinkWorkers<StepTessApi>(
+    k,
     () => new Worker(new URL('./stepTessWorker.ts', import.meta.url), { type: 'module' }),
+    'step tessellation',
   );
-  const apis = workers.map((w) => Comlink.wrap<StepTessApi>(w));
+  if (spawned.error) {
+    throw new Error(spawned.error.msg);
+  }
+
+  const slots = spawned.data ?? [];
+  const workers = slots.map((s) => s.worker);
+  const apis = slots.map((s) => s.api);
   const facesByWorker = new Array<number>(k).fill(0);
   const table = emptyTable();
   let next = 0;
@@ -160,6 +170,9 @@ async function fanOut(
 }
 
 const api = {
+  /** Startup handshake for spawnComlinkWorker. */
+  ping: () => true,
+
   /** Convert temp/step-import/input.step → `<stem>.tdp` + `<stem>.coarse.tdp`
    *  in the same dir. `onProgress` fires per phase (see `StepProgress`).
    *  Returns the files written and the JSON diagnostics report. */

@@ -31,6 +31,7 @@ import {
 } from '../../lib/opfs/opfs';
 import type { Rvm2GlbApi } from '../../lib/rvm2glb/rvm2glbWorker';
 import type { Step2GlbApi, StepProgress } from '../../lib/step2glb/step2glbWorker';
+import { spawnComlinkWorker } from '../../lib/worker/spawnComlinkWorker';
 import { MAIN_STORE, type StoreDef, storesState, TEMP_STORE } from '../stores/stores.state';
 import { db } from '../viewer/db';
 import { residency } from '../viewer/residency';
@@ -802,11 +803,20 @@ export const assetsActions = {
       const rvmOpts = assetsState.get().rvm;
       const temp = await rvmTempDir();
       await clearDir(temp);
-      const worker = new Worker(new URL('../../lib/rvm2glb/rvm2glbWorker.ts', import.meta.url), { type: 'module' });
+      let started: Worker | undefined;
       try {
+        const spawned = await spawnComlinkWorker<Rvm2GlbApi>(
+          () => new Worker(new URL('../../lib/rvm2glb/rvm2glbWorker.ts', import.meta.url), { type: 'module' }),
+          'rvm2glb',
+        );
+        if (!spawned.data) {
+          throw new Error(spawned.error?.msg);
+        }
+
+        const { worker, api: rvm } = spawned.data;
+        started = worker;
         // phase 1 — convert (single wasm thread; counter = sites written)
         await writeFile(temp, 'input.rvm', file);
-        const rvm = Comlink.wrap<Rvm2GlbApi>(worker);
         // if the wasm traps, the worker dies WITHOUT rejecting the Comlink
         // call — race against the worker's error event so we don't hang
         const workerDied = new Promise<never>((_, reject) => {
@@ -881,7 +891,7 @@ export const assetsActions = {
         });
       } finally {
         // errors propagate to the lock holder (error dialog + console)
-        worker.terminate();
+        started?.terminate();
         phaseHideLoading(opts);
         await clearDir(temp);
       }
@@ -900,9 +910,18 @@ export const assetsActions = {
         // overlay first — before the worker spin-up — so the UI blocks on click
         phaseLoading(opts, `Converting ${file.name}…`, 'Importing IFC — phase 1 of 2');
         const ifcOpts = assetsState.get().ifc;
-        const worker = new Worker(new URL('../../lib/ifc2glb/ifc2glbWorker.ts', import.meta.url), { type: 'module' });
+        let started: Worker | undefined;
         try {
-          const ifc = Comlink.wrap<Ifc2GlbApi>(worker);
+          const spawned = await spawnComlinkWorker<Ifc2GlbApi>(
+            () => new Worker(new URL('../../lib/ifc2glb/ifc2glbWorker.ts', import.meta.url), { type: 'module' }),
+            'ifc2glb',
+          );
+          if (!spawned.data) {
+            throw new Error(spawned.error?.msg);
+          }
+
+          const { worker, api: ifc } = spawned.data;
+          started = worker;
           // a wasm trap kills the worker without rejecting the Comlink call — race it
           const workerDied = new Promise<never>((_, reject) => {
             worker.addEventListener('error', (e) => reject(new Error(e.message || 'ifc2glb worker crashed')));
@@ -963,7 +982,7 @@ export const assetsActions = {
             meta: opts.meta,
           });
         } finally {
-          worker.terminate();
+          started?.terminate();
           phaseHideLoading(opts);
         }
       })) !== null
@@ -988,10 +1007,19 @@ export const assetsActions = {
         const stepOpts = assetsState.get().step;
         const temp = await stepTempDir();
         await clearDir(temp);
-        const worker = new Worker(new URL('../../lib/step2glb/step2glbWorker.ts', import.meta.url), { type: 'module' });
+        let started: Worker | undefined;
         try {
+          const spawned = await spawnComlinkWorker<Step2GlbApi>(
+            () => new Worker(new URL('../../lib/step2glb/step2glbWorker.ts', import.meta.url), { type: 'module' }),
+            'step2glb',
+          );
+          if (!spawned.data) {
+            throw new Error(spawned.error?.msg);
+          }
+
+          const { worker, api: step } = spawned.data;
+          started = worker;
           await writeFile(temp, 'input.step', file);
-          const step = Comlink.wrap<Step2GlbApi>(worker);
           // if the wasm traps, the worker dies WITHOUT rejecting the Comlink
           // call — race against the worker's error event so we don't hang
           const workerDied = new Promise<never>((_, reject) => {
@@ -1045,7 +1073,7 @@ export const assetsActions = {
             `Assets: ${file.name} imported in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
           );
         } finally {
-          worker.terminate();
+          started?.terminate();
           await clearDir(temp).catch(() => undefined);
           phaseHideLoading(opts);
         }

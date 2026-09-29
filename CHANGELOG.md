@@ -4,6 +4,16 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.29** (>0.0.137):
+  Import workers must now answer a startup handshake. Comlink can lose a
+  freshly created worker when many start at once: its first call never
+  settles, and the import (URL imports included) hung for good while holding
+  the import lock. The cooker pool, the RVM/IFC/STEP converters and the STEP
+  tessellation fan-out now spawn through `spawnComlinkWorker`, which needs a
+  `ping` answer within 1 s; a silent worker is terminated and respawned up to
+  3 times (a console warning each time), then the import fails with an error
+  instead of hanging.
+
 - **2026.09.28** (>0.0.136):
   External-app ribbon buttons now stack by size: two medium or three small per
   column (a medium and a small share one), on both the External and the Home

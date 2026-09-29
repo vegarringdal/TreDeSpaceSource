@@ -28,6 +28,9 @@ export interface IfcOutput {
 }
 
 const api = {
+  /** Startup handshake for spawnComlinkWorker. */
+  ping: () => true,
+
   async convert(
     bytes: ArrayBuffer,
     sourceName: string,

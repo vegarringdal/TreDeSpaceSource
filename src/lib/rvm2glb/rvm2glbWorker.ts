@@ -55,6 +55,9 @@ async function rvmTempDir(): Promise<FileSystemDirectoryHandle> {
 }
 
 const api = {
+  /** Startup handshake for spawnComlinkWorker. */
+  ping: () => true,
+
   /** Convert temp/rvm-import/<inputName> → cooked `.tdp` files in the same dir
    *  (plus a `<name>.coarse.tdp` per site for the VRAM budget).
    *  `onProgress` fires once per output as the core writes it (single

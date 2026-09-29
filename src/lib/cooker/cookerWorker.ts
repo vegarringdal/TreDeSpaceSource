@@ -46,6 +46,9 @@ export interface StoreTdpOutcome {
 }
 
 const api = {
+  /** Startup handshake for spawnComlinkWorker. */
+  ping: () => true,
+
   /** Cook a MERGED GLB (rvm2glb web3dversion 2) and store the result as
    *  model_assets/<outFileName> (callers pass `<store>/<id>.tdp`, and the
    *  store directory is created on the way). Standard files are rejected here — the
