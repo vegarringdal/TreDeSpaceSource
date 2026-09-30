@@ -49,6 +49,13 @@ const api = {
   /** Startup handshake for spawnComlinkWorker. */
   ping: () => true,
 
+  /** Resolves once the wasm cooker is instantiated, or rejects with its init
+   *  error — the pool checks every slot BEFORE any download starts, so a
+   *  broken wasm fails the batch up front instead of stalling it later. */
+  async ready(): Promise<void> {
+    await ready;
+  },
+
   /** Cook a MERGED GLB (rvm2glb web3dversion 2) and store the result as
    *  model_assets/<outFileName> (callers pass `<store>/<id>.tdp`, and the
    *  store directory is created on the way). Standard files are rejected here — the

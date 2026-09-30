@@ -4,6 +4,28 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.09.30** (>0.0.139):
+  The cooker pool now proves the wasm cooker is instantiated in EVERY slot
+  before the first download starts (a `ready()` call per worker, 5 s
+  budget). A slot whose wasm init failed or hung used to swallow its cooks
+  later, after the files were already fetched, and the whole URL batch stalled
+  with the import lock held; now the batch fails up front with the wasm's own
+  init error (or "cooker wasm init did not finish within 5000 ms").
+  Fixed the startup handshake silencing the worker it had just checked
+  (GoogleChromeLabs/comlink#692): Comlink sends a worker RELEASE — after which
+  the worker stops listening for good — as soon as the last proxy for it is
+  garbage-collected, and the handshake's ping ran on a transient proxy created
+  BEFORE the real one. A GC during the parallel handshakes made every pool
+  worker deaf at once, so the batch stalled after the downloads, at the first
+  cook. The root proxy is now created first and pinned for the worker's
+  lifetime; a unit test forces a GC mid-handshake to prove the worker still
+  answers.
+
+  Removed `src/lib/spaEnv.ts` and the `/spa-env.json` boot fetch: the viewer
+  no longer reads container-injected runtime config (nothing consumed it).
+  A host that needs such settings passes them itself, through the
+  postMessage API or its own page. The app now renders immediately instead
+  of after that fetch.
 - **2026.09.29** (>0.0.138):
   Fixed a CI-only failure in the handshake unit test: it gave a healthy fake
   worker 20 ms to answer, which a loaded runner can exceed on the first

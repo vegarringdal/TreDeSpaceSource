@@ -2,9 +2,16 @@
 // is terminated and respawned, and the spawn gives up with an error instead of
 // hanging. Workers are faked with a MessageChannel — one end is the "worker"
 // the helper talks to, the other either exposes a pingable api or stays silent.
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import * as Comlink from 'comlink';
 import { describe, expect, it } from 'vitest';
-import { type Spawnable, spawnComlinkWorker, spawnComlinkWorkers } from '../src/lib/worker/spawnComlinkWorker';
+import {
+  type Spawnable,
+  spawnComlinkWorker,
+  spawnComlinkWorkers,
+  withinMs,
+} from '../src/lib/worker/spawnComlinkWorker';
 
 type FakeWorker = Spawnable & { terminated: boolean };
 
@@ -16,11 +23,20 @@ const ANSWER_TIMEOUT_MS = 500;
 /** Budget where every worker is silent, so nothing depends on speed. */
 const SILENT_TIMEOUT_MS = 20;
 
-/** A worker whose far end answers `ping` only when `healthy`. */
-function fakeWorker(healthy: boolean): FakeWorker {
+/** A worker whose far end answers `ping` only when `healthy` — and, with a
+ *  `gate`, only once it resolves (a ping parked in flight). */
+function fakeWorker(healthy: boolean, gate?: Promise<void>): FakeWorker {
   const { port1, port2 } = new MessageChannel();
   if (healthy) {
-    Comlink.expose({ ping: () => true }, port2);
+    Comlink.expose(
+      {
+        ping: async () => {
+          await gate;
+          return true;
+        },
+      },
+      port2,
+    );
   }
   const worker: FakeWorker = {
     terminated: false,
@@ -35,6 +51,34 @@ function fakeWorker(healthy: boolean): FakeWorker {
     },
   };
   return worker;
+}
+
+/** A real `gc()`: Node hides it behind a V8 flag, but the flag can be set at
+ *  runtime and a fresh context then sees the global. undefined when the
+ *  runtime refuses. */
+function exposeGc(): (() => void) | undefined {
+  try {
+    v8.setFlagsFromString('--expose-gc');
+    const gc: unknown = vm.runInNewContext('gc');
+    if (typeof gc !== 'function') {
+      return undefined;
+    }
+
+    return () => {
+      gc();
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+const gc = exposeGc();
+
+/** Let queued messages and FinalizationRegistry callbacks run. */
+async function settle(): Promise<void> {
+  for (let i = 0; i < 5; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 /** A `create` that hands out workers by script (`true` = healthy), recording
@@ -68,6 +112,31 @@ describe('spawnComlinkWorker', () => {
     res.data?.worker.terminate();
   });
 
+  // GoogleChromeLabs/comlink#692: when the last proxy for a worker is
+  // garbage-collected, Comlink sends it a RELEASE and the worker stops
+  // listening for good. The handshake's own proxy is transient, so a GC while
+  // its ping is in flight must not silence the worker — the pinned root
+  // (created before the ping) keeps the count above zero.
+  it.skipIf(!gc)('keeps the worker listening when a GC runs during the handshake', async () => {
+    let release = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = () => resolve();
+    });
+    const worker = fakeWorker(true, gate);
+    const spawning = spawnComlinkWorker(() => worker, 'test', { timeoutMs: ANSWER_TIMEOUT_MS });
+    await settle(); // the ping has reached the worker side and is parked on the gate
+    gc?.();
+    await settle(); // finalizers run — the handshake proxies are collectable now
+    gc?.();
+    await settle();
+    release();
+    const res = await spawning;
+    expect(res.error).toBeUndefined();
+    const again = res.data?.api.ping() ?? Promise.reject(new Error('no api'));
+    await expect(withinMs(again, ANSWER_TIMEOUT_MS, 'second ping')).resolves.toBe(true);
+    res.data?.worker.terminate();
+  });
+
   it('gives up with an error after the retries, terminating every attempt', async () => {
     const { made, create } = scripted([]);
     const res = await spawnComlinkWorker(create, 'test', { timeoutMs: SILENT_TIMEOUT_MS, retries: 3 });
@@ -75,6 +144,24 @@ describe('spawnComlinkWorker', () => {
     expect(res.error?.msg).toMatch(/test worker did not answer/);
     expect(made).toHaveLength(4);
     expect(made.every((w) => w.terminated)).toBe(true);
+  });
+});
+
+describe('withinMs', () => {
+  it('passes a settled value through', async () => {
+    await expect(withinMs(Promise.resolve(42), ANSWER_TIMEOUT_MS, 'x')).resolves.toBe(42);
+  });
+
+  it('passes a rejection through unchanged', async () => {
+    await expect(withinMs(Promise.reject(new Error('wasm broke')), ANSWER_TIMEOUT_MS, 'x')).rejects.toThrow(
+      'wasm broke',
+    );
+  });
+
+  it('rejects with the label once the budget passes', async () => {
+    await expect(withinMs(new Promise<never>(() => undefined), SILENT_TIMEOUT_MS, 'cooker wasm init')).rejects.toThrow(
+      'cooker wasm init did not finish within 20 ms',
+    );
   });
 });
 

@@ -1,8 +1,14 @@
 // A small pool of cooker workers — created on demand, torn down after the
 // import batch so idle tabs hold no worker memory.
 import * as Comlink from 'comlink';
-import { spawnComlinkWorkers } from '../worker/spawnComlinkWorker';
+import { spawnComlinkWorkers, withinMs } from '../worker/spawnComlinkWorker';
 import type { CookerApi, CookOutcome, StoreTdpOutcome } from './cookerWorker';
+
+/** Budget for a slot's wasm cooker to fetch + instantiate. The module is
+ *  400 KB and normally up in well under a second (the fetch starts at worker
+ *  load, then comes from the HTTP cache); the slack is for a slow link with
+ *  every slot fetching at once, since a miss fails the whole batch. */
+const WASM_READY_MS = 5_000;
 
 export type CookToOpfs = (glb: ArrayBuffer, outFileName: string, coarsePath?: string) => Promise<CookOutcome>;
 export type StoreTdpToOpfs = (
@@ -62,6 +68,10 @@ export async function withCookerPool<T>(
   const cookStandard: CookStandardToOpfs = (glb, outFileName, normals) =>
     dispatch((api) => api.cookStandardToOpfs(Comlink.transfer(glb, [glb]), outFileName, normals));
   try {
+    // the wasm must be up in EVERY slot before the first download: a slot
+    // whose init failed or hung would otherwise swallow its cooks later, with
+    // the files already fetched. An init error carries the wasm's own message.
+    await Promise.all(apis.map((api) => withinMs(api.ready(), WASM_READY_MS, 'cooker wasm init')));
     return await run(cook, storeTdp, cookStandard);
   } finally {
     for (const w of workers) {
