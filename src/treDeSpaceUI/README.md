@@ -1318,17 +1318,21 @@ import/export, and a recorder. The Tooltip widget reads this registry for its
 
 ```
 X          tap (press & release)                        "Z"
-A&B        together, same instant                       "CTRL&Z", "E&R"
-A + B      then (release, press next)                   "G + X"
-[X], [A&B] hold a key/group across the rest of the seq  "[F1] + 2"
-AA / 101   runs expand to taps (A+A, 1+0+1)             "ALT + 101"
-++         the literal + key
+A+B        together, same instant (no spaces)           "CTRL+Z", "E+R"
+A B / A,B  then (release, press next)                   "G X"
+[X], [A+B] hold a key/group across the rest of the seq  "[F1] 2"
+AA / 101   runs expand to taps (A A, 1 0 1)             "ALT 101"
+PLUS       the literal + key (COMMA: the comma key)
 ```
 
 Modifiers: `CTRL`, `ALT`, `SHIFT`, `META`/`CMD`. Named keys: `ESC`, `ENTER`,
 `SPACE`, `TAB`, `UP/DOWN/LEFT/RIGHT`, `PAGEUP/PAGEDOWN`, `HOME`, `END`,
-`DELETE`, `BACKSPACE`, `F1`–`F12`. A shorter binding may be a prefix of a
-longer one (`F` alongside `F+F`) — the short one fires on timeout.
+`DELETE`, `BACKSPACE`, `PLUS`, `COMMA`, `F1`–`F12`. `formatSequence` writes
+steps separated by a space; `parseSequence` also accepts commas, and rejects
+spaces around `+` (`CTRL + Z`) so the old notation — `&` together,
+` + ` then — fails loudly instead of being misread. A shorter binding may be
+a prefix of a longer one (`F` alongside `F F`) — the short one fires on
+timeout. Exported keymap files are `version: 2`; older files are rejected.
 
 ### Storage key
 
@@ -1347,7 +1351,7 @@ const defs: HotkeyDef[] = [
     category: 'Editing',           // UI group
     label: 'Undo',
     description: 'Undo the last transform.',
-    defaultKeys: 'CTRL&Z',
+    defaultKeys: 'CTRL+Z',
     run: () => undo(),
     // allowInInput?: boolean       — fire even inside text fields (default: true for
     //                                 a pure F-key combo, else false — see "Text fields")
@@ -1463,8 +1467,8 @@ settings panel re-renders on any registry change (`defs`, `order`,
 ### Engine / helper functions
 
 ```ts
-parseSequence('CTRL&Z')       // display grammar → canonical Sequence (throws HotkeyParseError)
-formatSequence(seq)           // Sequence → display string ("ALT&F1 + 101")
+parseSequence('CTRL+Z')       // display grammar → canonical Sequence (throws HotkeyParseError)
+formatSequence(seq)           // Sequence → display string ("ALT+F1 101")
 formatCombo(combo)            // one step → display
 isValidKeys(str)              // does it parse?
 validateBindings(defs)        // boot/test check: parse+round-trip+exact-duplicate report

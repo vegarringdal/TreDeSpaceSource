@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — Measurement List</title>
+  <meta name="description" content="Guide to the Measurement List panel: rename, hide and delete measurements, show ΔX/ΔY/ΔZ legs and slope, set decimals and colour, save and load measurements." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · panel</p>
+      <h1>Measurement List</h1>
+      <p class="lede">
+        Every measurement you take, with its value: rename, hide, delete, add helpers in the 3D view, and save them to a file. The <b>numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="ml" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Measurement List</h2>
+          <p>
+            You take measurements with the tools on the <b>Measurement</b> ribbon (see
+            <a href="f06-measurements.html">F6 Measurements</a>). Each finished measurement appears here as a row with
+            its name and value. The list does not place points itself.
+          </p>
+
+          <h3 id="ml-open">Open the panel</h3>
+          <ul class="plain">
+            <li>Press <kbd>F6</kbd>: the Measurements layout has the list on the right.</li>
+            <li>Or click <b>List</b> on the Measurement ribbon (<kbd>ALT 710</kbd>).</li>
+            <li>Or open the <b>Panel</b> ribbon tab and click <b>Measurement List</b> (<kbd>ALT 674</kbd>).</li>
+          </ul>
+
+          <h3 id="ml-tour">A tour of the panel</h3>
+          <figure class="shot" data-shot="measurements-overview">
+            <figcaption>The list with five measurements: a line, a path, an angle, a point and a face gap.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Load &amp; save</b> — save all measurements to a file, load them back, hide them all or delete them all.</li>
+            <li><b>Config</b> — decimals, colour and the 3D point spheres. Closed by default.</li>
+            <li><b>Measurements</b> — the list. The number on the right is how many there are.</li>
+            <li><b>The row header</b> — the measurement's name and its value. Click it to fold the row up.</li>
+            <li><b>The row</b> — rename the measurement and switch its helpers on or off.</li>
+          </ol>
+          <p>
+            Values are in metres (m), the unit the model is stored in; areas in m², angles in degrees. A <b>Point</b>
+            shows its X, Y and Z coordinates. <b>Σ</b> marks a path's total length, <b>Ø</b> a diameter, <b>∠</b> an
+            angle and <b>⊥</b> a face-to-face gap.
+          </p>
+
+          <h3 id="ml-files">Load &amp; save</h3>
+          <figure class="shot" data-shot="measurements-files"></figure>
+          <ol class="legend-list">
+            <li><b>Save…</b> (<kbd>ALT 721</kbd>) — downloads every measurement as <code class="inline">measurements.json</code>, together with the decimals, the colour and whether they are muted. Greyed out while the list is empty.</li>
+            <li><b>Load…</b> (<kbd>ALT 722</kbd>) — opens a saved file. It <b>replaces</b> the measurements you have now. A message tells you how many were loaded.</li>
+            <li><b>Mute all</b> (<kbd>ALT 720</kbd>) — hides every measurement from the 3D view without deleting it. The button then reads <b>Show all</b>; press it to bring them back.</li>
+            <li><b>Delete all</b> (<kbd>ALT 723</kbd>) — deletes every measurement at once, without asking. This can't be undone.</li>
+          </ol>
+          <p class="note">
+            Measurements are <b>not</b> kept when you close or reload the app. Save them to a file, or store them in a
+            <a href="f10-viewpoint.html">viewpoint</a>, if you want to keep them.
+          </p>
+
+          <h3 id="ml-config">Config</h3>
+          <figure class="shot" data-shot="measurements-config"></figure>
+          <ol class="legend-list">
+            <li><b>Decimals</b> — how many decimals values show, 0 to 6 (default 3). Angles show at most 2.</li>
+            <li><b>Color</b> — the colour of every measurement's lines and markers in the 3D view, and of the area fill. Pick a light colour on a dark model, or the other way round.</li>
+            <li><b>Sphere</b> — size (radius in metres) and colour of the 3D spheres that a row's sphere button puts on its points. Changing them also changes every sphere already shown.</li>
+            <li><b>Sphere fill: solid</b> — draws filled spheres instead of wire spheres. The value beside it sets how see-through they are; it is greyed out until <b>solid</b> is ticked.</li>
+            <li><b>Spheres on</b> — puts spheres on every point of every measurement. When all of them already have spheres, it reads <b>Spheres off</b> and removes them all.</li>
+          </ol>
+          <p>
+            Unlike the labels and lines, which are always drawn on top, the spheres sit <i>in</i> the model: parts in
+            front of a point hide its sphere. That makes it easy to see which points are behind something.
+          </p>
+
+          <h3 id="ml-row">One measurement row</h3>
+          <figure class="shot" data-shot="measurements-row">
+            <figcaption>A Line measurement with all three ΔX/ΔY/ΔZ legs, the ΔZ length and the slope switched on.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Name</b> — type a new name. <kbd>Enter</kbd> starts a new line, and words between <code class="inline">**</code> are shown in bold. The header shows the first line; the 3D view shows the whole name above the value. A new measurement is named after its tool: Line 1, Line 2 …</li>
+            <li><b>Label</b> — shows or hides the name and value in the 3D view. With it off, only the lines are drawn.</li>
+            <li><b>Spheres</b> — puts a 3D sphere on each point of this measurement (size and colour under <b>Config</b>).</li>
+            <li><b>Perpendicular helper</b> — for points placed with <kbd>Shift</kbd> or the Perpendicular lock: shows the dashed line from where you clicked to where the point went, with a right-angle mark. Greyed out when the measurement has no such points.</li>
+            <li><b>Slope</b> — Line only. Adds the slope to the label: the angle from horizontal and the fall in percent. For a vertical line only the angle is shown.</li>
+            <li><b>Show / hide</b> — hides this measurement from the 3D view; the eye is crossed out while it is hidden. It stays in the list.</li>
+            <li><b>Delete</b> — removes the measurement. This can't be undone.</li>
+            <li><b>XYZ</b> — Line and Path only: switches all three ΔX/ΔY/ΔZ legs on, or all off.</li>
+            <li><b>X</b>, <b>Y</b>, <b>Z</b> — draws one leg of the "staircase" from the first to the last point: how far it goes along that axis. The legs are drawn red (X), green (Y) and blue (Z).</li>
+            <li><b>XT</b>, <b>YT</b>, <b>ZT</b> — writes that leg's length on it.</li>
+            <li><b>ΣXYZ</b> — adds all three lengths to the main label (X: … / Y: … / Z: …).</li>
+          </ol>
+          <p>An <b>Angle</b> row has one more button:</p>
+          <figure class="shot" data-shot="measurements-angle"></figure>
+          <ol class="legend-list">
+            <li><b>Reflex angle</b> — shows the angle on the other side (360° minus the angle), with the arc drawn on that side.</li>
+          </ol>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-legs">See how far a line goes along each axis</h3>
+          <ol class="steps">
+            <li>Measure the line with the <b>Line</b> tool (see <a href="f06-measurements.html#task-line">Measure a distance</a>).</li>
+            <li>In its row, press <b>XYZ</b>. Three dashed legs, one per axis, now run from the first point to the second.</li>
+            <li>
+              Press <b>XT</b>, <b>YT</b> or <b>ZT</b> to write the length on a leg, or <b>ΣXYZ</b> to list all three
+              in the main label. Press the slope button to add the slope as well.
+              <figure class="shot" data-shot="measurements-legs-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="task-share">Send measurements to a colleague</h3>
+          <ol class="steps">
+            <li>Give the measurements clear names, so the file explains itself.</li>
+            <li>Press <b>Save…</b>. Your browser downloads <code class="inline">measurements.json</code>.</li>
+            <li>Your colleague opens the same model and presses <b>Load…</b>, then picks the file. Their current measurements are replaced by yours.</li>
+          </ol>
+          <p class="note">
+            The file holds the measured points, not a link to the model. If the model has moved or changed since, the
+            measurements stay where they were.
+          </p>
+
+          <h3 id="task-clean">Clean up</h3>
+          <ul class="plain">
+            <li>Delete one measurement with its bin, or all of them with <b>Delete all</b>. Neither can be undone, so save first if you may need them again.</li>
+            <li>To take screenshots without the measurements, use <b>Mute all</b> instead: nothing is deleted.</li>
+            <li>The <b>Measurement</b> button under <b>Quick Clear</b> on the Home ribbon also deletes all measurements, after asking first.</li>
+          </ul>
+        </section>
+
+        <section id="viewpoint" class="g-sec">
+          <p class="sec-kick">Viewpoints</p>
+          <h2>Measurement (viewpoint)</h2>
+          <p>
+            A viewpoint can carry its own measurements. They are edited in a second copy of this panel,
+            <b>Measurement (viewpoint)</b> (<kbd>ALT 689</kbd>), which is part of the <a href="f10-viewpoint.html">F10 Viewpoint</a>
+            layout. It works like the list on this page, for the viewpoint you have open. Its controls are locked until
+            you press <b>Edit</b> on the bar at its top.
+          </p>
+          <ul class="plain">
+            <li>Only one set of measurements is shown at a time. While a viewpoint's measurements are shown, this panel says <b>Muted</b> and offers <b>Unmute scene</b> to bring your own measurements back.</li>
+            <li>Changes to a viewpoint's measurements are kept only when you save them to the viewpoint. See the <a href="f10-viewpoint.html">F10 Viewpoint guide</a>.</li>
+          </ul>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control in the panel</h2>
+          <div class="ref-table" data-ref="measurements"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

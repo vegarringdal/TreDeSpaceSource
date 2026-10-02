@@ -3,7 +3,7 @@
 // colour-picker swatches and the custom keyboard shortcuts. Layout slots and
 // External apps are user content, not preferences — they stay out, exactly as
 // they do for Reset all.
-import { hotkeysActions } from '@treDeSpaceUI/hotkeys';
+import { hotkeysActions, KEYMAP_VERSION } from '@treDeSpaceUI/hotkeys';
 import { downloadText } from '../../../lib/download';
 import { DEFAULT_PICKER_SWATCHES, pickerSwatchesState } from '../../../state/pickerSwatches.state';
 import { gizmoLabelsActions, gizmoLabelsState, mergeGizmoLabels } from '../../../state/viewer/gizmoLabels.state';
@@ -131,6 +131,15 @@ export function applySettingsJson(text: string): Result<{ applied: string[] }> {
     applied.push('swatches');
   }
   if (isRecord(parsed.shortcuts)) {
+    // check before resetAll: an old-notation block must not wipe the current shortcuts
+    if (parsed.shortcuts.version !== KEYMAP_VERSION) {
+      return {
+        error: {
+          err: null,
+          msg: 'Shortcuts block skipped: it uses the old shortcut notation (saved before CTRL&Z became CTRL+Z) — your shortcuts were left unchanged',
+        },
+      };
+    }
     hotkeysActions.resetAll();
     try {
       hotkeysActions.importJson(JSON.stringify(parsed.shortcuts));

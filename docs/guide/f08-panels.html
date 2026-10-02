@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F8 Panels</title>
+  <meta name="description" content="Guide to the F8 Panels layout: open and close any panel from the Panel ribbon, and move, dock, float, lock and fold panels." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F8</p>
+      <h1>Panels</h1>
+      <p class="lede">
+        Open any panel, and arrange the screen the way you like it: tabs, side by side, or in a floating window.
+        <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F8</p>
+          <h2>The Panels layout</h2>
+          <p>
+            Press <kbd>F8</kbd> (or pick <b>Panels</b> on the <a href="index.html#app-layout-ribbon">App Layout</a> ribbon)
+            when you want to put your own workspace together. The <b>Panel</b> ribbon lists every panel in the app, and
+            Settings opens on its <b>Layouts</b> tab, where the layout slots are named.
+          </p>
+          <figure class="shot" data-shot="f08-layout">
+            <figcaption>The F8 layout. The Console is folded down to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Panel ribbon</b> — one button per panel. See <a href="#ribbon">below</a>.</li>
+            <li><b>Hierarchy</b> — the model tree, described in <a href="f01-home.html#hierarchy">F1 Home</a>.</li>
+            <li><b>3D view</b>.</li>
+            <li><b>Settings → Layouts</b> — rename the 24 layout slots, or reset them. See <a href="index.html#rename-layout">Rename or reset a layout</a>.</li>
+            <li><b>Console</b> — folded. Click its tab to open it.</li>
+          </ol>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Panel ribbon</h2>
+          <figure class="shot" data-shot="f08-ribbon"></figure>
+          <ol class="legend-list">
+            <li><b>A panel that is open</b> is highlighted (here Hierarchy, Settings and Console). Click it to close the panel.</li>
+            <li><b>A panel that is closed</b> is not highlighted. Click it to open the panel on its usual side of the screen, or drag the button to exactly where you want the panel (see <a href="#move">Move a panel</a>).</li>
+            <li><b>External Panels</b> — your organisation's own tools that open in a panel (set up under Settings → External, see <a href="f07-external.html">F7 External</a>). This group is only shown when there are such tools; here it holds an example tool, <b>Work Orders</b>. One added during this session appears here once it has been opened.</li>
+          </ol>
+          <p>
+            The highlight always follows the screen, however a panel was opened or closed. A panel you close and open
+            again comes back where it was. Most panels also have a shortcut to show or hide them: the
+            <a href="#reference">reference table</a> lists them all (for example <kbd>CTRL+C</kbd> for Set Color,
+            <kbd>CTRL+S</kbd> for Settings). The 3D view has no button: it is always there.
+          </p>
+        </section>
+
+        <section id="docking" class="g-sec">
+          <p class="sec-kick">Arranging the screen</p>
+          <h2>Moving panels around</h2>
+
+          <h3 id="tabstrip">The panel header</h3>
+          <p>
+            Every group of panels has a header with a tab per panel. Here Set Color was opened next to Settings, so they
+            share the right side as two tabs.
+          </p>
+          <figure class="shot" data-shot="f08-tabstrip"></figure>
+          <ol class="legend-list">
+            <li><b>Tab</b> — click it to show that panel. Drag it to move the panel. Double-click it to float the panel in its own window.</li>
+            <li><b>×</b> — closes the panel. Open it again from the Panel ribbon.</li>
+            <li><b>Size lock</b> (padlock) — click to lock the group at its current size: it can still grow, but it is never squeezed smaller when you drag other dividers. A closed padlock means locked; click again to unlock.</li>
+            <li><b>▾ Fold</b> — folds the whole group down to its header, to give the space to its neighbours. It changes to <b>▸</b>; click that to unfold. Panels keep their contents while folded.</li>
+          </ol>
+          <ul>
+            <li>To <b>resize</b> two panels, drag the thin line between them.</li>
+            <li>The ribbon at the top has a <b>▾</b> at its right end too: it folds the ribbon away for more room. The ribbon itself cannot be moved or closed.</li>
+          </ul>
+
+          <h3 id="move">Move a panel</h3>
+          <ol class="steps">
+            <li>Press on a panel's tab (or its button on the Panel ribbon) and drag. A label with the panel's name follows the pointer.</li>
+            <li>
+              Move over the panel you want to put it next to. A set of drop buttons appears in the middle of that panel.
+              <figure class="shot" data-shot="f08-compass">
+                <figcaption>Dragging the Console over the Settings panel. The centre button is lit, and the blue area shows where the Console would go.</figcaption>
+              </figure>
+              <ul>
+                <li><span class="mk">1</span> <b>Centre</b> — add it as a tab in that panel's group.</li>
+                <li><span class="mk">2</span> <b>Inner ring</b> (left, right, top, bottom) — split that panel and put the new one on that side of it.</li>
+                <li><span class="mk">3</span> <b>Outer ring</b> (smaller buttons) — put it beside the whole column or row the panel sits in, rather than inside it.</li>
+              </ul>
+            </li>
+            <li>Release the mouse button on a drop button. The blue area shows the result before you let go. Releasing on another panel's <b>tab strip</b> adds it as a tab at that spot.</li>
+            <li>Released anywhere else, the panel <b>floats</b> in its own window. Press <kbd>Esc</kbd> while dragging to cancel.</li>
+          </ol>
+
+          <h3 id="float">Floating windows</h3>
+          <figure class="shot" data-shot="f08-floating"></figure>
+          <ol class="legend-list">
+            <li><b>Title bar</b> — drag it to move the window. Double-click it to dock the panel back. Drag the window's edges or corners to resize it.</li>
+            <li><b>–</b> — folds the window down to its title bar. Click again to restore it.</li>
+            <li><b>⤓ Dock back</b> — puts the panel back into the main screen.</li>
+            <li><b>×</b> — closes the window and its panel.</li>
+          </ol>
+          <p>
+            A floating window can hold several panels as tabs: drag another panel's tab onto its tab strip.
+          </p>
+
+          <h3 id="focus-modes">More room for the 3D view</h3>
+          <ul>
+            <li><b>Solo main panel</b> (<kbd>ALT 626</kbd>) — closes every panel except the 3D view. Press again to bring them all back as they were.</li>
+            <li><b>Kiosk mode</b> (<kbd>ALT 1175</kbd>) — the 3D view only: panels closed and the ribbon folded away. Press again to return.</li>
+          </ul>
+        </section>
+
+        <section id="keep" class="g-sec">
+          <p class="sec-kick">Good to know</p>
+          <h2>Keeping your arrangement</h2>
+          <p>
+            The panel arrangement itself is <b>not</b> remembered when you reload the page: the app starts in the layout
+            slot you last chose (for example <kbd>F8</kbd>), as that slot was saved. To keep an arrangement, save it into
+            a layout slot: <a href="index.html#save-layout">Save your own layout</a>. Its name is changed under
+            <b>Settings → Layouts</b>, on the right of this layout (<a href="index.html#rename-layout">Rename or reset a layout</a>).
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every panel on the ribbon</h2>
+          <div class="ref-table" data-ref="ribbonPanels"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

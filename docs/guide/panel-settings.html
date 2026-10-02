@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — Settings</title>
+  <meta name="description" content="Guide to the Settings panel: rendering quality, lighting, navigation, edges, ambient occlusion, keyboard shortcuts, layouts and saving your settings to a file." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · Panel</p>
+      <h1>Settings</h1>
+      <p class="lede">
+        How the 3D view looks, how the camera moves, your keyboard shortcuts and more. <b>Numbered markers</b> on each
+        picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="settings" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>The Settings panel</h2>
+          <p>
+            Settings is open on the right in <a href="f01-home.html">F1 Home</a>, and in <a href="f08-panels.html">F8 Panels</a>
+            on its Layouts tab. Show or hide it anywhere with <kbd>CTRL+S</kbd>, or from the Panel ribbon.
+            Every change takes effect at once and is remembered in your browser; there is no OK button.
+          </p>
+          <figure class="shot" data-shot="settings-overview">
+            <figcaption>The Rendering tab with all its sections folded.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Tabs</b> — click one to see its settings.</li>
+            <li><b>Section</b> — click the title to fold or unfold it.</li>
+            <li><b>Info</b> (ⓘ) — explains what the section is for.</li>
+            <li><b>Section reset</b> — puts just that section back to its defaults. It is greyed out while the section is already at its defaults, so it also tells you at a glance which sections you have changed.</li>
+            <li><b>Save…</b> — downloads your settings as <code class="inline">tredespace-settings.json</code>.</li>
+            <li><b>Load…</b> — reads such a file back, for example on another computer.</li>
+            <li><b>Reset all settings</b> — puts everything back to the defaults, after asking first.</li>
+          </ol>
+          <div class="concept">
+            <p class="concept-title">What Save, Load and Reset all cover</p>
+            <ul>
+              <li>Rendering, Lighting, GPU, Navigation, Edges, Ambient Occlusion, Gizmo, Stats and Editor, the light / dark theme, and your own keyboard shortcuts. Save and Load also include the colour picker swatches.</li>
+              <li><b>Not</b> the layout slots and <b>not</b> the external apps: those are reset from their own tabs (Layouts and External).</li>
+              <li>The camera type (Persp. / Ortho) and Sketch mode are not settings: the app always starts in perspective with Sketch off.</li>
+              <li>Settings live in this browser only. <b>Wipe All</b> on the Home ribbon erases them; save a file first if you want to keep them.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="tabs" class="g-sec">
+          <p class="sec-kick">Tab by tab</p>
+          <h2>The tabs</h2>
+          <p>
+            Most settings have a keyboard shortcut; the <a href="#reference">reference tables</a> at the end list every
+            one. Settings marked <i>advanced</i> are for troubleshooting and seldom need changing.
+          </p>
+
+          <h3 id="tab-rendering">Rendering</h3>
+          <p>Picture quality and the selection look. The tab has nine sections; the ones that matter most:</p>
+          <figure class="shot" data-shot="settings-rendering-aa"></figure>
+          <ul>
+            <li><b>Antialiasing</b> — smooths jagged edges. <b>MSAA 4x</b> (on by default) smooths every frame. <b>AA fast</b> instead builds up a smooth picture over several frames while the camera stands still; <b>AA samples</b> is how many. <b>Smart pixel ratio</b> picks a sharp render resolution for your screen; untick it to set the <b>Pixel ratio</b> yourself (lower is faster but blurrier).</li>
+          </ul>
+          <figure class="shot" data-shot="settings-rendering-transparency"></figure>
+          <ul>
+            <li><b>Transparency</b> — how see-through items are drawn. <b>Blend</b> (default) draws them as glass. <b>Alpha hash</b> uses a fine dot pattern that smooths out when the camera stops, and avoids glass drawn in the wrong order. <b>Background</b> draws the see-through items solid, behind everything else, so the items you left solid always stand in front ("ghosted context"); <b>Background fade</b> sets how far their colours fade towards the background (0 % keeps their colours, 100 % gives flat silhouettes). Items in the background cannot be clicked.</li>
+          </ul>
+          <figure class="shot" data-shot="settings-rendering-selection"></figure>
+          <ul>
+            <li><b>Background &amp; selection</b> — the colour of the 3D view behind the model, the colour of the selection tint, and whether a selection shows as a tint, an outline or both (the same choice as on the <a href="f01-home.html#ribbon-draw">Home ribbon</a>).</li>
+            <li><b>Outline (selection &amp; hover)</b> — strength, glow, thickness, pulse and colours of the outline. <b>Hover outline</b> also outlines the item under the mouse.</li>
+            <li><b>Picking</b> — <b>Pick opacity ≥</b> (default 10.1 %): items at least this solid can be clicked. Fainter items let the click pass through to what is behind them. Hold <kbd>Shift</kbd> while clicking to do the opposite: pick faint items and click through glass.</li>
+            <li><b>Dark colours</b> — models with pure black colours show no shading at all. <b>Lift black color to grey</b> (on by default) draws pure black as grey, at the <b>Grey level</b> you choose. Only exact black is changed, only on screen.</li>
+          </ul>
+          <figure class="shot" data-shot="settings-rendering-vram"></figure>
+          <ul>
+            <li><b>VRAM budget</b> — for very large models or graphics cards with little memory. Off by default: everything loads in full detail. When <b>Enabled</b>, models far from the camera switch to a coarse version while the camera stands still, to stay under <b>Max VRAM</b>, and come back in full detail when you move close and stop. <b>Set it too low and parts you are looking at stay coarse or are missing.</b> Leave it off unless you need it. <b>Show activity indicator</b> puts a small sign in the corner of the 3D view while it works.</li>
+            <li><b>Culling</b> and <b>Debug</b> — <i>advanced</i>. <b>FPS limit</b> (default 30) caps how often the picture is redrawn; the rest tunes how the renderer skips tiny or hidden parts, or shows its internal buffers.</li>
+          </ul>
+
+          <h3 id="tab-lighting">Lighting</h3>
+          <figure class="shot" data-shot="settings-lighting"></figure>
+          <p>
+            Two lights shade the model: an <b>ambient</b> light that lights every surface evenly, and a <b>headlight</b>
+            that follows the camera and gives shape to what you look at. Set the colour and intensity of each (0 turns
+            a light off; above 1 overexposes). <b>Sketch lighting</b> is a separate set used only while Sketch mode is on.
+          </p>
+
+          <h3 id="tab-gpu">GPU</h3>
+          <figure class="shot" data-shot="settings-gpu"></figure>
+          <p>
+            <i>Advanced.</i> On a computer with two graphics cards, choose which one the app asks for. Next to each choice
+            is the card it gives on this computer (the picture was taken on a machine without a real graphics card).
+            A new choice needs <b>Reload to apply</b>. <b>Simulate GPU crash</b> is a test: it makes the app lose its
+            graphics card on purpose, to check that it recovers.
+          </p>
+
+          <h3 id="tab-navigation">Navigation</h3>
+          <figure class="shot" data-shot="settings-navigation"></figure>
+          <ul>
+            <li><b>Mode</b> — <b>Orbit</b> turns and pans around a centre point; pressing a movement key (<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, <kbd>E</kbd> <kbd>Q</kbd>) switches to fly or walk. <b>Fly</b> (default) moves freely in the direction you look. <b>Walk</b> moves at a constant height, like walking through the plant. <kbd>TAB</kbd> switches between fly and walk.</li>
+            <li><b>Walk when movement keys are used</b> — the movement keys go to walk instead of fly when you leave orbit.</li>
+            <li><b>Fly / Walk speed</b> in metres per second, and the faster <b>+ Shift</b> speeds used while you hold <kbd>Shift</kbd>.</li>
+            <li><b>Orbit</b> and <b>Pan sensitivity</b> — how much the view turns or slides per mouse movement or arrow key press.</li>
+            <li><b>Frame dense bounds on load</b> — when a model loads, frame the area where most of it is, so a few parts far away don't make the first view tiny.</li>
+          </ul>
+
+          <h3 id="tab-edges">Edges</h3>
+          <figure class="shot" data-shot="settings-edges"></figure>
+          <ul>
+            <li><b>Geometry edges</b> — lines where a surface bends or one part is in front of another. <b>Item edges</b> — lines along the borders between items. Both are on by default. Item edges can be switched off for single items from the <a href="f01-home.html#hierarchy-menu">Hierarchy right-click menu</a>.</li>
+            <li><b>Edge colour</b>, and <b>White edges on dark items</b> so lines stay visible on dark surfaces (<b>Darkness threshold</b> decides what counts as dark).</li>
+            <li><b>Edges — flat shading</b> and <b>Edges — with normals</b> — fine-tuning for the two kinds of model surfaces: <b>Fade</b> makes far-away lines fainter; the two thresholds decide how sharp a bend or depth jump must be to get a line. Lower values give more lines.</li>
+            <li><b>Sketch edges</b> — the line settings, colour mode and view cube colours used while <a href="f01-home.html#ribbon-draw">Sketch</a> is on.</li>
+          </ul>
+
+          <h3 id="tab-ao">Ambient Occlusion</h3>
+          <figure class="shot" data-shot="settings-ao"></figure>
+          <p>
+            Ambient occlusion darkens corners, creases and places where parts touch, so the model looks more solid. It is
+            <b>Off</b> by default. <b>Motion</b> computes it in every frame (costs speed while you move); <b>Static</b>
+            builds a cleaner result while the camera stands still. <b>Radius</b> is how far the shadowing reaches,
+            <b>Strength</b> how dark it gets; <b>Slices</b> and <b>Samples</b> trade quality against speed.
+          </p>
+
+          <h3 id="tab-gizmo">Gizmo</h3>
+          <figure class="shot" data-shot="settings-gizmo"></figure>
+          <p>
+            The names on the faces of the view cube in the corner of the 3D view (FRONT, BACK, LEFT, RIGHT, TOP, BOT),
+            for example to use your plant's own directions. The coloured face buttons on the ribbons show their first
+            letters. <b>Cube colours</b> sets the cube's faces, lines, text and hover colour.
+          </p>
+
+          <h3 id="tab-shortcuts">Shortcuts</h3>
+          <figure class="shot" data-shot="settings-shortcuts"></figure>
+          <ol class="legend-list">
+            <li><b>Import / export</b> — <b>Export…</b> saves the shortcuts you have changed to a file; <b>Import…</b> applies such a file (shortcuts that clash with others are skipped). The reset button in its header removes all your changes.</li>
+            <li><b>Search</b> — find a shortcut by name, description or key combination (for example <code class="inline">ALT 6</code>). Below it, the shortcuts are grouped by category; the badge shows how many there are, or how many you have changed.</li>
+            <li><b>Camera / navigation</b> — the mouse and movement keys of the 3D view. They are fixed and cannot be changed.</li>
+          </ol>
+          <p>To change a shortcut:</p>
+          <ol class="steps">
+            <li>Search for it, or open its category.</li>
+            <li>
+              Press <b>Record</b> <span class="mk">3</span>. The key field turns blue and reads <b>press keys…</b> <span class="mk">1</span>.
+              <figure class="shot" data-shot="settings-shortcut-record"></figure>
+            </li>
+            <li>Press the new keys. Keys pressed together become one step, shown joined with <kbd>+</kbd> (like <kbd>CTRL+S</kbd>); release them and press more keys to add another step, shown after a space (like <kbd>ALT 1010</kbd>).</li>
+            <li>Stop for a moment, or press <kbd>Enter</kbd>, and the new shortcut is stored. <kbd>Esc</kbd> cancels.</li>
+            <li>If the keys are already used by another shortcut, the app asks whether to give them to this one instead.</li>
+          </ol>
+          <p>
+            A changed shortcut is shown in orange. The <b>×</b> next to it <span class="mk">2</span> puts it back to
+            the default; it is greyed out while the shortcut is unchanged.
+          </p>
+
+          <h3 id="tab-stats">Stats</h3>
+          <figure class="shot" data-shot="settings-stats"></figure>
+          <p>
+            <i>Advanced.</i> Live numbers from the renderer: models, triangles, memory use, frame times. Useful when the
+            view is slow or when you report a problem. <b>Show overlay in viewport</b> shows the list in the corner of the
+            3D view; untick rows to leave them out of the overlay.
+          </p>
+
+          <h3 id="tab-editor">Editor</h3>
+          <figure class="shot" data-shot="settings-editor"></figure>
+          <p>
+            The grid of colours at the bottom of every colour picker in the app: click a swatch to change it, or
+            <b>Reset swatches</b>. <b>Use dark theme</b> is the same switch as <b>Dark</b> on the Home ribbon
+            (<kbd>ALT 401</kbd>).
+          </p>
+
+          <h3 id="tab-external">External</h3>
+          <figure class="shot" data-shot="settings-external"></figure>
+          <p>
+            Usually set up once by your administrator: the web tools that open from the
+            <a href="f07-external.html">External ribbon</a>, and which other web pages may control the viewer
+            (<b>API security</b>). <b>Reset external apps</b> removes them all; <b>Reset all settings</b> does not
+            touch them. See <a href="f07-external.html">F7 External</a>.
+          </p>
+
+          <h3 id="tab-layouts">Layouts</h3>
+          <figure class="shot" data-shot="layout-settings-tab"></figure>
+          <p>
+            The names of the 24 layout slots (<kbd>F1</kbd>–<kbd>F12</kbd> and <kbd>ALT+F1</kbd>–<kbd>ALT+F12</kbd>),
+            with a reset button per slot and <b>Reset layouts</b> at the bottom. Explained in
+            <a href="index.html#rename-layout">Rename or reset a layout</a>.
+          </p>
+
+          <h3 id="tab-about">About</h3>
+          <figure class="shot" data-shot="settings-about"></figure>
+          <p>
+            The app version (give it when you report a problem), links to the product page and the source code, the
+            licence, and the notices for the third-party software the app uses. All processing happens in your browser:
+            your models never leave your computer.
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control, tab by tab</h2>
+          <p>
+            Number fields have a <b>−</b> and a <b>+</b> button, each with its own shortcut. Colour fields and text
+            fields have no shortcut and are mostly left out. The Shortcuts tab is its own reference.
+          </p>
+          <h3 id="ref-rendering">Rendering</h3>
+          <div class="ref-table" data-ref="settings-rendering"></div>
+          <h3 id="ref-lighting">Lighting</h3>
+          <div class="ref-table" data-ref="settings-lighting"></div>
+          <h3 id="ref-gpu">GPU</h3>
+          <div class="ref-table" data-ref="settings-gpu"></div>
+          <h3 id="ref-navigation">Navigation</h3>
+          <div class="ref-table" data-ref="settings-navigation"></div>
+          <h3 id="ref-edges">Edges</h3>
+          <div class="ref-table" data-ref="settings-edges"></div>
+          <h3 id="ref-ao">Ambient Occlusion</h3>
+          <div class="ref-table" data-ref="settings-ao"></div>
+          <h3 id="ref-stats">Stats</h3>
+          <div class="ref-table" data-ref="settings-stats"></div>
+          <h3 id="ref-editor">Editor</h3>
+          <div class="ref-table" data-ref="settings-editor"></div>
+          <h3 id="ref-external">External</h3>
+          <div class="ref-table" data-ref="settings-external"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F9 Pad</title>
+  <meta name="description" content="Guide to the F9 Pad layout: big buttons, tree navigation, camera modes and on-screen joysticks for tablets and touch screens." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F9</p>
+      <h1>Pad</h1>
+      <p class="lede">
+        Big buttons and on-screen joysticks for tablets and touch screens, where there is no keyboard and no right mouse button. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F9</p>
+          <h2>The Pad layout</h2>
+          <p>
+            Press <kbd>F9</kbd> (or pick <b>Pad</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon; on a tablet, tap the <b>Pad</b> ribbon tab) to get the touch workspace. The <b>Pad</b> ribbon puts
+            the things you would normally do with keys and mouse buttons on large buttons that are easy to hit with a
+            finger. There is no panel on the right, so the 3D view gets as much room as possible.
+          </p>
+          <figure class="shot" data-shot="f09-layout">
+            <figcaption>The F9 layout. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Pad ribbon</b> — described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree. Tap a row to select that item and everything under it.</li>
+            <li><b>3D view</b> — tap an item to select it, tap empty space to unselect everything.</li>
+            <li><b>Console</b> — minimised. Tap its tab to see messages.</li>
+          </ol>
+
+          <div class="concept">
+            <p class="concept-title">Moving around with your fingers</p>
+            <ul>
+              <li><b>One finger, drag</b> — turns the view (orbits around the pivot, or looks around in Fly and Walk).</li>
+              <li><b>Two fingers, drag</b> — moves the view sideways and up/down.</li>
+              <li><b>Two fingers, pinch</b> — zooms in and out.</li>
+              <li><b>Tap</b> — selects. A finger may wander a little during a tap; a short wobble does not turn the view.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Pad ribbon</h2>
+
+          <h3 id="ribbon-view">View</h3>
+          <figure class="shot" data-shot="f09-view"></figure>
+          <ol class="legend-list">
+            <li><b>Fly To</b> (<kbd>ALT 625</kbd>) — flies the camera to the selection, so it fills the view.</li>
+            <li><b>Focus Click</b> (<kbd>O</kbd>) — makes the last point you tapped on the model the new pivot: from now on the view turns around that point. The camera stays where it is and turns to face it. (With a mouse: <kbd>Alt</kbd> + click.)</li>
+            <li><b>Go To Click</b> (<kbd>G</kbd>) — flies closer to the last point you tapped and makes it the pivot. (With a mouse: <kbd>Space</kbd> + click.)</li>
+            <li><b>Focus Sel.</b> (<kbd>ALT 1029</kbd>) — makes the middle of the selection the pivot. The camera stays where it is.</li>
+            <li><b>Fit Visible</b> (<kbd>ALT 1219</kbd>) — frames everything that is not hidden or clipped away. Hide, isolate or clip first to zoom onto one area.</li>
+            <li><b>Solo</b> (<kbd>ALT 626</kbd>) — closes every panel except the 3D view, for the biggest possible picture. Tap again to get the panels back.</li>
+            <li><b>Hide</b> (<kbd>H</kbd>) — hides the selected items.</li>
+            <li><b>Reset All</b> (<kbd>ALT+R</kbd>) — shows every hidden item and removes every colour and opacity change on the whole model.</li>
+            <li><b>Clear Sel.</b> (<kbd>ESC</kbd>) — unselects everything.</li>
+          </ol>
+          <p>
+            For more on hiding and colouring, see <a href="f04-selection-color.html">F4 Selection Color</a>.
+          </p>
+
+          <h3 id="ribbon-tree-nav">Tree and Nav</h3>
+          <figure class="shot" data-shot="f09-tree-nav"></figure>
+          <ol class="legend-list">
+            <li><b>Up</b> (<kbd>U</kbd>) — selects the parent of the selected item: one level up in the model tree. Tap it again to go further up, for example from a single part to its pipe line, then to the whole system.</li>
+            <li><b>Down</b> (<kbd>P</kbd>) — goes back down again, one level at a time, towards the item you first selected.</li>
+            <li><b>Orbit</b> (<kbd>ALT 627</kbd>) — the view only turns around the pivot and moves sideways; nothing flies forward.</li>
+            <li><b>Fly</b> (<kbd>ALT 628</kbd>) — moving forward goes where you are looking, so looking down and moving forward takes you down. This is the default.</li>
+            <li><b>Walk</b> (<kbd>ALT 629</kbd>) — moving forward keeps you at the same height, like walking on a deck.</li>
+          </ol>
+          <p class="note">
+            In <b>Orbit</b>, pushing the move joystick (or a movement key on a keyboard) switches to <b>Fly</b> by
+            itself, or to <b>Walk</b> if <b>Walk when movement keys are used</b> is ticked under Settings → Navigation.
+            Focus Click, Go To Click and zooming with a mouse wheel switch back to <b>Orbit</b>.
+          </p>
+
+          <h3 id="ribbon-controller">Controller</h3>
+          <figure class="shot" data-shot="f09-controller"></figure>
+          <ol class="legend-list">
+            <li><b>Joystick</b> (<kbd>ALT 630</kbd>) — shows or hides the two on-screen joysticks in the 3D view.</li>
+            <li><b>Top</b> — how far down from the top edge both joysticks sit, in percent of the view's height (default 50 %, the middle).</li>
+            <li><b>Side</b> — how far in from the side edge each joystick sits, in percent of the view's width (default 10 %). Both move together, the left one from the left edge and the right one from the right edge.</li>
+          </ol>
+          <p>Move them to where your thumbs rest when you hold the tablet.</p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-joystick">Walk through the plant with the joysticks</h3>
+          <ol class="steps">
+            <li>Tap <b>Walk</b> under <b>Nav</b>, so you stay at the same height.</li>
+            <li>
+              Tap <b>Joystick</b>. Two circles appear in the 3D view.
+              <span class="mk">1</span> The <b>left</b> joystick moves you: push up to go forward, down to go back,
+              left or right to step sideways. The further you push, the faster you go.
+              <span class="mk">2</span> The <b>right</b> joystick turns your head: left and right to turn, up and down
+              to look up and down.
+              <figure class="shot" data-shot="f09-joystick"></figure>
+            </li>
+            <li>You can still drag with two fingers on the view to move sideways. Let go of a joystick and you stop at once.</li>
+            <li>Tap <b>Joystick</b> again to hide them.</li>
+          </ol>
+          <p>
+            How fast you move is set under <b>Settings → Navigation</b> (Fly and Walk speeds).
+          </p>
+
+          <h3 id="task-inspect">Look at one item up close</h3>
+          <ol class="steps">
+            <li>Tap the item in the 3D view, or its row in the Hierarchy.</li>
+            <li>Tap <b>Up</b> once or twice if you want the whole assembly the item belongs to.</li>
+            <li>Tap <b>Fly To</b>. The view frames the selection, and one-finger drags now turn around it.</li>
+            <li>To look at a spot on it from closer, tap that spot, then <b>Go To Click</b>.</li>
+            <li>Tap <b>Fit Visible</b> to get the whole model back in view.</li>
+          </ol>
+
+          <h3 id="task-measure">Measure on a tablet</h3>
+          <p>
+            Measuring works by touch too: pick a tool on the <a href="f06-measurements.html">Measurement ribbon</a>,
+            then tap points, or touch and hold for a precise crosshair. See
+            <a href="f06-measurements.html#task-touch">Measuring on a tablet</a>.
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control on the ribbon</h2>
+          <div class="ref-table" data-ref="ribbonPad"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

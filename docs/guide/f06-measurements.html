@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F6 Measurements</title>
+  <meta name="description" content="Guide to the F6 Measurements layout: measure distances, paths, areas, diameters, angles and face-to-face gaps from the Measurement ribbon." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F6</p>
+      <h1>Measurements</h1>
+      <p class="lede">
+        Measure distances, paths, areas, diameters, angles and gaps by clicking on the model. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F6</p>
+          <h2>The Measurements layout</h2>
+          <p>
+            Press <kbd>F6</kbd> (or pick <b>Measurements</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the measuring workspace. Pick a measuring tool on the ribbon, then click points on the
+            model. Every finished measurement is drawn in the 3D view and gets a row in the <b>Measurement List</b> on
+            the right, where you can rename, hide or delete it.
+          </p>
+          <figure class="shot" data-shot="f06-layout">
+            <figcaption>The F6 layout with five measurements. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Measurement ribbon</b> — the tools, locks and snapping, described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree.</li>
+            <li><b>3D view</b> — while a tool is on, a click places a point instead of selecting an item.</li>
+            <li><b>Measurement List</b> — one row per measurement. See the <a href="panel-measurements.html">Measurement List guide</a>.</li>
+            <li><b>Console</b> — minimised. Click its tab to see messages.</li>
+          </ol>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Measurement ribbon</h2>
+
+          <h3 id="ribbon-tools">Measure Tool</h3>
+          <p>
+            Pick the kind of measurement. The chosen tool stays on, so you can take several measurements of the same
+            kind in a row. Values are shown in metres (m), the unit the model is stored in. Angles are in degrees.
+          </p>
+          <figure class="shot" data-shot="f06-tools"></figure>
+          <ol class="legend-list">
+            <li><b>Off</b> (<kbd>ALT 701</kbd>) — no measuring. Clicks in the 3D view select items again.</li>
+            <li><b>Point</b> — one click. Shows the X, Y and Z coordinates of that point.</li>
+            <li><b>Line</b> — two clicks. The straight distance between them.</li>
+            <li><b>Path</b> — as many clicks as you like. Shows the length of every leg and the total (<b>Σ</b>). Finish it yourself (see below).</li>
+            <li><b>Area</b> — three or more corners of a flat shape. Shows the area in m² and the length around it (<b>⟂</b>). Finish it yourself.</li>
+            <li><b>Diameter</b> — three clicks on the rim of a round part, such as a pipe end or a flange. Shows the diameter (<b>Ø</b>) of the circle through the three points.</li>
+            <li><b>Angle</b> — three clicks. The angle at the <i>second</i> point, between the lines to the first and the third.</li>
+            <li><b>Face</b> — two clicks on two faces. The gap measured straight out from the first face (<b>⊥</b>), even when the second point is off to the side. Good for floor-to-ceiling or flange-to-flange distances. Corner and edge snapping are not used with this tool, so the first click lands on the face itself.</li>
+          </ol>
+          <p class="note">
+            <b>Shift + click</b> places a <b>perpendicular point</b>: the point lands on the line that goes straight
+            out from the surface of the previous point, at the spot on that line closest to where you clicked. Use it to measure, for example,
+            how far a pipe is from a wall, straight out from the wall. The Measurement List can show the dashed helper
+            line for such points.
+          </p>
+
+          <h3 id="ribbon-lock">Options and Lock</h3>
+          <figure class="shot" data-shot="f06-lock"></figure>
+          <ol class="legend-list">
+            <li><b>Auto Disable</b> (<kbd>ALT 1213</kbd>) — on by default: when you leave the Measurement ribbon (another ribbon tab, or another layout with an F-key), the tool is set back to <b>Off</b>. This stops a forgotten tool from placing points when you only meant to select something. Turn it off to keep the tool on while you work elsewhere.</li>
+            <li><b>None</b> — no lock: each point is where you click.</li>
+            <li><b>Perpendicular</b> — every next point goes straight out from the surface of the previous point, as if you held <kbd>Shift</kbd>.</li>
+            <li><b>Parallel</b> — every point is moved into the flat plane of the <i>first</i> point's surface, so the whole measurement lies in that plane. Useful for an area on a deck, even if you click on things that stick up.</li>
+            <li><b>X-axis</b>, <b>Y-axis</b>, <b>Z-axis</b> — the next point can only move along that axis from the previous one. <b>Z-axis</b> gives a pure height difference.</li>
+          </ol>
+          <p>The lock affects the second and later points; the first point is always where you click. It stays on until you pick another lock.</p>
+
+          <h3 id="ribbon-snapping">Snapping and List</h3>
+          <p>
+            Snapping pulls the point onto a nearby corner or edge, so you measure the real end of a part and not a spot
+            next to it. While you move the mouse, a small marker shows what the point will snap to: a cross for a
+            corner, a bar for an edge, and a disc with an arrow for a plain face.
+          </p>
+          <figure class="shot" data-shot="f06-snapping"></figure>
+          <ol class="legend-list">
+            <li><b>Snap</b> (<kbd>ALT 730</kbd>) — the main switch. Off places the point exactly on the surface under the cursor, with no snapping at all. The other snapping buttons are greyed out while it is off.</li>
+            <li><b>Seams</b> — snaps onto the line where two different items meet, for example where a column goes through a floor. Items whose opacity you have changed are ignored.</li>
+            <li><b>Corners</b> — snaps onto the nearest corner of the model's surface.</li>
+            <li><b>Edges</b> — snaps onto the nearest edge.</li>
+            <li><b>Corner radius</b> — how close, in screen pixels, the cursor must be to a corner for it to snap (2–40, default 12).</li>
+            <li><b>Edge radius</b> — the same for edges (default 8).</li>
+            <li><b>List</b> (<kbd>ALT 710</kbd>) — opens the Measurement List.</li>
+          </ol>
+          <p>Because the radius is in screen pixels, snapping feels the same whether you are zoomed in or out.</p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-line">Measure a distance</h3>
+          <ol class="steps">
+            <li>Click <b>Line</b> on the ribbon (<kbd>ALT 702</kbd>).</li>
+            <li>Click the first point on the model, then the second. A rubber band follows the mouse after the first click.</li>
+            <li>
+              The distance appears on the line. The measurement waits for you to keep it: press <b>OK</b> on the bar at the
+              bottom of the 3D view, press <kbd>Enter</kbd>, or just click the first point of the next measurement. Until
+              then you can still take back the last point.
+              <figure class="shot" data-shot="f06-task-line-viewport"></figure>
+            </li>
+            <li>The measurement is named <b>Line 1</b>, <b>Line 2</b> … Rename it in the <a href="panel-measurements.html">Measurement List</a>.</li>
+          </ol>
+          <p>
+            <b>Face</b>, <b>Diameter</b> and <b>Angle</b> work the same way: once all their points are placed, they wait for
+            <b>OK</b>, <kbd>Enter</kbd> or the next click. <b>Point</b> is kept at once.
+          </p>
+
+          <h3 id="task-path">Measure a route, or an area</h3>
+          <ol class="steps">
+            <li>Click <b>Path</b> (or <b>Area</b>).</li>
+            <li>Click each point along the route (or each corner of the area).</li>
+            <li>
+              While you are placing points, a bar at the bottom of the 3D view shows the tool and the number of points
+              <span class="mk">1</span>. <b>Finish</b> <span class="mk">2</span> keeps the measurement (or press
+              <kbd>Enter</kbd>, or double-click). <b>Undo</b> <span class="mk">3</span> takes back the last point
+              (<kbd>Backspace</kbd>). <b>Cancel</b> <span class="mk">4</span> throws the whole measurement away
+              (<kbd>Esc</kbd>). Finish is greyed out until there are enough points: 2 for a path, 3 for an area.
+              <figure class="shot" data-shot="f06-bar"></figure>
+              <figure class="shot" data-shot="f06-task-path-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="task-height">Measure a height difference</h3>
+          <ol class="steps">
+            <li>Click <b>Line</b>, and under <b>Lock</b> click <b>Z-axis</b>.</li>
+            <li>Click a point on the lower part, then anywhere on the higher part. The second point is moved straight up or down, so the line is vertical and its length is the height difference.</li>
+            <li>Set the lock back to <b>None</b> when you are done.</li>
+          </ol>
+          <p>
+            To measure the gap between two parallel faces at any angle, use the <b>Face</b> tool instead: click the
+            first face, then the second.
+          </p>
+
+          <h3 id="task-delete">Delete or hide measurements</h3>
+          <ul class="plain">
+            <li>Delete one measurement with the bin on its row in the <a href="panel-measurements.html#ml-row">Measurement List</a>.</li>
+            <li><b>Delete all</b> in the list removes every measurement. <b>Mute all</b> only hides them from the 3D view.</li>
+            <li>A deleted measurement can't be brought back with Undo. The <b>Undo</b> on the bar only removes points of the measurement you are placing.</li>
+            <li>Measurements are not kept when you close or reload the app. <b>Save…</b> them to a file in the Measurement List, or store them in a <a href="f10-viewpoint.html">viewpoint</a>.</li>
+          </ul>
+
+          <h3 id="task-touch">Measuring on a tablet</h3>
+          <p>
+            On a touch screen, a quick tap places a point under your finger. For more precision, <b>touch and hold</b>
+            for about half a second: a crosshair appears a little above your finger, so your finger doesn't hide the
+            spot. Slide to move the crosshair; it shows the same snap markers as the mouse. Lift your finger to place
+            the point. A drag that starts straight away still turns the view and places nothing. Use the
+            <b>Finish</b> / <b>OK</b>, <b>Undo</b> and <b>Cancel</b> bar instead of the keys. See also the
+            <a href="f09-pad.html">F9 Pad</a> layout.
+          </p>
+        </section>
+
+        <section id="list" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Measurement List (right side)</h2>
+          <figure class="shot" data-shot="f06-list"></figure>
+          <p>
+            Every measurement has a row with its name and value. There you rename it, hide it, show extra helpers in
+            the 3D view (ΔX/ΔY/ΔZ legs, slope, spheres), delete it, change the number of decimals and the colour, and
+            save or load all measurements. It has its own guide:
+            <a href="panel-measurements.html"><b>Measurement List guide →</b></a>
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control on the ribbon</h2>
+          <div class="ref-table" data-ref="ribbonMeasurements"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

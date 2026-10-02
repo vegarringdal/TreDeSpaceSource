@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F12 Assets</title>
+  <meta name="description" content="Guide to the F12 Assets layout: import RVM, IFC, STEP, GLB and TDP files, keep them in stores and folders, load and unload models, manage databases and export what you see." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F12</p>
+      <h1>Assets</h1>
+      <p class="lede">
+        Import models, keep them in your library, load them into the 3D view, manage databases and export what you see. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F12</p>
+          <h2>The Assets layout</h2>
+          <p>
+            Press <kbd>F12</kbd> (or pick <b>Assets</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the asset workspace. It puts every panel that deals with files side by side: the
+            library of models you have imported, the databases, the Import Manager that brings new files in, and the
+            Export panel that writes them out again.
+          </p>
+          <figure class="shot" data-shot="f12-layout">
+            <figcaption>The F12 layout with five Huldra disciplines imported into a store called <b>Huldra</b>, one more file imported as a temp file, and a database.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Home ribbon</b> — the same ribbon as in F1. Its <b>Assets</b> group opens the panels on this page one by one. See <a href="f01-home.html">F1 Home</a>.</li>
+            <li><b>Hierarchy</b> — the tree of the models that are loaded now, grouped by store and folder.</li>
+            <li><b>Model Assets</b> — your library of imported models. Load, unload, organise and delete them. <a href="#model-assets">Described below</a>.</li>
+            <li><b>SQL Assets</b> — your SQLite databases, in the same stores as the models. <a href="#sql-assets">Described below</a>.</li>
+            <li><b>3D view</b> — shows the loaded models.</li>
+            <li><b>Console</b> — messages, for example how many files an import produced, how long it took, and any warnings from the converter.</li>
+            <li><b>Import Manager</b> — brings GLB, TDP, RVM, STEP and IFC files into the library. <a href="#import-manager">Described below</a>.</li>
+            <li><b>Export</b> — writes what you see to TDP, GLB or IFC, and saves or loads colour and visibility snapshots. <a href="#export">Described below</a>.</li>
+          </ol>
+
+          <h3 id="where">Where your models are kept</h3>
+          <p>
+            Everything you import is stored <b>in this browser, on this computer</b>. Nothing is uploaded to a server: the
+            conversion runs in your browser too. That has a few consequences:
+          </p>
+          <ul>
+            <li>Your library is still there after you close the tab or restart the computer.</li>
+            <li>Another browser, another browser profile, a private window or another computer has its own, separate library.</li>
+            <li>Clearing the browser's data for this site deletes the library. So does <b>Wipe All</b> on the Home ribbon.</li>
+            <li>To give models to someone else, export them as files (see <a href="#task-share">Share models with a colleague</a>).</li>
+          </ul>
+
+          <h3 id="import-vs-load">Importing, loading, unloading, deleting</h3>
+          <ul>
+            <li><b>Import</b> converts a file once and keeps the result in your library (Model Assets). Big files take a while; you only do it once.</li>
+            <li><b>Load</b> shows a model from the library in the 3D view. This is quick, because the hard work was done at import.</li>
+            <li><b>Unload</b> takes a model out of the 3D view. It stays in the library, ready to load again.</li>
+            <li><b>Delete</b> removes a model from the library for good.</li>
+          </ul>
+          <p>
+            By default an import is a <b>temp import</b>: the model is loaded straight away, but it is not kept — it is
+            removed from the browser the next time the app starts. Untick <b>Temp import</b> and pick a store to keep it.
+          </p>
+
+          <h3 id="stores">Stores and folders</h3>
+          <p>
+            The library is split into <b>stores</b>, one per project or plant. A store holds both models (Model Assets) and
+            databases (SQL Assets) — the two panels show the same list of stores. <b>main</b> always exists. Inside a store,
+            models sit in <b>folders</b> that you can create, rename and nest. Temp imports have their own <b>TEMP</b>
+            section, which empties itself the next time the app starts.
+          </p>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Home ribbon</h2>
+          <p>
+            F12 uses the Home ribbon. It is described on the <a href="f01-home.html">F1 Home</a> page. Its <b>Assets</b>
+            group opens <b>Model</b> (Model Assets), <b>Import</b> (Import Manager) and <b>SQL</b> (SQL Assets) on their
+            own, and <b>Wipe All</b> erases every saved setting and the whole library. <b>Clear</b> in the Canvas group
+            unloads every model at once.
+          </p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-rvm">Import RVM files and keep them</h3>
+          <p>RVM files come from AVEVA PDMS and E3D plant models. Here, five Huldra disciplines go into a new store.</p>
+          <ol class="steps">
+            <li>Create a store for the project, if you don't have one yet: see <a href="#task-organise">Organise the library</a>. Here it is called <b>Huldra</b>.</li>
+            <li>In the Import Manager, open <b>Import RVM</b> and press <b>Select RVM file(s)…</b>. Pick one or more <code class="inline">.rvm</code> files (hold <kbd>Ctrl</kbd> to pick several).</li>
+            <li>
+              Untick <b>Temp import</b>, and choose the store under <b>Store</b>. Leave the other options as they are for a
+              first try. With several files, each file gets its own folder, named after the file.
+              <figure class="shot" data-shot="f12-rvm-staged"></figure>
+            </li>
+            <li>
+              Press <b>Import</b>. A progress window shows each phase: converting the file, storing the result, and
+              loading it.
+              <figure class="shot" data-shot="f12-progress">
+                <figcaption>An import in progress. Wait for it to finish; only one import can run at a time.</figcaption>
+              </figure>
+            </li>
+            <li>
+              When it is done the models are loaded (because <b>Load after import</b> was ticked) and the camera frames
+              them. They are now in the library, in the chosen store.
+              <figure class="shot" data-shot="f12-task-import-viewport"></figure>
+            </li>
+          </ol>
+          <p class="note">
+            Importing the same file again <b>replaces</b> the model with the same store, folder and name. The old copy is
+            removed only after the new one is in place, so a failed import keeps the previous version.
+          </p>
+
+          <h3 id="task-temp">Have a quick look at a file without keeping it</h3>
+          <ol class="steps">
+            <li>In the Import Manager, open the section for the file type and pick the file.</li>
+            <li>Leave <b>Temp import</b> ticked (it is ticked every time the app starts) and press <b>Import</b>. No store is needed.</li>
+            <li>The model loads and appears under <b>TEMP</b> in Model Assets and in the Hierarchy. The next time you start the app, it is gone.</li>
+          </ol>
+
+          <h3 id="task-load">Load and unload models</h3>
+          <ol class="steps">
+            <li>In <b>Model Assets</b>, select the models: click one, <kbd>Ctrl</kbd> + click to add more, <kbd>Shift</kbd> + click for a range. Clicking a folder or a store selects everything in it.</li>
+            <li>Press <b>Load</b>. The camera frames what you just loaded. Tick <b>Keep camera</b> first if you want the view to stay where it is.</li>
+            <li>To take models out of the 3D view, select them and press <b>Unload</b>. They stay in the library. <b>Clear</b> on the Home ribbon unloads everything.</li>
+          </ol>
+          <p class="note">
+            A model that is already loaded is skipped, not loaded twice. Model Assets does not mark which models are
+            loaded — look in the <b>Hierarchy</b> for that.
+          </p>
+
+          <h3 id="task-organise">Organise the library</h3>
+          <ol class="steps">
+            <li>To start a new project, open <b>Store Config</b> at the top of Model Assets (or SQL Assets), type a name and a short description, and press <b>Add store</b>.</li>
+            <li>
+              To make a folder, right-click a store or a folder in the tree and choose <b>New folder inside…</b>. Right-click
+              empty space in the tree for a folder in <b>main</b>.
+              <figure class="shot" data-shot="f12-folder-menu"></figure>
+            </li>
+            <li>
+              Drag models or whole folders onto a folder to move them there. Drop them on empty space in the tree to take
+              them out of their folder. Here the five discipline folders were moved into a new folder <b>Topside</b>.
+              <figure class="shot" data-shot="f12-folders"></figure>
+            </li>
+            <li>To rename a model, select just that one and type the new name in the <b>Rename</b> box under the tree. To rename or delete a folder, right-click it. Deleting a folder keeps the models that were in it: they move out of the folder (you are asked first).</li>
+          </ol>
+          <p class="note">
+            Models and folders cannot be moved from one store to another. Renaming or moving only changes the library: a
+            model that is <b>loaded</b> keeps its old name and folder in the 3D view, and <b>Unload</b> then no longer
+            finds it. Unload models before you rename or move them. (To get rid of a stray loaded copy, right-click it in
+            the Hierarchy and choose <b>Remove current file/folder</b>, or press <b>Clear</b> on the Home ribbon.)
+          </p>
+
+          <h3 id="task-export-selection">Export a selection to another program</h3>
+          <p>The Export panel writes out what is <b>visible</b> in the 3D view. To export only some items, hide the rest first.</p>
+          <ol class="steps">
+            <li>Select the items, here the safety model <code class="inline">/HA-SAFE</code>.</li>
+            <li>Press <b>Isolate</b> (<kbd>ALT+H</kbd>) to hide everything else. See <a href="f04-selection-color.html">F4 Selection Color</a>.</li>
+            <li>In the Export panel, under <b>GLB</b>, press <b>Export merged GLB (per color)</b>. The file downloads like any other download. Drop it into PowerPoint, Blender or another glTF viewer.</li>
+            <li>For a BIM tool, press <b>Export merged IFC</b> under <b>IFC</b> instead.</li>
+          </ol>
+
+          <h3 id="task-share">Share models with a colleague</h3>
+          <ol class="steps">
+            <li>In Model Assets, select the models and press <b>Export</b>. Choose a folder on your computer (the browser asks for permission). Each model is written as a <code class="inline">.tdp</code> file, in sub-folders that follow the folders in the library.</li>
+            <li>Your colleague imports them with <b>Import TDP</b> → <b>Folder + subfolders…</b>. This is the fastest import there is: the files are already converted.</li>
+          </ol>
+          <p class="note">
+            To share a model <b>as you see it</b> — with your colours and hidden items left out — use <b>Export merged TDP</b>
+            in the Export panel instead.
+          </p>
+
+          <h3 id="task-db">Add a database</h3>
+          <ol class="steps">
+            <li>In <b>SQL Assets</b>, choose the store under <b>Import to</b>.</li>
+            <li>Press <b>Import Database</b> and pick one or more SQLite files. If a file with the same name is already in that store, you are asked whether to replace it.</li>
+            <li>Query it in the <a href="f11-sql-editor.html">F11 SQL Editor</a>.</li>
+          </ol>
+        </section>
+
+        <section id="model-assets" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Model Assets</h2>
+          <p>
+            The library: every model you have imported, in one tree with a band per store. Everything starts folded up;
+            the number at the end of a row tells how many models are below it.
+          </p>
+          <figure class="shot" data-shot="f12-model-assets"></figure>
+          <ol class="legend-list">
+            <li><b>Store Config</b> — create and delete stores. See <a href="#store-config">below</a>.</li>
+            <li><b>Collapse all</b> — folds every store and folder.</li>
+            <li><b>Expand all</b> — unfolds them all.</li>
+            <li><b>Delete</b> — removes the selected models from the library, after you confirm. A model that is loaded stays in the 3D view until you unload it (with <b>Clear</b> or the Hierarchy's right-click menu, since it is no longer in the library).</li>
+            <li><b>Load</b> — loads the selected models into the 3D view.</li>
+            <li><b>Unload</b> — takes the selected models out of the 3D view. The files stay in the library.</li>
+            <li><b>Export</b> — writes the selected models as <code class="inline">.tdp</code> files into a folder you choose, with the library's folders recreated as real folders.</li>
+            <li><b>Select all</b> — selects every model the search lets through, in every store.</li>
+            <li><b>Deselect all</b> — clears the selection. <b>Selected</b> shows how many are selected.</li>
+            <li><b>Keep camera</b> — don't move the camera when models load. Off, the view frames the models you just loaded. The same setting as in the Import Manager.</li>
+            <li><b>Pool</b> — how many models load at the same time. The highest value depends on your computer. Each model being loaded is held in memory in full, so lower it if the browser runs out of memory with very large models.</li>
+            <li><b>Search</b> — shows only models whose name, folder or store matches. See <a href="#search">below</a>.</li>
+            <li><b>* / =</b> — how the search matches: <b>*</b> = the text appears anywhere, <b>=</b> = the whole name must match, with <code class="inline">*</code> as a wildcard (<kbd>ALT 620</kbd> switches).</li>
+            <li><b>The tree</b> — a band per store, then folders, then models with their size. Click to select, <kbd>Ctrl</kbd> + click to add or remove, <kbd>Shift</kbd> + click for a range. Clicking a store band or folder selects everything in it; the arrow folds it open. Drag to move, right-click for folders.</li>
+            <li><b>Rename</b> — appears when exactly one model is selected.</li>
+          </ol>
+          <p class="note">
+            <b>Delete</b>, <b>Load</b>, <b>Unload</b> and <b>Export</b> only act on selected models that the search shows.
+            Their keyboard shortcuts work on the whole selection, search or not: <kbd>ALT 605</kbd> loads,
+            <kbd>ALT 621</kbd> unloads and <kbd>ALT 612</kbd> deletes — <b>without asking</b>. <kbd>ALT 613</kbd>
+            deletes every model in every store, also without asking.
+          </p>
+          <p>
+            Imported models get their name from the converter. An RVM file split by site gives one model per site, named
+            after it (<code class="inline">_HA-PIPE.tdp</code> for the site <code class="inline">/HA-PIPE</code>), in a
+            folder named after the file.
+          </p>
+
+          <h3 id="search">Search</h3>
+          <p>
+            Type part of a name, folder or store. Combine words with <code class="inline">&amp;</code> (both must match) and
+            <code class="inline">|</code> (either may match), and group with parentheses:
+            <code class="inline">pipe | safe</code> shows the piping and the safety models. Upper and lower case don't
+            matter. Stores without a match are hidden while you search.
+          </p>
+          <figure class="shot" data-shot="f12-search"></figure>
+
+          <h3 id="store-config">Store Config</h3>
+          <p>The same section is at the top of both Model Assets and SQL Assets; a change in one shows in the other.</p>
+          <figure class="shot" data-shot="f12-store-config"></figure>
+          <ol class="legend-list">
+            <li><b>New store name</b> — the name of the new store. A <code class="inline">/</code> becomes <code class="inline">-</code>; <b>temp</b> is reserved.</li>
+            <li><b>Description</b> — a short note about it. It is shown as a hint when you pick a store in SQL Reports.</li>
+            <li><b>Add store</b> — creates the store. It appears in both panels and in every store picker.</li>
+            <li><b>Delete store</b> — deletes the store with <b>all its models and databases</b>, after you confirm. <b>main</b> cannot be deleted.</li>
+            <li><b>Description</b> of an existing store — edit it here.</li>
+          </ol>
+        </section>
+
+        <section id="import-manager" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Import Manager</h2>
+          <p>
+            One section per kind of file. Open a section, pick the file, set the options, press <b>Import</b>. The options
+            only appear once a file is picked; <b>Cancel</b> forgets the picked file.
+          </p>
+          <div class="ref-table"><table>
+            <thead><tr><th>Section</th><th>For</th></tr></thead>
+            <tbody>
+              <tr><td><b>Import RVM</b></td><td>Plant models from AVEVA PDMS / E3D (<code class="inline">.rvm</code>). One or several files at once.</td></tr>
+              <tr><td><b>Import IFC</b></td><td>Building and infrastructure models (<code class="inline">.ifc</code>). One file at a time.</td></tr>
+              <tr><td><b>Import STEP</b></td><td>Mechanical CAD parts and assemblies (<code class="inline">.step</code>, <code class="inline">.stp</code>). One file at a time.</td></tr>
+              <tr><td><b>Import standard GLB</b></td><td>glTF binary files from any 3D program (<code class="inline">.glb</code>). One file at a time.</td></tr>
+              <tr><td><b>Import merged glb</b></td><td>GLB files made by the <i>rvm2glb</i> tool in its "merged" mode. A whole folder at once.</td></tr>
+              <tr><td><b>Import TDP</b></td><td>TreDeSpace's own files (<code class="inline">.tdp</code>), for example exported from this app. No conversion, so this is the fastest.</td></tr>
+            </tbody>
+          </table></div>
+          <p class="note">
+            There is no box for importing from a web address. A website that embeds the viewer can import files from its
+            own server; see the <a href="../events.html">API docs</a>.
+          </p>
+
+          <h3 id="import-options">Options in every section</h3>
+          <figure class="shot" data-shot="f12-import-options">
+            <figcaption>As the options start out: Temp import is ticked, so Load after import is forced on and no store is needed.</figcaption>
+          </figure>
+          <ul>
+            <li><b>Temp import (don’t keep in store)</b> (<kbd>ALT 1201</kbd>) — load the model now but don't keep it: it is removed the next time the app starts.</li>
+            <li><b>Load after import</b> (<kbd>ALT 638</kbd>) — show the result in the 3D view as soon as the import is done. Always on for temp imports.</li>
+            <li><b>Keep camera</b> (<kbd>ALT 623</kbd>) — don't move the camera to the new models.</li>
+            <li><b>Store</b> — where a kept import goes. <b>Import</b> stays greyed out until you pick one (or tick Temp import).</li>
+            <li><b>Folder</b> — the folder in the store. It is filled in from the file name; clear it for no folder.</li>
+          </ul>
+          <p class="note">
+            These choices, and the format options below, go back to their defaults every time you start the app — check
+            them before a big import.
+          </p>
+
+          <h3 id="import-rvm">Import RVM</h3>
+          <p>The numbers refer to the picture in the <a href="#task-rvm">walkthrough above</a>.</p>
+          <ol class="legend-list">
+            <li><b>Select RVM file(s)…</b> (<kbd>ALT 1000</kbd>) — pick one or more files. The name, or the number of files, is shown next to it.</li>
+            <li><b>Temp import</b> — see <a href="#import-options">Options in every section</a>.</li>
+            <li><b>Load after import</b> — the same.</li>
+            <li><b>Keep camera</b> — the same.</li>
+            <li><b>Store</b> — the store a kept import goes into.</li>
+            <li><b>Folder</b> — with one file, the folder name (the file name by default). With several, each file gets its own folder named after it, and the box is greyed out.</li>
+            <li><b>Split</b> — one model per <b>SITE</b> (default), <b>ZONE</b> or <b>EQUIPMENT</b>. Smaller pieces can be loaded and unloaded one by one; with ZONE or EQUIPMENT they are put in sub-folders that follow the plant's own structure.</li>
+            <li><b>Tolerance</b> — how closely curved surfaces are followed. Smaller = smoother pipes and vessels, but more triangles and a heavier model. Default 0.010.</li>
+            <li><b>Include lines</b> — also import line elements, drawn as small crosses. Off by default: there are many and they add clutter. Ticked, a <b>Line width</b> box appears.</li>
+            <li><b>Align elements</b> — round the number of segments around circles to a multiple of 4, which gives cleaner shading.</li>
+            <li><b>Import</b> (<kbd>ALT 1001</kbd>) — start. Converter warnings are listed in the Console.</li>
+            <li><b>Cancel</b> — forget the picked files.</li>
+          </ol>
+
+          <h3 id="import-ifc">Import IFC</h3>
+          <figure class="shot" data-shot="f12-ifc"></figure>
+          <ol class="legend-list">
+            <li><b>Split</b> — one model for the whole file (default), or one per <b>Site</b>, <b>Building</b> or <b>Storey</b>.</li>
+            <li><b>Quality</b> — how smooth curved shapes are, from <b>Lowest</b> to <b>Highest</b> (default Medium). Higher = more triangles.</li>
+            <li><b>Spaces</b> — the room volumes in the file: <b>Skip</b> (default), <b>Include</b> them with the rest, or put them in a <b>Separate</b> model.</li>
+            <li><b>Openings</b> — the cut-outs for doors and windows: Skip, Include or Separate, the same way.</li>
+            <li><b>Recenter</b> — move the model to around the origin (on by default).</li>
+          </ol>
+
+          <h3 id="import-step">Import STEP</h3>
+          <figure class="shot" data-shot="f12-step"></figure>
+          <ol class="legend-list">
+            <li><b>Deflection</b> — how far a flat triangle may lie from the true curved surface, in mm (default 1.0). Smaller = smoother, more triangles.</li>
+            <li><b>Max angle</b> — the largest bend between two segments of a curve, in degrees (default 25). Smaller = smoother.</li>
+            <li><b>Workers</b> — how many helpers share the work (0–5, default 2). More is faster but uses more memory.</li>
+            <li><b>Cleanup (weld positions)</b> — joins duplicate corner points (on by default). Matches how the app shades models.</li>
+          </ol>
+          <p class="note">
+            The STEP reader is new and may misread some parts. For a file of 200 MB or more the section warns you: the
+            import can need several GB of memory and may crash the tab. Save your work first, and use fewer Workers.
+          </p>
+
+          <h3 id="import-glb">Import standard GLB</h3>
+          <figure class="shot" data-shot="f12-stdglb"></figure>
+          <ol class="legend-list">
+            <li><b>Import normals</b> — keep the file's smooth shading (on by default). Off gives flat shading with all the edge lines.</li>
+            <li><b>Edge lines</b> — draw edge lines on this model. Turn off for shapes where the lines would clutter the surface. Remembered for this model.</li>
+          </ol>
+          <p class="note">
+            Textures, animation and compressed GLB files (Draco, meshopt) are not supported: such files come in as plain
+            coloured shapes, or are skipped.
+          </p>
+
+          <h3 id="import-merged-tdp">Import merged glb and Import TDP</h3>
+          <figure class="shot" data-shot="f12-glb-tdp"></figure>
+          <ol class="legend-list">
+            <li><b>Select folder…</b> (merged glb) — pick a folder. Its sub-folders are searched too; tick the files you want in the list that appears. The <b>Folder</b> box defaults to the picked folder's name, and <b>Pool</b> sets how many files are converted at the same time.</li>
+            <li><b>Select files…</b> — pick one or more <code class="inline">.tdp</code> files. They go into a folder called <b>misc</b> unless you change it.</li>
+            <li><b>Select folder…</b> (TDP) — the <code class="inline">.tdp</code> files in one folder, not its sub-folders.</li>
+            <li><b>Folder + subfolders…</b> — every <code class="inline">.tdp</code> file below a folder. The sub-folders are kept as folders in the library.</li>
+          </ol>
+          <p>
+            With a folder picked, the list starts with nothing ticked: use <b>Select all</b>, or click, <kbd>Ctrl</kbd> + click
+            and <kbd>Shift</kbd> + click. <b>Import (n)</b> shows how many files will be imported.
+          </p>
+        </section>
+
+        <section id="sql-assets" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>SQL Assets</h2>
+          <p>
+            Your SQLite databases, in the same stores as your models. Like the models, they are stored in this browser on
+            this computer.
+          </p>
+          <figure class="shot" data-shot="f12-sql-assets"></figure>
+          <ol class="legend-list">
+            <li><b>Store Config</b> — the same as in Model Assets (<a href="#store-config">see above</a>).</li>
+            <li><b>Import to</b> — the store that <b>Import Database</b> copies into. It goes back to <b>main</b> whenever the panel is opened again.</li>
+            <li><b>Import Database</b> (<kbd>ALT 633</kbd>) — copy one or more SQLite files (<code class="inline">.db</code>, <code class="inline">.sqlite</code>, <code class="inline">.sqlite3</code>, <code class="inline">.db3</code>) into that store.</li>
+            <li><b>Delete Selected</b> (<kbd>ALT 634</kbd>) — delete the selected databases, after you confirm.</li>
+            <li><b>Select all / Deselect all</b> — the selection count is shown on the left.</li>
+            <li><b>Collapse all / Expand all</b> — fold or unfold every store.</li>
+            <li><b>The list</b> — a band per store, with its databases and their size. Click, <kbd>Ctrl</kbd> + click and <kbd>Shift</kbd> + click to select.</li>
+          </ol>
+          <p class="note">
+            A database that is in use — by a query that is running, or by the app in another tab — is skipped when you
+            import over it or delete it; the Console says so. The line under the list gives the path to use when you
+            attach a database in the <a href="f11-sql-editor.html">SQL Editor</a>:
+            <code class="inline">sql_assets/&lt;store&gt;/&lt;file&gt;</code>.
+          </p>
+        </section>
+
+        <section id="export" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Export</h2>
+          <p>
+            Writes out what is <b>visible</b> in the 3D view, with its current colours, opacity and moves. Hidden items are
+            left out, so hide or isolate first to export part of a model. Items are always exported in full detail. Your
+            choices here are remembered.
+          </p>
+
+          <h3 id="export-formats">TDP, GLB and IFC</h3>
+          <figure class="shot" data-shot="f12-export-formats"></figure>
+          <ol class="legend-list">
+            <li><b>Exclude clipped parts</b> — leave out items that the clipping planes, box or shapes hide completely. An item the clipping cuts through is exported whole. One setting, shown in all three sections.</li>
+            <li><b>Export merged TDP (per color)</b> — choose a folder; each loaded model is written there as one <code class="inline">.tdp</code> file, in sub-folders like the ones it was loaded from. Smallest and quickest to load.</li>
+            <li><b>Export hierarchy TDP</b> — the same, but each item keeps its name and place in the tree. Both TDP exports keep the real coordinates, so a re-import lands exactly on top of the original. A model with nothing visible is left out.</li>
+            <li><b>Recenter on bounding box</b> (GLB only, on by default) — move the model to the origin. Plant coordinates far from the origin confuse some programs, PowerPoint for one.</li>
+            <li><b>Keep Z up</b> (GLB only) — keep this app's "Z is up". Off, the file uses the usual glTF "Y is up".</li>
+            <li><b>Export merged GLB (per color)</b> — one downloaded file, one piece per colour. Small and quick in any viewer.</li>
+            <li><b>Export hierarchy GLB</b> — one downloaded file with every item as a named part. Bigger and slower, but keeps the structure.</li>
+            <li><b>Export merged IFC</b> — an IFC4 file for BIM tools, one object per colour, at the real coordinates.</li>
+            <li><b>Export hierarchy IFC</b> — an IFC4 file with the app's tree as nested, named objects. Bigger.</li>
+          </ol>
+          <p class="note">
+            GLB and IFC are meant for <b>small selections</b>. A whole plant gives a file most programs cannot open; use TDP
+            for full scenes. Labels and measurements are not exported.
+          </p>
+
+          <h3 id="export-snapshot">State snapshot</h3>
+          <p>
+            Saves the <b>colours, opacity, hidden items and moves</b> — not the models themselves — to one small
+            <code class="inline">.tdsnap</code> file. Load it later onto the same models to get the same look back. Items are
+            matched by their name, folder and file, so it keeps working after a reload or a re-import.
+          </p>
+          <figure class="shot" data-shot="f12-export-snapshot"></figure>
+          <ol class="legend-list">
+            <li><b>Only modified items</b> — save only items you changed (on by default). Off records every item, which makes a bigger file that can repaint another copy of the data completely.</li>
+            <li><b>Save colors &amp; visibility</b> — include colour, opacity and hidden items.</li>
+            <li><b>Save transforms</b> — include moved, rotated and scaled items.</li>
+            <li><b>Skip white (#ffffff)</b> — leave plain white out. It is the unpainted default, so the file gets much smaller.</li>
+            <li><b>Skip hidden state</b> — don't record what is hidden, so loading the file never hides anything.</li>
+            <li><b>Store</b> — save only the models from one store, or <b>All stores</b>.</li>
+            <li><b>Save snapshot</b> — writes the file and downloads it.</li>
+            <li><b>Load colors &amp; visibility</b> — apply the file's colours, opacity and hidden items.</li>
+            <li><b>Load transforms</b> — apply the file's moves.</li>
+            <li><b>Skip white (#ffffff)</b> — ignore plain white in the file; those items keep their own colour.</li>
+            <li><b>Skip hidden state</b> — ignore the file's hidden items; only colours and opacity are applied.</li>
+            <li><b>Store</b> — apply only to the models of one store. This also lets a snapshot saved from one plant be applied to another with the same structure.</li>
+            <li><b>Load snapshot…</b> — pick a <code class="inline">.tdsnap</code> file and apply it.</li>
+          </ol>
+          <p class="note">
+            Loading a snapshot <b>replaces</b> the current colours (and/or moves) and clears their undo history — you are
+            asked first. Models in the file that are not loaded are skipped, and a message lists them.
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control</h2>
+          <h3 id="ref-model-assets">Model Assets</h3>
+          <div class="ref-table" data-ref="modelAssets"></div>
+          <h3 id="ref-import-manager">Import Manager</h3>
+          <div class="ref-table" data-ref="importManager"></div>
+          <h3 id="ref-sql-assets">SQL Assets</h3>
+          <div class="ref-table" data-ref="sqlAssets"></div>
+          <h3 id="ref-export">Export</h3>
+          <div class="ref-table" data-ref="export"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

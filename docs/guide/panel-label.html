@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — Label</title>
+  <meta name="description" content="Guide to the Label panel: place, import, style and spread out text labels on the model, and turn them into viewpoints." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · panel</p>
+      <h1>Label</h1>
+      <p class="lede">
+        Step-by-step walkthroughs with a screenshot for every step. The <b>numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <!-- ── Label ──────────────────────────────────────── -->
+        <section id="label" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Label</h2>
+          <p>
+            The <b>Label</b> panel puts text labels on the model. A label is pinned to a point in 3D and
+            follows it when you move around; a thin <b>leader line</b> points from the label to that spot.
+            Place labels one by one, or create a whole batch from a list of tag names. Labels can be styled,
+            spread out so they don't overlap, saved to a file and turned into viewpoints.
+          </p>
+
+          <h3 id="label-open">Open the panel</h3>
+          <p>
+            On the ribbon, open the <b>Panel</b> tab <span class="mk">1</span> and click <b>Label</b>
+            <span class="mk">2</span>, or press <kbd>CTRL+L</kbd>.
+          </p>
+          <figure class="shot" data-shot="labels-open"></figure>
+
+          <h3 id="label-tour">A tour of the panel</h3>
+          <figure class="shot" data-shot="labels-overview">
+            <figcaption>The Label panel with five imported labels; the second one is selected (dashed frame).</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>New label</b> — the next click in the 3D view places a label there.</li>
+            <li><b>Mute all</b> — hides every label from the view without deleting it. Press again (<b>Show all</b>) to bring them back.</li>
+            <li><b>Highlight</b> — selects in the model the items that the selected labels (or all labels) belong to.</li>
+            <li><b>Select / deselect / invert</b> the labels, or select the ones inside the clipping box.</li>
+            <li><b>Explode / Implode</b> — spreads crowded labels out, and puts them back.</li>
+            <li><b>Save… / Load… / Undo / Redo</b>.</li>
+            <li><b>Style</b> — colours, opacity and the 3D marker sphere.</li>
+            <li><b>Import tags</b> — creates labels from a pasted list of names.</li>
+            <li><b>The list</b> — one row per label: select, edit the text, move or delete it.</li>
+          </ol>
+
+          <div class="concept">
+            <p class="concept-title">Working with labels in the 3D view</p>
+            <ul>
+              <li><b>Drag</b> a label to move it. The leader line keeps pointing at its spot.</li>
+              <li><kbd>Ctrl</kbd> + click a label to select it, or to unselect it.</li>
+              <li><kbd>Alt</kbd> + click a label, then click in the model, to move the spot it points at.</li>
+              <li>You can have up to 200 labels.</li>
+            </ul>
+          </div>
+
+          <h3 id="label-place">Place a label by hand</h3>
+          <ol class="steps">
+            <li>
+              Press <b>New label</b> <span class="mk">1</span>. The button stays highlighted while it waits for
+              your click.
+              <figure class="shot" data-shot="labels-new"></figure>
+            </li>
+            <li>
+              Click the spot in the 3D view. A label called <b>Label 1</b> appears there.
+              <figure class="shot" data-shot="labels-new-viewport"></figure>
+            </li>
+            <li>
+              Change the text in the list <span class="mk">2</span>. The other controls on the row: the swatch
+              <span class="mk">1</span> selects the label, the target <span class="mk">3</span> moves it (click
+              the button, then the new spot), and the bin <span class="mk">4</span> deletes it. The grey line
+              below <span class="mk">5</span> links the label to an item in the model. Labels made from tags fill
+              it in for you.
+              <figure class="shot" data-shot="labels-list"></figure>
+            </li>
+          </ol>
+
+          <h3 id="label-import">Label a list of tags</h3>
+          <p>
+            If you have a list of tag numbers, for example from a spreadsheet or a report, the panel can put
+            a label on every one of them at once.
+          </p>
+          <ol class="steps">
+            <li>
+              Open the <b>Import tags</b> section and paste the names, one per line <span class="mk">1</span>.
+              They are matched against the item names in the model. The leading <code class="inline">/</code>
+              is optional.
+            </li>
+            <li>
+              Choose the options:
+              <span class="mk">2</span> <b>Snap anchor to nearest item</b> pins the label to the nearest part
+              of the tag instead of the middle of its bounding box. Use it for long pipes, where the middle can be
+              in empty air.
+              <span class="mk">3</span> <b>Label text without leading /</b> gives cleaner text. The link to the
+              model is not affected.
+              <span class="mk">4</span> <b>Store</b> limits the search to one store.
+              <figure class="shot" data-shot="labels-import"></figure>
+            </li>
+            <li>
+              Press <b>Append</b> <span class="mk">5</span> to add the labels to the ones you already have
+              (tags that already have a label are skipped), or <b>Replace</b> <span class="mk">6</span> to delete
+              all labels first.
+            </li>
+            <li>
+              Names that were not found are written back into the box, so you can correct them and try
+              again.
+              <figure class="shot" data-shot="labels-import-notfound"></figure>
+              <figure class="shot" data-shot="labels-import-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="label-style">Change how labels look</h3>
+          <ol class="steps">
+            <li>
+              Select the labels to change: <b>Select all</b>, <kbd>Ctrl</kbd> + click in the view, or click their
+              swatches in the list. The top line of <b>Style</b> says what will change <span class="mk">1</span>.
+              With nothing selected, the style applies to the <i>next</i> labels you create.
+            </li>
+            <li>
+              Pick the <b>Label color</b> <span class="mk">2</span> and <b>Text color</b> <span class="mk">3</span>.
+              <b>Opacity</b> makes the label background see-through, and <b>Leader line</b> sets the colour of the
+              line.
+            </li>
+            <li>
+              Turn on <b>3D sphere at the anchor</b> <span class="mk">4</span> to mark the exact spot with a small
+              sphere. Unlike the label, the sphere sits <i>in</i> the model, so parts in front of it hide it.
+              Set its size and colour, and make it <b>Solid</b> if a wireframe is hard to see.
+            </li>
+            <li>
+              <b>Styled text</b> <span class="mk">5</span> lets labels have several lines and
+              <b>**bold**</b> words.
+              <figure class="shot" data-shot="labels-style"></figure>
+              <figure class="shot" data-shot="labels-style-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="label-explode">Spread out crowded labels</h3>
+          <ol class="steps">
+            <li>
+              Press <b>Explode</b> <span class="mk">1</span>. The labels move outward from the middle of the group
+              so they no longer overlap. Press again to push them further. <span class="mk">3</span> chooses
+              whether they are laid out on a <b>Circle</b> or a <b>Box</b>.
+              <figure class="shot" data-shot="labels-explode"></figure>
+              <figure class="shot" data-shot="labels-explode-viewport"></figure>
+            </li>
+            <li><b>Implode</b> <span class="mk">2</span> puts every label back on its spot. This also undoes labels you dragged by hand.</li>
+          </ol>
+
+          <h3 id="label-viewpoints">Make one viewpoint per label</h3>
+          <p>
+            Good for walking a list of tags with a colleague: each label becomes a saved view that looks at
+            its item.
+          </p>
+          <ol class="steps">
+            <li>
+              Select the labels, for example with <b>Select all</b> <span class="mk">1</span>. Only labels that are
+              linked to an item can be used.
+            </li>
+            <li>
+              Press <b>Selected to viewpoints</b> <span class="mk">2</span>.
+              <figure class="shot" data-shot="labels-viewpoints-button"></figure>
+            </li>
+            <li>
+              The <b>Viewpoint Viewer</b> opens with one viewpoint per label, named after the label. Click one
+              to fly there. The item is selected and its label is shown. If a viewpoint for the same item and
+              name already exists, it is not created twice.
+              <figure class="shot" data-shot="labels-viewpoints-viewer"></figure>
+            </li>
+          </ol>
+
+          <h3 id="label-save">Save, load and undo</h3>
+          <ul class="plain">
+            <li><b>Save…</b> downloads all labels and their style as <code class="inline">labels.json</code>. <b>Load…</b> replaces the current labels with a saved file.</li>
+            <li><b>Undo</b> / <b>Redo</b> step through label changes: placing, moving, deleting, importing and styling.</li>
+            <li><b>Delete all</b> removes every label. You can still undo it.</li>
+          </ul>
+
+          <h3 id="label-ref">Reference: every control</h3>
+          <div class="ref-table" data-ref="labels"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

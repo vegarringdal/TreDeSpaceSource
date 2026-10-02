@@ -4,6 +4,53 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.10.02** (>0.0.140):
+  User guide start page: the shortcut legend names the two kinds — simultaneous
+  keys (`+`) and consecutive keys (space).
+
+  Shortcut notation changed everywhere shortcuts are shown or written (tooltips,
+  Settings → Shortcuts, the recorder, defaults, the API's `hotkeys.list`):
+  keys pressed together are joined with `+` (`CTRL+Z`, was `CTRL&Z`), steps
+  pressed one after the other are separated by a space (`ALT 1021`, `G X`,
+  was `ALT + 1021`); the parser also accepts a comma between steps. The + and
+  comma keys are written `PLUS` / `COMMA`. The parser rejects spaces around
+  `+`, so an old-style string fails at boot instead of being misread. Saved
+  user overrides are untouched (they store key codes, not the notation);
+  exported keymap files are now `version: 2` and older files are rejected, as
+  is the shortcuts block of an older settings file (without resetting the
+  current shortcuts). Breaking for `@tredespace/ui` consumers who write
+  `defaultKeys` strings and for hosts that parse `hotkeys.list` keys.
+
+  The user guide now covers the whole app, one page per app layout: a start
+  page (`/docs/guide/index.html`) with the twelve layouts (F1–F12) as cards and
+  the App Layout ribbon (switch, save your own into ALT+F1–F12, rename,
+  reset), then `f01-home` … `f12-assets` — each layout's ribbon group by
+  group, its panels, step-by-step tasks and harvested reference tables — and
+  the shared panels on their own pages (Set Color, Label, Measurement List,
+  Settings). The guide moved to `docs/guide/` (every `*.html` there is a Vite
+  input); scenes are one file per page in `docs/guide/scenes/`, shot data one
+  JSON per scene in `docs/guide/data/`. `docs:shots` queues concurrent runs on
+  a lock, retries a stalled app boot, prunes pictures no scene takes any more,
+  and adds `gpu: 'prefer'` for full-screen layout pictures (taken headless
+  until a GPU run replaces them). Remaining 3D-view pictures need the
+  `--browser-url` GPU run. The dev server no longer watches
+  `docs/guide/img` and `docs/guide/data`: once a guide page had been loaded
+  (the F7 scene opens one as an example external app), every picture the
+  runner wrote full-reloaded the app it was screenshotting; a scene whose page
+  reloads now fails instead of producing wrong pictures.
+
+- **2026.10.01** (>0.0.140):
+  New end-user guide at `/docs/guide.html`: step-by-step walkthroughs of the
+  Set Color and Label panels with annotated screenshots (numbered markers that
+  match the text), a lightbox, and a per-panel control reference listing every
+  button's tooltip and default shortcut. The pictures and the reference are
+  produced by `npm run docs:shots` (`scripts/doc-shots.mjs` driving the real
+  app through `docs/guide/scenes.mjs` on the Huldra samples), so a changed
+  panel is re-documented by re-running the script, not by retaking
+  screenshots by hand. 3D-view pictures need a real GPU (`--browser-url` to a
+  GPU Chrome) and show a "not captured yet" box until then. The other docs
+  pages link to the guide.
+
 - **2026.09.30** (>0.0.139):
   The cooker pool now proves the wasm cooker is instantiated in EVERY slot
   before the first download starts (a `ready()` call per worker, 5 s

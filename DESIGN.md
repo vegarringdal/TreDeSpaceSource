@@ -249,9 +249,9 @@ own. Key facts, kept here so the port history isn't lost:
 - **Every button/checkbox/number-stepper gets a hotkey binding + tooltip**
   (`data-shortcut` renders the combo in the tooltip footer).
 - Self-built hotkey engine (`src/treDeSpaceUI/hotkeys/engine.ts`, app bindings
-  in `src/hotkeys/bindings.ts`): `&` together, `+` then,
+  in `src/hotkeys/bindings.ts`): `+` together (`CTRL+Z`), a space or comma then (`G X`),
   `[X]` hold, runs (`101` = 1,0,1), double-tap, modifier-only leaders
-  (`ALT&SHIFT + 2`), per-binding timeout/context, record UI, JSON
+  (`ALT+SHIFT 2`), per-binding timeout/context, record UI, JSON
   export/import, exact-duplicate validation at boot, suspend-while-recording,
   Console logging of fired shortcuts. Inside text fields shortcuts are muted
   except pure F-key combos (`allowInInput` defaults to true for those, so the
@@ -485,7 +485,7 @@ Decisions:
   files prove too large. Clipboard copy is TSV with a header row.
 - **"All" means as shown** — column filters and sort applied; "selected"
   keeps the shown order. The corner cell toggles every row shown, so a
-  filtered view selects only its rows. Hotkeys Alt&652–661 belong to this
+  filtered view selects only its rows. Hotkeys ALT 652–661 belong to this
   work (table 652–657, editor 658–660, reports 661).
 - Validation of the `sql.editor` payload lives in a pure module
   (`sqlEditorPayload.ts`) returning `{ error }` — vitest has no

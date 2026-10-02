@@ -1,0 +1,445 @@
+{
+  "shots": {
+    "f06-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 283.203125,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 295.203125,
+          "y": 136,
+          "w": 712.796875,
+          "h": 730
+        },
+        {
+          "n": 4,
+          "x": 1014,
+          "y": 136,
+          "w": 420,
+          "h": 758
+        },
+        {
+          "n": 5,
+          "x": 296.203125,
+          "y": 873,
+          "w": 79.546875,
+          "h": 22,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f06-tools": {
+      "w": 553,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 78,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 3,
+          "x": 144,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 4,
+          "x": 210,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 5,
+          "x": 276,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 6,
+          "x": 342,
+          "y": 6,
+          "w": 65.140625,
+          "h": 68
+        },
+        {
+          "n": 7,
+          "x": 409.140625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 8,
+          "x": 475.140625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f06-lock": {
+      "w": 300,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.140625,
+          "y": 6,
+          "w": 85.875,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 111.015625,
+          "y": 6,
+          "w": 86.875,
+          "h": 21.328125
+        },
+        {
+          "n": 3,
+          "x": 111.015625,
+          "y": 29.328125,
+          "w": 86.875,
+          "h": 21.328125
+        },
+        {
+          "n": 4,
+          "x": 111.015625,
+          "y": 52.65625,
+          "w": 86.875,
+          "h": 21.34375
+        },
+        {
+          "n": 5,
+          "x": 199.890625,
+          "y": 6,
+          "w": 86.875,
+          "h": 21.328125,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f06-snapping": {
+      "w": 395,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.765625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 78.765625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 3,
+          "x": 144.765625,
+          "y": 6,
+          "w": 80,
+          "h": 33
+        },
+        {
+          "n": 4,
+          "x": 226.765625,
+          "y": 6,
+          "w": 80,
+          "h": 33
+        },
+        {
+          "n": 5,
+          "x": 169.765625,
+          "y": 42,
+          "w": 30,
+          "h": 31,
+          "at": "bl"
+        },
+        {
+          "n": 6,
+          "x": 251.765625,
+          "y": 42,
+          "w": 30,
+          "h": 31,
+          "at": "br"
+        },
+        {
+          "n": 7,
+          "x": 319.765625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f06-list": {
+      "w": 420,
+      "h": 584,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f06-bar": {
+      "w": 429,
+      "h": 78,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 19.5234375,
+          "y": 31,
+          "w": 97.765625,
+          "h": 16
+        },
+        {
+          "n": 2,
+          "x": 123.2890625,
+          "y": 17,
+          "w": 90.203125,
+          "h": 44
+        },
+        {
+          "n": 3,
+          "x": 219.4921875,
+          "y": 17,
+          "w": 87.109375,
+          "h": 44
+        },
+        {
+          "n": 4,
+          "x": 312.6015625,
+          "y": 17,
+          "w": 97.0625,
+          "h": 44
+        }
+      ],
+      "fromGpu": true
+    },
+    "f06-task-line-viewport": {
+      "w": 713,
+      "h": 730,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f06-task-path-viewport": {
+      "w": 713,
+      "h": 730,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "ribbonMeasurements": [
+      {
+        "section": "Measure Tool",
+        "label": "Off",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-ban \"><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"></path><path d=\"M5.7 5.7l12.6 12.6\"></path></svg>",
+        "tooltip": "Select the off measurement tool",
+        "keys": "ALT 701"
+      },
+      {
+        "section": "Measure Tool",
+        "label": "Point",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-map-pin \"><path d=\"M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path><path d=\"M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0\"></path></svg>",
+        "tooltip": "Select the point measurement tool",
+        "keys": "ALT 706"
+      },
+      {
+        "section": "Measure Tool",
+        "label": "Line",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-ruler \"><path d=\"M5 4h14a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-7a1 1 0 0 0 -1 1v7a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1\"></path><path d=\"M4 8l2 0\"></path><path d=\"M4 12l3 0\"></path><path d=\"M4 16l2 0\"></path><path d=\"M8 4l0 2\"></path><path d=\"M12 4l0 3\"></path><path d=\"M16 4l0 2\"></path></svg>",
+        "tooltip": "Select the line measurement tool",
+        "keys": "ALT 702"
+      },
+      {
+        "section": "Measure Tool",
+        "label": "Path",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-route \"><path d=\"M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4\"></path><path d=\"M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5\"></path></svg>",
+        "tooltip": "Select the path measurement tool",
+        "keys": "ALT 703"
+      },
+      {
+        "section": "Measure Tool",
+        "label": "Area",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chart-area \"><path d=\"M4 19l16 0\"></path><path d=\"M4 15l4 -6l4 2l4 -5l4 4l0 5l-16 0\"></path></svg>",
+        "tooltip": "Select the area measurement tool",
+        "keys": "ALT 704"
+      },
+      {
+        "section": "Measure Tool",
+        "label": "Diameter",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-circle-dashed \"><path d=\"M8.56 3.69a9 9 0 0 0 -2.92 1.95\"></path><path d=\"M3.69 8.56a9 9 0 0 0 -.69 3.44\"></path><path d=\"M3.69 15.44a9 9 0 0 0 1.95 2.92\"></path><path d=\"M8.56 20.31a9 9 0 0 0 3.44 .69\"></path><path d=\"M15.44 20.31a9 9 0 0 0 2.92 -1.95\"></path><path d=\"M20.31 15.44a9 9 0 0 0 .69 -3.44\"></path><path d=\"M20.31 8.56a9 9 0 0 0 -1.95 -2.92\"></path><path d=\"M15.44 3.69a9 9 0 0 0 -3.44 -.69\"></path></svg>",
+        "tooltip": "Select the diameter measurement tool",
+        "keys": "ALT 705"
+      },
+      {
+        "section": "Measure Tool",
+        "label": "Angle",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-angle \"><path d=\"M21 19h-18l9 -15\"></path><path d=\"M20.615 15.171h.015\"></path><path d=\"M19.515 11.771h.015\"></path><path d=\"M17.715 8.671h.015\"></path><path d=\"M15.415 5.971h.015\"></path></svg>",
+        "tooltip": "Select the angle measurement tool",
+        "keys": "ALT 707"
+      },
+      {
+        "section": "Measure Tool",
+        "label": "Face",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-autofit-height \"><path d=\"M12 20h-6a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h6\"></path><path d=\"M18 14v7\"></path><path d=\"M18 3v7\"></path><path d=\"M15 18l3 3l3 -3\"></path><path d=\"M15 6l3 -3l3 3\"></path></svg>",
+        "tooltip": "Select the face measurement tool",
+        "keys": "ALT 708"
+      },
+      {
+        "section": "Options",
+        "label": "Auto Disable",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-exchange \"><path d=\"M7 10h14l-4 -4\"></path><path d=\"M17 14h-14l4 4\"></path></svg>",
+        "tooltip": "Automatically turn the measure tool Off when you leave this ribbon: switching to another ribbon tab, or changing layout via the App Layout ribbon or the F-keys. Keeps a measuring mode from staying armed while you work elsewhere, where every click would otherwise place a measurement point. Turn it off to keep the tool armed across ribbon and layout switches. Default on.",
+        "keys": "ALT 1213"
+      },
+      {
+        "section": "Lock",
+        "label": "None",
+        "icon": "",
+        "tooltip": "No placement lock",
+        "keys": "ALT 740"
+      },
+      {
+        "section": "Lock",
+        "label": "X-axis",
+        "icon": "",
+        "tooltip": "Next point moves only along X from the previous point",
+        "keys": "ALT 743"
+      },
+      {
+        "section": "Lock",
+        "label": "Perpendicular",
+        "icon": "",
+        "tooltip": "Next point moves straight out along the last point's surface normal",
+        "keys": "ALT 741"
+      },
+      {
+        "section": "Lock",
+        "label": "Y-axis",
+        "icon": "",
+        "tooltip": "Next point moves only along Y from the previous point",
+        "keys": "ALT 744"
+      },
+      {
+        "section": "Lock",
+        "label": "Parallel",
+        "icon": "",
+        "tooltip": "Next point stays in the last point's surface plane",
+        "keys": "ALT 742"
+      },
+      {
+        "section": "Lock",
+        "label": "Z-axis",
+        "icon": "",
+        "tooltip": "Next point moves only along Z from the previous point",
+        "keys": "ALT 745"
+      },
+      {
+        "section": "Snapping",
+        "label": "Snap",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-magnet \"><path d=\"M4 13v-8a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v8a2 2 0 0 0 6 0v-8a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v8a8 8 0 0 1 -16 0\"></path><path d=\"M4 8l5 0\"></path><path d=\"M15 8l4 0\"></path></svg>",
+        "tooltip": "Master switch \u2014 off places the raw surface point under the cursor",
+        "keys": "ALT 730"
+      },
+      {
+        "section": "Snapping",
+        "label": "Seams",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-join \"><path d=\"M3 7h5l3.5 5h9.5\"></path><path d=\"M3 17h5l3.495 -5\"></path><path d=\"M18 15l3 -3l-3 -3\"></path></svg>",
+        "tooltip": "Snap onto the line where two different items intersect (a box through a floor) \u2014 items with an opacity override don't count",
+        "keys": "ALT 739"
+      },
+      {
+        "section": "Snapping",
+        "label": "Corners",
+        "icon": "",
+        "tooltip": "Snap onto the nearest triangle vertex within the radius",
+        "keys": "ALT 731"
+      },
+      {
+        "section": "Snapping",
+        "label": "Edges",
+        "icon": "",
+        "tooltip": "Snap onto the nearest triangle edge within the radius",
+        "keys": "ALT 732"
+      },
+      {
+        "section": "Snapping",
+        "label": "Corner radius \u2212",
+        "icon": "",
+        "tooltip": "Tighter corner snap radius (px)",
+        "keys": "ALT 734"
+      },
+      {
+        "section": "Snapping",
+        "label": "Corner radius +",
+        "icon": "",
+        "tooltip": "Wider corner snap radius (px)",
+        "keys": "ALT 733"
+      },
+      {
+        "section": "Snapping",
+        "label": "Edge radius \u2212",
+        "icon": "",
+        "tooltip": "Tighter edge snap radius (px)",
+        "keys": "ALT 736"
+      },
+      {
+        "section": "Snapping",
+        "label": "Edge radius +",
+        "icon": "",
+        "tooltip": "Wider edge snap radius (px)",
+        "keys": "ALT 735"
+      },
+      {
+        "section": "List",
+        "label": "List",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list \"><path d=\"M9 6l11 0\"></path><path d=\"M9 12l11 0\"></path><path d=\"M9 18l11 0\"></path><path d=\"M5 6l0 .01\"></path><path d=\"M5 12l0 .01\"></path><path d=\"M5 18l0 .01\"></path></svg>",
+        "tooltip": "Open the measurements list",
+        "keys": "ALT 710"
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

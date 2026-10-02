@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Section } from './Section';
 
 const DEMO_BINDINGS = [
-  { id: 'demo.double', keys: 'G + G', label: 'Double-tap G' },
-  { id: 'demo.chord', keys: 'E&R', label: 'Chord E&R (together)' },
-  { id: 'demo.leader', keys: 'ALT&SHIFT + 2', label: 'Leader ALT&SHIFT, then 2' },
+  { id: 'demo.double', keys: 'G G', label: 'Double-tap G' },
+  { id: 'demo.chord', keys: 'E+R', label: 'Chord E+R (together)' },
+  { id: 'demo.leader', keys: 'ALT+SHIFT 2', label: 'Leader ALT+SHIFT, then 2' },
 ];
 
 /** Gallery section for the hotkeys module (engine + display grammar). */
@@ -14,7 +14,7 @@ export function HotkeysDemo() {
   const [fired, setFired] = useState('');
   const [muted, setMuted] = useState('');
   const [progress, setProgress] = useState('');
-  const [grammar, setGrammar] = useState('ALT&F1 + 101');
+  const [grammar, setGrammar] = useState('ALT+F1 101');
   const [recorded, setRecorded] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
@@ -56,7 +56,7 @@ export function HotkeysDemo() {
   return (
     <Section
       title="Hotkeys"
-      note="The keyboard-shortcut system: a dependency-free engine with a display grammar — A&B together, A + B then, [X] hold, digit runs (101), double-taps, modifier-only leaders — plus an app-level registry (hotkeysActions.register) with per-user overrides, localStorage persistence and keymap import/export. The Tooltip widget reads that registry for its shortcut footers. This demo drives a page-local HotkeyEngine; while this tab is open, try the bindings below. They pause while typing in a field — except pure F-key combos, which are never muted — and a muted press that carries Ctrl/Alt/Meta (the ALT&SHIFT leader inside the Grammar playground) is reported through setMutedListener / setHotkeyMutedNotifier instead of silently doing nothing."
+      note="The keyboard-shortcut system: a dependency-free engine with a display grammar — A+B together, A B (or A,B) then, [X] hold, digit runs (101), double-taps, modifier-only leaders — plus an app-level registry (hotkeysActions.register) with per-user overrides, localStorage persistence and keymap import/export. The Tooltip widget reads that registry for its shortcut footers. This demo drives a page-local HotkeyEngine; while this tab is open, try the bindings below. They pause while typing in a field — except pure F-key combos, which are never muted — and a muted press that carries Ctrl/Alt/Meta (the ALT+SHIFT leader inside the Grammar playground) is reported through setMutedListener / setHotkeyMutedNotifier instead of silently doing nothing."
       props={['HotkeyDef', 'Registered', 'Sequence']}
       code={`import { formatSequence, hotkeysActions, setHotkeyMutedNotifier } from '@tredespace/ui/hotkeys';
 import { toast } from '@tredespace/ui/widgets';
@@ -64,7 +64,7 @@ import { toast } from '@tredespace/ui/widgets';
 hotkeysActions.register([
   {
     id: 'view.fit', category: 'View', label: 'Fit view',
-    description: 'Frame the whole model', defaultKeys: 'Z + Z',
+    description: 'Frame the whole model', defaultKeys: 'Z Z',
     run: () => fitView(),
   },
 ]);

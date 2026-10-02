@@ -1,0 +1,760 @@
+{
+  "shots": {
+    "f03-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 283.203125,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 295.203125,
+          "y": 136,
+          "w": 712.796875,
+          "h": 730
+        },
+        {
+          "n": 4,
+          "x": 1014,
+          "y": 136,
+          "w": 420,
+          "h": 758
+        },
+        {
+          "n": 5,
+          "x": 296.203125,
+          "y": 873,
+          "w": 79.546875,
+          "h": 22,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-onoff": {
+      "w": 244,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 89,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 3,
+          "x": 166,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-gizmo": {
+      "w": 197,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.03125,
+          "y": 6,
+          "w": 49.3125,
+          "h": 33
+        },
+        {
+          "n": 2,
+          "x": 12.03125,
+          "y": 41,
+          "w": 49.3125,
+          "h": 33
+        },
+        {
+          "n": 3,
+          "x": 63.34375,
+          "y": 6,
+          "w": 54.28125,
+          "h": 33
+        },
+        {
+          "n": 4,
+          "x": 63.34375,
+          "y": 41,
+          "w": 54.28125,
+          "h": 33
+        },
+        {
+          "n": 5,
+          "x": 119.625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-boxsize": {
+      "w": 237,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.625,
+          "y": 6,
+          "w": 93.734375,
+          "h": 21.328125
+        },
+        {
+          "n": 2,
+          "x": 12.625,
+          "y": 29.328125,
+          "w": 93.734375,
+          "h": 21.328125
+        },
+        {
+          "n": 3,
+          "x": 12.625,
+          "y": 52.65625,
+          "w": 93.734375,
+          "h": 21.328125
+        },
+        {
+          "n": 4,
+          "x": 108.359375,
+          "y": 6,
+          "w": 116,
+          "h": 33
+        },
+        {
+          "n": 5,
+          "x": 133.359375,
+          "y": 46.5,
+          "w": 66,
+          "h": 22
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-resize": {
+      "w": 362,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.359375,
+          "y": 6,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "n": 2,
+          "x": 12.359375,
+          "y": 41,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "n": 3,
+          "x": 258.359375,
+          "y": 29,
+          "w": 66,
+          "h": 22
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-move": {
+      "w": 224,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.359375,
+          "y": 6,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "n": 2,
+          "x": 128.359375,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-shapes-empty": {
+      "w": 420,
+      "h": 279,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f03-shapes-common": {
+      "w": 414,
+      "h": 170,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 145,
+          "y": 39,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 275,
+          "y": 39,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 15,
+          "y": 69,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 145,
+          "y": 69,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 275,
+          "y": 69,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 15,
+          "y": 99,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 145,
+          "y": 99,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 9,
+          "x": 275,
+          "y": 99,
+          "w": 124,
+          "h": 24
+        },
+        {
+          "n": 10,
+          "x": 15,
+          "y": 135.296875,
+          "w": 72,
+          "h": 15.390625
+        },
+        {
+          "n": 11,
+          "x": 327,
+          "y": 131,
+          "w": 72,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-shape-row": {
+      "w": 396,
+      "h": 192,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 37,
+          "y": 39,
+          "w": 194,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 237,
+          "y": 39,
+          "w": 24,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 3,
+          "x": 267,
+          "y": 39,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 4,
+          "x": 297,
+          "y": 39,
+          "w": 24,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 5,
+          "x": 327,
+          "y": 39,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 6,
+          "x": 357,
+          "y": 39,
+          "w": 24,
+          "h": 24,
+          "at": "br"
+        },
+        {
+          "n": 7,
+          "x": 67,
+          "y": 69,
+          "w": 102,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 173,
+          "y": 69,
+          "w": 102,
+          "h": 24
+        },
+        {
+          "n": 9,
+          "x": 279,
+          "y": 69,
+          "w": 102,
+          "h": 24
+        },
+        {
+          "n": 10,
+          "x": 15,
+          "y": 101.296875,
+          "w": 48,
+          "h": 15.390625
+        },
+        {
+          "n": 11,
+          "x": 15,
+          "y": 129.296875,
+          "w": 48,
+          "h": 15.390625
+        },
+        {
+          "n": 12,
+          "x": 15,
+          "y": 157.296875,
+          "w": 48,
+          "h": 15.390625
+        }
+      ],
+      "fromGpu": true
+    },
+    "f03-shapes-list": {
+      "w": 420,
+      "h": 447,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f03-task-fit-viewport": {
+      "w": 713,
+      "h": 730,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f03-task-hole-viewport": {
+      "w": 713,
+      "h": 730,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "ribbonClippingBox": [
+      {
+        "section": "On/Off",
+        "label": "Enable",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-crop \"><path d=\"M8 5v10a1 1 0 0 0 1 1h10\"></path><path d=\"M5 8h10a1 1 0 0 1 1 1v10\"></path></svg>",
+        "tooltip": "Toggle clipping globally (default box + clip shapes)",
+        "keys": "Z"
+      },
+      {
+        "section": "Helper",
+        "label": "Box",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-box \"><path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"></path><path d=\"M12 12l8 -4.5\"></path><path d=\"M12 12l0 9\"></path><path d=\"M12 12l-8 -4.5\"></path></svg>",
+        "tooltip": "Toggle the clipping box helper",
+        "keys": "ALT 332"
+      },
+      {
+        "section": "Cut Dir",
+        "label": "Flip",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-up-down \"><path d=\"M7 3l0 18\"></path><path d=\"M10 6l-3 -3l-3 3\"></path><path d=\"M20 18l-3 3l-3 -3\"></path><path d=\"M17 21l0 -18\"></path></svg>",
+        "tooltip": "Flip the box cut side",
+        "keys": "ALT 333"
+      },
+      {
+        "section": "Gizmo Mode",
+        "label": "None",
+        "icon": "",
+        "tooltip": "Hide the main box gizmo",
+        "keys": "ALT 339"
+      },
+      {
+        "section": "Gizmo Mode",
+        "label": "Move",
+        "icon": "",
+        "tooltip": "Box move gizmo",
+        "keys": "ALT 334"
+      },
+      {
+        "section": "Gizmo Mode",
+        "label": "Rotate",
+        "icon": "",
+        "tooltip": "Box rotate gizmo",
+        "keys": "ALT 335"
+      },
+      {
+        "section": "Gizmo Mode",
+        "label": "Scale",
+        "icon": "",
+        "tooltip": "Box scale gizmo",
+        "keys": "ALT 336"
+      },
+      {
+        "section": "Gizmo Mode",
+        "label": "6 Axis",
+        "icon": "",
+        "tooltip": "Scale tool handles:\n3 axis = symmetric, 6 axis = per face",
+        "keys": "ALT 337"
+      },
+      {
+        "section": "Box Size",
+        "label": "Fit Sel",
+        "icon": "",
+        "tooltip": "Fit the box to the selection",
+        "keys": "F"
+      },
+      {
+        "section": "Box Size",
+        "label": "Fit Sel +Off.",
+        "icon": "",
+        "tooltip": "Fit the box to the selection with the offset margin (right) added on every side",
+        "keys": "F F"
+      },
+      {
+        "section": "Box Size",
+        "label": "Focus On Set",
+        "icon": "",
+        "tooltip": "When on, Fit Sel / Fit Sel +Off. also move the orbit point to the clipping box center",
+        "keys": "ALT 341"
+      },
+      {
+        "section": "Box Size",
+        "label": "Fit Scene",
+        "icon": "",
+        "tooltip": "Fit the box to the whole scene",
+        "keys": "ALT 340"
+      },
+      {
+        "section": "Box Size",
+        "label": "Offset \u2212",
+        "icon": "",
+        "tooltip": "Smaller Fit Sel offset margin",
+        "keys": "ALT 1161"
+      },
+      {
+        "section": "Box Size",
+        "label": "Offset +",
+        "icon": "",
+        "tooltip": "Larger Fit Sel offset margin",
+        "keys": "ALT 1160"
+      },
+      {
+        "section": "Resize (Main)",
+        "label": "L+ / R+ / F+ / B+ / Bo+ / T+",
+        "icon": "",
+        "tooltip": "Grow the box through its LEFT face",
+        "keys": ""
+      },
+      {
+        "section": "Resize (Main)",
+        "label": "L\u2212 / R\u2212 / F\u2212 / B\u2212 / Bo\u2212 / T\u2212",
+        "icon": "",
+        "tooltip": "Shrink the box through its LEFT face",
+        "keys": ""
+      },
+      {
+        "section": "Step",
+        "label": "Step \u2212",
+        "icon": "",
+        "tooltip": "Decrease the clipping-box step",
+        "keys": "ALT 343"
+      },
+      {
+        "section": "Step",
+        "label": "Step +",
+        "icon": "",
+        "tooltip": "Increase the clipping-box step",
+        "keys": "ALT 342"
+      },
+      {
+        "section": "Move (Main)",
+        "label": "L / R / F / B / Bo / T",
+        "icon": "",
+        "tooltip": "Move the whole box one step toward LEFT",
+        "keys": ""
+      },
+      {
+        "section": "Additional",
+        "label": "Shapes",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-shape \"><path d=\"M3 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M17 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M3 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M17 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M5 7l0 10\"></path><path d=\"M7 5l10 0\"></path><path d=\"M7 19l10 0\"></path><path d=\"M19 7l0 10\"></path></svg>",
+        "tooltip": "Open the Clip Shapes panel \u2014 sphere / cylinder / box clip volumes beyond the default box",
+        "keys": "ALT 1212"
+      }
+    ],
+    "clipShapes": [
+      {
+        "section": "Common",
+        "label": "Sphere",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a sphere clip shape (fits the selection when there is one)",
+        "keys": "ALT 320"
+      },
+      {
+        "section": "Common",
+        "label": "Cylinder",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a cylinder clip shape (fits the selection when there is one)",
+        "keys": "ALT 321"
+      },
+      {
+        "section": "Common",
+        "label": "Box",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a box clip shape (fits the selection when there is one)",
+        "keys": "ALT 325"
+      },
+      {
+        "section": "Common",
+        "label": "Save\u2026",
+        "icon": "",
+        "tooltip": "Save all shapes to a JSON file",
+        "keys": "ALT 326"
+      },
+      {
+        "section": "Common",
+        "label": "Load\u2026",
+        "icon": "",
+        "tooltip": "Load shapes from a JSON file",
+        "keys": "ALT 327"
+      },
+      {
+        "section": "Common",
+        "label": "Delete all",
+        "icon": "",
+        "tooltip": "Delete every shape",
+        "keys": "ALT 328"
+      },
+      {
+        "section": "Common",
+        "label": "Hide all",
+        "icon": "",
+        "tooltip": "Hide all shapes (keeps the list)",
+        "keys": "ALT 322"
+      },
+      {
+        "section": "Common",
+        "label": "Hide main box",
+        "icon": "",
+        "tooltip": "Hide the default clip box only (global clipping stays on)",
+        "keys": "ALT 329"
+      },
+      {
+        "section": "Common",
+        "label": "Helpers",
+        "icon": "",
+        "tooltip": "Show / hide ALL shape outlines",
+        "keys": "ALT 323"
+      },
+      {
+        "section": "Common",
+        "label": "Move",
+        "icon": "",
+        "tooltip": "Shape gizmo: move (arm a shape with its Gizmo button)",
+        "keys": "ALT 311"
+      },
+      {
+        "section": "Common",
+        "label": "Rotate",
+        "icon": "",
+        "tooltip": "Shape gizmo: rotate (arm a shape with its Gizmo button)",
+        "keys": "ALT 312"
+      },
+      {
+        "section": "Common",
+        "label": "Scale",
+        "icon": "",
+        "tooltip": "Shape gizmo: scale (arm a shape with its Gizmo button)",
+        "keys": "ALT 313"
+      },
+      {
+        "section": "Common",
+        "label": "6 Axis",
+        "icon": "",
+        "tooltip": "Scale handles of the armed shape: 6 axis = per face (a box), or diameter + top + bottom (a cylinder); 3 axis = symmetric",
+        "keys": "ALT 338"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each shape",
+        "label": "Name",
+        "tooltip": "The shape\u2019s name in the list. Empty = Sphere / Cylinder / Box."
+      },
+      {
+        "section": "Each shape",
+        "label": "On / off",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-power \"><path d=\"M7 6a7.75 7.75 0 1 0 10 0\"></path><path d=\"M12 4l0 8\"></path></svg>",
+        "tooltip": "Disable this shape",
+        "keys": ""
+      },
+      {
+        "section": "Each shape",
+        "label": "Invert",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-circle-half-2 \"><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"></path><path d=\"M12 3v18\"></path><path d=\"M12 14l7 -7\"></path><path d=\"M12 19l8.5 -8.5\"></path><path d=\"M12 9l4.5 -4.5\"></path></svg>",
+        "tooltip": "Invert \u2014 clip INSIDE the shape (cut a hole)",
+        "keys": ""
+      },
+      {
+        "section": "Each shape",
+        "label": "Outline",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-vector-triangle \"><path d=\"M10 5a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -2\"></path><path d=\"M3 18a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -2\"></path><path d=\"M17 18a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -2\"></path><path d=\"M6.5 17.1l5 -9.1\"></path><path d=\"M17.5 17.1l-5 -9.1\"></path><path d=\"M7 19l10 0\"></path></svg>",
+        "tooltip": "Show this shape's outline",
+        "keys": ""
+      },
+      {
+        "section": "Each shape",
+        "label": "Gizmo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-hand-move \"><path d=\"M8 13v-8.5a1.5 1.5 0 0 1 3 0v7.5\"></path><path d=\"M11 11.5v-2a1.5 1.5 0 0 1 3 0v2.5\"></path><path d=\"M14 10.5a1.5 1.5 0 0 1 3 0v1.5\"></path><path d=\"M17 11.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7l-.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47\"></path><path d=\"M2.541 5.594a13.487 13.487 0 0 1 2.46 -1.427\"></path><path d=\"M14 3.458c1.32 .354 2.558 .902 3.685 1.612\"></path></svg>",
+        "tooltip": "Arm the viewport gizmo on this shape (move / rotate / scale)",
+        "keys": ""
+      },
+      {
+        "section": "Each shape",
+        "label": "Delete",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this shape",
+        "keys": ""
+      },
+      {
+        "section": "Each shape",
+        "label": "Sel",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-maximize \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
+        "tooltip": "Fit the selection (or scene) exactly",
+        "keys": ""
+      },
+      {
+        "section": "Each shape",
+        "label": "+2m",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-maximize \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
+        "tooltip": "Fit the selection (or scene) + 2 m padding",
+        "keys": ""
+      },
+      {
+        "section": "Each shape",
+        "label": "Center",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-centered \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
+        "tooltip": "Move to the selection (or scene) centre, keeping size",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each shape",
+        "label": "Center (X, Y, Z)",
+        "tooltip": "X, Y, Z of the centre (sphere, box) or of the bottom end (cylinder), in metres."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each shape",
+        "label": "Size (box)",
+        "tooltip": "X, Y, Z distance from the centre to the faces: half the full width, depth and height."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each shape",
+        "label": "Radius (sphere, cylinder)",
+        "tooltip": "Radius in metres."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each shape",
+        "label": "Height (cylinder)",
+        "tooltip": "Length along the axis, in metres."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each shape",
+        "label": "Axis (cylinder)",
+        "tooltip": "Direction of the cylinder: 0, 0, 1 stands it upright."
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

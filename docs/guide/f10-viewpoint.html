@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F10 Viewpoint</title>
+  <meta name="description" content="Guide to the F10 Viewpoint layout: save views with their own camera, clipping, labels, measurements, colours and selection, and present them with the Viewpoint Viewer." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F10</p>
+      <h1>Viewpoint</h1>
+      <p class="lede">
+        Save views of the model — camera, clipping, labels, measurements, colours and a selection — and step
+        through them in a review or a presentation. <b>Numbered markers</b> on each picture match the numbers in
+        the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F10</p>
+          <h2>The Viewpoint layout</h2>
+          <p>
+            Press <kbd>F10</kbd> (or pick <b>Viewpoint</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to open the viewpoint workspace. A <b>viewpoint</b> is a saved view with a name. Activating it
+            flies the camera there and brings back everything that belongs to it: clipping, labels, measurements,
+            colours and selected items. Build the viewpoints in the <b>Viewpoint Editor</b>, then present them one by
+            one from the <b>Viewpoint Viewer</b>.
+          </p>
+          <figure class="shot" data-shot="f10-layout">
+            <figcaption>The F10 layout with three viewpoints. <b>PA loudspeakers</b> is active: its five labels and one measurement are on screen.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Home ribbon</b> — the same as in <a href="f01-home.html">F1 Home</a>.</li>
+            <li><b>Hierarchy</b> — the model tree. The items a viewpoint selects are highlighted here too.</li>
+            <li><b>Viewpoint Viewer</b> — the list for presenting: click a name to go there. See <a href="#viewer">below</a>.</li>
+            <li><b>3D view</b>.</li>
+            <li><b>Viewpoint Editor</b> — create, name, describe, order and delete viewpoints. See <a href="#editor">below</a>.</li>
+            <li><b>Measurement (viewpoint)</b> — the measurements of the active viewpoint.</li>
+            <li><b>Set Color (viewpoint)</b> — the colour rules of the active viewpoint.</li>
+            <li><b>Label (viewpoint)</b> — the labels of the active viewpoint.</li>
+          </ol>
+          <p class="note">
+            <b>Viewpoints are not kept when you reload the page.</b> They belong to the model that is loaded right
+            now, so every session starts with an empty list. Use <b>Save</b> in the Viewpoint Editor to keep them in a
+            file, and <b>Load</b> to bring them back.
+          </p>
+        </section>
+
+        <section id="concept" class="g-sec">
+          <p class="sec-kick">Concept</p>
+          <h2>What a viewpoint remembers</h2>
+          <div class="concept">
+            <p class="concept-title">When you activate a viewpoint, the viewer…</p>
+            <ul>
+              <li><b>Flies the camera</b> to the saved position, and switches to perspective or orthographic view and to sketch mode or not, as saved.</li>
+              <li><b>Sets the clipping</b> as saved: the clipping box, the clipping planes and the clip shapes. See <a href="f02-clip-plane.html">F2 Clip Plane</a> and <a href="f03-clip-box.html">F3 Clip Box</a>.</li>
+              <li><b>Shows its own labels and measurements</b> instead of the ones you had on screen. Yours are put aside, not deleted (see <a href="#mute">Scene or viewpoint</a>).</li>
+              <li><b>Runs its colour rules</b>, if it has any. A viewpoint without rules leaves the colours as they are.</li>
+              <li><b>Selects its items</b> — the names in its <b>Selected on activation</b> list. If the list is empty, everything is unselected.</li>
+            </ul>
+            <p>
+              The name and description are shown in the Viewpoint Viewer. The badge on each row of the editor counts
+              what is stored: <b>5L 1M 5S 2C</b> means 5 labels, 1 measurement, 5 selected items and 2 colour rules.
+            </p>
+          </div>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-create">Create a viewpoint</h3>
+          <ol class="steps">
+            <li>
+              Set up the view: move the camera, and turn on a clipping box or planes if you need them. Here we fly to
+              the public-address system <code class="inline">/HA-TELE-PA</code>.
+            </li>
+            <li>
+              In the <b>Viewpoint Editor</b>, press <b>Add viewpoint</b> <span class="mk">1</span>
+              (<kbd>ALT 1126</kbd>). A new viewpoint called <b>Viewpoint 1</b> (2, 3 …) is added at the end of the
+              list and made active.
+              <figure class="shot" data-shot="f10-editor"></figure>
+            </li>
+            <li>
+              The new viewpoint holds only the camera and clipping. It starts with no labels, measurements, colour rules
+              or selection, so the labels and measurements you had on screen disappear when it activates, and the selection is cleared. They are
+              not lost: <b>Unmute scene</b> brings them back (see <a href="#mute">Scene or viewpoint</a>).
+            </li>
+            <li>
+              Open its row and type a <b>Name</b> <span class="mk">1</span> and a <b>Description</b>
+              <span class="mk">2</span>. These are saved as you type.
+              <figure class="shot" data-shot="f10-row-content"></figure>
+            </li>
+            <li>
+              To fill the viewpoint, either copy what you already have, or edit it directly:
+              <ul class="plain">
+                <li><b>Copy labels</b> <span class="mk">3</span>, <b>Copy measurements</b> <span class="mk">4</span> and
+                  <b>Copy set colors</b> <span class="mk">5</span> copy the labels and measurements you made outside the
+                  viewpoint, and the rules of the normal <a href="panel-set-color.html">Set Color</a> panel, into this
+                  viewpoint. Each one <i>replaces</i> what the viewpoint had.</li>
+                <li>Or use the three <b>(viewpoint)</b> panels on the right — see <a href="#task-edit">Change a viewpoint's labels, measurements or colours</a>.</li>
+              </ul>
+            </li>
+            <li>
+              To have items selected when the viewpoint opens, select them (in the Hierarchy or the 3D view) and press
+              <b>From selection</b> <span class="mk">7</span>, or type the names into the list
+              <span class="mk">6</span>, one per line.
+            </li>
+          </ol>
+          <p class="note">
+            <b>Many viewpoints at once:</b> the Label panel can turn every selected label into its own viewpoint that
+            looks at the labelled item. See <a href="panel-label.html#label-viewpoints">Make one viewpoint per label</a>.
+          </p>
+
+          <h3 id="task-edit">Change a viewpoint's labels, measurements or colours</h3>
+          <p>
+            The three <b>(viewpoint)</b> panels always work on the <b>active</b> viewpoint. They are locked until you
+            press <b>Edit</b>, and nothing you change sticks until you press <b>Save to viewpoint</b>.
+          </p>
+          <ol class="steps">
+            <li>Activate the viewpoint (<b>Activate</b> in the editor, or click its name in the Viewpoint Viewer).</li>
+            <li>
+              The panels show <b>Viewing</b> and the viewpoint's name <span class="mk">1</span> and are greyed out.
+              Press <b>Edit</b> <span class="mk">2</span> (<kbd>ALT 1185</kbd>). This unlocks all three panels.
+              <figure class="shot" data-shot="f10-edit-locked"></figure>
+            </li>
+            <li>
+              Make your changes. Use the panels as you normally would: place or import labels, change colour rules.
+              Labels you place and measurements you take in the 3D view while the viewpoint is active also belong to
+              the viewpoint.
+            </li>
+            <li>
+              As soon as something differs from what is saved, the panels show <b>unsaved edits</b>
+              <span class="mk">1</span> and <b>Save to viewpoint</b> <span class="mk">2</span> lights up. Press it
+              (<kbd>ALT 1138</kbd>) to store the labels, measurements and colour rules in the viewpoint. One press saves
+              all three panels.
+              <figure class="shot" data-shot="f10-edit-dirty"></figure>
+            </li>
+            <li>
+              If you activate another viewpoint, or press <b>Unmute scene</b>, while there are unsaved edits, the viewer
+              asks first. <b>Save</b> <span class="mk">1</span> stores them; <b>Discard</b> <span class="mk">2</span>
+              throws them away and the viewpoint stays as it was saved.
+              <figure class="shot" data-shot="f10-unsaved"></figure>
+            </li>
+          </ol>
+
+          <h3 id="task-update">Update the camera or clipping of a viewpoint</h3>
+          <ol class="steps">
+            <li>Move the camera and change the clipping as you want it.</li>
+            <li>
+              Open the viewpoint's row in the editor and press <b>Update camera/clip</b> <span class="mk">6</span>
+              (<kbd>ALT 1128</kbd>). The camera position and all clipping (box, planes and shapes) are replaced with
+              what you have now. Labels, measurements, colours and selection are not touched.
+              <figure class="shot" data-shot="f10-row-head"></figure>
+            </li>
+          </ol>
+
+          <h3 id="task-order">Order and delete viewpoints</h3>
+          <ul class="plain">
+            <li>The arrows <span class="mk">3</span> <span class="mk">4</span> in each row header (picture above) move the viewpoint up or down. The order is the order of the Viewpoint Viewer.</li>
+            <li><span class="mk">2</span> inserts a <b>new</b> viewpoint (current camera and clipping, otherwise empty) <i>above</i> this one. Unlike <b>Add viewpoint</b>, it does not activate it.</li>
+            <li><b>Delete</b> <span class="mk">7</span> removes one viewpoint straight away, without asking, and it cannot be undone. If it was active, your own labels and measurements come back.</li>
+            <li><b>Delete all</b> in the top row removes every viewpoint, after asking.</li>
+          </ul>
+
+          <h3 id="task-present">Present viewpoints</h3>
+          <ol class="steps">
+            <li>Load or create the viewpoints. If you got them as a file, press <b>Load</b> in the Viewpoint Viewer.</li>
+            <li>
+              Click a name in the <b>Viewpoint Viewer</b>. The camera flies there and the viewpoint's labels,
+              measurements, colours and selection appear. Its description is shown under the name.
+            </li>
+            <li>
+              Use <b>Mute labels</b> or <b>Mute measures</b> to take them off the screen for a moment, without deleting
+              anything. See <a href="#viewer">The Viewpoint Viewer</a>.
+              <figure class="shot" data-shot="f10-task-pa-viewport">
+                <figcaption><b>PA loudspeakers</b> activated: everything is ghosted except the PA system (orange), with a label on every speaker and one measurement.</figcaption>
+              </figure>
+              <figure class="shot" data-shot="f10-task-escape-viewport">
+                <figcaption><b>Escape routes</b> activated: the escape routes are selected. This viewpoint has no colour rules, so the colours stay as they were.</figcaption>
+              </figure>
+            </li>
+          </ol>
+
+          <h3 id="task-file">Save viewpoints to a file and load them again</h3>
+          <ul class="plain">
+            <li><b>Save</b> (<kbd>ALT 1130</kbd>) in the Viewpoint Editor downloads every viewpoint, with all its content, as <code class="inline">viewpoints.json</code>.</li>
+            <li><b>Load</b> — in the editor or in the Viewpoint Viewer — reads such a file. It <b>replaces</b> all the viewpoints you have, without asking. No viewpoint is active after loading; click one to start.</li>
+            <li>The file only makes sense with the same model loaded: items are found by name, and positions are in model coordinates.</li>
+          </ul>
+        </section>
+
+        <section id="editor" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>The Viewpoint Editor</h2>
+          <p>
+            The editor lists every viewpoint as a row you can open. The active one is shown in blue with
+            <b>— active</b> after its name. Only one row is open at a time; opening a row does not activate it.
+          </p>
+          <figure class="shot" data-shot="f10-editor"></figure>
+          <ol class="legend-list">
+            <li><b>Add viewpoint</b> (<kbd>ALT 1126</kbd>) — a new viewpoint from the current camera and clipping, made active straight away.</li>
+            <li><b>Save</b> (<kbd>ALT 1130</kbd>) — downloads all viewpoints as a file.</li>
+            <li><b>Load</b> — replaces all viewpoints with the ones in a file.</li>
+            <li><b>Delete all</b> (<kbd>ALT 1228</kbd>) — removes every viewpoint, after asking.</li>
+            <li><b>A viewpoint</b> — click the name to open its row.</li>
+            <li><b>The active viewpoint</b>.</li>
+          </ol>
+          <p>
+            A host application that embeds the viewer can add one more button to this row, for example to store the
+            viewpoints as a bookmark in that application.
+          </p>
+
+          <h3 id="editor-row">A viewpoint row</h3>
+          <figure class="shot" data-shot="f10-row-head"></figure>
+          <ol class="legend-list">
+            <li><b>Badge</b> — how many labels (L), measurements (M), selected items (S) and colour rules (C) the viewpoint holds.</li>
+            <li><b>Insert before</b> — a new, empty viewpoint above this one.</li>
+            <li><b>Move up</b>.</li>
+            <li><b>Move down</b>.</li>
+            <li><b>Activate</b> (<kbd>ALT 1127</kbd>) — go to the viewpoint. See <a href="#concept">What a viewpoint remembers</a>.</li>
+            <li><b>Update camera/clip</b> (<kbd>ALT 1128</kbd>) — store the current camera and clipping in this viewpoint.</li>
+            <li><b>Delete</b> (<kbd>ALT 1129</kbd>) — remove this viewpoint. No undo.</li>
+          </ol>
+          <figure class="shot" data-shot="f10-row-content"></figure>
+          <ol class="legend-list">
+            <li><b>Name</b>.</li>
+            <li><b>Description</b> — shown under the name in the Viewpoint Viewer when the viewpoint is active. Start a new line with <kbd>Enter</kbd>; put <code class="inline">**</code> around words to make them <b>bold</b>.</li>
+            <li><b>Copy labels</b> (<kbd>ALT 1132</kbd>) — replaces the viewpoint's labels with the ones you made outside the viewpoint.</li>
+            <li><b>Copy measurements</b> (<kbd>ALT 1133</kbd>) — the same for measurements.</li>
+            <li><b>Copy set colors</b> (<kbd>ALT 1134</kbd>) — replaces the viewpoint's colour rules with the rules in the normal <a href="panel-set-color.html">Set Color</a> panel. If that panel was never used, the viewpoint ends up with no rules.</li>
+            <li><b>Selected on activation</b> — item names, one per line, selected when the viewpoint activates.</li>
+            <li><b>From selection</b> (<kbd>ALT 1135</kbd>) — fills the list from what is selected now.</li>
+          </ol>
+          <p class="note">
+            Name, description, the selection list, the Copy buttons and Update camera/clip change the viewpoint
+            <b>immediately</b> — no Save to viewpoint needed. Only the three (viewpoint) panels wait for Save to viewpoint.
+          </p>
+        </section>
+
+        <section id="viewer" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>The Viewpoint Viewer</h2>
+          <p>
+            A plain list for presenting: no editing, just a click per viewpoint. Open it on its own from the
+            <b>Panel</b> tab of the ribbon, or with <kbd>ALT 1125</kbd>.
+          </p>
+          <figure class="shot" data-shot="f10-viewer"></figure>
+          <ol class="legend-list">
+            <li><b>Load</b> — replaces all viewpoints with the ones in a file.</li>
+            <li><b>Mute labels</b> (<kbd>ALT 1139</kbd>) — hides every label from the 3D view; the button then reads <b>Labels off</b>. Press again to show them. The labels are not deleted, and the setting stays when you switch viewpoints.</li>
+            <li><b>Mute measures</b> (<kbd>ALT 720</kbd>) — the same for measurements (<b>Measures off</b>).</li>
+            <li><b>The active viewpoint</b> — click any name to activate it.</li>
+            <li><b>Description</b> of the active viewpoint.</li>
+          </ol>
+        </section>
+
+        <section id="vp-panels" class="g-sec">
+          <p class="sec-kick">Panels</p>
+          <h2>The (viewpoint) panels</h2>
+          <p>
+            <b>Label (viewpoint)</b>, <b>Measurement (viewpoint)</b> and <b>Set Color (viewpoint)</b> are the normal
+            Label, Measurement List and Set Color panels, but they work on the <b>active viewpoint's own</b> labels,
+            measurements and colour rules. How the panels themselves work is explained on their own pages:
+          </p>
+          <ul class="plain">
+            <li><a href="panel-label.html"><b>Label guide →</b></a></li>
+            <li><a href="panel-measurements.html"><b>Measurement List guide →</b></a></li>
+            <li><a href="panel-set-color.html"><b>Set Color guide →</b></a></li>
+          </ul>
+          <p>What is different:</p>
+          <ul class="plain">
+            <li>With no active viewpoint, they only show <i>No active viewpoint — activate one in the Viewpoints panel first.</i></li>
+            <li>They are locked until you press <b>Edit</b>, and changes only stick with <b>Save to viewpoint</b> — see <a href="#task-edit">Change a viewpoint's labels, measurements or colours</a>. <b>Edit</b> and <b>Save to viewpoint</b> act on all three panels together.</li>
+          </ul>
+
+          <h3 id="vp-setcolor">Set Color (viewpoint)</h3>
+          <figure class="shot" data-shot="f10-setcolor"></figure>
+          <p>
+            The top line <span class="mk">1</span> names the viewpoint whose rules you see. They run every time
+            the viewpoint is activated, in the <a href="panel-set-color.html#set-color-modes">run mode</a> chosen here:
+            with <b>Reset model</b>, activating the viewpoint first removes all other colours. <b>Edit</b>
+            <span class="mk">2</span> unlocks the panel; <b>Run</b> <span class="mk">3</span> tries the rules right away.
+            <b>Save</b> / <b>Load</b> in this panel save the rule set to a file or load one into the viewpoint (press
+            Save to viewpoint afterwards).
+          </p>
+          <p>
+            Set Color is not muted like labels and measurements: the normal <a href="panel-set-color.html">Set Color</a>
+            panel keeps its own rules and works at the same time.
+          </p>
+
+          <h3 id="mute">Scene or viewpoint: who owns the labels</h3>
+          <p>
+            Your own labels and measurements — the ones in the normal Label and Measurement List panels — are the
+            <b>scene</b>. A viewpoint has its own. Only one side is on screen at a time:
+          </p>
+          <ol class="steps">
+            <li>
+              When a viewpoint is activated, its labels and measurements are shown, and the normal Label and
+              Measurement List panels are <b>muted</b>: they only show this message. Your scene labels are kept aside.
+              Press <b>Unmute scene</b> <span class="mk">1</span> (<kbd>ALT 1136</kbd>) to get them back.
+              <figure class="shot" data-shot="f10-scene-muted">
+                <figcaption>The normal Label panel while a viewpoint is active.</figcaption>
+              </figure>
+            </li>
+            <li>
+              Now the (viewpoint) panels are muted instead. The camera, clipping and colours do not change. Press
+              <b>Unmute viewpoint</b> <span class="mk">1</span> (<kbd>ALT 1137</kbd>) to show the viewpoint's labels and
+              measurements again, without moving the camera.
+              <figure class="shot" data-shot="f10-viewpoint-muted"></figure>
+            </li>
+          </ol>
+          <p class="note">
+            Deleting the active viewpoint, <b>Delete all</b> and <b>Load</b> also bring your scene labels and
+            measurements back.
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control</h2>
+          <h3 id="ref-editor">Viewpoint Editor</h3>
+          <div class="ref-table" data-ref="viewpoints"></div>
+          <h3 id="ref-viewer">Viewpoint Viewer</h3>
+          <div class="ref-table" data-ref="viewpointViewer"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

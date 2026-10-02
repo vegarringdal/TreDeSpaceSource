@@ -1,0 +1,181 @@
+/* User guide (guide.html) — layout, annotated screenshots, step lists and the
+   control reference. Builds on styles.css tokens; the marker colour is fixed
+   (not themed) because every screenshot is taken in the app's light theme. */
+
+:root {
+  --mark: #d6336c;
+  --mark-ink: #ffffff;
+}
+
+/* ── layout: sticky contents + main column ─────────────────── */
+.guide { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 40px; align-items: start; }
+.toc { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; padding-bottom: 20px; }
+.toc-title {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--faint); margin: 0 0 10px;
+}
+.toc-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+.toc a { text-decoration: none; color: var(--muted); border-left: 2px solid var(--border); padding: 3px 0 3px 12px; }
+.toc a:hover { color: var(--teal-strong); border-left-color: var(--teal); }
+.toc .toc-h2 { font-weight: 620; color: var(--ink); font-size: 14px; }
+.toc-label {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--faint); margin: 0 0 4px;
+}
+.toc .toc-page { font-size: 13px; display: flex; align-items: center; gap: 7px; }
+.toc .toc-page.is-current { color: var(--teal-strong); border-left-color: var(--teal); font-weight: 620; }
+.toc-key { font-size: 10px; padding: 0 4px; min-width: 30px; text-align: center; }
+.toc-sep { border: 0; border-top: 1px solid var(--border); margin: 6px 0 14px; }
+.toc .toc-h3 { font-size: 13px; padding-left: 22px; }
+@media (max-width: 900px) {
+  .guide { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .toc { position: static; max-height: none; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 14px 16px 4px; margin-bottom: 10px; }
+}
+
+/* ── text ──────────────────────────────────────────────────── */
+.guide-main { min-width: 0; }
+.g-sec { padding: 24px 0 40px; border-bottom: 1px solid var(--border); }
+.g-sec:last-child { border-bottom: 0; }
+.g-sec h2 { scroll-margin-top: 20px; }
+.g-sec h3 { font-size: 19px; letter-spacing: -0.01em; margin: 38px 0 10px; scroll-margin-top: 20px; }
+.g-sec p, .g-sec li { max-width: 72ch; }
+.g-sec p { margin: 0 0 12px; }
+.g-sec code.inline { font-size: 0.86em; }
+.g-sec a { color: var(--teal-strong); }
+
+kbd {
+  font-family: var(--mono); font-size: 0.82em; white-space: nowrap;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px;
+}
+.keys-legend { margin: 0 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+.note {
+  color: var(--muted); font-size: 14.5px;
+  border-left: 3px solid var(--amber); background: var(--amber-soft);
+  padding: 10px 14px; border-radius: 0 8px 8px 0;
+}
+.note b { color: var(--ink); }
+
+.concept {
+  margin: 22px 0; padding: 14px 18px 6px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--teal);
+}
+.concept-title { font-weight: 640; margin: 0 0 8px !important; }
+.concept ul { margin: 0 0 8px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+ul.plain { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; }
+
+/* ── numbered markers (shared by pictures and text) ────────── */
+.mk {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px;
+  background: var(--mark); color: var(--mark-ink);
+  font: 700 12px/1 var(--sans); vertical-align: 1px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* the legend under an overview picture: one row per marker */
+ol.legend-list { list-style: none; counter-reset: mark; padding: 0; margin: 12px 0 18px; display: flex; flex-direction: column; gap: 8px; }
+ol.legend-list > li { counter-increment: mark; position: relative; padding-left: 32px; }
+ol.legend-list > li::before {
+  content: counter(mark); position: absolute; left: 0; top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 999px;
+  background: var(--mark); color: var(--mark-ink); font: 700 12px/1 var(--sans);
+}
+
+/* steps: big teal numbers in a rail, deliberately unlike the pink markers */
+ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 14px 0 10px; }
+ol.steps > li {
+  counter-increment: step; position: relative;
+  padding: 0 0 22px 30px; border-left: 2px solid var(--border); margin-left: 15px;
+}
+ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 6px; }
+ol.steps > li::before {
+  content: counter(step); position: absolute; left: -16px; top: -3px;
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--teal); color: var(--on-teal); font: 700 14px/1 var(--sans);
+}
+
+/* ── annotated screenshots ─────────────────────────────────── */
+figure.shot { margin: 14px 0 18px; }
+figure.shot figcaption { margin-top: 8px; font-size: 13px; color: var(--faint); max-width: 72ch; }
+.shot-frame {
+  /* captures are 2x, so small crops can show 1.5x their CSS size and stay sharp */
+  position: relative; max-width: min(calc(var(--w, 100%) * 1.5), 100%); cursor: zoom-in;
+  border: 1px solid var(--border); border-radius: 10px; background: #f8fafc;
+  box-shadow: var(--shadow);
+}
+.shot-frame img { display: block; width: 100%; height: auto; border-radius: 9px; }
+.shot-mark {
+  position: absolute; pointer-events: none;
+  border: 2px solid var(--mark); border-radius: 6px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
+  margin: -3px 0 0 -3px; padding: 3px; box-sizing: content-box;
+}
+.shot-mark .mk { position: absolute; left: -12px; top: -12px; box-shadow: 0 0 0 2px #ffffff; }
+.shot-mark.at-tr .mk { left: auto; right: -12px; }
+.shot-mark.at-bl .mk { top: auto; bottom: -12px; }
+.shot-mark.at-br .mk { left: auto; right: -12px; top: auto; bottom: -12px; }
+
+.shot-pending {
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1.5px dashed var(--border); border-radius: 10px; padding: 18px 20px;
+  color: var(--faint); font-size: 13px; background: var(--surface-2);
+}
+.shot-pending strong { color: var(--muted); font-weight: 600; }
+.shot-pending span { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+
+/* ── lightbox ──────────────────────────────────────────────── */
+.lightbox {
+  border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; overflow: visible;
+}
+.lightbox::backdrop { background: rgba(6, 12, 22, 0.78); }
+.lightbox-body { max-height: 94vh; overflow: auto; padding: 14px; }
+.lightbox .shot-frame { max-width: none; width: min(calc(var(--w) * 1.6), 92vw); cursor: default; }
+.lightbox-close {
+  position: fixed; top: 14px; right: 18px; z-index: 1;
+  width: 36px; height: 36px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 16px;
+}
+
+/* ── layout cards (start page) ─────────────────────────────── */
+.layout-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin: 16px 0 18px; }
+.layout-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 10px 12px;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.layout-card:hover { border-color: var(--teal); transform: translateY(-1px); }
+.layout-card:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.layout-thumb { display: block; aspect-ratio: 16 / 10; border-radius: 7px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); }
+.layout-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.layout-name { font-weight: 640; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.layout-desc { font-size: 13px; color: var(--muted); line-height: 1.45; }
+
+/* ── control reference ─────────────────────────────────────── */
+.ref-table { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.ref-table table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ref-table th, .ref-table td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.ref-table thead th {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--faint); font-weight: 500; background: var(--surface-2);
+}
+.ref-table tr.ref-section th { background: var(--teal-soft); color: var(--teal-strong); font-size: 13px; font-weight: 640; }
+.ref-table tbody tr:last-child td { border-bottom: 0; }
+.ref-table td { color: var(--muted); }
+.ref-name { color: var(--ink) !important; font-weight: 560; white-space: nowrap; }
+.ref-icon { display: inline-flex; vertical-align: -2px; margin-right: 7px; color: var(--muted); }
+.ref-keys { white-space: nowrap; }
+/* phones: one stacked card per control instead of three cramped columns */
+@media (max-width: 640px) {
+  .ref-table thead { display: none; }
+  .ref-table table, .ref-table tbody, .ref-table tr, .ref-table th, .ref-table td { display: block; }
+  .ref-table tbody tr { border-bottom: 1px solid var(--border); padding: 6px 0; }
+  .ref-table td, .ref-table tr.ref-section th { border-bottom: 0; padding: 2px 12px; }
+  .ref-table tr.ref-section { padding: 6px 0; }
+  .ref-name { white-space: normal; }
+  .ref-keys:empty { display: none; }
+}

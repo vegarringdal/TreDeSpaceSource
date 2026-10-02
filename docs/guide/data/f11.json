@@ -1,0 +1,1100 @@
+{
+  "shots": {
+    "f11-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 190,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 202,
+          "y": 136,
+          "w": 300,
+          "h": 758
+        },
+        {
+          "n": 4,
+          "x": 508,
+          "y": 136,
+          "w": 320,
+          "h": 758
+        },
+        {
+          "n": 5,
+          "x": 834,
+          "y": 136,
+          "w": 334,
+          "h": 373
+        },
+        {
+          "n": 6,
+          "x": 834,
+          "y": 515,
+          "w": 334,
+          "h": 223
+        },
+        {
+          "n": 7,
+          "x": 834,
+          "y": 744,
+          "w": 334,
+          "h": 150
+        },
+        {
+          "n": 8,
+          "x": 1174,
+          "y": 136,
+          "w": 260,
+          "h": 758
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-reports-list": {
+      "w": 300,
+      "h": 309,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 63,
+          "y": 32,
+          "w": 228,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 182.484375,
+          "y": 71,
+          "w": 101.515625,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 9,
+          "y": 110,
+          "w": 282,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 18,
+          "y": 193,
+          "w": 126.6875,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 258,
+          "y": 189,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-report-run": {
+      "w": 294,
+      "h": 160,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 47,
+          "w": 264,
+          "h": 33.59375
+        },
+        {
+          "n": 2,
+          "x": 15,
+          "y": 88.59375,
+          "w": 264,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 15,
+          "y": 120.59375,
+          "w": 49.078125,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 72.078125,
+          "y": 120.59375,
+          "w": 66.28125,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-report-coloring": {
+      "w": 294,
+      "h": 225,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 22,
+          "y": 127.59375,
+          "w": 250,
+          "h": 15.390625
+        },
+        {
+          "n": 2,
+          "x": 22,
+          "y": 146.984375,
+          "w": 68.890625,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 98.890625,
+          "y": 146.984375,
+          "w": 50.640625,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 157.53125,
+          "y": 146.984375,
+          "w": 58.609375,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 22,
+          "y": 178.984375,
+          "w": 86.28125,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 116.28125,
+          "y": 178.984375,
+          "w": 70.796875,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-report-edit": {
+      "w": 412,
+      "h": 434,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 86,
+          "y": 10,
+          "w": 316,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 86,
+          "y": 42,
+          "w": 316,
+          "h": 68.5
+        },
+        {
+          "n": 3,
+          "x": 86,
+          "y": 118.5,
+          "w": 316,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 92,
+          "y": 150.5,
+          "w": 83.515625,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 10,
+          "y": 198.5,
+          "w": 392,
+          "h": 128
+        },
+        {
+          "n": 6,
+          "x": 10,
+          "y": 367.5,
+          "w": 67.078125,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 85.078125,
+          "y": 367.5,
+          "w": 84.8125,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 201.796875,
+          "y": 399.5,
+          "w": 68.578125,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-report-filter": {
+      "w": 424,
+      "h": 372,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 323.96875,
+          "y": 10.5,
+          "w": 90.03125,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 19,
+          "y": 73.5,
+          "w": 112,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 137,
+          "y": 73.5,
+          "w": 131,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 274,
+          "y": 73.5,
+          "w": 131,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 19,
+          "y": 103.5,
+          "w": 386,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 19,
+          "y": 201.0625,
+          "w": 386,
+          "h": 80
+        },
+        {
+          "n": 7,
+          "x": 19,
+          "y": 287.0625,
+          "w": 93.796875,
+          "h": 16
+        },
+        {
+          "n": 8,
+          "x": 115,
+          "y": 309.0625,
+          "w": 290,
+          "h": 24
+        },
+        {
+          "n": 9,
+          "x": 10,
+          "y": 338.5,
+          "w": 45.78125,
+          "h": 24
+        },
+        {
+          "n": 10,
+          "x": 129.53125,
+          "y": 338.5,
+          "w": 72.78125,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-editor": {
+      "w": 320,
+      "h": 666,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 134.59375,
+          "y": 32,
+          "w": 68.265625,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 210.859375,
+          "y": 32,
+          "w": 100.140625,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 85,
+          "y": 166.5,
+          "w": 161.90625,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 91,
+          "y": 196.5,
+          "w": 83.515625,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 9,
+          "y": 268.5,
+          "w": 302,
+          "h": 192
+        },
+        {
+          "n": 6,
+          "x": 9,
+          "y": 466.5,
+          "w": 172.03125,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 189.03125,
+          "y": 466.5,
+          "w": 58.203125,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 255.234375,
+          "y": 466.5,
+          "w": 55.765625,
+          "h": 24
+        },
+        {
+          "n": 9,
+          "x": 9,
+          "y": 496.5,
+          "w": 84.8125,
+          "h": 24
+        },
+        {
+          "n": 10,
+          "x": 9,
+          "y": 558.5,
+          "w": 67.078125,
+          "h": 24
+        },
+        {
+          "n": 11,
+          "x": 220.96875,
+          "y": 588.5,
+          "w": 90.03125,
+          "h": 24
+        },
+        {
+          "n": 12,
+          "x": 9,
+          "y": 618.5,
+          "w": 302,
+          "h": 15.390625
+        },
+        {
+          "n": 13,
+          "x": 9,
+          "y": 639.890625,
+          "w": 262,
+          "h": 14
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-editor-table": {
+      "w": 334,
+      "h": 223,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f11-table": {
+      "w": 334,
+      "h": 223,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 86.390625,
+          "y": 30,
+          "w": 72.4375,
+          "h": 32
+        },
+        {
+          "n": 2,
+          "x": 166.828125,
+          "y": 36,
+          "w": 59.171875,
+          "h": 20
+        },
+        {
+          "n": 3,
+          "x": 234,
+          "y": 36,
+          "w": 93,
+          "h": 20
+        },
+        {
+          "n": 4,
+          "x": 187,
+          "y": 72.296875,
+          "w": 127,
+          "h": 15.390625
+        },
+        {
+          "n": 5,
+          "x": 181,
+          "y": 92,
+          "w": 139,
+          "h": 21
+        },
+        {
+          "n": 6,
+          "x": 1,
+          "y": 114,
+          "w": 40,
+          "h": 22,
+          "at": "bl"
+        },
+        {
+          "n": 7,
+          "x": 14,
+          "y": 73.5,
+          "w": 13,
+          "h": 13,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-table-menu": {
+      "w": 262,
+      "h": 127,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f11-detail": {
+      "w": 260,
+      "h": 313,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 181.71875,
+          "y": 32,
+          "w": 69.28125,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 9,
+          "y": 73,
+          "w": 147.6875,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 164.6875,
+          "y": 77,
+          "w": 86.3125,
+          "h": 16
+        },
+        {
+          "n": 4,
+          "x": 9,
+          "y": 260,
+          "w": 128,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 9,
+          "y": 285,
+          "w": 128,
+          "h": 16
+        }
+      ],
+      "fromGpu": true
+    },
+    "f11-task-white-viewport": {
+      "w": 334,
+      "h": 373,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f11-task-hidden-viewport": {
+      "w": 334,
+      "h": 373,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f11-task-select-viewport": {
+      "w": 334,
+      "h": 373,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "sqlReports": [
+      {
+        "section": "",
+        "label": "Store",
+        "icon": "",
+        "tooltip": "Reports are grouped by store \u2014 pick one to see and edit its reports",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "New report",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Create a new report in this store (choose a main db, or None, in the editor)",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "Search reports\u2026",
+        "tooltip": "Show only the reports whose name or description contains the text"
+      },
+      {
+        "section": "A report",
+        "label": "Edit (pencil)",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-pencil \"><path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"></path><path d=\"M13.5 6.5l4 4\"></path></svg>",
+        "tooltip": "Edit this report (shows its SQL)",
+        "keys": ""
+      },
+      {
+        "section": "A report",
+        "label": "Table",
+        "icon": "",
+        "tooltip": "Run and show the result in the SQL Table panel",
+        "keys": ""
+      },
+      {
+        "section": "A report",
+        "label": "Coloring",
+        "icon": "",
+        "tooltip": "Run the coloring query, then choose how to apply it",
+        "keys": ""
+      },
+      {
+        "section": "A report",
+        "label": "Set color",
+        "icon": "",
+        "tooltip": "Run your current Set Color rules + the result appended as one extra Multi rule (Set Color panel untouched)",
+        "keys": ""
+      },
+      {
+        "section": "A report",
+        "label": "White",
+        "icon": "",
+        "tooltip": "Everything white + the returned rows their own colors (Set Color panel untouched)",
+        "keys": ""
+      },
+      {
+        "section": "A report",
+        "label": "Hidden",
+        "icon": "",
+        "tooltip": "Isolate the result: hits keep their colors, everything else fades to opacity 0 (Reset model recovers)",
+        "keys": ""
+      },
+      {
+        "section": "A report",
+        "label": "Transparent",
+        "icon": "",
+        "tooltip": "White base at 10% opacity + the returned rows their own colors \u2014 the model stays faintly visible",
+        "keys": ""
+      },
+      {
+        "section": "A report",
+        "label": "Selection",
+        "icon": "",
+        "tooltip": "Select every returned fullname in the viewer",
+        "keys": ""
+      }
+    ],
+    "sqlReportsEditor": [
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Report editor",
+        "label": "Name",
+        "tooltip": "The report name shown in the list"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Report editor",
+        "label": "Description",
+        "tooltip": "Shown above the report\u2019s filters \u2014 **bold** and new lines work"
+      },
+      {
+        "section": "Report editor",
+        "label": "Main db",
+        "icon": "",
+        "tooltip": "The database opened directly. Pick None to run purely off ATTACH'd files (an in-memory scratch db is used).",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Types: COLORING / TABLE / DETAIL",
+        "icon": "",
+        "tooltip": "Enable the COLORING output",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Info (i)",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-info-circle \"><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"></path><path d=\"M12 9h.01\"></path><path d=\"M11 12h1v4h1\"></path></svg>",
+        "tooltip": "How report SQL runs",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "As Table",
+        "icon": "",
+        "tooltip": "Run and show in the SQL Table panel",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Color White",
+        "icon": "",
+        "tooltip": "Everything white + the returned rows their colors",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Color Hidden",
+        "icon": "",
+        "tooltip": "Isolate the result: hits keep their colors, everything else fades to opacity 0",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Color Transparent",
+        "icon": "",
+        "tooltip": "Like Color White, but the base coat is white at 10% opacity \u2014 the rest of the model stays faintly visible",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Color Set",
+        "icon": "",
+        "tooltip": "Run your current Set Color rules + the result appended as one extra Multi rule (Set Color panel untouched)",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Color Selection",
+        "icon": "",
+        "tooltip": "Select the result in the viewer: every returned fullname becomes the selection (colors untouched)",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "As Detail",
+        "icon": "",
+        "tooltip": "Bind this draft to the SQL Detail panel (follows viewport clicks). ALT+click prints the bound SQL.",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Expand all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevrons-down \"><path d=\"M7 7l5 5l5 -5\"></path><path d=\"M7 13l5 5l5 -5\"></path></svg>",
+        "tooltip": "Expand all filters",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Collapse all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevrons-up \"><path d=\"M7 11l5 -5l5 5\"></path><path d=\"M7 17l5 -5l5 5\"></path></svg>",
+        "tooltip": "Collapse all filters",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Add filter",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a filter input",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Move up",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
+        "tooltip": "Move this filter up (the inputs are shown in this order)",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Move down",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
+        "tooltip": "Move this filter down (the inputs are shown in this order)",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Remove filter",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Remove this filter",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Single select",
+        "icon": "",
+        "tooltip": "Let the report's user pick ONE option instead of several (the picks still reach the SQL as FILTER_ARGS rows \u2014 at most one)",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Test/selected",
+        "icon": "",
+        "tooltip": "Also the predefined selection: what you pick here is saved\nwith the report and pre-selected when the report is used.",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Save",
+        "icon": "",
+        "tooltip": "Save this report to the store's SQL_Reports.json",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Cancel",
+        "icon": "",
+        "tooltip": "Discard changes",
+        "keys": ""
+      },
+      {
+        "section": "Report editor",
+        "label": "Set editor",
+        "icon": "",
+        "tooltip": "Put this report's definition (unsaved edits included) into the SQL Editor, replacing what is there \u2014 asks first",
+        "keys": "ALT 661"
+      },
+      {
+        "section": "Report editor",
+        "label": "Delete",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this report",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "A filter",
+        "label": "Input / Dropdown",
+        "tooltip": "A text box, or a list filled by the dropdown SQL"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "A filter",
+        "label": "key / Label",
+        "tooltip": "The name the SQL reads (FILTER_ARGS.k) and the text shown beside the input"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "A filter",
+        "label": "Default value / search default",
+        "tooltip": "Input: the value filled in at the start. Dropdown: the search used while the box is empty (usually %)"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "A filter",
+        "label": "Dropdown SQL",
+        "tooltip": "The query that fills the list: an id column and a label column; ? is the search text"
+      }
+    ],
+    "sqlEditor": [
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "Name / Description",
+        "tooltip": "The name and text a report saved from here gets"
+      },
+      {
+        "section": "",
+        "label": "Clear",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Empty the editor \u2014 name, description, SQL, filters and types (asks first). The Main db pick stays",
+        "keys": "ALT 658"
+      },
+      {
+        "section": "",
+        "label": "Save Local",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-device-floppy \"><path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"></path><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M14 4l0 4l-6 0l0 -4\"></path></svg>",
+        "tooltip": "Add the current draft to SQL Reports as a new report, saved in the Main db's store \u2014 pick a Main db first",
+        "keys": "ALT 660"
+      },
+      {
+        "section": "",
+        "label": "Main db",
+        "icon": "",
+        "tooltip": "The database opened directly. Pick None to run purely off ATTACH'd files (an in-memory scratch db is used).",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Assets",
+        "icon": "",
+        "tooltip": "Open the SQL Assets panel to import or delete databases",
+        "keys": "ALT 631"
+      },
+      {
+        "section": "",
+        "label": "Types: COLORING / TABLE / DETAIL",
+        "icon": "",
+        "tooltip": "Enable the COLORING output",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Info (i)",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-info-circle \"><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"></path><path d=\"M12 9h.01\"></path><path d=\"M11 12h1v4h1\"></path></svg>",
+        "tooltip": "How report SQL runs",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Run",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-player-play \"><path d=\"M7 4v16l13 -8l-13 -8\"></path></svg>",
+        "tooltip": "Run the script (Ctrl+Enter in the editor) \u2014 results go to the Console panel. FILTER_ARGS is seeded from the filters below",
+        "keys": "ALT 635"
+      },
+      {
+        "section": "",
+        "label": "Shared",
+        "icon": "",
+        "tooltip": "Exclusive = writes allowed, one tab at a time. Shared = read-only, several readers at once.",
+        "keys": "ALT 636"
+      },
+      {
+        "section": "",
+        "label": "Kill",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-player-stop \"><path d=\"M5 7a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -10\"></path></svg>",
+        "tooltip": "Terminate the SQLite worker \u2014 cancels the running query and releases its file locks",
+        "keys": "END"
+      },
+      {
+        "section": "",
+        "label": "Color White",
+        "icon": "",
+        "tooltip": "Everything white + the result colored (needs a fullname column; fullname_color optional, defaults yellow)",
+        "keys": "ALT 644"
+      },
+      {
+        "section": "",
+        "label": "Color Transparent",
+        "icon": "",
+        "tooltip": "Like Color White, but the base coat is white at 10% opacity \u2014 the rest of the model stays faintly visible behind the colored result",
+        "keys": "ALT 1220"
+      },
+      {
+        "section": "",
+        "label": "Color Hidden",
+        "icon": "",
+        "tooltip": "Isolate the result: the returned rows colored (fullname_color, defaults yellow), everything else faded to opacity 0 (Reset model in Set Color recovers)",
+        "keys": "ALT 645"
+      },
+      {
+        "section": "",
+        "label": "Color Set",
+        "icon": "",
+        "tooltip": "Run your current Set Color rules + the result appended as one extra Multi rule (fullname_color optional, defaults yellow). Nothing is saved to the Set Color panel.",
+        "keys": "ALT 646"
+      },
+      {
+        "section": "",
+        "label": "Color Selection",
+        "icon": "",
+        "tooltip": "Select the result in the viewer: every returned fullname becomes the selection (replaces the current one; colors untouched, fullname_color ignored)",
+        "keys": "ALT 1291"
+      },
+      {
+        "section": "",
+        "label": "As Table",
+        "icon": "",
+        "tooltip": "Run and show the result in the SQL Table panel. TREE_VIEW_ARGS is seeded from the last selection \u2014 tree click, viewport pick or U / P (like Run and the color buttons), so a detail-style query can be checked here with the values it will really see",
+        "keys": "ALT 643"
+      },
+      {
+        "section": "",
+        "label": "As Detail",
+        "icon": "",
+        "tooltip": "Bind this SQL to the SQL Detail panel \u2014 clicks run it against the clicked hierarchy. SQL that reads TREE_VIEW_ARGS is bound as written; otherwise it is wrapped as select * from (\u2026) where fullname in (select fullname from TREE_VIEW_ARGS) limit 1, so it needs a fullname column. ALT+click logs the SQL actually bound to the Console.",
+        "keys": "ALT 647"
+      },
+      {
+        "section": "",
+        "label": "Expand all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevrons-down \"><path d=\"M7 7l5 5l5 -5\"></path><path d=\"M7 13l5 5l5 -5\"></path></svg>",
+        "tooltip": "Expand all filters",
+        "keys": "ALT 1229"
+      },
+      {
+        "section": "",
+        "label": "Collapse all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevrons-up \"><path d=\"M7 11l5 -5l5 5\"></path><path d=\"M7 17l5 -5l5 5\"></path></svg>",
+        "tooltip": "Collapse all filters",
+        "keys": "ALT 1230"
+      },
+      {
+        "section": "",
+        "label": "Add filter",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a filter input",
+        "keys": "ALT 659"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "SQL box",
+        "tooltip": "The SQL. Ctrl+Enter runs; Tab / Shift+Tab indent. Highlight part of it to run only that part."
+      }
+    ],
+    "sqlTable": [
+      {
+        "section": "",
+        "label": "Load all",
+        "icon": "",
+        "tooltip": "Re-run this report without the 50-row cap (max 250,000)",
+        "keys": "ALT 653"
+      },
+      {
+        "section": "",
+        "label": "Clear on close",
+        "icon": "",
+        "tooltip": "Clear on close is ON: closing this panel throws the result away and frees its rows. Click to KEEP it instead \u2014 reopening the panel then shows the same rows without re-running the report.",
+        "keys": "ALT 662"
+      },
+      {
+        "section": "",
+        "label": "Select all (corner box)",
+        "icon": "",
+        "tooltip": "Select every row shown \u2014 click again to deselect all",
+        "keys": "ALT 652"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "Column title",
+        "tooltip": "Click to sort A\u2192Z, again Z\u2192A, a third time unsorted. Drag the edge to resize."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "filter\u2026",
+        "tooltip": "Show only rows whose value in this column contains the text (all filled columns must match)"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "Row number",
+        "tooltip": "Click to select a row \u2014 Ctrl adds or removes one, Shift selects a range"
+      },
+      {
+        "icon": "",
+        "keys": "ALT 654",
+        "section": "",
+        "label": "Export to Excel (all)",
+        "tooltip": "Right-click menu: every row as shown to an .xlsx file"
+      },
+      {
+        "icon": "",
+        "keys": "ALT 655",
+        "section": "",
+        "label": "Export to Excel (selected rows)",
+        "tooltip": "Right-click menu: only the selected rows"
+      },
+      {
+        "icon": "",
+        "keys": "ALT 656",
+        "section": "",
+        "label": "Copy to clipboard (all)",
+        "tooltip": "Right-click menu: every row as shown, tab-separated"
+      },
+      {
+        "icon": "",
+        "keys": "ALT 657",
+        "section": "",
+        "label": "Copy to clipboard (selected rows)",
+        "tooltip": "Right-click menu: only the selected rows"
+      }
+    ],
+    "sqlDetail": [
+      {
+        "section": "",
+        "label": "Listening",
+        "icon": "",
+        "tooltip": "Follow the selection \u2014 every tree click, viewport pick, U / P or API selection fills this form from that node",
+        "keys": "ALT 651"
+      },
+      {
+        "section": "",
+        "label": "Hide empty",
+        "icon": "",
+        "tooltip": "Hide fields whose value is null or empty",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "Filter fields\u2026",
+        "tooltip": "Show only the fields whose name or value contains the text"
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

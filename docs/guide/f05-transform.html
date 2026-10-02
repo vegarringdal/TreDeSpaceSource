@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F5 Transform</title>
+  <meta name="description" content="Guide to the F5 Transform layout: move, rotate and scale the selected items, set a pivot, undo and reset." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F5</p>
+      <h1>Transform</h1>
+      <p class="lede">
+        Move, turn and resize the selected items, for example to try out where a new piece of equipment fits. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F5</p>
+          <h2>The Transform layout</h2>
+          <p>
+            Press <kbd>F5</kbd> (or pick <b>Transform</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the transform workspace. Everything on its ribbon works on the <b>current selection</b>:
+            select items in the tree or the 3D view, then move, turn or resize them with the buttons, or drag them with
+            the handles in the 3D view. The model files themselves are never changed; see
+            <a href="#saved">what is kept</a>.
+          </p>
+          <figure class="shot" data-shot="f05-layout">
+            <figcaption>The F5 layout with one loudspeaker selected and the Move handles on. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Transform ribbon</b> — described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree. Click a row to select that item and everything under it.</li>
+            <li><b>3D view</b> — click an item to select it; the handles appear on the selection.</li>
+            <li><b>Console</b> — minimised. Click its tab to see a line for each mode you switch on or off.</li>
+          </ol>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Transform ribbon</h2>
+          <p>
+            Most buttons are greyed out until something is selected. Every move, turn, resize and reset can be undone
+            with <b>Undo</b> (<kbd>ALT 101</kbd>). This undo is separate from the colour Undo on the
+            <a href="f04-selection-color.html">Selection Color</a> ribbon.
+          </p>
+
+          <h3 id="ribbon-gizmo">On/Off, Pivot and Options</h3>
+          <figure class="shot" data-shot="f05-gizmo"></figure>
+          <ol class="legend-list">
+            <li><b>Move</b> (<kbd>ALT 110</kbd>) — shows arrows on the selection in the 3D view. Drag an arrow to move the
+              selection along it.</li>
+            <li><b>Rotate</b> (<kbd>ALT 111</kbd>) — shows three rings. Drag a ring to turn the selection around it. Hold
+              <kbd>Shift</kbd> to turn in 15° steps.</li>
+            <li><b>Scale</b> (<kbd>ALT 112</kbd>) — shows a square handle on each arrow. Drag one to stretch or squeeze the
+              selection in that direction only.</li>
+            <li><b>Set Pivot</b> (<kbd>ALT 120</kbd>) — places your own <b>pivot</b>: the point that Rotate and Scale turn and
+              resize around. Without one, they use the middle of the selection. See <a href="#pivot">Use a pivot</a>.
+              Once a pivot is set, the button reads <b>Adjust</b>.</li>
+            <li><b>Reset</b> (<kbd>ALT 121</kbd>) — forgets your pivot and goes back to the middle of the selection.</li>
+            <li><b>Auto Disable</b> (<kbd>ALT 1226</kbd>, on at the start) — when you leave this ribbon (another ribbon tab,
+              or another layout), the handles, pivot placing and Move To Click are switched off, so a later click in the
+              3D view does not move anything by accident. A locked pivot is kept. The app remembers this choice.</li>
+          </ol>
+          <p class="note">
+            Press the lit Move, Rotate or Scale button again to hide the handles. The handles always point along the
+            model's X (red), Y (green) and Z (blue) directions, even after you have turned the item. A drag counts as one step
+            for Undo.
+          </p>
+
+          <h3 id="ribbon-pivot">Placing the pivot</h3>
+          <figure class="shot" data-shot="f05-pivot-setting">
+            <figcaption>While you place the pivot, the Pivot group shows these three buttons.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Lock</b> — keeps the pivot where it is now.</li>
+            <li><b>Cancel</b> — drops the pivot and goes back to the middle of the selection.</li>
+            <li><b>Item Pivot</b> (<kbd>ALT 122</kbd>) — while it is on, click any item in the 3D view to put the pivot at
+              that item's centre. The selection does not change.</li>
+          </ol>
+
+          <h3 id="ribbon-step">Quick Move and Step</h3>
+          <figure class="shot" data-shot="f05-step"></figure>
+          <ol class="legend-list">
+            <li><b>Move To Click</b> (<kbd>ALT 130</kbd>) — press it, then click a point on the model: the selection moves
+              so that the middle of its <b>underside</b> sits on that point. Handy for putting equipment on a floor. It works
+              once; clicking empty space cancels it.</li>
+            <li><b>Unit</b> — mm, cm or m for the step.</li>
+            <li><b>Step</b> (<kbd>ALT 190</kbd> / <kbd>ALT 191</kbd>) — how far the Move buttons go, and how much Bigger / Smaller
+              changes the size. − / + change it by 0.25.</li>
+          </ol>
+
+          <h3 id="ribbon-move">Move, Scale and Rotate</h3>
+          <figure class="shot" data-shot="f05-move"></figure>
+          <ol class="legend-list">
+            <li><b>R</b>, <b>L</b>, <b>B</b>, <b>F</b>, <b>T</b>, <b>Bo</b> (<kbd>ALT 160</kbd> … <kbd>ALT 165</kbd>) — move the selection one
+              step towards the right, left, back, front, top or bottom, the faces of the view cube. If you rename the cube's
+              faces in Settings, the letters follow.</li>
+            <li><b>Bigger</b> (<kbd>ALT 150</kbd>) — makes the selection bigger in all directions, so that its longest side grows
+              by one step.</li>
+            <li><b>Smaller</b> (<kbd>ALT 151</kbd>) — the same, smaller.</li>
+            <li><b>T→F</b> and the other turn buttons (<kbd>ALT 170</kbd> … <kbd>ALT 175</kbd>) — turn the selection 90° so that the
+              side that was on top faces front (T→F), back, left or right, or so that the front faces right (F→R) or left (F→L).</li>
+          </ol>
+          <p class="note">
+            Bigger, Smaller and the turn buttons work around your pivot if you have locked one, otherwise around the
+            middle of the selection.
+          </p>
+
+          <h3 id="ribbon-history">Reset and History</h3>
+          <figure class="shot" data-shot="f05-history"></figure>
+          <ol class="legend-list">
+            <li><b>Reset Sel</b> (<kbd>ALT 140</kbd>) — puts the selected items back where they were in the model file.</li>
+            <li><b>Reset All</b> (<kbd>ALT 141</kbd>) — puts every moved item back, selected or not.</li>
+            <li><b>Undo</b> (<kbd>ALT 101</kbd>) — undoes the last move, turn, resize or reset.</li>
+            <li><b>Redo</b> (<kbd>ALT 102</kbd>) — does it again.</li>
+          </ol>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-move">Move an item by an exact distance</h3>
+          <ol class="steps">
+            <li>Select it, here the loudspeaker <code class="inline">/SX-HA86-011A</code>.</li>
+            <li>Set the <b>Step</b>, for example <b>m</b> and <b>1.00</b>.</li>
+            <li>Press <b>T</b> under <b>Move</b> to lift it one metre. Press again to go further, or <b>Undo</b> to take a step back.
+              <figure class="shot" data-shot="f05-task-move-viewport">
+                <figcaption>The loudspeaker lifted one metre, with the Move handles.</figcaption>
+              </figure>
+            </li>
+          </ol>
+
+          <h3 id="task-drag">Drag an item into place</h3>
+          <ol class="steps">
+            <li>Select it and press <b>Move</b> under <b>On/Off</b>. Arrows appear on the selection.</li>
+            <li>Drag an arrow. The item follows while you drag and stays where you let go.</li>
+            <li>To set it down on a floor or a beam instead, press <b>Move To Click</b> and click the spot.</li>
+          </ol>
+
+          <h3 id="task-rotate">Turn an item</h3>
+          <ol class="steps">
+            <li>Select it and press <b>Rotate</b> under <b>On/Off</b>.</li>
+            <li>Drag a ring. Hold <kbd>Shift</kbd> to turn in 15° steps. For exact quarter turns, use the buttons under
+              <b>Rotate</b> instead.
+              <figure class="shot" data-shot="f05-task-rotate-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="pivot">Use a pivot</h3>
+          <p>
+            By default an item turns around its own middle. To turn a valve around its flange, or a hatch around its hinge,
+            set a pivot first:
+          </p>
+          <ol class="steps">
+            <li>Select the item and press <b>Set Pivot</b>. Dashed arrows and an orange marker appear at the middle of the selection.</li>
+            <li>Drag the arrows to move the marker to where the item should turn. Or switch on <b>Item Pivot</b> and click another
+              item to put the pivot at its centre.</li>
+            <li>Press <b>Lock</b>. Rotate, Scale, Bigger, Smaller and the 90° buttons now work around the pivot.</li>
+            <li>The pivot is dropped when you select something else, or when you press <b>Reset</b> in the Pivot group.</li>
+          </ol>
+
+          <h3 id="task-undo">Put everything back</h3>
+          <p>
+            <b>Undo</b> steps back one change at a time. <b>Reset Sel</b> puts the selected items back in their original
+            place in one go, and <b>Reset All</b> does that for the whole model. Resets can be undone too.
+          </p>
+        </section>
+
+        <section id="saved" class="g-sec">
+          <p class="sec-kick">Good to know</p>
+          <h2>What is kept, and what is exported</h2>
+          <ul>
+            <li>Moves only change what you see in TreDeSpace. The model files are not changed.</li>
+            <li>Moves are <b>not</b> kept when you reload the page, and viewpoints do not store them.</li>
+            <li>To keep them, save a <b>state snapshot</b> in the <b>Export</b> panel (open it from the <b>Panel</b> tab of the
+              ribbon or with <kbd>CTRL+E</kbd>) with <b>Save transforms</b> ticked. Loading the snapshot later puts the items
+              back where you moved them.</li>
+            <li>Exports from the <b>Export</b> panel (GLB, IFC and TDP) write the items where they are now, moved, turned and
+              resized.</li>
+            <li>Selecting, and measuring afterwards, work on the items where they are now. Labels and measurements you made
+              before the move stay where they were.</li>
+          </ul>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control on the ribbon</h2>
+          <div class="ref-table" data-ref="ribbonSelectionTransform"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

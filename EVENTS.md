@@ -1909,7 +1909,7 @@ response: { id: 391 }
 ### hotkeys.list
 The viewer's keyboard-shortcut table as data — every shortcut's stable `id`,
 `category`, `label`, a tooltip-ready `description`, and `keys`: the LIVE combo
-in the display grammar (`ALT + 101`, `CTRL&Z`, `[F1] + 2`) — the user's rebind
+in the display grammar (`ALT 101`, `CTRL+Z`, `[F1] 2`) — the user's rebind
 when there is one, else `defaultKeys`. It is the same record the viewer's own
 tooltip footers and the Settings → Hotkeys panel are built from, in
 registration order, so a host can show the same shortcuts in its own UI and
@@ -1924,7 +1924,7 @@ it).
 payload:  { category: 'Transform' }   // or {} for every shortcut
 response: { hotkeys: [
   { id: 'transform.undo', category: 'Transform', label: 'Undo transform',
-    description: 'Undo the last selection transform', keys: 'ALT + 101', defaultKeys: 'ALT + 101',
+    description: 'Undo the last selection transform', keys: 'ALT 101', defaultKeys: 'ALT 101',
     isCustom: false, allowInInput: false },
   /* … */ ] }
 ```

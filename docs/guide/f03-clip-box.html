@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F3 Clip Box</title>
+  <meta name="description" content="Guide to the F3 Clip Box layout: show only what is inside a box, add sphere, cylinder and box clip shapes, and cut holes." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F3</p>
+      <h1>Clip Box</h1>
+      <p class="lede">
+        Show only what is inside a box, add more clip shapes, or cut holes. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F3</p>
+          <h2>The Clip Box layout</h2>
+          <p>
+            Press <kbd>F3</kbd> (or pick <b>Clip Box</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the clipping-box workspace. The <b>clipping box</b> hides everything outside it, so
+            you can study one area of a large plant without the rest in the way. The <b>Clip Shape List</b> on the
+            right adds up to seven more shapes (spheres, cylinders and boxes) that keep an area visible or cut a hole
+            into it. Nothing is deleted: switch clipping off and the whole model is back.
+          </p>
+          <figure class="shot" data-shot="f03-layout">
+            <figcaption>The F3 layout. The box is fitted around the public-address loudspeakers. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Clipping Box ribbon</b> — described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree. Click a row to select that item and everything under it; the box can then be fitted to it.</li>
+            <li><b>3D view</b> — shows the clipped model, the box outline and its handles.</li>
+            <li><b>Clip Shape List</b> — extra clip shapes. See <a href="#shapes">The Clip Shape List panel</a>.</li>
+            <li><b>Console</b> — minimised. Click its tab to see messages, for example when clipping is switched on or off.</li>
+          </ol>
+
+          <div class="concept" id="combine">
+            <p class="concept-title">How the box and the shapes work together</p>
+            <ul>
+              <li><b>Enable</b> (<kbd>Z</kbd>) on the ribbon is the main switch for <i>all</i> of this: the box and every
+                clip shape only clip while it is on. The clipping planes of <a href="f02-clip-plane.html">F2 Clip Plane</a>
+                are separate and work whether it is on or not.</li>
+              <li>The box and normal shapes <b>keep</b> what is inside them. With more than one, you see what is inside
+                <i>any</i> of them, so two boxes in different places show two areas.</li>
+              <li><b>Inverted</b> shapes are <b>holes</b>: whatever is inside them is hidden, even inside the box or
+                another shape. Flipping the box's <b>Cut Dir</b> turns the box itself into a hole.</li>
+              <li>If only holes are left (the main box hidden or flipped, no normal shape on), everything outside the
+                holes is shown.</li>
+              <li>Clipping planes cut on top of all this.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Clipping Box ribbon</h2>
+          <p>
+            The ribbon controls the <b>main box</b>. The extra shapes are set up in the Clip Shape List panel.
+          </p>
+
+          <h3 id="ribbon-onoff">On/Off, Helper and Cut Dir</h3>
+          <figure class="shot" data-shot="f03-onoff"></figure>
+          <ol class="legend-list">
+            <li><b>Enable</b> (<kbd>Z</kbd>) — switches clipping on or off, for the box and all clip shapes. When you switch it on
+              after clicking a point on the model, the box starts as a 5 m cube around that point. If you have not clicked
+              the model yet and the box has never been placed, it covers everything loaded. Otherwise it comes back where it was.</li>
+            <li><b>Box</b> (<kbd>ALT 332</kbd>) — shows the box's outline (orange) in the 3D view. The box's handles are only
+              shown while the outline is on.</li>
+            <li><b>Flip</b> (<kbd>ALT 333</kbd>) — swaps the cut: hides what is <i>inside</i> the box and shows the rest.
+              Press again to go back.</li>
+          </ol>
+
+          <h3 id="ribbon-gizmo">Gizmo Mode</h3>
+          <figure class="shot" data-shot="f03-gizmo"></figure>
+          <p>Picks which handles the box shows in the 3D view, so you can shape it with the mouse.</p>
+          <ol class="legend-list">
+            <li><b>None</b> (<kbd>ALT 339</kbd>) — no handles.</li>
+            <li><b>Move</b> (<kbd>ALT 334</kbd>) — three arrows. Drag one to slide the box along it.</li>
+            <li><b>Rotate</b> (<kbd>ALT 335</kbd>) — three rings. Drag one to turn the box. Hold <kbd>Shift</kbd> for 15° steps.</li>
+            <li><b>Scale</b> (<kbd>ALT 336</kbd>) — handles that resize the box.</li>
+            <li><b>6 Axis / 3 Axis</b> (<kbd>ALT 337</kbd>) — only with Scale. <b>6 Axis</b> gives a handle on every face:
+              drag one face and the opposite face stays put. <b>3 Axis</b> gives one handle per direction that grows or shrinks
+              the box on both sides at once.</li>
+          </ol>
+          <p class="note">
+            Two keys work on the handles from anywhere: <kbd>M</kbd> steps through Move → Rotate → Scale, and <kbd>X</kbd>
+            hides the handles and brings them back as they were. Both act on a clip shape instead when one is
+            <a href="#shape-row">armed</a>.
+          </p>
+
+          <h3 id="ribbon-boxsize">Box Size: Fit Sel and its offset</h3>
+          <figure class="shot" data-shot="f03-boxsize"></figure>
+          <ol class="legend-list">
+            <li><b>Fit Sel</b> (<kbd>F</kbd>) — fits the box tightly around the selected items and switches clipping on.
+              A turned box is put straight again. Greyed out when nothing is selected.</li>
+            <li><b>Fit Sel +Off.</b> (<kbd>F F</kbd>: press <kbd>F</kbd> twice) — the same, with the <b>offset</b> <span class="mk">5</span> added on every side,
+              so you also see what is right around the selection.</li>
+            <li><b>Focus On Set</b> (<kbd>ALT 341</kbd>, on at the start) — when on, both Fit buttons also move the point the
+              camera turns around to the middle of the box.</li>
+            <li><b>Fit Scene</b> (<kbd>ALT 340</kbd>) — makes the box cover everything loaded, with 0.5 m to spare on every
+              side. It does not switch clipping on.</li>
+            <li><b>The offset</b> in metres (2.0 m at the start). Use − / + or type a value. The same offset is used by
+              <b>Unhide Sel+Off.</b> and <b>Unhide Each+Off.</b> on the <a href="f04-selection-color.html#ribbon-hidden">Selection Color ribbon</a>.</li>
+          </ol>
+
+          <h3 id="ribbon-resize">Resize (Main) and Step</h3>
+          <figure class="shot" data-shot="f03-resize"></figure>
+          <p>
+            Change the main box one face at a time. The letters are the faces of the view cube:
+            <b>L</b>eft / <b>R</b>ight, <b>F</b>ront / <b>B</b>ack, <b>Bo</b>ttom / <b>T</b>op. If you rename the cube's faces in
+            Settings, the letters follow.
+          </p>
+          <ol class="legend-list">
+            <li><b>L+</b> and the other <b>+</b> buttons — push that face out by one step; the box grows on that side only.</li>
+            <li><b>L−</b> and the other <b>−</b> buttons — pull that face in by one step. The box never gets smaller than 0.1 m.</li>
+            <li><b>Step</b> (<kbd>ALT 342</kbd> / <kbd>ALT 343</kbd>) — how far one press moves a face or the whole box, from 0.1 m up (1.0 m at the start).</li>
+          </ol>
+          <p class="note">
+            On a turned box, the faces turn with it: <b>T+</b> always grows the face that was on top before you turned it.
+          </p>
+
+          <h3 id="ribbon-move">Move (Main) and Additional</h3>
+          <figure class="shot" data-shot="f03-move"></figure>
+          <ol class="legend-list">
+            <li><b>L</b>, <b>R</b>, <b>F</b>, <b>B</b>, <b>Bo</b>, <b>T</b> — move the whole box one step towards that face, without changing its size.</li>
+            <li><b>Shapes</b> (<kbd>ALT 1212</kbd>) — opens the Clip Shape List panel on the right, in case you closed it.</li>
+          </ol>
+        </section>
+
+        <section id="shapes" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>The Clip Shape List panel</h2>
+          <p>
+            The panel on the right holds up to <b>seven</b> extra clip shapes on top of the main box. Each shape is a
+            <b>sphere</b>, a <b>cylinder</b> or a <b>box</b>, and either keeps what is inside it or, when inverted, cuts a hole.
+            See <a href="#combine">how they work together</a>. Shapes only clip while clipping is switched on with
+            <b>Enable</b> (<kbd>Z</kbd>) on the ribbon. To open the panel on its own, press <b>Shapes</b> on the ribbon or
+            <kbd>ALT 675</kbd>.
+          </p>
+          <figure class="shot" data-shot="f03-shapes-empty">
+            <figcaption>The panel before any shape is added.</figcaption>
+          </figure>
+
+          <h3 id="shapes-common">Common</h3>
+          <figure class="shot" data-shot="f03-shapes-common"></figure>
+          <ol class="legend-list">
+            <li><b>+ Sphere</b> (<kbd>ALT 320</kbd>) — adds a sphere. With something selected it is sized to enclose the
+              selection; with nothing selected it is placed in the middle of the model.</li>
+            <li><b>+ Cylinder</b> (<kbd>ALT 321</kbd>) — adds an upright cylinder, fitted the same way.</li>
+            <li><b>+ Box</b> (<kbd>ALT 325</kbd>) — adds a box, fitted the same way. All three are greyed out once there
+              are seven shapes.</li>
+            <li><b>Save…</b> (<kbd>ALT 326</kbd>) — downloads all shapes as <code class="inline">clip_shapes.json</code>.</li>
+            <li><b>Load…</b> (<kbd>ALT 327</kbd>) — loads a saved file. It <b>replaces</b> the shapes in the list.</li>
+            <li><b>Delete all</b> (<kbd>ALT 328</kbd>) — removes every shape.</li>
+            <li><b>Hide all</b> (<kbd>ALT 322</kbd>) — stops all shapes from clipping but keeps the list. Press again to bring them back.</li>
+            <li><b>Hide main box</b> (<kbd>ALT 329</kbd>) — takes the main box out of play; the shapes keep clipping.
+              Use it when the shapes alone should decide what you see.</li>
+            <li><b>Helpers</b> (<kbd>ALT 323</kbd>) — shows or hides the outlines (purple) of all shapes.</li>
+            <li><b>Gizmo</b> — <b>Move</b> (<kbd>ALT 311</kbd>), <b>Rotate</b> (<kbd>ALT 312</kbd>) or <b>Scale</b> (<kbd>ALT 313</kbd>)
+              handles for the armed shape. Greyed out until you arm a shape in its row. A sphere cannot be rotated.</li>
+            <li><b>6 Axis / 3 Axis</b> (<kbd>ALT 338</kbd>) — only with Scale, not for a sphere. <b>6 Axis</b> gives a box a
+              handle on every face, and a cylinder one handle for its width plus one for each end. <b>3 Axis</b> resizes
+              evenly on both sides.</li>
+          </ol>
+
+          <h3 id="shape-row">One shape</h3>
+          <figure class="shot" data-shot="f03-shape-row">
+            <figcaption>A cylinder fitted to a loudspeaker, with its gizmo armed.</figcaption>
+          </figure>
+          <p>
+            Each shape has its own block in the list, headed by its name and its kind (or <b>off</b> when it is switched off).
+          </p>
+          <ol class="legend-list">
+            <li><b>Name</b> — rename the shape. Left empty, the list shows Sphere, Cylinder or Box.</li>
+            <li><b>On / off</b> — switches this shape on or off.</li>
+            <li><b>Invert</b> — makes the shape a <b>hole</b>: it hides what is inside it instead of keeping it.</li>
+            <li><b>Outline</b> — shows this shape's outline (while <b>Helpers</b> is on).</li>
+            <li><b>Gizmo</b> — arms the handles in the 3D view on this shape. Only one shape can be armed; while one is,
+              the main box shows no handles. Press again to disarm.</li>
+            <li><b>Delete</b> — removes the shape.</li>
+            <li><b>Fit: Sel</b> — fits the shape to the selected items (to the whole model when nothing is selected).</li>
+            <li><b>+2m</b> — the same, with 2 m to spare on every side.</li>
+            <li><b>Center</b> (button) — moves the shape to the middle of the selection (or the model) without changing its size.</li>
+            <li><b>Center</b> — X, Y and Z of the shape's middle, in metres. For a cylinder this is the middle of its
+              <i>bottom end</i>.</li>
+            <li><b>Radius</b> of a sphere or cylinder, and the <b>Height</b> of a cylinder.</li>
+            <li><b>Axis</b> (cylinder only) — the direction the cylinder points: <code class="inline">0, 0, 1</code> is upright,
+              <code class="inline">1, 0, 0</code> lies along X.</li>
+          </ol>
+          <p class="note">
+            A box shape has a <b>Size</b> row instead of Radius. Its three values are measured from the centre to each
+            face, so they are <i>half</i> the box's full width, depth and height.
+          </p>
+          <figure class="shot" data-shot="f03-shapes-list">
+            <figcaption>Two shapes: an inverted sphere (folded) and the armed cylinder.</figcaption>
+          </figure>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-area">Look at one area on its own</h3>
+          <ol class="steps">
+            <li>Select the area: click its row in the <b>Hierarchy</b> (here <code class="inline">/HA-TELE-PA</code>, the
+              public-address system), or click it in the 3D view.</li>
+            <li>Press <b>Fit Sel +Off.</b> (<kbd>F F</kbd>). Clipping switches on and the box fits around the selection, with the
+              offset added on every side. Use <b>Fit Sel</b> (<kbd>F</kbd>) for a tight fit.
+              <figure class="shot" data-shot="f03-task-fit-viewport">
+                <figcaption>The box around the loudspeakers with the Scale handles (6 Axis).</figcaption>
+              </figure>
+            </li>
+            <li>Fine-tune the box: drag its handles (pick <b>Scale</b> under <b>Gizmo Mode</b>), or use the <b>Resize (Main)</b>
+              buttons to push single faces in or out by one <b>Step</b>.</li>
+            <li>Press <kbd>Z</kbd> to switch clipping off and on again to compare.</li>
+          </ol>
+
+          <h3 id="task-section">Walk through the plant slice by slice</h3>
+          <ol class="steps">
+            <li>Make a thin box: fit it to the area, then pull the <b>F</b> and <b>B</b> faces in with <b>F−</b> and <b>B−</b> until
+              it is a slice a few metres deep.</li>
+            <li>Set the <b>Step</b> to the distance you want to move each time.</li>
+            <li>Press <b>B</b> or <b>F</b> under <b>Move (Main)</b> to slide the whole slice backwards or forwards through the model.</li>
+          </ol>
+
+          <h3 id="task-hole">Cut a hole to see behind something</h3>
+          <ol class="steps">
+            <li>Select what is in the way (here the loudspeaker <code class="inline">/SX-HA86-013A</code>).</li>
+            <li>In the Clip Shape List, press <b>+ Sphere</b>. The sphere fits around the selection.</li>
+            <li>In the sphere's row, press <b>+2m</b> to make it a little bigger, then press <b>Invert</b>. Everything inside the
+              sphere is hidden, while the box still keeps the rest of the area.
+              <figure class="shot" data-shot="f03-task-hole-viewport"></figure>
+            </li>
+            <li>Make sure clipping is on (<b>Enable</b>, <kbd>Z</kbd>); shapes do nothing while it is off.</li>
+          </ol>
+
+          <h3 id="task-two-areas">Show two separate areas at once</h3>
+          <ol class="steps">
+            <li>Fit the main box to the first area with <b>Fit Sel</b>.</li>
+            <li>Select the second area and press <b>+ Box</b> in the Clip Shape List.</li>
+            <li>Both areas stay visible and everything between them is hidden. To show only the shapes, press
+              <b>Hide main box</b>.</li>
+          </ol>
+
+          <h3 id="task-select">Select everything inside the box</h3>
+          <p>
+            <b>Select Inside</b> and <b>Select Intersecting</b> on the <a href="f04-selection-color.html#ribbon-clipselect">Selection
+            Color ribbon</a> select the items inside the box or the enabled shapes, so you can colour, hide or export them.
+          </p>
+
+          <h3 id="task-keep">Keep the clipping for later</h3>
+          <p>
+            Clipping is not kept when you reload the page. Save the shapes with <b>Save…</b> in the Clip Shape List, or
+            save a <b>viewpoint</b>: it stores the camera with the box, the shapes and the clipping planes, and brings them
+            all back when you open it. See <a href="f10-viewpoint.html">F10 Viewpoint</a>.
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control</h2>
+          <h3 id="ref-ribbon">The Clipping Box ribbon</h3>
+          <div class="ref-table" data-ref="ribbonClippingBox"></div>
+          <h3 id="ref-shapes">The Clip Shape List panel</h3>
+          <div class="ref-table" data-ref="clipShapes"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

@@ -1,0 +1,578 @@
+{
+  "shots": {
+    "f10-edit-locked": {
+      "w": 398,
+      "h": 331,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 4,
+          "y": 8,
+          "w": 322.59375,
+          "h": 16
+        },
+        {
+          "n": 2,
+          "x": 334.59375,
+          "y": 4,
+          "w": 59.40625,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-edit-dirty": {
+      "w": 398,
+      "h": 331,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 168.15625,
+          "y": 6,
+          "w": 79.59375,
+          "h": 20
+        },
+        {
+          "n": 2,
+          "x": 255.75,
+          "y": 4,
+          "w": 138.25,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 190,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 202,
+          "y": 136,
+          "w": 200,
+          "h": 758
+        },
+        {
+          "n": 4,
+          "x": 408,
+          "y": 136,
+          "w": 434,
+          "h": 758
+        },
+        {
+          "n": 5,
+          "x": 848,
+          "y": 136,
+          "w": 300,
+          "h": 376
+        },
+        {
+          "n": 6,
+          "x": 848,
+          "y": 518,
+          "w": 300,
+          "h": 376
+        },
+        {
+          "n": 7,
+          "x": 1154,
+          "y": 136,
+          "w": 280,
+          "h": 376
+        },
+        {
+          "n": 8,
+          "x": 1154,
+          "y": 518,
+          "w": 280,
+          "h": 376
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-editor": {
+      "w": 334,
+      "h": 213,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 32,
+          "w": 119.078125,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 134.078125,
+          "y": 32,
+          "w": 65.78125,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 205.859375,
+          "y": 32,
+          "w": 66.1875,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 9,
+          "y": 62,
+          "w": 91.3125,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 18,
+          "y": 99,
+          "w": 152.109375,
+          "h": 16
+        },
+        {
+          "n": 6,
+          "x": 18,
+          "y": 133,
+          "w": 153.0625,
+          "h": 32
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-row-head": {
+      "w": 310,
+      "h": 110,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 163.0625,
+          "y": 12,
+          "w": 72.9375,
+          "h": 20,
+          "at": "bl"
+        },
+        {
+          "n": 2,
+          "x": 240,
+          "y": 12,
+          "w": 20,
+          "h": 20,
+          "at": "bl"
+        },
+        {
+          "n": 3,
+          "x": 262,
+          "y": 12,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 4,
+          "x": 284,
+          "y": 12,
+          "w": 20,
+          "h": 20,
+          "at": "tr"
+        },
+        {
+          "n": 5,
+          "x": 6,
+          "y": 50,
+          "w": 84.203125,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 96.203125,
+          "y": 50,
+          "w": 149.765625,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 6,
+          "y": 80,
+          "w": 74.59375,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-row-content": {
+      "w": 310,
+      "h": 367,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 76,
+          "y": 6,
+          "w": 228,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 74,
+          "w": 298,
+          "h": 68.5
+        },
+        {
+          "n": 3,
+          "x": 6,
+          "y": 178.5,
+          "w": 105.21875,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 117.21875,
+          "y": 178.5,
+          "w": 155.046875,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 6,
+          "y": 208.5,
+          "w": 127.0625,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 6,
+          "y": 260.5,
+          "w": 298,
+          "h": 68.5
+        },
+        {
+          "n": 7,
+          "x": 6,
+          "y": 337,
+          "w": 298,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-setcolor": {
+      "w": 420,
+      "h": 276,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 34,
+          "w": 334.59375,
+          "h": 16
+        },
+        {
+          "n": 2,
+          "x": 351.59375,
+          "y": 30,
+          "w": 59.40625,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 342.078125,
+          "y": 102,
+          "w": 59.921875,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-scene-muted": {
+      "w": 420,
+      "h": 144,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 107.625,
+          "w": 402,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-viewpoint-muted": {
+      "w": 420,
+      "h": 126,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 89.75,
+          "w": 402,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-unsaved": {
+      "w": 340,
+      "h": 167,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 255.21875,
+          "y": 124.5,
+          "w": 61.78125,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 171.9375,
+          "y": 124.5,
+          "w": 77.28125,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-viewer": {
+      "w": 200,
+      "h": 301,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 32,
+          "w": 66.1875,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 81.1875,
+          "y": 32,
+          "w": 104.140625,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 9,
+          "y": 62,
+          "w": 125.5625,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 9,
+          "y": 128,
+          "w": 182,
+          "h": 30
+        },
+        {
+          "n": 5,
+          "x": 9,
+          "y": 158,
+          "w": 182,
+          "h": 95
+        }
+      ],
+      "fromGpu": true
+    },
+    "f10-task-pa-viewport": {
+      "w": 260,
+      "h": 758,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f10-task-escape-viewport": {
+      "w": 260,
+      "h": 758,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "viewpoints": [
+      {
+        "section": "Top",
+        "label": "Add viewpoint",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera-plus \"><path d=\"M12 20h-7a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "Snapshot the current camera and clipping into a new EMPTY viewpoint and activate it \u2014 labels, measurements, rules and selection start blank (use the Copy buttons to bring content in)",
+        "keys": "ALT 1126"
+      },
+      {
+        "section": "Top",
+        "label": "Save",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Save every viewpoint to a JSON file",
+        "keys": "ALT 1130"
+      },
+      {
+        "section": "Top",
+        "label": "Load",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Load viewpoints from a JSON file (replaces the current set)",
+        "keys": "ALT 1131"
+      },
+      {
+        "section": "Top",
+        "label": "Delete all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete every viewpoint \u2014 a live viewpoint's content goes back to the scene first",
+        "keys": "ALT 1228"
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Content badge",
+        "icon": "",
+        "tooltip": "Labels \u00b7 Measurements \u00b7 Selected fullnames \u00b7 Set Color rules stored in this viewpoint",
+        "keys": ""
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Insert before",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-row-insert-top \"><path d=\"M4 18v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1\"></path><path d=\"M12 9v-4\"></path><path d=\"M10 7l4 0\"></path></svg>",
+        "tooltip": "Insert a NEW empty viewpoint (current camera + clipping) before this one",
+        "keys": ""
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Move up",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
+        "tooltip": "Move this viewpoint up in the list",
+        "keys": ""
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Move down",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
+        "tooltip": "Move this viewpoint down in the list",
+        "keys": ""
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Activate",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-player-play \"><path d=\"M7 4v16l13 -8l-13 -8\"></path></svg>",
+        "tooltip": "Activate: fly the camera, apply clipping, show this viewpoint's labels/measurements, run its color rules and select its items",
+        "keys": "ALT 1127"
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Update camera/clip",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "Update this viewpoint's camera pose and clipping (box + planes + shapes) from the current view",
+        "keys": "ALT 1128"
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Delete",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this viewpoint",
+        "keys": "ALT 1129"
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Copy labels",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-map-pin-plus \"><path d=\"M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path><path d=\"M12.794 21.322a2 2 0 0 1 -2.207 -.422l-4.244 -4.243a8 8 0 1 1 13.59 -4.616\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
+        "tooltip": "Copy the scene Labels panel's labels into this viewpoint \u2014 overrides the viewpoint's labels",
+        "keys": "ALT 1132"
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Copy measurements",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-ruler \"><path d=\"M5 4h14a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-7a1 1 0 0 0 -1 1v7a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1\"></path><path d=\"M4 8l2 0\"></path><path d=\"M4 12l3 0\"></path><path d=\"M4 16l2 0\"></path><path d=\"M8 4l0 2\"></path><path d=\"M12 4l0 3\"></path><path d=\"M16 4l0 2\"></path></svg>",
+        "tooltip": "Copy the scene Measurements panel's measurements into this viewpoint \u2014 overrides the viewpoint's measurements",
+        "keys": "ALT 1133"
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "Copy set colors",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "Copy the global Set Color editor's rules into this viewpoint \u2014 overrides the viewpoint's rules",
+        "keys": "ALT 1134"
+      },
+      {
+        "section": "Each viewpoint",
+        "label": "From selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list-check \"><path d=\"M3.5 5.5l1.5 1.5l2.5 -2.5\"></path><path d=\"M3.5 11.5l1.5 1.5l2.5 -2.5\"></path><path d=\"M3.5 17.5l1.5 1.5l2.5 -2.5\"></path><path d=\"M11 6l9 0\"></path><path d=\"M11 12l9 0\"></path><path d=\"M11 18l9 0\"></path></svg>",
+        "tooltip": "Fill the list from the currently selected items (selection roots)",
+        "keys": "ALT 1135"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each viewpoint",
+        "label": "Name",
+        "tooltip": "The viewpoint name, shown in the list and in the Viewpoint Viewer."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each viewpoint",
+        "label": "Description",
+        "tooltip": "Free text shown under the active viewpoint in the Viewpoint Viewer. **bold** and new lines work."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each viewpoint",
+        "label": "Selected on activation",
+        "tooltip": "Item names, one per line, that are selected when the viewpoint is activated. Empty = nothing selected."
+      }
+    ],
+    "viewpointViewer": [
+      {
+        "section": "",
+        "label": "Load",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Load viewpoints from a JSON file (replaces the current set)",
+        "keys": "ALT 1131"
+      },
+      {
+        "section": "",
+        "label": "Mute labels",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-map-pin-off \"><path d=\"M9.442 9.432a3 3 0 0 0 4.113 4.134m1.445 -2.566a3 3 0 0 0 -3 -3\"></path><path d=\"M17.152 17.162l-3.738 3.738a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 0 1 -.476 -10.794m2.18 -1.82a8.003 8.003 0 0 1 10.91 10.912\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hide/show all labels in the viewport",
+        "keys": "ALT 1139"
+      },
+      {
+        "section": "",
+        "label": "Mute measures",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-ruler-off \"><path d=\"M8 4h11a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-4m-3.713 .299a1 1 0 0 0 -.287 .701v7a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1v-14c0 -.284 .118 -.54 .308 -.722\"></path><path d=\"M4 8h2\"></path><path d=\"M4 12h3\"></path><path d=\"M4 16h2\"></path><path d=\"M12 4v3\"></path><path d=\"M16 4v2\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hide/show all measurements in the viewport",
+        "keys": "ALT 720"
+      },
+      {
+        "section": "",
+        "label": "Viewpoint name",
+        "icon": "",
+        "tooltip": "Activate this viewpoint",
+        "keys": ""
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F1 Home</title>
+  <meta name="description" content="Guide to the F1 Home layout: load models, switch camera and theme, sketch mode, screenshots, the Hierarchy tree and the Console." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F1</p>
+      <h1>Home</h1>
+      <p class="lede">
+        The layout the app starts in: load models, find items in the tree, change how the 3D view looks and take
+        screenshots. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F1</p>
+          <h2>The Home layout</h2>
+          <p>
+            Press <kbd>F1</kbd> (or pick <b>Home</b> on the <a href="index.html#app-layout-ribbon">App Layout</a> ribbon)
+            to come back here from any other layout. It is the everyday workspace: the model tree on the left, the 3D
+            view in the middle with the Console under it, and Settings on the right.
+          </p>
+          <figure class="shot" data-shot="f01-layout">
+            <figcaption>The F1 layout with the Huldra sample models loaded.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Home ribbon</b> — described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree, with a name search. See <a href="#hierarchy">Hierarchy</a>.</li>
+            <li><b>3D view</b> — click an item to select it. <kbd>Ctrl</kbd> + click adds an item to the selection, or takes it out again. Clicking empty space unselects everything.</li>
+            <li><b>Console</b> — messages from the app. See <a href="#console">Console</a>.</li>
+            <li><b>Settings</b> — how the app looks and behaves. It has its own guide: <a href="panel-settings.html">Settings</a>.</li>
+          </ol>
+          <p class="note">
+            The <b>F10 Viewpoint</b>, <b>F11 SQL Editor</b> and <b>F12 Assets</b> layouts open this same Home ribbon;
+            only the panels around the 3D view are different.
+          </p>
+
+          <h3 id="navigate">Moving around in 3D</h3>
+          <ul>
+            <li><b>Left mouse button + drag</b> turns the view around the target point.</li>
+            <li><b>Right mouse button + drag</b> pans (slides the view sideways).</li>
+            <li><b>Mouse wheel</b> zooms in and out.</li>
+            <li><b>Space + click</b> flies to the point you click. <b>Alt + click</b> makes the clicked point the new centre of rotation.</li>
+            <li><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> move, <kbd>E</kbd> / <kbd>Q</kbd> move up and down, hold <kbd>Shift</kbd> to go faster. The arrow keys pan.</li>
+          </ul>
+          <p>
+            Speeds and the fly / walk mode are set under <a href="panel-settings.html#tab-navigation">Settings → Navigation</a>.
+          </p>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Home ribbon</h2>
+
+          <h3 id="ribbon-assets">Assets</h3>
+          <figure class="shot" data-shot="f01-assets"></figure>
+          <ol class="legend-list">
+            <li><b>Model</b> (<kbd>ALT 604</kbd>) — opens the <b>Model Assets</b> library next to the tree. Every model you have imported is kept there, in your browser; load and unload models from it.</li>
+            <li><b>Import</b> (<kbd>ALT 608</kbd>) — opens the <b>Import Manager</b>, which brings model files into the library.</li>
+            <li><b>SQL</b> (<kbd>ALT 631</kbd>) — opens the <b>SQL Assets</b> library: the model databases you can query in the <a href="f11-sql-editor.html">SQL Editor</a>.</li>
+            <li><b>Wipe All</b> (<kbd>ALT 1144</kbd>) — erases <i>everything</i> the app has saved in this browser, then reloads the page. See the warning below.</li>
+          </ol>
+          <p>
+            All three asset panels are explained in <a href="f12-assets.html">F12 Assets</a>, the layout that shows them side by side.
+          </p>
+          <div class="concept">
+            <p class="concept-title">What Wipe All removes</p>
+            <ul>
+              <li>Your settings, layout slots, custom shortcuts, viewpoints and colour rules.</li>
+              <li><b>Every imported model and database</b> in the library. You have to import them again afterwards.</li>
+              <li>It asks you to confirm first, but it cannot be undone. Use <b>Settings → Save…</b> first if you want to keep your settings.</li>
+            </ul>
+          </div>
+
+          <h3 id="ribbon-canvas">Canvas</h3>
+          <figure class="shot" data-shot="f01-canvas"></figure>
+          <ol class="legend-list">
+            <li><b>Clear</b> (<kbd>ALT 603</kbd>) — unloads every model from the 3D view, after asking first. The models stay in the Model Assets library, so you can load them again. Colour, hide and selection changes on them are lost.</li>
+            <li><b>Screenshot</b> (<kbd>ALT 1010</kbd>) — saves the 3D view as a PNG file. The picture is rendered at a higher resolution than the screen and includes the view cube, labels and measurements. A "Please wait" box shows while it is made.</li>
+            <li><b>Persp.</b> (<kbd>ALT 610</kbd>) — normal perspective view: things further away look smaller.</li>
+            <li><b>Ortho</b> (<kbd>ALT 611</kbd>) — orthographic view: no perspective, parallel lines stay parallel. Useful for straight side, front or top views. The app always starts in perspective.</li>
+            <li><b>Dark</b> (<kbd>ALT 401</kbd>) — switches the whole app to the dark theme. The button then reads <b>Light</b> and switches back. The choice is remembered.</li>
+          </ol>
+
+          <h3 id="ribbon-draw">Draw Mode</h3>
+          <figure class="shot" data-shot="f01-drawmode"></figure>
+          <ol class="legend-list">
+            <li><b>Sketch</b> (<kbd>ALT 1146</kbd>) — a technical-drawing look: white paper with dark edge lines. Labels and measurements stay visible, and screenshots capture the sketch look. Transparent items are left out. Press again to go back to the normal view. Sketch is switched off when you reload the page.</li>
+            <li><b>Wire</b> (<kbd>ALT 1216</kbd>) — sketch with plain paper and ink, no model colours.</li>
+            <li><b>Colour Fill</b> (<kbd>ALT 1217</kbd>) — the model colours are washed onto the paper.</li>
+            <li><b>Colour Wire</b> (<kbd>ALT 1218</kbd>) — the lines take the colour of the model.</li>
+            <li><b>Selection Tint</b> (<kbd>ALT 1113</kbd>) — selected items are shown with a colour tint.</li>
+            <li><b>Selection Outline</b> (<kbd>ALT 1114</kbd>) — selected items get an outline only and keep their own colours.</li>
+            <li><b>Selection Both</b> (<kbd>ALT 1115</kbd>) — tint and outline together.</li>
+          </ol>
+          <p>
+            Wire, Colour Fill and Colour Wire only change anything while Sketch is on. The selection style works in both
+            looks. The tint colour, the outline and the sketch lines are fine-tuned under
+            <a href="panel-settings.html#tab-rendering">Settings → Rendering</a> and
+            <a href="panel-settings.html#tab-edges">Settings → Edges</a>.
+          </p>
+
+          <h3 id="ribbon-quickclear">Quick Clear</h3>
+          <figure class="shot" data-shot="f01-quickclear"></figure>
+          <ol class="legend-list">
+            <li><b>Label</b> (<kbd>ALT 1141</kbd>) — deletes all labels in the scene.</li>
+            <li><b>Measurement</b> (<kbd>ALT 1227</kbd>) — deletes all measurements in the scene.</li>
+          </ol>
+          <p>
+            Both ask you to confirm first. While a viewpoint is being shown (see <a href="f10-viewpoint.html">F10 Viewpoint</a>),
+            the viewpoint's own labels and measurements are not deleted, only hidden (muted); the scene's own ones are deleted.
+          </p>
+
+          <p class="note">
+            Your organisation can also put buttons for its own tools on this ribbon, at the start or the end
+            (<b>Show in Home</b> under Settings → External). They work like the buttons on the
+            <a href="f07-external.html">External ribbon</a>.
+          </p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-load">Load a model</h3>
+          <ol class="steps">
+            <li>Press <b>Import</b> and add your model files (for example RVM, IFC, STEP or GLB). They are converted and stored in the library in your browser.</li>
+            <li>Press <b>Model</b> to open the Model Assets library and load the models you want to see. Loaded models appear in the <b>Hierarchy</b> and in the 3D view.</li>
+            <li>Next time, step 1 is not needed: the models are still in the library.</li>
+          </ol>
+          <p>Both panels are described step by step in <a href="f12-assets.html">F12 Assets</a>.</p>
+
+          <h3 id="task-find">Find an item by name</h3>
+          <ol class="steps">
+            <li>Type part of the name in the <b>Search items…</b> box of the Hierarchy <span class="mk">1</span>. The matches appear right under it <span class="mk">2</span>.
+              <figure class="shot" data-shot="f01-search"></figure>
+            </li>
+            <li>Click a match. It is selected, and the tree opens down to it.</li>
+            <li>Press the <b>Fly to selection</b> button (<kbd>ALT 625</kbd>) to bring it into view.</li>
+          </ol>
+
+          <h3 id="task-sketch">Make a sketch-style picture</h3>
+          <ol class="steps">
+            <li>Press <b>Sketch</b>, then <b>Colour Fill</b> to keep a hint of the model colours.
+              <figure class="shot" data-shot="f01-task-sketch-viewport"></figure>
+            </li>
+            <li>Turn the view the way you want it, and press <b>Ortho</b> for a drawing without perspective if you like.</li>
+            <li>Press <b>Screenshot</b>. The PNG is saved to your downloads folder, named <code class="inline">tredespace-</code> plus the date and time.</li>
+            <li>Press <b>Sketch</b> again to go back to the normal view.</li>
+          </ol>
+        </section>
+
+        <section id="hierarchy" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Hierarchy (left side)</h2>
+          <p>
+            The Hierarchy shows every loaded model as a tree. Here the five Huldra models were imported into a
+            folder called <code class="inline">Huldra</code>; <code class="inline">/HA-SAFE</code> is selected and
+            <code class="inline">/HA-TELE</code> is hidden. Show or hide the panel with <kbd>ALT 670</kbd>.
+          </p>
+          <figure class="shot" data-shot="f01-hierarchy"></figure>
+          <ol class="legend-list">
+            <li><b>Search items…</b> — type at least two letters of a name. Up to ten matches are listed, the highest level in the tree first. Folder names are found too. Upper and lower case do not matter.</li>
+            <li><b>* / =</b> — how the search text is matched. <b>*</b> (Contains) finds the text anywhere in a name. <b>=</b> (Equals) needs the whole name; in this mode a <code class="inline">*</code> at the start or end of your text means "ends with" or "starts with".</li>
+            <li><b>Fly to selection</b> (<kbd>ALT 625</kbd>) — moves the camera so the selection fills the view. Greyed out when nothing is selected.</li>
+            <li><b>Focus last click</b> (<kbd>O</kbd>) — makes the point you last clicked in 3D the centre of rotation; the camera stays where it is.</li>
+            <li><b>Go to last click</b> (<kbd>G</kbd>) — flies to the point you last clicked in 3D.</li>
+            <li><b>Focus selection</b> (<kbd>ALT 1029</kbd>) — makes the centre of the selection the centre of rotation; the camera stays where it is.</li>
+            <li><b>Fit visible</b> (<kbd>ALT 1219</kbd>) — shows everything that is not hidden. With clipping on, only the part inside the clipping counts.</li>
+            <li><b>Collapse all</b> (<kbd>ALT 801</kbd>) — folds the whole tree up again.</li>
+          </ol>
+
+          <h3 id="hierarchy-tree">Reading and using the tree</h3>
+          <ul>
+            <li><b>Click a row</b> to select that item and everything under it. <kbd>Ctrl</kbd> + click adds a row to the selection or takes it out again. <kbd>Shift</kbd> + click selects every row between the last one you clicked and this one.</li>
+            <li>Click the <b>arrow</b> in front of a row to open or close it. Clicking an item in the 3D view opens the tree down to that item.</li>
+            <li>A <b>blue bar</b> at the left of a row means some, but not all, of the items under it are selected — you don't have to open it to find the selection.</li>
+            <li>A <b>crossed-out eye</b> at the end of a row means the item is hidden (the row is greyed out too). A <b>dotted eye</b> means some items under it are hidden. Items with opacity 0 count as hidden.</li>
+            <li>The small heading above the folders (<code class="inline">TEMP</code> here) is the store the models were loaded from. It only groups the tree and cannot be selected.</li>
+            <li>The number of selected items is shown at the bottom of the panel.</li>
+            <li>To hide, colour or isolate what you have selected, use the <a href="f04-selection-color.html">F4 Selection Color</a> ribbon.</li>
+          </ul>
+
+          <h3 id="hierarchy-menu">The right-click menu</h3>
+          <figure class="shot" data-shot="f01-hierarchy-menu"></figure>
+          <ul>
+            <li><b>Copy Current</b> — copies the name of the row you right-clicked.</li>
+            <li><b>Copy Selected</b> — copies the names of all selected rows you can see in the tree, one per line. <b>Copy Selected same level</b> copies only those at the same level as the row you right-clicked.</li>
+            <li><b>Disable / Enable item edges on selected</b> — turns the outline lines between items off or on for the selection. You only see a difference while item edges are switched on under <a href="panel-settings.html#tab-edges">Settings → Edges</a>. Undo brings them back.</li>
+            <li><b>Remove current file/folder</b> — unloads the model file (or every model in the folder) that the row belongs to. <b>Remove selected files</b> unloads every model file that has a selected row. Both ask first; the models stay in the Model Assets library.</li>
+          </ul>
+        </section>
+
+        <section id="console" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Console (bottom)</h2>
+          <p>
+            The Console lists what the app has done: imports, loads, how many items an action changed, and any
+            warnings or errors. Show or hide it with <kbd>ALT 672</kbd>. In the F2–F9 layouts it is folded down to
+            its tab; click the tab to open it.
+          </p>
+          <figure class="shot" data-shot="f01-console"></figure>
+          <ol class="legend-list">
+            <li><b>INFO / WARN / ERROR</b> — show or hide each kind of message. The number is how many there are. Hiding only filters the list; nothing is deleted.</li>
+            <li><b>Download</b> (<kbd>ALT 1401</kbd>) — saves the whole console, every kind of message, as a text file. Send it along when you report a problem.</li>
+            <li><b>Clear</b> (<kbd>ALT 1222</kbd>) — empties the list. The start-up lines (version and graphics checks) stay.</li>
+          </ol>
+        </section>
+
+        <section id="settings" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Settings (right side)</h2>
+          <p>
+            The panel on the right holds every setting of the app, in tabs: rendering quality, lighting, edges,
+            navigation speeds, keyboard shortcuts and more. Show or hide it with <kbd>CTRL+S</kbd>. It has its own guide:
+            <a href="panel-settings.html"><b>Settings guide →</b></a>
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control on this page</h2>
+          <h3 id="ref-ribbon">Home ribbon</h3>
+          <div class="ref-table" data-ref="ribbonHome"></div>
+          <h3 id="ref-hierarchy">Hierarchy</h3>
+          <div class="ref-table" data-ref="hierarchy"></div>
+          <h3 id="ref-console">Console</h3>
+          <div class="ref-table" data-ref="console"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

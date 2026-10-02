@@ -1,0 +1,1362 @@
+{
+  "shots": {
+    "settings-overview": {
+      "w": 420,
+      "h": 758,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 5,
+          "y": 28,
+          "w": 96,
+          "h": 692
+        },
+        {
+          "n": 2,
+          "x": 110,
+          "y": 43,
+          "w": 243,
+          "h": 16
+        },
+        {
+          "n": 3,
+          "x": 377,
+          "y": 43.5,
+          "w": 15,
+          "h": 15,
+          "at": "bl"
+        },
+        {
+          "n": 4,
+          "x": 357,
+          "y": 43,
+          "w": 16,
+          "h": 16,
+          "at": "tr"
+        },
+        {
+          "n": 5,
+          "x": 86.25,
+          "y": 727,
+          "w": 56.140625,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 150.390625,
+          "y": 727,
+          "w": 56.5625,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 214.953125,
+          "y": 727,
+          "w": 114.78125,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "settings-rendering-aa": {
+      "w": 300,
+      "h": 206,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-rendering-transparency": {
+      "w": 312,
+      "h": 146,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-rendering-vram": {
+      "w": 312,
+      "h": 362,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-rendering-selection": {
+      "w": 312,
+      "h": 206,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-lighting": {
+      "w": 404,
+      "h": 348,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-gpu": {
+      "w": 312,
+      "h": 198,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-navigation": {
+      "w": 312,
+      "h": 410,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-edges": {
+      "w": 300,
+      "h": 182,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-ao": {
+      "w": 312,
+      "h": 266,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-gizmo": {
+      "w": 404,
+      "h": 412,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-shortcuts": {
+      "w": 404,
+      "h": 610,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 98,
+          "y": 12,
+          "w": 300,
+          "h": 26
+        },
+        {
+          "n": 2,
+          "x": 98,
+          "y": 44,
+          "w": 300,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 98,
+          "y": 578,
+          "w": 300,
+          "h": 26
+        }
+      ],
+      "fromGpu": true
+    },
+    "settings-shortcut-record": {
+      "w": 312,
+      "h": 231,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 159.78125,
+          "w": 183.734375,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 206.734375,
+          "y": 159.78125,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 3,
+          "x": 238.734375,
+          "y": 159.78125,
+          "w": 58.265625,
+          "h": 24,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "settings-stats": {
+      "w": 404,
+      "h": 620,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-editor": {
+      "w": 312,
+      "h": 394,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-external": {
+      "w": 404,
+      "h": 341,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "settings-about": {
+      "w": 404,
+      "h": 389,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "settings-rendering": [
+      {
+        "section": "",
+        "label": "AA fast (accumulation TAA)",
+        "icon": "",
+        "tooltip": "Toggle accumulation antialiasing",
+        "keys": "ALT 430"
+      },
+      {
+        "section": "",
+        "label": "AA samples −",
+        "icon": "",
+        "tooltip": "Decrease aa samples",
+        "keys": "ALT 451"
+      },
+      {
+        "section": "",
+        "label": "AA samples +",
+        "icon": "",
+        "tooltip": "Increase aa samples",
+        "keys": "ALT 450"
+      },
+      {
+        "section": "",
+        "label": "MSAA 4x",
+        "icon": "",
+        "tooltip": "Toggle 4× multisampling",
+        "keys": "ALT 431"
+      },
+      {
+        "section": "",
+        "label": "Smart pixel ratio (this device: native 2)",
+        "icon": "",
+        "tooltip": "Toggle smart render scale: mobile devices render at ratio 1, desktops at the native device pixel ratio",
+        "keys": "ALT 489"
+      },
+      {
+        "section": "",
+        "label": "Pixel ratio −",
+        "icon": "",
+        "tooltip": "Decrease pixel ratio",
+        "keys": "ALT 487"
+      },
+      {
+        "section": "",
+        "label": "Pixel ratio +",
+        "icon": "",
+        "tooltip": "Increase pixel ratio",
+        "keys": "ALT 486"
+      },
+      {
+        "section": "",
+        "label": "Use device pixel ratio (2)",
+        "icon": "",
+        "tooltip": "Toggle: follow window.devicePixelRatio instead of the fixed pixel ratio",
+        "keys": "ALT 488"
+      },
+      {
+        "section": "Transparency",
+        "label": "Alpha hash",
+        "icon": "",
+        "tooltip": "Use alpha-hash transparency (converges with AA)",
+        "keys": "ALT 410"
+      },
+      {
+        "section": "Transparency",
+        "label": "Blend",
+        "icon": "",
+        "tooltip": "Use unsorted blend transparency",
+        "keys": "ALT 411"
+      },
+      {
+        "section": "Transparency",
+        "label": "Background",
+        "icon": "",
+        "tooltip": "Render items set transparent solid, as a backdrop behind everything opaque",
+        "keys": "ALT 412"
+      },
+      {
+        "section": "Transparency",
+        "label": "Background fade −",
+        "icon": "",
+        "tooltip": "Decrease background fade (%)",
+        "keys": "ALT 414"
+      },
+      {
+        "section": "Transparency",
+        "label": "Background fade +",
+        "icon": "",
+        "tooltip": "Increase background fade (%)",
+        "keys": "ALT 413"
+      },
+      {
+        "section": "Culling",
+        "label": "FPS limit −",
+        "icon": "",
+        "tooltip": "Decrease fps limit",
+        "keys": "ALT 479"
+      },
+      {
+        "section": "Culling",
+        "label": "FPS limit +",
+        "icon": "",
+        "tooltip": "Increase fps limit",
+        "keys": "ALT 478"
+      },
+      {
+        "section": "Culling",
+        "label": "Freeze culling",
+        "icon": "",
+        "tooltip": "Freeze / unfreeze the cull",
+        "keys": "ALT 433"
+      },
+      {
+        "section": "Culling",
+        "label": "Vertex-pull culling (no MDI needed)",
+        "icon": "",
+        "tooltip": "Toggle vertex-pull culling",
+        "keys": "ALT 434"
+      },
+      {
+        "section": "Culling",
+        "label": "Pixel cut while moving",
+        "icon": "",
+        "tooltip": "Toggle the pixel cut while moving",
+        "keys": "ALT 435"
+      },
+      {
+        "section": "Culling",
+        "label": "Cut size −",
+        "icon": "",
+        "tooltip": "Decrease cut size",
+        "keys": "ALT 453"
+      },
+      {
+        "section": "Culling",
+        "label": "Cut size +",
+        "icon": "",
+        "tooltip": "Increase cut size",
+        "keys": "ALT 452"
+      },
+      {
+        "section": "Culling",
+        "label": "Protect distance −",
+        "icon": "",
+        "tooltip": "Decrease protect distance",
+        "keys": "ALT 455"
+      },
+      {
+        "section": "Culling",
+        "label": "Protect distance +",
+        "icon": "",
+        "tooltip": "Increase protect distance",
+        "keys": "ALT 454"
+      },
+      {
+        "section": "Culling",
+        "label": "Always cut",
+        "icon": "",
+        "tooltip": "Independent of the moving cut above: drop meshlets this small with the camera at rest too — a sub-pixel cluster cannot be seen, and skipping them caps what a mass unhide can throw at one frame. Protect distance shields near geometry from this cut as well. 0 = off",
+        "keys": ""
+      },
+      {
+        "section": "Culling",
+        "label": "Always cut −",
+        "icon": "",
+        "tooltip": "Decrease always-on cut size",
+        "keys": "ALT 416"
+      },
+      {
+        "section": "Culling",
+        "label": "Always cut +",
+        "icon": "",
+        "tooltip": "Increase always-on cut size",
+        "keys": "ALT 415"
+      },
+      {
+        "section": "Culling",
+        "label": "Meshlets per frame",
+        "icon": "",
+        "tooltip": "Cap on meshlets the occlusion pass may newly draw in ONE frame, in thousands. Unhiding a lot at once makes everything visible against an empty depth pyramid — the single heaviest frame there is, enough to hang a weak GPU. The cap spreads it over a few frames, each cheaper than the last as the pyramid fills in. 0 = no cap",
+        "keys": ""
+      },
+      {
+        "section": "Culling",
+        "label": "Meshlets per frame −",
+        "icon": "",
+        "tooltip": "Decrease new meshlets per frame",
+        "keys": "ALT 418"
+      },
+      {
+        "section": "Culling",
+        "label": "Meshlets per frame +",
+        "icon": "",
+        "tooltip": "Increase new meshlets per frame",
+        "keys": "ALT 417"
+      },
+      {
+        "section": "Culling",
+        "label": "Frames after stop",
+        "icon": "",
+        "tooltip": "Ceiling on the frames kept rendering once the view settles, so geometry the cap above deferred can finish arriving. The window normally ends well before it: the cull reports the frame its second pass draws nothing new, and the renderer stops there — so a slow machine is not billed a fixed number of full-cost redraws after every camera stop. Accumulation (AA) frames count toward this window rather than adding to it. 0 = off",
+        "keys": ""
+      },
+      {
+        "section": "Culling",
+        "label": "Frames after stop −",
+        "icon": "",
+        "tooltip": "Decrease frames after stop",
+        "keys": "ALT 405"
+      },
+      {
+        "section": "Culling",
+        "label": "Frames after stop +",
+        "icon": "",
+        "tooltip": "Increase frames after stop",
+        "keys": "ALT 404"
+      },
+      {
+        "section": "Picking",
+        "label": "Pick opacity ≥ −",
+        "icon": "",
+        "tooltip": "Decrease pick opacity threshold",
+        "keys": "ALT 477"
+      },
+      {
+        "section": "Picking",
+        "label": "Pick opacity ≥ +",
+        "icon": "",
+        "tooltip": "Increase pick opacity threshold",
+        "keys": "ALT 476"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Enabled",
+        "icon": "",
+        "tooltip": "Keep tracked GPU memory under Max VRAM by holding far zones coarse while the camera rests. Off: everything loads at full detail",
+        "keys": "ALT 449"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Max VRAM −",
+        "icon": "",
+        "tooltip": "Decrease max vram (mb)",
+        "keys": "ALT 491"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Max VRAM +",
+        "icon": "",
+        "tooltip": "Increase max vram (mb)",
+        "keys": "ALT 490"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Relaxed",
+        "icon": "",
+        "tooltip": "Set the VRAM-budget swap pacing to relaxed",
+        "keys": "ALT 492"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Normal",
+        "icon": "",
+        "tooltip": "Set the VRAM-budget swap pacing to normal",
+        "keys": "ALT 493"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Fast",
+        "icon": "",
+        "tooltip": "Set the VRAM-budget swap pacing to fast",
+        "keys": "ALT 494"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Cut size −",
+        "icon": "",
+        "tooltip": "Decrease vram cut size (m)",
+        "keys": "ALT 497"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Cut size +",
+        "icon": "",
+        "tooltip": "Increase vram cut size (m)",
+        "keys": "ALT 496"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Cut distance −",
+        "icon": "",
+        "tooltip": "Decrease vram cut distance (m)",
+        "keys": "ALT 499"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Cut distance +",
+        "icon": "",
+        "tooltip": "Increase vram cut distance (m)",
+        "keys": "ALT 498"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Drop hidden items",
+        "icon": "",
+        "tooltip": "Hidden items are dropped from budget packs entirely — their VRAM goes to visible detail instead; they re-pack in when unhidden",
+        "keys": "ALT 444"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Pause AO / TAA while optimizing",
+        "icon": "",
+        "tooltip": "While a burst of swaps lands, render single-sample frames (no TAA history, no AO) and converge once at the end — instead of re-converging a picture every commit throws away. Edges look aliased for those seconds.",
+        "keys": "ALT 447"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Show activity indicator",
+        "icon": "",
+        "tooltip": "Small top-right viewport chip while the budget is active: blue = swapping, green check = settled (done what's possible for this spot), grey = waiting for the camera to rest",
+        "keys": "ALT 445"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Show residency boxes",
+        "icon": "",
+        "tooltip": "Debug: draw each zone's visible-bounds box colored by residency — green full, purple mixed (near items sharp), orange coarse, red unloaded, blue while swapping",
+        "keys": "ALT 495"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Copy event log",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-copy \"><path d=\"M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666\"></path><path d=\"M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1\"></path></svg>",
+        "tooltip": "Copy the current per-zone residency state and the recent swap events (with reasons) to the clipboard",
+        "keys": "ALT 446"
+      },
+      {
+        "section": "VRAM budget",
+        "label": "Clear",
+        "icon": "",
+        "tooltip": "Clear the residency event log",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Background & selection",
+        "label": "Background",
+        "tooltip": "Colour of the 3D view behind the model."
+      },
+      {
+        "section": "Background & selection",
+        "label": "Tint",
+        "icon": "",
+        "tooltip": "Show selection as a color tint only",
+        "keys": "ALT 1113"
+      },
+      {
+        "section": "Background & selection",
+        "label": "Outline",
+        "icon": "",
+        "tooltip": "Show selection as an outline only (items keep their true colors)",
+        "keys": "ALT 1114"
+      },
+      {
+        "section": "Background & selection",
+        "label": "Both",
+        "icon": "",
+        "tooltip": "Show selection as both a color tint and an outline",
+        "keys": "ALT 1115"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Background & selection",
+        "label": "Selection colour",
+        "tooltip": "Colour of the tint on selected items."
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Hover outline",
+        "icon": "",
+        "tooltip": "Toggle: outline the item under the cursor",
+        "keys": "ALT 1112"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Strength −",
+        "icon": "",
+        "tooltip": "Fainter outline edges",
+        "keys": "ALT 1117"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Strength +",
+        "icon": "",
+        "tooltip": "Stronger outline edges",
+        "keys": "ALT 1116"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Glow −",
+        "icon": "",
+        "tooltip": "Less soft wide glow around the outline",
+        "keys": "ALT 1119"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Glow +",
+        "icon": "",
+        "tooltip": "More soft wide glow around the outline",
+        "keys": "ALT 1118"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Thickness −",
+        "icon": "",
+        "tooltip": "Thinner outline (blur radius, down to 1 px)",
+        "keys": "ALT 1121"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Thickness +",
+        "icon": "",
+        "tooltip": "Thicker outline (blur radius, up to 4 px)",
+        "keys": "ALT 1120"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Pulse (s) −",
+        "icon": "",
+        "tooltip": "Faster outline pulse (shorter period; 0 = off)",
+        "keys": "ALT 1123"
+      },
+      {
+        "section": "Outline (selection & hover)",
+        "label": "Pulse (s) +",
+        "icon": "",
+        "tooltip": "Slower outline pulse (longer period; 0 = off)",
+        "keys": "ALT 1122"
+      },
+      {
+        "section": "Dark colours",
+        "label": "Lift black color to grey",
+        "icon": "",
+        "tooltip": "Render pure-black material colours as grey so their shading shows; other dark colours, the cooked colours and exports are untouched",
+        "keys": "ALT 437"
+      },
+      {
+        "section": "Dark colours",
+        "label": "Grey level −",
+        "icon": "",
+        "tooltip": "Decrease dark colour lift (%)",
+        "keys": "ALT 439"
+      },
+      {
+        "section": "Dark colours",
+        "label": "Grey level +",
+        "icon": "",
+        "tooltip": "Increase dark colour lift (%)",
+        "keys": "ALT 438"
+      },
+      {
+        "section": "Debug",
+        "label": "Meshlet colors",
+        "icon": "",
+        "tooltip": "Toggle meshlet debug colors",
+        "keys": "ALT 432"
+      },
+      {
+        "section": "Debug",
+        "label": "Off",
+        "icon": "",
+        "tooltip": "Show the off debug buffer",
+        "keys": "ALT 420"
+      },
+      {
+        "section": "Debug",
+        "label": "Normal",
+        "icon": "",
+        "tooltip": "Show the normal debug buffer",
+        "keys": "ALT 421"
+      },
+      {
+        "section": "Debug",
+        "label": "Depth",
+        "icon": "",
+        "tooltip": "Show the depth debug buffer",
+        "keys": "ALT 422"
+      },
+      {
+        "section": "Debug",
+        "label": "Item ID",
+        "icon": "",
+        "tooltip": "Show the id debug buffer",
+        "keys": "ALT 423"
+      },
+      {
+        "section": "Debug",
+        "label": "Edge",
+        "icon": "",
+        "tooltip": "Show the edge debug buffer",
+        "keys": "ALT 424"
+      },
+      {
+        "section": "Debug",
+        "label": "AO",
+        "icon": "",
+        "tooltip": "Show the ao debug buffer",
+        "keys": "ALT 425"
+      },
+      {
+        "section": "Debug",
+        "label": "Log meshlet fill",
+        "icon": "",
+        "tooltip": "Read meshlet fill statistics for every loaded model back from the GPU and print the report to the Console panel — shows the VRAM lost to part-empty meshlets",
+        "keys": "ALT 436"
+      }
+    ],
+    "settings-lighting": [
+      {
+        "section": "Lighting",
+        "label": "Ambient intensity −",
+        "icon": "",
+        "tooltip": "Decrease ambient intensity",
+        "keys": "ALT 457"
+      },
+      {
+        "section": "Lighting",
+        "label": "Ambient intensity +",
+        "icon": "",
+        "tooltip": "Increase ambient intensity",
+        "keys": "ALT 456"
+      },
+      {
+        "section": "Lighting",
+        "label": "Headlight intensity −",
+        "icon": "",
+        "tooltip": "Decrease headlight intensity",
+        "keys": "ALT 459"
+      },
+      {
+        "section": "Lighting",
+        "label": "Headlight intensity +",
+        "icon": "",
+        "tooltip": "Increase headlight intensity",
+        "keys": "ALT 458"
+      },
+      {
+        "section": "Sketch lighting",
+        "label": "Ambient intensity −",
+        "icon": "",
+        "tooltip": "Decrease sketch ambient intensity",
+        "keys": "ALT 1236"
+      },
+      {
+        "section": "Sketch lighting",
+        "label": "Ambient intensity +",
+        "icon": "",
+        "tooltip": "Increase sketch ambient intensity",
+        "keys": "ALT 1235"
+      },
+      {
+        "section": "Sketch lighting",
+        "label": "Headlight intensity −",
+        "icon": "",
+        "tooltip": "Decrease sketch headlight intensity",
+        "keys": "ALT 1238"
+      },
+      {
+        "section": "Sketch lighting",
+        "label": "Headlight intensity +",
+        "icon": "",
+        "tooltip": "Increase sketch headlight intensity",
+        "keys": "ALT 1237"
+      }
+    ],
+    "settings-gpu": [
+      {
+        "section": "GPU",
+        "label": "Reload to apply",
+        "icon": "",
+        "tooltip": "Reload the app so the selected GPU takes effect",
+        "keys": "ALT 622"
+      },
+      {
+        "section": "GPU",
+        "label": "Simulate GPU crash",
+        "icon": "",
+        "tooltip": "Destroy the WebGPU device to test the crash-recovery prompt (a real GPU-process crash: chrome://gpucrash)",
+        "keys": "ALT 1234"
+      }
+    ],
+    "settings-navigation": [
+      {
+        "section": "",
+        "label": "Orbit",
+        "icon": "",
+        "tooltip": "Switch camera navigation to orbit",
+        "keys": "ALT 627"
+      },
+      {
+        "section": "",
+        "label": "Fly",
+        "icon": "",
+        "tooltip": "Switch camera navigation to fly",
+        "keys": "ALT 628"
+      },
+      {
+        "section": "",
+        "label": "Walk",
+        "icon": "",
+        "tooltip": "Switch camera navigation to walk",
+        "keys": "ALT 629"
+      },
+      {
+        "section": "",
+        "label": "Walk when movement keys are used",
+        "icon": "",
+        "tooltip": "Toggle: WASD/QE out of orbit mode enters walk instead of fly",
+        "keys": "ALT 1026"
+      },
+      {
+        "section": "",
+        "label": "Fly speed −",
+        "icon": "",
+        "tooltip": "Decrease the fly speed",
+        "keys": "ALT 811"
+      },
+      {
+        "section": "",
+        "label": "Fly speed +",
+        "icon": "",
+        "tooltip": "Increase the fly speed",
+        "keys": "ALT 810"
+      },
+      {
+        "section": "",
+        "label": "Fly + Shift −",
+        "icon": "",
+        "tooltip": "Decrease the fly + shift speed",
+        "keys": "ALT 813"
+      },
+      {
+        "section": "",
+        "label": "Fly + Shift +",
+        "icon": "",
+        "tooltip": "Increase the fly + shift speed",
+        "keys": "ALT 812"
+      },
+      {
+        "section": "",
+        "label": "Walk speed −",
+        "icon": "",
+        "tooltip": "Decrease the walk speed",
+        "keys": "ALT 815"
+      },
+      {
+        "section": "",
+        "label": "Walk speed +",
+        "icon": "",
+        "tooltip": "Increase the walk speed",
+        "keys": "ALT 814"
+      },
+      {
+        "section": "",
+        "label": "Walk + Shift −",
+        "icon": "",
+        "tooltip": "Decrease the walk + shift speed",
+        "keys": "ALT 817"
+      },
+      {
+        "section": "",
+        "label": "Walk + Shift +",
+        "icon": "",
+        "tooltip": "Increase the walk + shift speed",
+        "keys": "ALT 816"
+      },
+      {
+        "section": "",
+        "label": "Orbit sensitivity −",
+        "icon": "",
+        "tooltip": "Decrease the orbit sensitivity",
+        "keys": "ALT 819"
+      },
+      {
+        "section": "",
+        "label": "Orbit sensitivity +",
+        "icon": "",
+        "tooltip": "Increase the orbit sensitivity",
+        "keys": "ALT 818"
+      },
+      {
+        "section": "",
+        "label": "Pan sensitivity (mouse) −",
+        "icon": "",
+        "tooltip": "Decrease the pan sensitivity (mouse)",
+        "keys": "ALT 821"
+      },
+      {
+        "section": "",
+        "label": "Pan sensitivity (mouse) +",
+        "icon": "",
+        "tooltip": "Increase the pan sensitivity (mouse)",
+        "keys": "ALT 820"
+      },
+      {
+        "section": "",
+        "label": "Pan sensitivity (arrow keys) −",
+        "icon": "",
+        "tooltip": "Decrease the pan sensitivity (arrows)",
+        "keys": "ALT 823"
+      },
+      {
+        "section": "",
+        "label": "Pan sensitivity (arrow keys) +",
+        "icon": "",
+        "tooltip": "Increase the pan sensitivity (arrows)",
+        "keys": "ALT 822"
+      },
+      {
+        "section": "",
+        "label": "Frame dense bounds on load",
+        "icon": "",
+        "tooltip": "Toggle framing the percentile dense bounds vs the full AABB on load",
+        "keys": "ALT 624"
+      }
+    ],
+    "settings-edges": [
+      {
+        "section": "Edges — common",
+        "label": "Geometry edges",
+        "icon": "",
+        "tooltip": "Toggle geometry edges",
+        "keys": "ALT 440"
+      },
+      {
+        "section": "Edges — common",
+        "label": "Item edges",
+        "icon": "",
+        "tooltip": "Toggle item edges",
+        "keys": "ALT 441"
+      },
+      {
+        "section": "Edges — common",
+        "label": "White edges on dark items",
+        "icon": "",
+        "tooltip": "Toggle white edges on dark items",
+        "keys": "ALT 442"
+      },
+      {
+        "section": "Edges — common",
+        "label": "Darkness threshold −",
+        "icon": "",
+        "tooltip": "Decrease edge darkness threshold",
+        "keys": "ALT 467"
+      },
+      {
+        "section": "Edges — common",
+        "label": "Darkness threshold +",
+        "icon": "",
+        "tooltip": "Increase edge darkness threshold",
+        "keys": "ALT 466"
+      },
+      {
+        "section": "Edges — flat shading (default)",
+        "label": "Edge lines on flat meshes",
+        "icon": "",
+        "tooltip": "Toggle: draw edge lines on flat-shaded meshes",
+        "keys": "ALT 1172"
+      },
+      {
+        "section": "Edges — flat shading (default)",
+        "label": "Fade −",
+        "icon": "",
+        "tooltip": "Decrease edge fade",
+        "keys": "ALT 461"
+      },
+      {
+        "section": "Edges — flat shading (default)",
+        "label": "Fade +",
+        "icon": "",
+        "tooltip": "Increase edge fade",
+        "keys": "ALT 460"
+      },
+      {
+        "section": "Edges — flat shading (default)",
+        "label": "Depth thr. −",
+        "icon": "",
+        "tooltip": "Decrease edge depth threshold",
+        "keys": "ALT 463"
+      },
+      {
+        "section": "Edges — flat shading (default)",
+        "label": "Depth thr. +",
+        "icon": "",
+        "tooltip": "Increase edge depth threshold",
+        "keys": "ALT 462"
+      },
+      {
+        "section": "Edges — flat shading (default)",
+        "label": "Normal thr. −",
+        "icon": "",
+        "tooltip": "Decrease edge normal threshold",
+        "keys": "ALT 465"
+      },
+      {
+        "section": "Edges — flat shading (default)",
+        "label": "Normal thr. +",
+        "icon": "",
+        "tooltip": "Increase edge normal threshold",
+        "keys": "ALT 464"
+      },
+      {
+        "section": "Edges — with normals",
+        "label": "Edge lines on meshes with normals",
+        "icon": "",
+        "tooltip": "Toggle: draw edge lines on meshes with authored normals",
+        "keys": "ALT 1173"
+      },
+      {
+        "section": "Edges — with normals",
+        "label": "Fade −",
+        "icon": "",
+        "tooltip": "Less distance fade on edges of meshes with authored normals",
+        "keys": "ALT 1167"
+      },
+      {
+        "section": "Edges — with normals",
+        "label": "Fade +",
+        "icon": "",
+        "tooltip": "More distance fade on edges of meshes with authored normals",
+        "keys": "ALT 1166"
+      },
+      {
+        "section": "Edges — with normals",
+        "label": "Depth thr. −",
+        "icon": "",
+        "tooltip": "More depth edges on meshes with authored normals",
+        "keys": "ALT 1169"
+      },
+      {
+        "section": "Edges — with normals",
+        "label": "Depth thr. +",
+        "icon": "",
+        "tooltip": "Fewer depth edges on meshes with authored normals",
+        "keys": "ALT 1168"
+      },
+      {
+        "section": "Edges — with normals",
+        "label": "Normal thr. −",
+        "icon": "",
+        "tooltip": "More normal edges on meshes with authored normals",
+        "keys": "ALT 1171"
+      },
+      {
+        "section": "Edges — with normals",
+        "label": "Normal thr. +",
+        "icon": "",
+        "tooltip": "Fewer normal edges on meshes with authored normals",
+        "keys": "ALT 1170"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Sketch mode",
+        "icon": "",
+        "tooltip": "Toggle sketch mode: white background with black edge lines only",
+        "keys": "ALT 1146"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Respect edge-off switches",
+        "icon": "",
+        "tooltip": "Toggle: sketch mode honors the per-asset and per-category edge-off switches",
+        "keys": "ALT 1174"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Wire",
+        "icon": "",
+        "tooltip": "Sketch mode: plain white paper + ink edges (no mesh colours)",
+        "keys": "ALT 1198"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Colour fill",
+        "icon": "",
+        "tooltip": "Sketch mode: wash coloured meshes onto the paper (colourless meshes stay plain paper)",
+        "keys": "ALT 1199"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Colour wire",
+        "icon": "",
+        "tooltip": "Sketch mode: draw the edge ink in each mesh’s colour (colourless meshes keep the sketch ink)",
+        "keys": "ALT 1200"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Colour fill strength",
+        "icon": "",
+        "tooltip": "How far the paper moves from white toward the surface tone in Colour fill mode — its hue if it has one, its own grey level if not. The shading is divided out first, so one surface washes evenly whatever the light does",
+        "keys": ""
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Colour fill strength −",
+        "icon": "",
+        "tooltip": "Decrease sketch colour fill (%)",
+        "keys": "ALT 831"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Colour fill strength +",
+        "icon": "",
+        "tooltip": "Increase sketch colour fill (%)",
+        "keys": "ALT 830"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Fade −",
+        "icon": "",
+        "tooltip": "Less distance fade on sketch edges",
+        "keys": "ALT 1148"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Fade +",
+        "icon": "",
+        "tooltip": "More distance fade on sketch edges",
+        "keys": "ALT 1147"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Depth thr. −",
+        "icon": "",
+        "tooltip": "More depth-discontinuity sketch edges",
+        "keys": "ALT 1150"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Depth thr. +",
+        "icon": "",
+        "tooltip": "Fewer depth-discontinuity sketch edges",
+        "keys": "ALT 1149"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Normal thr. −",
+        "icon": "",
+        "tooltip": "More normal-discontinuity sketch edges",
+        "keys": "ALT 1152"
+      },
+      {
+        "section": "Sketch edges",
+        "label": "Normal thr. +",
+        "icon": "",
+        "tooltip": "Fewer normal-discontinuity sketch edges",
+        "keys": "ALT 1151"
+      }
+    ],
+    "settings-ao": [
+      {
+        "section": "Ambient Occlusion",
+        "label": "Off",
+        "icon": "",
+        "tooltip": "Set the ambient-occlusion mode: ao off",
+        "keys": "ALT 482"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Motion",
+        "icon": "",
+        "tooltip": "Set the ambient-occlusion mode: ao motion (every frame)",
+        "keys": "ALT 483"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Static",
+        "icon": "",
+        "tooltip": "Set the ambient-occlusion mode: ao static (accumulate at rest)",
+        "keys": "ALT 484"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Radius −",
+        "icon": "",
+        "tooltip": "Decrease ao radius",
+        "keys": "ALT 469"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Radius +",
+        "icon": "",
+        "tooltip": "Increase ao radius",
+        "keys": "ALT 468"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Strength −",
+        "icon": "",
+        "tooltip": "Decrease ao strength",
+        "keys": "ALT 471"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Strength +",
+        "icon": "",
+        "tooltip": "Increase ao strength",
+        "keys": "ALT 470"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Slices −",
+        "icon": "",
+        "tooltip": "Decrease ao slices",
+        "keys": "ALT 473"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Slices +",
+        "icon": "",
+        "tooltip": "Increase ao slices",
+        "keys": "ALT 472"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Samples −",
+        "icon": "",
+        "tooltip": "Decrease ao samples",
+        "keys": "ALT 475"
+      },
+      {
+        "section": "Ambient Occlusion",
+        "label": "Samples +",
+        "icon": "",
+        "tooltip": "Increase ao samples",
+        "keys": "ALT 474"
+      }
+    ],
+    "settings-stats": [
+      {
+        "section": "Stats",
+        "label": "Row tick boxes",
+        "icon": "",
+        "tooltip": "Show this row in the viewport overlay",
+        "keys": ""
+      },
+      {
+        "section": "Stats",
+        "label": "Show overlay in viewport",
+        "icon": "",
+        "tooltip": "Draw the stats list in the viewport corner; turning it on also turns on GPU pass timing. Untick rows above to leave them out of the overlay",
+        "keys": "ALT 1214"
+      },
+      {
+        "section": "Stats",
+        "label": "Dimmed background behind overlay",
+        "icon": "",
+        "tooltip": "Paint a dark translucent box behind the overlay text so it stays readable over bright models",
+        "keys": "ALT 1215"
+      },
+      {
+        "section": "Stats",
+        "label": "Measure GPU pass times (timestamp query)",
+        "icon": "",
+        "tooltip": "Toggle per-pass GPU time measurement (timestamp query) in Settings → Stats",
+        "keys": "ALT 1027"
+      },
+      {
+        "section": "Stats",
+        "label": "Verbose trace (phase timings → Console)",
+        "icon": "",
+        "tooltip": "Log per-phase performance timings for heavy operations (e.g. Set Color) to the Console — dev diagnostic",
+        "keys": "ALT 1054"
+      }
+    ],
+    "settings-editor": [
+      {
+        "section": "Editor",
+        "label": "Reset swatches",
+        "icon": "",
+        "tooltip": "Restore the default swatch palette",
+        "keys": "ALT 1030"
+      },
+      {
+        "section": "Editor",
+        "label": "Use dark theme",
+        "icon": "",
+        "tooltip": "Switch between the dark and light theme",
+        "keys": "ALT 401"
+      }
+    ],
+    "settings-external": [
+      {
+        "section": "External apps",
+        "label": "Add external app",
+        "icon": "",
+        "tooltip": "Add an external app (name + URL)",
+        "keys": "ALT 1176"
+      },
+      {
+        "section": "External apps",
+        "label": "Reset external apps",
+        "icon": "",
+        "tooltip": "Remove ALL external apps (not touched by Reset all settings)",
+        "keys": "ALT 1047"
+      },
+      {
+        "section": "External apps",
+        "label": "Add Demos",
+        "icon": "",
+        "tooltip": "Add the bundled API demo entries: Dialog (panel driving this viewer), Tab (new tab driving this viewer) and Host (new tab embedding its own viewer)",
+        "keys": "ALT 1049"
+      },
+      {
+        "section": "API security",
+        "label": "Enable postMessage API",
+        "icon": "",
+        "tooltip": "Master switch — when off, all API messages are ignored",
+        "keys": "ALT 1177"
+      },
+      {
+        "section": "API security",
+        "label": "Allow ?apiOrigins= URL parameter",
+        "icon": "",
+        "tooltip": "Let the embedding URL allowlist its own origin; disable for a strict settings-only allowlist",
+        "keys": "ALT 1178"
+      },
+      {
+        "section": "API security",
+        "label": "Add allowed origin",
+        "icon": "",
+        "tooltip": "Add an allowed origin (scheme + host, no path)",
+        "keys": "ALT 1179"
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

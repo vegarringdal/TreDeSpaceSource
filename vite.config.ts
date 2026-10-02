@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import tailwindcss from '@tailwindcss/vite';
@@ -14,6 +14,16 @@ import { packUi } from './scripts/pack-ui.mjs';
 // notices") is generated into src/generated/third-party-notices.json by
 // scripts/gen-third-party-notices.mjs — run `npm run gen:notices` after a
 // dependency change.
+
+/** Rollup inputs for the user guide: one per docs/guide/*.html page. */
+function guidePages(): Record<string, string> {
+  const dir = resolve(import.meta.dirname, 'docs/guide');
+  return Object.fromEntries(
+    readdirSync(dir)
+      .filter((f) => f.endsWith('.html'))
+      .map((f) => [`docsGuide-${f.replace(/\.html$/, '')}`, resolve(dir, f)]),
+  );
+}
 
 /** Emit dist/build.version at build time — a deployed instance can be probed
  *  at <host>/build.version to see which version/build is live. */
@@ -232,6 +242,9 @@ export default defineConfig({
         docsDemo: resolve(import.meta.dirname, 'docs/demo.html'),
         // live gallery of the @treDeSpaceUI component library (internal ref)
         docsWidgets: resolve(import.meta.dirname, 'docs/widgets.html'),
+        // end-user guide: every docs/guide/*.html page (hand-written steps +
+        // screenshots from scripts/doc-shots.mjs)
+        ...guidePages(),
       },
     },
   },
@@ -243,7 +256,10 @@ export default defineConfig({
     watch: {
       // the Rust reference tree is huge (target/ especially) and never affects
       // the web build — watching it exhausts inotify watchers
-      ignored: ['**/rust_src/target/**'],
+      // docs/guide/img + data are rewritten by `npm run docs:shots` while it
+      // drives this app; once a guide page has been loaded they are in the
+      // module graph and every write would full-reload the page being shot
+      ignored: ['**/rust_src/target/**', '**/docs/guide/img/**', '**/docs/guide/data/**'],
     },
   },
 });

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — Set Color</title>
+  <meta name="description" content="Guide to the Set Color panel: colour, ghost or hide many parts of the model at once by name, with rules." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · panel</p>
+      <h1>Set Color</h1>
+      <p class="lede">
+        Step-by-step walkthroughs with a screenshot for every step. The <b>numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <!-- ── Set Color ──────────────────────────────────── -->
+        <section id="set-color" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Set Color</h2>
+          <p>
+            <b>Set Color</b> colours, ghosts or hides many parts of the model at once, by name. Write
+            a short list of <b>rules</b> ("everything whose name contains <i>HA-PIPE</i> → orange") and press
+            <b>Run</b>. Rules can be saved to a file and reused on any model with the same naming.
+          </p>
+          <p class="note">
+            To colour a few items you have already selected, the <b>Selection Color</b> ribbon is quicker.
+            Use Set Color when the items are found by their names or when you want the result again later.
+          </p>
+
+          <h3 id="set-color-open">Open the panel</h3>
+          <p>
+            Press <kbd>F4</kbd>: the <a href="f04-selection-color.html">Selection Color layout</a> has Set Color on
+            the right. To open just the panel, open the <b>Panel</b> tab of the ribbon <span class="mk">1</span> and click
+            <b>Set Color</b> <span class="mk">2</span>, or press <kbd>CTRL+C</kbd>.
+          </p>
+          <figure class="shot" data-shot="setcolor-open"></figure>
+
+          <h3 id="set-color-tour">A tour of the panel</h3>
+          <figure class="shot" data-shot="setcolor-overview">
+            <figcaption>A rule set with three rules after a run. Rule #2 is open; #1 and #3 are folded.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Run mode</b> — what happens to the model before the rules run (see <a href="#set-color-modes">Run modes</a>).</li>
+            <li><b>+ Rule</b> — adds an empty rule at the bottom of the list.</li>
+            <li><b>Run</b> — applies every rule that is switched <b>On</b>, from top to bottom.</li>
+            <li><b>Save</b> — downloads the whole rule set (mode and rules) as a <code class="inline">.json</code> file.</li>
+            <li><b>Load</b> — replaces the rules with a saved file.</li>
+            <li><b>Delete all</b> — removes every rule. The run mode is kept.</li>
+            <li><b>Reset all</b> — puts the model back to normal: every colour and opacity change is undone and hidden items come back. Your rules are kept.</li>
+            <li><b>A rule, folded.</b> Click its title to open it. The header shows how many items the last run changed, and has buttons to insert a rule above, move it up or down, and switch it On / Off.</li>
+            <li><b>A filter row</b> — decides which names the rule picks up. A rule can have several.</li>
+          </ol>
+
+          <div class="concept">
+            <p class="concept-title">How rules work</p>
+            <ul>
+              <li>Rules run <b>from top to bottom</b>. When two rules match the same item, the lower one wins: it sets <i>both</i> the colour and the opacity of that item.</li>
+              <li>A rule with colour <b>Default</b> and opacity <b>1</b> puts its items back to how they look in the model.</li>
+              <li>An empty <b>Value</b> matches <b>everything</b>. That is handy for a first "ghost everything" rule.</li>
+              <li>Matching ignores upper and lower case.</li>
+              <li>The rules are not kept when you reload the page. Use <b>Save</b> to keep them.</li>
+            </ul>
+          </div>
+
+          <h3 id="set-color-one">Colour one system</h3>
+          <p>Colour all piping orange.</p>
+          <ol class="steps">
+            <li>
+              Open the panel. It starts with one empty rule, <b>#1 Rule</b>. Give the rule a name
+              <span class="mk">1</span>. Click <b>Custom</b> <span class="mk">2</span>, then click the colour
+              <span class="mk">3</span> to pick a different one.
+              <figure class="shot" data-shot="setcolor-one-color"></figure>
+            </li>
+            <li>
+              In the filter row, type the text to look for in <b>Value</b> <span class="mk">1</span>. Leave the
+              match type on <b>Contains</b> <span class="mk">2</span>. Set the level to <b>Lvl 2</b>
+              <span class="mk">3</span>, so only names at the second level of the tree are tested. In the
+              sample, level 1 is the <code class="inline">Huldra</code> folder and level 2 holds the discipline
+              models (<code class="inline">/HA-PIPE</code>, <code class="inline">/HA-SAFE</code> …).
+              A match always takes everything below it in the tree.
+              <figure class="shot" data-shot="setcolor-one-level"></figure>
+            </li>
+            <li>
+              Press <b>Run</b> <span class="mk">1</span>, or <kbd>ALT 1021</kbd>. The rule header shows how
+              many items were coloured <span class="mk">2</span>. If it says <b>0 matched</b>, check the
+              spelling and the level.
+              <figure class="shot" data-shot="setcolor-one-run"></figure>
+              <figure class="shot" data-shot="setcolor-one-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="set-color-ghost">Highlight systems and ghost the rest</h3>
+          <p>
+            Because the lower rule wins, you can start with a rule that matches everything and then
+            "paint over" it.
+          </p>
+          <ol class="steps">
+            <li>
+              Rule <b>#1 Ghost everything</b>: leave <b>Value</b> empty, keep the colour on <b>Default</b> and set
+              <b>Opacity</b> to <b>0.15</b>. It matches every item <span class="mk">1</span>.
+            </li>
+            <li>
+              Add <b>#2 Piping</b> (contains <code class="inline">HA-PIPE</code>, Lvl 2, orange) and
+              <b>#3 Safety</b> (contains <code class="inline">HA-SAFE</code>, Lvl 2, red). Both keep opacity
+              <b>1</b>, so their items become solid again.
+            </li>
+            <li>
+              Press <b>Run</b>. Use the arrows <span class="mk">2</span> to change the order, and <b>On / Off</b>
+              <span class="mk">3</span> to leave a rule out without deleting it.
+              <figure class="shot" data-shot="setcolor-ghost-rules"></figure>
+              <figure class="shot" data-shot="setcolor-ghost-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="set-color-modes">Run modes: show only what matches</h3>
+          <p>The run mode decides what happens to the model <i>before</i> the rules run:</p>
+          <ul class="plain">
+            <li><b>Reset model</b> (default) — clears all earlier colours, opacity and hiding first, as <b>Reset all</b> does. Every run starts from a clean model.</li>
+            <li><b>Append only</b> — keeps what is already there and adds the rules on top.</li>
+            <li><b>Hide model</b> — hides <i>everything</i> first. Only what the rules match is shown.</li>
+          </ul>
+          <ol class="steps">
+            <li>
+              Make a rule that finds what you want to see, for example contains
+              <code class="inline">HA-SAFE-ESCAPEROUTE</code>, colour green.
+            </li>
+            <li>
+              Open the run mode list and choose <b>Hide model</b> <span class="mk">1</span>, then press
+              <b>Run</b>. Only the escape routes are left on screen.
+              <figure class="shot" data-shot="setcolor-hide-mode"></figure>
+              <figure class="shot" data-shot="setcolor-hide-viewport"></figure>
+            </li>
+            <li>To see the whole model again, press <b>Reset all</b>.</li>
+          </ol>
+          <p class="note">
+            A rule with opacity <b>0</b> hides its items. This works in every mode, for example to remove
+            one discipline from view.
+          </p>
+
+          <h3 id="set-color-pick">Use a name from the model</h3>
+          <p>You don't have to type names. Take them from the model tree or the 3D view.</p>
+          <ol class="steps">
+            <li>
+              Click the item in the <b>Hierarchy</b> tree <span class="mk">1</span>, or click it in the 3D view.
+              <figure class="shot" data-shot="setcolor-pick-tree"></figure>
+            </li>
+            <li>
+              In the filter row, press <b>+</b> <span class="mk">2</span>. The name of the last selected item is
+              put into <b>Value</b> <span class="mk">3</span>. In <b>Multi</b> mode it is added as a new line,
+              so you can collect several names one by one.
+              <figure class="shot" data-shot="setcolor-pick-row"></figure>
+            </li>
+          </ol>
+
+          <h3 id="set-color-multi">Paste a list of names, each with its own colour</h3>
+          <p>
+            With the match type <b>Multi</b>, the value is a list: one exact name per line. A colour after
+            the name (separated by a space, tab or comma) colours that line only. Lines without a colour
+            use the rule's colour.
+          </p>
+          <ol class="steps">
+            <li>
+              Set the match type to <b>Multi</b> <span class="mk">1</span>. The value turns into a larger box
+              <span class="mk">2</span>.
+            </li>
+            <li>
+              Paste the names, for example from a spreadsheet. A colour can be a name
+              (<code class="inline">red</code>), a hex code (<code class="inline">#2f9e44</code>) or
+              <code class="inline">default</code> to keep the original colour. Add <code class="inline">:50</code> for 50 % opacity
+              (<code class="inline">red:50</code>).
+            </li>
+            <li>
+              Press <b>Run</b>. Here two speakers are red, one is green, and the one without a colour gets the
+              rule's blue <span class="mk">3</span>.
+              <figure class="shot" data-shot="setcolor-multi"></figure>
+              <figure class="shot" data-shot="setcolor-multi-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="set-color-combine">Combine filters: Append, Keep, Remove</h3>
+          <p>
+            A rule can have several filter rows (<b>+ Add filter</b>). They are worked through from top to
+            bottom, and the first word of each row says how it combines with the rows above:
+          </p>
+          <ul class="plain">
+            <li><b>Append</b> — add what this row finds.</li>
+            <li><b>Keep</b> — of what the rows above found, keep only what this row <i>also</i> matches.</li>
+            <li><b>Remove</b> — take what this row finds out again.</li>
+          </ul>
+          <p>Example: colour the public-address loudspeakers, but only the A-side units.</p>
+          <figure class="shot" data-shot="setcolor-combine"></figure>
+          <ol class="legend-list">
+            <li><b>Append</b> everything in the PA system: contains <code class="inline">HA-TELE-PA</code> at Lvl 3.</li>
+            <li><b>Keep</b> only the names that start with <code class="inline">/SX-</code>, the loudspeakers.</li>
+            <li><b>Remove</b> the names that end with <code class="inline">B</code>.</li>
+            <li>The result of all three rows together.</li>
+          </ol>
+          <p class="note">
+            Match types: <b>Contains</b>, <b>Equals</b>, <b>Starts with</b>, <b>Ends with</b>,
+            <b>Wildcard</b> (use <code class="inline">*</code> anywhere, e.g.
+            <code class="inline">/SX-*-011*</code>) and <b>Multi</b> (one exact name per line).
+          </p>
+
+          <h3 id="set-color-save">Save and reuse a rule set</h3>
+          <ol class="steps">
+            <li>Press <b>Save</b> (<kbd>ALT 1024</kbd>). The browser downloads <code class="inline">set-color-rules.json</code>.</li>
+            <li>Later, or on another computer, open Set Color and press <b>Load</b> (<kbd>ALT 1025</kbd>) to pick the file. It replaces the current rules.</li>
+            <li>Press <b>Run</b>.</li>
+          </ol>
+          <p class="note">
+            A rule's <b>Store</b> limits it to models loaded from one store. Use this when two stores have
+            parts with the same names.
+          </p>
+
+          <h3 id="set-color-ref">Reference: every control</h3>
+          <div class="ref-table" data-ref="multiColor"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

@@ -75,7 +75,7 @@ export function ShortcutsSettings() {
         type="search"
         value={query}
         onChange={setQuery}
-        placeholder="Search shortcuts — name, description, key combo (e.g. END, ALT + 6)…"
+        placeholder="Search shortcuts — name, description, key combo (e.g. END, ALT 6)…"
       />
       {needle && groups.length === 0 && <EmptyState>No shortcut matches “{query}”.</EmptyState>}
 

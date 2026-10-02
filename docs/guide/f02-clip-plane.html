@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F2 Clip Plane</title>
+  <meta name="description" content="Guide to the F2 Clip Plane layout: cut the model with up to three planes to look inside it." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F2</p>
+      <h1>Clip Plane</h1>
+      <p class="lede">
+        Cut the model with up to three planes to look inside it. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F2</p>
+          <h2>The Clip Plane layout</h2>
+          <p>
+            Press <kbd>F2</kbd> (or pick <b>Clip Plane</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the clipping-plane workspace. A <b>clipping plane</b> is a flat cut through the whole
+            model: everything on one side of it is hidden from view, so you can see into decks, rooms and equipment
+            as if you had sawn through them. Nothing is deleted; switch the plane off and the model is whole again.
+          </p>
+          <figure class="shot" data-shot="f02-layout">
+            <figcaption>The F2 layout with the Z plane switched on and flipped. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Clipping Plane ribbon</b> — described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree. Click a row to select that item and everything under it.</li>
+            <li><b>3D view</b> — the cut shows here. A click on the model also marks the point where a plane starts when you switch it on.</li>
+            <li><b>Console</b> — minimised. Click its tab to see a line for each plane you switch on, flip or reset.</li>
+          </ol>
+
+          <div class="concept">
+            <p class="concept-title">Three planes: X, Y and Z</p>
+            <ul>
+              <li>There is one plane per model axis, each with its own row on the ribbon and its own colour:
+                <b>X</b> (red) and <b>Y</b> (green) stand upright, facing along the X and Y axes; <b>Z</b> (blue) lies flat.
+                The three rows of every ribbon group always belong to X, Y and Z, top to bottom.</li>
+              <li>You can use them one at a time or together. With two or more on, you only see what is on the kept
+                side of <i>every</i> plane, which is handy for cutting out a corner.</li>
+              <li>A plane keeps the side its arrow points to: with the plane as it starts, that is the side with the
+                higher coordinate (for the Z plane: everything above it). <b>Flip</b> keeps the
+                other side.</li>
+              <li>The planes work on their own. They do not need the clipping box of
+                <a href="f03-clip-box.html">F3 Clip Box</a> to be on, and you can use both at once.</li>
+              <li>The X plane starts tilted 5° (its <b>°el</b> value is 5). For a straight vertical cut, set that value to
+                0 in <a href="#ribbon-rotation">Rotate mode</a>.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Clipping Plane ribbon</h2>
+          <p>
+            Each group has three rows: <b>X</b>, <b>Y</b> and <b>Z</b>. The pictures mark the controls of one row; the
+            other rows work the same way for their own plane.
+          </p>
+
+          <h3 id="ribbon-onoff">On/Off and Visibility</h3>
+          <figure class="shot" data-shot="f02-onoff"></figure>
+          <ol class="legend-list">
+            <li><b>The plane's name and colour</b> — the same colour is used for its marker and handles in the 3D view.</li>
+            <li><b>Enable</b> (<kbd>ALT 301</kbd> for X, <kbd>ALT 304</kbd> for Y, <kbd>ALT 307</kbd> for Z) — switches the plane on or off.
+              When you switch it on, the plane starts at the point you last clicked on the model. If you have not clicked
+              the model yet, it starts at the centre of everything loaded.</li>
+            <li><b>Helper</b> — shows a small 3 × 3 m square with diagonals on the plane, in the plane's colour, so you can see
+              where it is. The cut itself is visible on the model either way.</li>
+            <li><b>Gizmo</b> — shows the plane's handles in the 3D view: arrows to drag it, or rings to turn it while the
+              plane is in <a href="#ribbon-rotation">Rotate mode</a>. Switch it off when the handles get in the way.</li>
+          </ol>
+          <p class="note">
+            Helper and Gizmo only show for a plane that is switched on.
+          </p>
+
+          <h3 id="ribbon-position">Position and Position Step</h3>
+          <figure class="shot" data-shot="f02-position"></figure>
+          <ol class="legend-list">
+            <li><b>Center</b> — moves the plane to the point you last clicked on the model. Greyed out while the plane is off.</li>
+            <li><b>Position</b> — where the plane is, as a real coordinate in metres along its own direction (the X
+              coordinate for the X plane, and so on), so you can type a value straight from a drawing. Use − / + to move
+              it one step at a time.</li>
+            <li><b>Position Step</b> — how far one press of − / + moves the plane, from 0.1 m up.</li>
+          </ol>
+
+          <h3 id="ribbon-rotation">Flip, Rotation and Reset</h3>
+          <figure class="shot" data-shot="f02-rotation">
+            <figcaption>The Z plane is in Rotate mode, so its two angle fields can be changed.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Flip</b> (<kbd>ALT 302</kbd> / <kbd>ALT 305</kbd> / <kbd>ALT 308</kbd>) — keeps the other side of the plane instead.</li>
+            <li><b>Rotate</b> (<kbd>ALT 303</kbd> / <kbd>ALT 306</kbd> / <kbd>ALT 309</kbd>) — Rotate mode. While it is on, the angle
+              fields can be changed and the plane's gizmo shows rings to turn it instead of arrows to move it.
+              Press it again to go back to moving.</li>
+            <li><b>°el</b> (elevation) — how steeply the plane's arrow points up or down, in degrees. 90 points straight
+              up, 0 is level. − / + change it by 5°.</li>
+            <li><b>°az</b> (azimuth) — the compass direction of the arrow, in degrees. 0 points along X, 90 along Y.
+              − / + change it by 5°.</li>
+            <li><b>Reset All</b> (<kbd>ALT 310</kbd>) — switches all three planes off and puts every value back to the
+              start: position, step, angles, flip and Rotate mode.</li>
+          </ol>
+          <p class="note">
+            The angles stay as you left them when you leave Rotate mode. A plane turned this way still has its
+            Position value; − / + then move it along its new direction.
+          </p>
+        </section>
+
+        <section id="viewport" class="g-sec">
+          <p class="sec-kick">3D view</p>
+          <h2>Moving a plane in the 3D view</h2>
+          <p>
+            With <b>Gizmo</b> on, an enabled plane shows handles where it is:
+          </p>
+          <ul>
+            <li><b>Arrows</b> (normal mode) — three arrows that follow the plane. Drag the arrow that points out of the
+              plane to slide the cut back and forth. The two arrows that lie in the plane move the plane's
+              helper square sideways; the cut itself does not change.</li>
+            <li><b>Rings</b> (Rotate mode) — drag a ring to turn the plane around it. Hold <kbd>Shift</kbd> while dragging to turn
+              in 15° steps. The °el and °az fields follow.</li>
+          </ul>
+          <p>
+            The camera does not move while you drag a handle.
+          </p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-plan">Look at a deck from above</h3>
+          <ol class="steps">
+            <li>Click on the floor of the deck in the 3D view.</li>
+            <li>Press <b>Enable</b> on the <b>Z</b> row. The plane starts at floor level, at the point you clicked, and
+              hides everything <i>below</i> it.</li>
+            <li>Raise the cut to about head height: type a height 1.5 m higher into the Z <b>Position</b>, or set
+              <b>Position Step</b> to 0.5 and press + three times.</li>
+            <li>Press <b>Flip</b> on the Z row, so everything <i>above</i> the plane is hidden instead.</li>
+            <li>Turn the view to look straight down (click the top face of the view cube). Use − / + next to the Z
+              position to move the cut up or down a step at a time.
+              <figure class="shot" data-shot="f02-task-plan-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="task-section">Cut a vertical section</h3>
+          <ol class="steps">
+            <li>Click on the model where you want the cut.</li>
+            <li>Press <b>Enable</b> on the <b>X</b> or <b>Y</b> row. The model is cut through the point you clicked.
+              <figure class="shot" data-shot="f02-task-section-viewport">
+                <figcaption>The Y plane through the middle of the mechanical model.</figcaption>
+              </figure>
+            </li>
+            <li>Drag the plane's arrow, or use − / + next to its <b>Position</b>, to move the cut. Set
+              <b>Position Step</b> first if you need finer or bigger steps.</li>
+            <li>To see the part that was cut away, press <b>Flip</b>.</li>
+            <li>To start again somewhere else, click there and press <b>Center</b>.</li>
+          </ol>
+
+          <h3 id="task-angle">Cut at an angle</h3>
+          <ol class="steps">
+            <li>Switch the plane on as above, then press <b>Rotate</b> on its row.</li>
+            <li>Drag one of the rings in the 3D view (hold <kbd>Shift</kbd> for 15° steps), or type the angles in <b>°el</b>
+              and <b>°az</b>.
+              <figure class="shot" data-shot="f02-task-rotate-viewport">
+                <figcaption>The Y plane turned to 60° azimuth, with its rotation rings.</figcaption>
+              </figure>
+            </li>
+            <li>Press <b>Rotate</b> again to get the arrows back and slide the angled plane.</li>
+          </ol>
+
+          <h3 id="task-off">Switch clipping off again</h3>
+          <p>
+            Press <b>Enable</b> on the plane's row to switch it off. Its angles, step and flip are kept for the next time,
+            but when you switch it on again it starts at the point you last clicked. <b>Reset All</b> switches every
+            plane off and forgets all their settings.
+          </p>
+
+          <h3 id="task-keep">Keep a cut for later</h3>
+          <p>
+            The planes are not kept when you reload the page. To keep a cut, save a <b>viewpoint</b>: it stores the
+            camera together with the clipping planes, the clipping box and the clip shapes, and brings them all back
+            when you open it. See <a href="f10-viewpoint.html">F10 Viewpoint</a>.
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control on the ribbon</h2>
+          <div class="ref-table" data-ref="ribbonClippingPlane"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

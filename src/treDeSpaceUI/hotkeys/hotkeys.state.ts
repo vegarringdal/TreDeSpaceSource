@@ -44,7 +44,7 @@ export interface HotkeyDef {
   category: string; // UI group — one collapsible panel per category
   label: string;
   description: string;
-  defaultKeys: string; // default combo in display grammar, e.g. "ALT + 101"
+  defaultKeys: string; // default combo in display grammar, e.g. "ALT 101"
   run: () => void;
   allowInInput?: boolean; // default: true for a pure F-key combo, else false; user-overridable
   timeout?: number; // ms between steps for THIS shortcut
@@ -59,7 +59,7 @@ export interface HotkeyInfo {
   category: string;
   label: string;
   description: string;
-  /** effective combo in display grammar, e.g. "ALT + 101" */
+  /** effective combo in display grammar, e.g. "ALT 101" */
   keys: string;
   defaultKeys: string;
   /** true when the user has overridden anything on this shortcut */
@@ -73,6 +73,9 @@ interface Override {
   allowInInput?: boolean;
   timeout?: number;
 }
+
+/** Keymap file format: 2 = the CTRL+Z / "ALT 101" display notation. */
+export const KEYMAP_VERSION = 2;
 
 // localStorage: Record<id, Override> — an app that namespaces its storage moves it (setStorageKey)
 let storageKey = 'hotkeys';
@@ -268,7 +271,8 @@ export const hotkeysActions = {
   // share: export / import a keymap as JSON
   // -----------------------------------------------------------------------------
   /** Only the deltas from default, keyed by stable id; keys are display strings
-   *  so the file is human-readable and portable across versions. */
+   *  so the file is human-readable. Version 2 = the CTRL+Z / "ALT 101"
+   *  notation; version 1 files (CTRL&Z / "ALT + 101") are not imported. */
   exportJson(): string {
     const { defs, overrides } = hotkeysState.get();
     const out: Record<string, { keys?: string; allowInInput?: boolean; timeout?: number }> = {};
@@ -282,18 +286,26 @@ export const hotkeysActions = {
         ...(ov.timeout != null ? { timeout: ov.timeout } : {}),
       };
     }
-    return JSON.stringify({ version: 1, bindings: out }, null, 2);
+    return JSON.stringify({ version: KEYMAP_VERSION, bindings: out }, null, 2);
   },
 
   /** Load a keymap. Defensive: unknown ids, unparseable keys and conflicts are
    *  skipped; returns a report so the panel can show what happened. */
   importJson(text: string): { applied: string[]; skipped: string[]; conflicts: string[] } {
     const report = { applied: [] as string[], skipped: [] as string[], conflicts: [] as string[] };
-    let parsed: { bindings?: Record<string, { keys?: string; allowInInput?: boolean; timeout?: number }> };
+    let parsed: {
+      version?: number;
+      bindings?: Record<string, { keys?: string; allowInInput?: boolean; timeout?: number }>;
+    };
     try {
       parsed = JSON.parse(text);
     } catch {
       throw new Error('not valid JSON');
+    }
+    if (parsed.version !== KEYMAP_VERSION) {
+      throw new Error(
+        `keymap version ${parsed.version ?? '?'} is not supported — it was exported before the shortcut notation changed (CTRL&Z → CTRL+Z, "ALT + 101" → "ALT 101"); record the shortcuts again and export a new file`,
+      );
     }
     const { defs } = hotkeysState.get();
     const next = { ...hotkeysState.get().overrides };

@@ -1,0 +1,345 @@
+{
+  "shots": {
+    "f08-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 283.203125,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 295.203125,
+          "y": 136,
+          "w": 821.28125,
+          "h": 730
+        },
+        {
+          "n": 4,
+          "x": 1122.484375,
+          "y": 136,
+          "w": 311.515625,
+          "h": 758
+        },
+        {
+          "n": 5,
+          "x": 296.203125,
+          "y": 873,
+          "w": 79.546875,
+          "h": 22,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f08-ribbon": {
+      "w": 1428,
+      "h": 124,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 11,
+          "y": 28,
+          "w": 107.984375,
+          "h": 21.328125
+        },
+        {
+          "n": 2,
+          "x": 491.0625,
+          "y": 28,
+          "w": 132.5625,
+          "h": 21.328125
+        },
+        {
+          "n": 3,
+          "x": 962.15625,
+          "y": 28,
+          "w": 126.34375,
+          "h": 91
+        }
+      ],
+      "fromGpu": true
+    },
+    "f08-tabstrip": {
+      "w": 318,
+      "h": 31,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 4.484375,
+          "y": 4,
+          "w": 79.203125,
+          "h": 22
+        },
+        {
+          "n": 2,
+          "x": 150.578125,
+          "y": 8.5,
+          "w": 13,
+          "h": 13,
+          "at": "tr"
+        },
+        {
+          "n": 3,
+          "x": 271,
+          "y": 6.5,
+          "w": 17,
+          "h": 17,
+          "at": "bl"
+        },
+        {
+          "n": 4,
+          "x": 294,
+          "y": 6.5,
+          "w": 17,
+          "h": 17,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f08-compass": {
+      "w": 324,
+      "h": 770,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 145.234375,
+          "y": 368,
+          "w": 34,
+          "h": 34,
+          "at": "br"
+        },
+        {
+          "n": 2,
+          "x": 107.234375,
+          "y": 368,
+          "w": 34,
+          "h": 34
+        },
+        {
+          "n": 3,
+          "x": 80.234375,
+          "y": 373.5,
+          "w": 23,
+          "h": 23,
+          "at": "bl"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f08-floating": {
+      "w": 360,
+      "h": 329,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 21,
+          "y": 15.421875,
+          "w": 252,
+          "h": 16.796875
+        },
+        {
+          "n": 2,
+          "x": 277,
+          "y": 13.828125,
+          "w": 20,
+          "h": 20,
+          "at": "bl"
+        },
+        {
+          "n": 3,
+          "x": 301,
+          "y": 13.828125,
+          "w": 20,
+          "h": 20,
+          "at": "bl"
+        },
+        {
+          "n": 4,
+          "x": 325,
+          "y": 13.828125,
+          "w": 20,
+          "h": 20,
+          "at": "br"
+        }
+      ],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "ribbonPanels": [
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Hierarchy",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-binary-tree \"><path d=\"M6 20a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"></path><path d=\"M16 4a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"></path><path d=\"M16 20a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"></path><path d=\"M11 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"></path><path d=\"M21 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"></path><path d=\"M5.058 18.306l2.88 -4.606\"></path><path d=\"M10.061 10.303l2.877 -4.604\"></path><path d=\"M10.065 13.705l2.876 4.6\"></path><path d=\"M15.063 5.7l2.881 4.61\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Hierarchy panel where you want it",
+        "keys": "ALT 670"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Color Panel",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Color Panel panel where you want it",
+        "keys": "ALT 671"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Console",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-terminal-2 \"><path d=\"M8 9l3 3l-3 3\"></path><path d=\"M13 15l3 0\"></path><path d=\"M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -12\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Console panel where you want it",
+        "keys": "ALT 672"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Settings",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-settings \"><path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065\"></path><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Settings panel where you want it",
+        "keys": "CTRL+S"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Measurement List",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Measurement List panel where you want it",
+        "keys": "ALT 674"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Clip Shape List",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Clip Shape List panel where you want it",
+        "keys": "ALT 675"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Model Assets",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Model Assets panel where you want it",
+        "keys": "ALT 676"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "SQL Assets",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-database \"><path d=\"M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0\"></path><path d=\"M4 6v6a8 3 0 0 0 16 0v-6\"></path><path d=\"M4 12v6a8 3 0 0 0 16 0v-6\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the SQL Assets panel where you want it",
+        "keys": "ALT 677"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "SQL Editor",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-sql \"><path d=\"M12 8a2 2 0 0 1 2 2v4a2 2 0 1 1 -4 0v-4a2 2 0 0 1 2 -2\"></path><path d=\"M17 8v8h4\"></path><path d=\"M13 15l1 1\"></path><path d=\"M3 15a1 1 0 0 0 1 1h2a1 1 0 0 0 1 -1v-2a1 1 0 0 0 -1 -1h-2a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the SQL Editor panel where you want it",
+        "keys": "ALT 678"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Sql Report",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-report-analytics \"><path d=\"M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2\"></path><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2\"></path><path d=\"M9 17v-5\"></path><path d=\"M12 17v-1\"></path><path d=\"M15 17v-3\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Sql Report panel where you want it",
+        "keys": "ALT 679"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "SQL Table",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-table \"><path d=\"M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14\"></path><path d=\"M3 10h18\"></path><path d=\"M10 3v18\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the SQL Table panel where you want it",
+        "keys": "ALT 680"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "SQL Detail",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list-details \"><path d=\"M13 5h8\"></path><path d=\"M13 9h5\"></path><path d=\"M13 15h8\"></path><path d=\"M13 19h5\"></path><path d=\"M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"></path><path d=\"M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the SQL Detail panel where you want it",
+        "keys": "ALT 681"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Set Color",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Set Color panel where you want it",
+        "keys": "CTRL+C"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Label",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Label panel where you want it",
+        "keys": "CTRL+L"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Import Manager",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Import Manager panel where you want it",
+        "keys": "CTRL+I"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Export",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-file-export \"><path d=\"M14 3v4a1 1 0 0 0 1 1h4\"></path><path d=\"M11.5 21h-4.5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v5m-5 6h7m-3 -3l3 3l-3 3\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Export panel where you want it",
+        "keys": "CTRL+E"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Viewpoint Editor",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Viewpoint Editor panel where you want it",
+        "keys": "ALT 686"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Viewpoint Viewer",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-presentation \"><path d=\"M3 4l18 0\"></path><path d=\"M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10\"></path><path d=\"M12 16l0 4\"></path><path d=\"M9 20l6 0\"></path><path d=\"M8 12l3 -3l2 2l3 -3\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Viewpoint Viewer panel where you want it",
+        "keys": "ALT 687"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Label (viewpoint)",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Label (viewpoint) panel where you want it",
+        "keys": "ALT 688"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Measurement (viewpoint)",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Measurement (viewpoint) panel where you want it",
+        "keys": "ALT 689"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Set Color (viewpoint)",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Set Color (viewpoint) panel where you want it",
+        "keys": "ALT 690"
+      },
+      {
+        "section": "External Panels (example)",
+        "label": "Work Orders",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable \u00b7 drag to place the Work Orders panel where you want it",
+        "keys": ""
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

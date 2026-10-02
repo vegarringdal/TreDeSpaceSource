@@ -1,0 +1,202 @@
+{
+  "shots": {
+    "layout-f01": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f02": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f03": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f04": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f05": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f06": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f07": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f08": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f09": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f10": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f11": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-f12": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "layout-ribbon": {
+      "w": 1221,
+      "h": 130,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 16,
+          "y": 33,
+          "w": 112,
+          "h": 21.328125
+        },
+        {
+          "n": 2,
+          "x": 499.984375,
+          "y": 33,
+          "w": 112,
+          "h": 21.328125
+        },
+        {
+          "n": 3,
+          "x": 966.984375,
+          "y": 33,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 4,
+          "x": 1032.984375,
+          "y": 51,
+          "w": 176,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 1032.984375,
+          "y": 79,
+          "w": 88.5,
+          "h": 24,
+          "at": "bl"
+        }
+      ],
+      "fromGpu": true
+    },
+    "layout-settings-tab": {
+      "w": 395,
+      "h": 270,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 181,
+          "y": 78,
+          "w": 174,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 363,
+          "y": 78,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "ribbonLayout": [
+      {
+        "section": "Override Selected",
+        "label": "Save",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-device-floppy \"><path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"></path><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M14 4l0 4l-6 0l0 -4\"></path></svg>",
+        "tooltip": "Save the current panel layout into the selected slot",
+        "keys": "ALT 1145"
+      },
+      {
+        "section": "Override Selected",
+        "label": "Linked Ribbon",
+        "icon": "",
+        "tooltip": "Ribbon tab focused when this slot's layout is applied",
+        "keys": ""
+      },
+      {
+        "section": "Override Selected",
+        "label": "Ribbon Open",
+        "icon": "",
+        "tooltip": "Show the ribbon strip when this slot's layout is applied (default)",
+        "keys": ""
+      },
+      {
+        "section": "Override Selected",
+        "label": "Ribbon Closed",
+        "icon": "",
+        "tooltip": "Collapse the ribbon strip when this slot's layout is applied",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "F1 … F12",
+        "section": "Configured App Layouts (Shortcut F1-F12)",
+        "label": "Preset layouts",
+        "tooltip": "Click one to switch to that layout. It also becomes the target for Save."
+      },
+      {
+        "icon": "",
+        "keys": "ALT+F1 … ALT+F12",
+        "section": "Configured App Layout (ALT + F1-F12)",
+        "label": "Your layouts (Config01–12)",
+        "tooltip": "Empty until you save into them. Click one to switch to it, or to choose it as the target for Save."
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

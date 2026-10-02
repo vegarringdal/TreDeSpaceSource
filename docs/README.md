@@ -11,6 +11,14 @@ Built by Vite (three page inputs) and served at `<host>/docs/`.
   (principles / envelope / security), then a **command reference generated from
   the SDK**, then a types appendix. Offers the SDK for download.
 - `demo.html` — the live mini-demo: embeds the real viewer and drives it.
+- `guide/` — the **end-user guide**, one page per app layout
+  (`f01-home.html` … `f12-assets.html`), shared panels on their own pages
+  (`panel-*.html`) and `index.html` as the start page (layout overview + the
+  App Layout ribbon). Prose is hand-written in the HTML; the pictures, marker
+  boxes and reference tables come from `npm run docs:shots` (see "User-guide
+  screenshots" below). Every `docs/guide/*.html` is a Vite input
+  automatically; add new pages to the sidebar list (`GUIDE` in
+  `guide/guide.ts`).
 - `widgets.html` — live gallery of the `@treDeSpaceUI` component library
   (internal reference, not part of the embed API). React page; one vertical
   tab per widget with a live example + usage snippet. Its `widgets.css` scopes
@@ -47,6 +55,51 @@ Built by Vite (three page inputs) and served at `<host>/docs/`.
 - `assets/architecture.svg` — the diagram as a standalone, deck-ready SVG.
 - `generated/apiData.json` — **generated, git-ignored.** Produced from
   `api/tredespace-client.ts` by `scripts/gen-api-docs.mjs`.
+
+## User-guide screenshots
+
+`npm run docs:shots` (`scripts/doc-shots.mjs`) drives the real app with
+puppeteer through every scene in `guide/scenes/*.mjs` (`_lib.mjs` holds the
+shared helpers): each scene boots a fresh app in an incognito context,
+imports Huldra sample RVMs from `convertSamples/rvm`, sets up a layout or
+panel state and captures crops. Outputs, all **committed** (the build never
+needs a browser):
+
+- `guide/img/<shot>.webp` — one image per `<figure data-shot="<shot>">`.
+- `guide/data/<scene>.json` — per shot: crop size and the numbered-marker
+  boxes `guide.ts` draws over the image; per harvested panel: the control
+  reference read from the live DOM (`data-tooltip` text, `data-shortcut`
+  resolved to the current default combo, the button's icon), shown by
+  `<div class="ref-table" data-ref="<key>">`.
+
+Re-run it whenever a documented panel changes; `--only f04,setColor` limits
+it to some scenes. A marker outside its crop or a missing element fails the
+scene; a shot a scene no longer takes is removed with its image. Concurrent
+runs queue on a lock file in the temp dir. Don't edit source files while it
+runs: Vite reloads the page on a change, and a scene whose page reloaded fails
+(rerun it).
+
+Headless Chrome has no GPU, so the 3D view comes out blank. Shots marked
+`gpu: true` are skipped headless (the old image is kept; until one exists the
+page shows a "not captured yet" box); `gpu: 'prefer'` shots (full-screen
+layouts) are taken headless until a GPU run has captured them. Capture them
+from a Chrome with a real GPU started as a **separate instance** with
+`--user-data-dir=<own dir> --remote-debugging-port=9222
+--enable-unsafe-webgpu --enable-webgpu-developer-features
+--enable-features=Vulkan` (Chrome ≥ 136 ignores the port on the default
+profile, and the fresh profile has no `chrome://flags`; the
+`chrome://inspect` "Allow remote debugging" toggle does not work — it serves
+no `/json/version`), then
+`npm run docs:shots -- --browser-url http://127.0.0.1:9222` (add
+`--app-url <url>` to use an already-running dev server). Keep that window
+uncovered while it runs — a covered window renders nothing new.
+
+Adding a page: copy a layout page (e.g. `guide/f04-selection-color.html`) and
+its scene; marks are element specs (`{ panel | within, section, tooltip |
+text | re | css, nth }` — `section` matches a Collapsible or a ribbon group
+title); `ctx.harvest(panel, { rename, skip, extra, key })` builds a reference
+table. The "On this page" list builds itself from the page's
+`<section class="g-sec">` `h2`/`h3[id]`.
 
 ## No-drift docs
 

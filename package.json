@@ -1,7 +1,7 @@
 {
   "name": "tredespace",
   "private": true,
-  "version": "0.0.140",
+  "version": "0.0.141",
   "type": "module",
   "author": "Vegar Ringdal <vegar.ringdal@postboxen.no>",
   "scripts": {
@@ -13,6 +13,7 @@
     "check:size": "node scripts/check-component-size.mjs",
     "test:boot": "node scripts/boot-test.mjs",
     "gen:notices": "node scripts/gen-third-party-notices.mjs",
+    "docs:shots": "node scripts/doc-shots.mjs",
     "gen:apidocs": "node scripts/gen-api-docs.mjs",
     "lint": "biome lint",
     "format": "biome format --write",

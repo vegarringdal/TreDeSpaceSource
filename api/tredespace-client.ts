@@ -541,8 +541,8 @@ export interface HotkeyInfo {
   label: string;
   /** one or two sentences written to work as a tooltip body */
   description: string;
-  /** the LIVE key combo in display grammar (`'ALT + 101'`, `'CTRL&Z'`,
-   *  `'[F1] + 2'`) — the user's rebind when there is one, else the default */
+  /** the LIVE key combo in display grammar (`'ALT 101'`, `'CTRL+Z'`,
+   *  `'[F1] 2'`) — the user's rebind when there is one, else the default */
   keys: string;
   defaultKeys: string;
   /** true when the user has rebound or otherwise overridden this shortcut */

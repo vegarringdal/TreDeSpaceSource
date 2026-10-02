@@ -54,7 +54,7 @@ export function RibbonLayout() {
         {s.slots.slice(0, LAYOUT_SLOTS).map(slotButton)}
       </RibbonSection>
       {/* the 12 user slots (ALT+F1-F12) — empty until the user saves into them */}
-      <RibbonSection title="Configured App Layout (ALT + F1-F12)">
+      <RibbonSection title="Configured App Layout (ALT+F1-F12)">
         {s.slots.slice(LAYOUT_SLOTS).map((slot, i) => slotButton(slot, LAYOUT_SLOTS + i))}
       </RibbonSection>
 

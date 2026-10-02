@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — User guide</title>
+  <meta name="description" content="The TreDeSpace viewer user guide: the twelve app layouts (F1–F12), their ribbons and panels, step by step with annotated screenshots." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide</p>
+      <h1>Working with the viewer</h1>
+      <p class="lede">
+        Step-by-step guides to every app layout, ribbon and panel, with a screenshot for every step. The <b>numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <!-- ── basics ─────────────────────────────────────── -->
+        <section id="basics" class="g-sec">
+          <p class="sec-kick">Getting started</p>
+          <h2>Before you start</h2>
+
+          <h3 id="basics-panels">Opening a panel</h3>
+          <p>
+            Every tool lives in a <b>panel</b>. The quickest way to get the right panels on screen is an
+            <a href="#layouts">app layout</a> (<kbd>F1</kbd>–<kbd>F12</kbd>). You can also open any single panel from
+            the <b>Panel</b> tab of the ribbon (see <a href="f08-panels.html">F8 Panels</a>) or with its keyboard
+            shortcut. A panel opens as a tab next to the others on its side of the screen. Drag its tab to move it,
+            drag the line between two panels to resize them, and double-click the tab to float the panel in its own
+            window.
+          </p>
+
+          <h3 id="basics-tooltips">Tooltips and shortcuts</h3>
+          <p>
+            Hold the mouse over any button for a moment to see what it does. If the button has a keyboard
+            shortcut, the tooltip shows it at the bottom. Shortcuts are written like this:
+          </p>
+          <ul class="keys-legend">
+            <li>A <b>plus sign</b> means <i>at the same time</i> (simultaneous keys): <kbd>CTRL+C</kbd> — hold <kbd>Ctrl</kbd> and press <kbd>C</kbd>.</li>
+            <li>A <b>space</b> means <i>one after the other</i> (consecutive keys): <kbd>G X</kbd> — press <kbd>G</kbd>, let go, then press <kbd>X</kbd>.</li>
+            <li>A number is typed digit by digit: <kbd>ALT 1021</kbd> — press and release <kbd>Alt</kbd>, then type <kbd>1</kbd> <kbd>0</kbd> <kbd>2</kbd> <kbd>1</kbd>.</li>
+          </ul>
+          <p>
+            You can change any shortcut under <b>Settings → Shortcuts</b>. The shortcuts in this guide are
+            the defaults.
+          </p>
+
+          <h3 id="basics-sample">About the pictures</h3>
+          <p>
+            The screenshots use the Huldra platform model, an open dataset published by Equinor. It has one
+            model per discipline (piping, safety, telecom and so on) loaded into a folder called
+            <code class="inline">Huldra</code>. Your own models will have different names, but the steps are
+            the same.
+          </p>
+        </section>
+
+        <section id="layouts" class="g-sec">
+          <p class="sec-kick">App layouts</p>
+          <h2>Twelve workspaces, one key each</h2>
+          <p>
+            An <b>app layout</b> sets up the whole screen for one kind of work: which ribbon tab is open and which
+            panels are shown, and where. Press <kbd>F1</kbd>–<kbd>F12</kbd> to switch. Switching only rearranges the
+            screen: your models, selection and colours stay as they are. Each card opens the guide for that layout.
+          </p>
+          <div class="layout-grid">
+            <a class="layout-card" href="f01-home.html">
+              <span class="layout-thumb" data-thumb="layout-f01"></span>
+              <span class="layout-name"><kbd>F1</kbd> Home</span>
+              <span class="layout-desc">Load models, camera, draw modes and screenshots. Settings on the right.</span>
+            </a>
+            <a class="layout-card" href="f02-clip-plane.html">
+              <span class="layout-thumb" data-thumb="layout-f02"></span>
+              <span class="layout-name"><kbd>F2</kbd> Clip Plane</span>
+              <span class="layout-desc">Cut the model with a plane to look inside.</span>
+            </a>
+            <a class="layout-card" href="f03-clip-box.html">
+              <span class="layout-thumb" data-thumb="layout-f03"></span>
+              <span class="layout-name"><kbd>F3</kbd> Clip Box</span>
+              <span class="layout-desc">Show only what is inside a box, plus extra clip shapes.</span>
+            </a>
+            <a class="layout-card" href="f04-selection-color.html">
+              <span class="layout-thumb" data-thumb="layout-f04"></span>
+              <span class="layout-name"><kbd>F4</kbd> Selection Color</span>
+              <span class="layout-desc">Colour, ghost, hide and isolate the selection. Set Color on the right.</span>
+            </a>
+            <a class="layout-card" href="f05-transform.html">
+              <span class="layout-thumb" data-thumb="layout-f05"></span>
+              <span class="layout-name"><kbd>F5</kbd> Transform</span>
+              <span class="layout-desc">Move, rotate and scale selected items.</span>
+            </a>
+            <a class="layout-card" href="f06-measurements.html">
+              <span class="layout-thumb" data-thumb="layout-f06"></span>
+              <span class="layout-name"><kbd>F6</kbd> Measurements</span>
+              <span class="layout-desc">Measure distances and angles, with the Measurement List on the right.</span>
+            </a>
+            <a class="layout-card" href="f07-external.html">
+              <span class="layout-thumb" data-thumb="layout-f07"></span>
+              <span class="layout-name"><kbd>F7</kbd> External</span>
+              <span class="layout-desc">Open the external apps your organisation has configured.</span>
+            </a>
+            <a class="layout-card" href="f08-panels.html">
+              <span class="layout-thumb" data-thumb="layout-f08"></span>
+              <span class="layout-name"><kbd>F8</kbd> Panels</span>
+              <span class="layout-desc">Show or hide any panel. Settings → Layouts on the right.</span>
+            </a>
+            <a class="layout-card" href="f09-pad.html">
+              <span class="layout-thumb" data-thumb="layout-f09"></span>
+              <span class="layout-name"><kbd>F9</kbd> Pad</span>
+              <span class="layout-desc">Big buttons and a joystick for tablets and touch screens.</span>
+            </a>
+            <a class="layout-card" href="f10-viewpoint.html">
+              <span class="layout-thumb" data-thumb="layout-f10"></span>
+              <span class="layout-name"><kbd>F10</kbd> Viewpoint</span>
+              <span class="layout-desc">Create and present saved views with their own labels, colours and measurements.</span>
+            </a>
+            <a class="layout-card" href="f11-sql-editor.html">
+              <span class="layout-thumb" data-thumb="layout-f11"></span>
+              <span class="layout-name"><kbd>F11</kbd> SQL Editor</span>
+              <span class="layout-desc">Query the model data with SQL and colour the results.</span>
+            </a>
+            <a class="layout-card" href="f12-assets.html">
+              <span class="layout-thumb" data-thumb="layout-f12"></span>
+              <span class="layout-name"><kbd>F12</kbd> Assets</span>
+              <span class="layout-desc">Import, load, export and manage models and databases.</span>
+            </a>
+          </div>
+          <p class="note">
+            <b>F1–F9</b> each open one ribbon tab, plus the panel that goes with it where there is one. <b>F10–F12</b> are bigger
+            workspaces built around a group of panels; they use the Home ribbon.
+          </p>
+        </section>
+
+        <section id="app-layout-ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The App Layout ribbon</h2>
+          <p>
+            The last ribbon tab, <b>App Layout</b>, lists every layout as a button, and is where you save your own.
+          </p>
+          <figure class="shot" data-shot="layout-ribbon"></figure>
+          <ol class="legend-list">
+            <li><b>Preset layouts</b> (<kbd>F1</kbd>–<kbd>F12</kbd>) — click one to switch to it.</li>
+            <li><b>Your layouts</b> (<kbd>ALT+F1</kbd>–<kbd>ALT+F12</kbd>, Config01–12) — empty until you save into them.</li>
+            <li><b>Save</b> — stores the current screen arrangement in the selected slot (the highlighted button).</li>
+            <li><b>Linked Ribbon</b> — the ribbon tab that opens when the selected layout is applied.</li>
+            <li><b>Ribbon Open / Ribbon Closed</b> — whether the ribbon is shown or folded away for that layout.</li>
+          </ol>
+
+          <h3 id="save-layout">Save your own layout</h3>
+          <ol class="steps">
+            <li>Arrange the screen the way you want: open panels from the <a href="f08-panels.html">Panel ribbon</a>, drag their tabs to where you want them and resize them.</li>
+            <li>Open the <b>App Layout</b> ribbon and click an empty slot, for example <b>Config01</b> <span class="mk">2</span>. It is now the selected slot.</li>
+            <li>Choose the <b>Linked Ribbon</b> <span class="mk">4</span> that should open with it, and whether the ribbon starts open or closed <span class="mk">5</span>.</li>
+            <li>Press <b>Save</b> <span class="mk">3</span>. From now on <kbd>ALT+F1</kbd> brings this arrangement back.</li>
+          </ol>
+          <p class="note">
+            You can also save over a preset (select <b>F1</b>–<b>F12</b> and press Save). The original can always be
+            restored, see below.
+          </p>
+
+          <h3 id="rename-layout">Rename or reset a layout</h3>
+          <p>
+            Names are changed under <b>Settings → Layouts</b> (the F8 layout opens it). Type a new name
+            <span class="mk">1</span>. The reset button <span class="mk">2</span> puts a slot back to its original name
+            and arrangement; it is only active for slots you have saved into. <b>Reset layouts</b>, at the bottom of the
+            list, resets all 24 slots at once.
+          </p>
+          <figure class="shot" data-shot="layout-settings-tab"></figure>
+
+          <h3 id="layout-ref">Reference: the App Layout ribbon</h3>
+          <div class="ref-table" data-ref="ribbonLayout"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

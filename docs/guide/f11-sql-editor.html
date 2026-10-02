@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F11 SQL Editor</title>
+  <meta name="description" content="Guide to the F11 SQL Editor layout: link a SQLite database to the model, run saved reports, colour, select and inspect items from SQL results, and write your own queries." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F11</p>
+      <h1>SQL Editor</h1>
+      <p class="lede">
+        Bring your own tag data into the viewer: run saved reports, show the results as a table, colour or select
+        the matching items in the model, and see the data of any item you click. <b>Numbered markers</b> on each
+        picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F11</p>
+          <h2>The SQL Editor layout</h2>
+          <p>
+            Press <kbd>F11</kbd> (or pick <b>SQL Editor</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the SQL workspace. It is built for working with a <b>database</b> that describes the
+            items in your model — for example a tag register with status, area and documents for every tag. Most
+            people only use the <b>Sql Report</b> panel: pick a saved report, press a button, and look at the
+            result. The <b>SQL Editor</b> is for writing and testing new reports.
+          </p>
+          <figure class="shot" data-shot="f11-layout">
+            <figcaption>The F11 layout with an example database: a report result in the table and the data of the selected loudspeaker on the right.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Home ribbon</b> — the same ribbon as in <a href="f01-home.html">F1 Home</a>. Its <b>SQL</b> button (<kbd>ALT 631</kbd>) opens <b>SQL Assets</b>, where databases are imported.</li>
+            <li><b>Hierarchy</b> — the model tree. Clicking an item here selects it, and the SQL Detail panel shows its data.</li>
+            <li><b>Sql Report</b> (SQL Reports) — the saved reports of a store. <a href="#reports">Described below.</a></li>
+            <li><b>SQL Editor</b> — write and test your own SQL. <a href="#editor">Described below.</a></li>
+            <li><b>3D view</b> — shows the colouring and selection made from SQL results. Click an item to see its data in SQL Detail.</li>
+            <li><b>SQL Table</b> — the result of a report as a table. <a href="#table">Described below.</a></li>
+            <li><b>Console</b> — messages. The SQL Editor's <b>Run</b> button writes its result rows here.</li>
+            <li><b>SQL Detail</b> — the data of the item you clicked, as a form. <a href="#detail">Described below.</a></li>
+          </ol>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The ribbon</h2>
+          <p>
+            This layout uses the <b>Home</b> ribbon. It is described on the <a href="f01-home.html">F1 Home page</a>.
+            The one button you need here is <b>SQL</b> in the <b>Assets</b> group: it opens the <b>SQL Assets</b>
+            panel, where you import a database (see <a href="#task-import">Get your database into the app</a>).
+          </p>
+        </section>
+
+        <section id="concepts" class="g-sec">
+          <p class="sec-kick">Before you start</p>
+          <h2>How the data is linked to the model</h2>
+          <p>
+            The viewer does not need to know anything about your database. The link is made by <b>name</b>: if a
+            column in the result is called <code class="inline">fullname</code> and holds the name of an item exactly
+            as the Hierarchy shows it, for example <code class="inline">/SX-HA86-011A</code>, the viewer can find that
+            item in the model.
+          </p>
+          <div class="concept">
+            <p class="concept-title">Words used on this page</p>
+            <ul>
+              <li><b>Database</b> — a SQLite file (<code class="inline">.db</code>, <code class="inline">.sqlite</code>, <code class="inline">.sqlite3</code>, <code class="inline">.db3</code>). It holds <b>tables</b>; a table has <b>columns</b> (fields) and <b>rows</b> (one per tag, for example).</li>
+              <li><b>Store</b> — a named project that groups models and databases. Every database is imported into a store, and every report belongs to a store. A new installation has one store, <b>main</b>.</li>
+              <li><b>SQL</b> — the language used to ask a database a question. A <b>query</b> such as <code class="inline">SELECT tag, status FROM tags WHERE area = 'Main deck'</code> returns a result: a small table.</li>
+              <li><b>Report</b> — a saved query with a name, a description and optional input fields (<b>filters</b>), so it can be run with one click by people who do not write SQL.</li>
+              <li><b>fullname</b> — the result column that links a row to a model item. The whole name must match, including the leading <code class="inline">/</code>; capital letters do not matter. A match takes the item <i>and everything under it</i>, the same way a click in the tree does.</li>
+              <li><b>fullname_color</b> — an optional result column with the colour for that row (see <a href="#sql-color">Colours in a result</a>).</li>
+            </ul>
+          </div>
+          <p>A report can be used in three ways. These are its <b>Types</b>:</p>
+          <ul class="plain">
+            <li><b>TABLE</b> — show the result rows in the <b>SQL Table</b> panel.</li>
+            <li><b>COLORING</b> — colour, isolate or select the items named in the <code class="inline">fullname</code> column.</li>
+            <li><b>DETAIL</b> — every time you select an item, run the query for that item and show the answer as a form in <b>SQL Detail</b>.</li>
+          </ul>
+          <p class="note">
+            The pictures on this page use a small example database, <code class="inline">huldra-tags.db</code>,
+            made up for this guide from the names in the Huldra sample models. It has a <code class="inline">tags</code>
+            table (fullname, tag, description, discipline, system, area, status, install_date, datasheet_url) and a
+            <code class="inline">documents</code> table (tag, doc_no, title, url). Your own database will have
+            other tables and columns.
+          </p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-import">Get your database into the app</h3>
+          <ol class="steps">
+            <li>On the Home ribbon, press <b>SQL</b> (<kbd>ALT 631</kbd>). The <b>SQL Assets</b> panel opens.</li>
+            <li>Choose the store under <b>Import to</b> (the store your models are in), then press <b>Import Database</b> and pick the file. The database is copied into the browser's own storage, so it is there next time you open the app.</li>
+            <li>Back in F11, choose that store in the <b>Store</b> list at the top of the <b>Sql Report</b> panel. Its reports are listed below it.</li>
+          </ol>
+          <p>
+            The <a href="f12-assets.html">F12 Assets page</a> describes SQL Assets in full (deleting and replacing
+            databases, stores).
+          </p>
+
+          <h3 id="task-table">Run a report and look at the result</h3>
+          <ol class="steps">
+            <li>In <b>Sql Report</b>, pick the <b>Store</b>, then click a report's name to open it.</li>
+            <li>Fill in its filters, if it has any. Here the <b>Discipline</b> list <span class="mk">2</span> already has <b>Telecom</b> picked.
+              <figure class="shot" data-shot="f11-report-run"></figure>
+            </li>
+            <li>Press <b>Table</b> <span class="mk">3</span>. The result appears in the <b>SQL Table</b> panel. Sort, filter and export it there (see <a href="#table">SQL Table</a>).</li>
+          </ol>
+
+          <h3 id="task-color">Colour the model from a report</h3>
+          <ol class="steps">
+            <li>Open a report that has the <b>COLORING</b> type, here <b>Tag status</b>, and press <b>Coloring</b>.</li>
+            <li>A box shows how many rows came back and asks how to use them. Press <b>White</b>: the whole model turns white and every tag gets the colour of its status.
+              <figure class="shot" data-shot="f11-report-coloring"></figure>
+              <figure class="shot" data-shot="f11-task-white-viewport"></figure>
+            </li>
+            <li>Press <b>Hidden</b> instead to see <i>only</i> the result: everything else is hidden. Here the Telecom tags from <b>Tags by discipline</b>, in yellow because that report has no colour column.
+              <figure class="shot" data-shot="f11-task-hidden-viewport"></figure>
+            </li>
+            <li>To go back, press <b>Undo</b> (<kbd>PAGEUP</kbd>) — every colouring is one undo step — or <b>Clear All</b> (<kbd>ALT+R</kbd>, see <a href="f04-selection-color.html#ribbon-misc">F4</a>) to remove all colours and hiding.</li>
+          </ol>
+
+          <h3 id="task-select">Select the result and fly to it</h3>
+          <ol class="steps">
+            <li>Run the report's <b>Coloring</b> and press <b>Selection</b>. Every item in the result becomes the selection; colours are not changed.</li>
+            <li>In the <b>Hierarchy</b>, press <b>Fly to selection</b> (<kbd>ALT 625</kbd>) to zoom to the selected items. Here the tags installed since 1 September 2025 (<b>Installed since</b>).
+              <figure class="shot" data-shot="f11-task-select-viewport"></figure>
+            </li>
+          </ol>
+          <p class="note">
+            Clicking rows in the <b>SQL Table</b> does not select anything in the model — it only marks rows for
+            copying and export. To select the items of a result, use <b>Selection</b> (or <b>Color Selection</b>).
+          </p>
+
+          <h3 id="task-detail">See the data of the item you click</h3>
+          <ol class="steps">
+            <li>Open a report with the <b>DETAIL</b> type, here <b>Tag card</b>, and press <b>Detail</b>. The <b>SQL Detail</b> panel now follows your clicks.</li>
+            <li>Click an item in the 3D view or in the Hierarchy. Its data is shown as a list of fields; web addresses are links.
+              <figure class="shot" data-shot="f11-detail"></figure>
+            </li>
+            <li>Click the next item — the form follows. Press <b>Listening</b> to pause it (it then reads <b>Paused</b>).</li>
+          </ol>
+
+          <h3 id="task-write">Write and test your own query</h3>
+          <ol class="steps">
+            <li>In the <b>SQL Editor</b>, choose the database under <b>Main db</b>.</li>
+            <li>Type the SQL, for example <code class="inline">SELECT discipline, status, count(*) AS tags FROM tags GROUP BY discipline, status</code>.</li>
+            <li>Press <b>Run</b> (<kbd>Ctrl</kbd> + <kbd>Enter</kbd> in the SQL box). The rows are written to the <b>Console</b>, and the line at the bottom of the editor says how long it took and how many rows came back.</li>
+            <li>Press <b>As Table</b> to see the same result in the <b>SQL Table</b>.
+              <figure class="shot" data-shot="f11-editor-table"></figure>
+            </li>
+          </ol>
+          <p>
+            If the result has a <code class="inline">fullname</code> column, the colour buttons
+            (<b>Color White</b>, <b>Color Hidden</b> …) work on it straight away, just like a report's. A good
+            first query to explore an unknown database is the one the editor starts with:
+            <code class="inline">SELECT name, type FROM sqlite_master ORDER BY name;</code> — it lists every table.
+          </p>
+
+          <h3 id="task-save">Save your query as a report</h3>
+          <ol class="steps">
+            <li>Give it a <b>Name</b> and a <b>Description</b> in the SQL Editor, and tick the <b>Types</b> it should offer.</li>
+            <li>Press <b>Save Local</b> (<kbd>ALT 660</kbd>). The report is added to the store of the <b>Main db</b>, and the Sql Report panel switches to that store so you can see it. Without a name you are asked for one; without a Main db the button is greyed out.</li>
+          </ol>
+          <p>
+            To change an existing report, use its pencil button in Sql Report (see <a href="#reports-edit">Edit a
+            report</a>). To work on it in the bigger editor, press <b>Set editor</b> there; <b>Save Local</b> then
+            saves a <i>new</i> report and leaves the original as it was.
+          </p>
+
+          <h3 id="task-filter">Let users pick a value: add a filter</h3>
+          <ol class="steps">
+            <li>Edit the report and press <b>Add filter</b>. A filter has a <b>key</b> (the name the SQL uses) and a <b>Label</b> (what the user sees).</li>
+            <li>Choose <b>Input</b> for a text box, or <b>Dropdown</b> for a list filled by its own small query.</li>
+            <li>In the report's SQL, read the value with <code class="inline">(SELECT v FROM FILTER_ARGS WHERE k = 'your key')</code>. See <a href="#sql-filters">Filters in SQL</a> for ready-made patterns.</li>
+            <li>Test with the <b>Test</b> buttons, then <b>Save</b>.</li>
+          </ol>
+        </section>
+
+        <section id="reports" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Sql Report (SQL Reports)</h2>
+          <p>
+            The saved reports of one store. Its tab reads <b>Sql Report</b>; open it on its own from the Panels
+            ribbon (<kbd>ALT 679</kbd>).
+          </p>
+          <figure class="shot" data-shot="f11-reports-list"></figure>
+          <ol class="legend-list">
+            <li><b>Store</b> — reports are kept per store. Nothing is listed until a store is picked.</li>
+            <li><b>New report</b> — creates an empty report called “New report” in this store, saves it and opens it for editing.</li>
+            <li><b>Search reports…</b> — shows only reports whose name or description contains the text.</li>
+            <li><b>A report</b> — click its name to open it. The badge shows its types. Only one report is open at a time.</li>
+            <li><b>Edit</b> (pencil) — opens the report for editing. This is the only place its SQL is shown.</li>
+          </ol>
+
+          <h3 id="reports-run">Run a report</h3>
+          <figure class="shot" data-shot="f11-report-run"></figure>
+          <ol class="legend-list">
+            <li><b>Description</b> — written by whoever made the report.</li>
+            <li><b>Filters</b> — text boxes or lists. They start with the report's saved values; what you change is used when you run it, but it is not saved into the report.</li>
+            <li><b>Table</b> — runs the report and shows the result in <b>SQL Table</b>.</li>
+            <li><b>Coloring</b> — runs the report and asks how to apply the result (below).</li>
+          </ol>
+          <p>
+            A report with the DETAIL type also has a <b>Detail</b> button: it connects the report to the <b>SQL Detail</b>
+            panel. <b>Table</b> and <b>Coloring</b> are greyed out while a report is running.
+          </p>
+
+          <h3 id="reports-coloring">Apply a coloring result</h3>
+          <figure class="shot" data-shot="f11-report-coloring"></figure>
+          <ol class="legend-list">
+            <li><b>How many rows</b> came back. Rows whose fullname is not in the loaded model are ignored.</li>
+            <li><b>Set color</b> — runs your current <a href="panel-set-color.html">Set Color</a> rules, with the result added as one more rule on top. The Set Color panel itself is not changed.</li>
+            <li><b>White</b> — everything white, the result in its colours.</li>
+            <li><b>Hidden</b> — only the result is shown, in its colours; everything else is hidden.</li>
+            <li><b>Transparent</b> — like White, but the rest of the model is white at 10 % opacity, so it stays faintly visible.</li>
+            <li><b>Selection</b> — selects the result instead of colouring it.</li>
+          </ol>
+          <p>
+            Rows without a colour are yellow. The colour choices clear earlier colours first, except <b>Set color</b>,
+            which follows the run mode of your Set Color rules (see <a href="panel-set-color.html#set-color-modes">Run
+            modes</a>). Every colouring can be undone in one step with <b>Undo</b> (<kbd>PAGEUP</kbd>).
+          </p>
+
+          <h3 id="reports-edit">Edit a report</h3>
+          <p>Press the pencil on a report. The report opens as a form; nothing is saved until you press <b>Save</b>.</p>
+          <figure class="shot" data-shot="f11-report-edit"></figure>
+          <ol class="legend-list">
+            <li><b>Name</b> — shown in the list.</li>
+            <li><b>Description</b> — shown above the filters. <code class="inline">**bold**</code> and new lines work.</li>
+            <li><b>Main db</b> — the database the report reads. The list holds the databases of this store. <b>(None — attach only)</b> is for reports that bring in their databases with ATTACH (see <a href="#sql-attach">Using two databases</a>).</li>
+            <li><b>Types</b> — which buttons the report gets: COLORING, TABLE, DETAIL.</li>
+            <li><b>SQL</b> — the query. Drag the bottom-right corner to make the box bigger. The <b>ⓘ</b> button next to the label sums up the rules from <a href="#sql">Writing SQL for the viewer</a>.</li>
+            <li><b>As Table</b> — runs the form <i>as it is now</i>, unsaved changes included, and shows it in SQL Table.</li>
+            <li><b>Color White</b>, <b>Color Hidden</b>, <b>Color Transparent</b>, <b>Color Set</b>, <b>Color Selection</b> — test the colouring directly (the same as the choices above).</li>
+            <li><b>As Detail</b> — connects the unsaved form to SQL Detail.</li>
+          </ol>
+          <figure class="shot" data-shot="f11-report-filter"></figure>
+          <ol class="legend-list">
+            <li><b>Add filter</b> — adds a text box filter. The two arrow buttons beside it open or fold all filters.</li>
+            <li><b>Input / Dropdown</b> — a text box, or a list of values to pick from. The header of each filter has buttons to move it up or down (the order the boxes are shown in) and to remove it.</li>
+            <li><b>key</b> — the name the SQL reads the value by.</li>
+            <li><b>Label</b> — the text shown beside the box. Without it, the key is shown.</li>
+            <li>Input: the <b>default value</b>. Dropdown: the <b>search default</b>, used while the user has not typed anything — normally <code class="inline">%</code> (“anything”).</li>
+            <li><b>Dropdown SQL</b> — the query that fills the list. Name its columns <code class="inline">id</code> (the value passed on) and <code class="inline">label</code> (the text shown); a <code class="inline">?</code> stands for what the user types. The list shows the first 25 matches.</li>
+            <li><b>Single select</b> — the user picks one value instead of several.</li>
+            <li><b>Test/selected</b> — try the list here. What you pick is saved as the report's pre-selected value.</li>
+            <li><b>Save</b> — saves the report. <b>Cancel</b> throws the changes away.</li>
+            <li><b>Set editor</b> (<kbd>ALT 661</kbd>) — copies the form, unsaved changes included, into the SQL Editor (it asks first, because it replaces what is there). <b>Delete</b> removes the report after asking.</li>
+          </ol>
+          <p class="note">
+            Reports are stored in the store's own file, <code class="inline">SQL_Reports.json</code>, next to its
+            databases in the browser storage. Anyone using the app in this browser sees the same reports.
+          </p>
+        </section>
+
+        <section id="editor" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>SQL Editor</h2>
+          <p>
+            A workbench for SQL. It holds one draft report — name, description, types, SQL and filters — that you
+            can run, test against the model and save as a report. Open it on its own with <kbd>ALT 632</kbd>.
+          </p>
+          <figure class="shot" data-shot="f11-editor"></figure>
+          <ol class="legend-list">
+            <li><b>Clear</b> (<kbd>ALT 658</kbd>) — empties the editor: name, description, SQL, filters and types. It asks first. The Main db stays.</li>
+            <li><b>Save Local</b> (<kbd>ALT 660</kbd>) — saves the draft as a new report in the Main db's store. Greyed out until a Main db is picked.</li>
+            <li><b>Main db</b> — the database to query, from any store. <b>Assets</b> next to it opens SQL Assets.</li>
+            <li><b>Types</b> — which of the buttons below are enabled: the colour buttons need COLORING, As Table needs TABLE, As Detail needs DETAIL.</li>
+            <li><b>The SQL box</b> — <kbd>Ctrl</kbd> + <kbd>Enter</kbd> runs, <kbd>Tab</kbd> / <kbd>Shift</kbd> + <kbd>Tab</kbd> indent. <b>Highlight part of the text</b> and every button runs only that part — handy when the box holds several queries.</li>
+            <li><b>Run</b> (<kbd>ALT 635</kbd>) — runs every statement. The result rows are written to the <b>Console</b>.</li>
+            <li><b>Shared / Exclusive</b> (<kbd>ALT 636</kbd>) — <b>Shared</b> (the normal setting) only reads, and several tabs can read at once. <b>Exclusive</b> also allows changing the database (<code class="inline">INSERT</code>, <code class="inline">UPDATE</code>, <code class="inline">CREATE TABLE</code> …), one tab at a time. Reports always run Shared.</li>
+            <li><b>Kill</b> (<kbd>END</kbd> while a query runs) — stops a query that takes too long.</li>
+            <li><b>Color White</b> (<kbd>ALT 644</kbd>), <b>Color Transparent</b> (<kbd>ALT 1220</kbd>), <b>Color Hidden</b> (<kbd>ALT 645</kbd>), <b>Color Set</b> (<kbd>ALT 646</kbd>), <b>Color Selection</b> (<kbd>ALT 1291</kbd>) — colour or select the result, as described in <a href="#reports-coloring">Apply a coloring result</a>. Color Selection writes to the Console how many names were found and how many are not in the model.</li>
+            <li><b>As Table</b> (<kbd>ALT 643</kbd>) — shows the result in SQL Table. <b>As Detail</b> (<kbd>ALT 647</kbd>) — connects the SQL to SQL Detail (see the tip below).</li>
+            <li><b>Filters</b> — the same filter editor as in a report (<a href="#reports-edit">see above</a>). <b>Run</b> uses their values too.</li>
+            <li><b>Will lock</b> — the database files the next run opens. A <b>red</b> name is not in SQL Assets: a Shared run will fail, an Exclusive run creates an empty database with that name.</li>
+            <li><b>Status</b> — <b>ready</b>, <b>running…</b>, the time and row count of the last run, or the error message.</li>
+          </ol>
+          <p class="note">
+            <b>As Detail</b> in the editor helps you: if the SQL does not use <code class="inline">TREE_VIEW_ARGS</code>,
+            it is automatically limited to the row whose <code class="inline">fullname</code> is the clicked item.
+            A report's <b>Detail</b> button does <i>not</i> do this — a saved DETAIL report must use
+            <code class="inline">TREE_VIEW_ARGS</code> itself, or it shows the same first row for every click
+            (see <a href="#sql-detail">Detail queries</a>). Alt + click on As Detail or Detail writes the SQL it
+            connected to the Console.
+          </p>
+          <p class="note">
+            The editor keeps its contents when you switch layout or close the panel, but not when the app is
+            reloaded. Save anything you want to keep with <b>Save Local</b>.
+          </p>
+        </section>
+
+        <section id="table" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>SQL Table</h2>
+          <p>
+            Shows the result of the last <b>Table</b> / <b>As Table</b> run. A new result replaces the old one and
+            resets sorting, filters and the row selection.
+          </p>
+          <figure class="shot" data-shot="f11-table"></figure>
+          <ol class="legend-list">
+            <li><b>Row count</b> — “21 of 50 rows” while column filters hide some. With rows marked, a badge shows how many.</li>
+            <li><b>Load all</b> (<kbd>ALT 653</kbd>) — a report shows its first <b>50 rows</b> only. Load all runs it again for up to 250,000 rows. The button is only there when the result was cut off.</li>
+            <li><b>Clear on close / Keep</b> (<kbd>ALT 662</kbd>) — whether closing the panel throws the result away (the default, to free memory) or keeps it for when you open the panel again. Switching layout never throws it away.</li>
+            <li><b>Column title</b> — click to sort A→Z, again for Z→A, a third time to unsort. Drag the edge of a title to change the column width.</li>
+            <li><b>filter…</b> — shows only rows whose value in that column <i>contains</i> the text (capitals do not matter). Filters in several columns must all match.</li>
+            <li><b>Row number</b> — click to mark a row, <kbd>Ctrl</kbd> + click to add or remove one, <kbd>Shift</kbd> + click for a range.</li>
+            <li><b>Corner box</b> (<kbd>ALT 652</kbd>) — marks every row shown, or unmarks them all.</li>
+          </ol>
+          <p>Right-click in the table for export and copy:</p>
+          <figure class="shot" data-shot="f11-table-menu"></figure>
+          <ul class="plain">
+            <li><b>Export to Excel (all)</b> (<kbd>ALT 654</kbd>) / <b>(selected rows)</b> (<kbd>ALT 655</kbd>) — downloads an <code class="inline">.xlsx</code> file.</li>
+            <li><b>Copy to clipboard (all)</b> (<kbd>ALT 656</kbd>) / <b>(selected rows)</b> (<kbd>ALT 657</kbd>) — tab-separated with a header row, ready to paste into a spreadsheet.</li>
+          </ul>
+          <p>Both take the rows <i>as shown</i>: column filters and sorting are applied. The “selected rows” entries are greyed out until rows are marked.</p>
+        </section>
+
+        <section id="detail" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>SQL Detail</h2>
+          <p>
+            Shows one row of data for the item you selected last, as a list of fields. It needs a report: press
+            a report's <b>Detail</b> button, or <b>As Detail</b> in the SQL Editor. Until then it says
+            “No report bound”.
+          </p>
+          <figure class="shot" data-shot="f11-detail"></figure>
+          <ol class="legend-list">
+            <li><b>Listening / Paused</b> (<kbd>ALT 651</kbd>) — while Listening, every selection — a click in the 3D view or the tree, or <kbd>U</kbd> / <kbd>P</kbd> to walk up and down the tree — runs the report for that item. Paused keeps the current form.</li>
+            <li><b>Filter fields…</b> — shows only the fields whose name or value contains the text.</li>
+            <li><b>Hide empty</b> — on by default: fields without a value are left out (here the install date of a tag that is not installed yet).</li>
+            <li><b>Links</b> — a value that is a web address opens in a new browser tab.</li>
+            <li><b>Lists</b> — a column that holds a list (several documents, for example) is shown as one field per entry.</li>
+          </ol>
+          <p>
+            If the query finds nothing for the item, the panel says <b>No data found for</b> and the item's name.
+            The panel forgets its report when the app is reloaded — press the report's Detail button again.
+          </p>
+        </section>
+
+        <section id="sql" class="g-sec">
+          <p class="sec-kick">For report writers</p>
+          <h2>Writing SQL for the viewer</h2>
+          <p>
+            The viewer uses <b>SQLite</b>. Any SQLite query works; a few rules decide how the result is used.
+            If a query has several statements (separated by <code class="inline">;</code>), the <b>last</b> one gives
+            the result; the ones before it run first (for example to ATTACH a database).
+          </p>
+
+          <h3 id="sql-color">Colours in a result</h3>
+          <p>
+            For colouring, the result needs a <code class="inline">fullname</code> column. An optional
+            <code class="inline">fullname_color</code> column gives each row its colour: a colour name
+            (<code class="inline">red</code>), a hex code (<code class="inline">#1c7ed6</code>) or
+            <code class="inline">default</code> (the item's own colour). Add <code class="inline">:50</code> for 50 %
+            opacity (<code class="inline">red:50</code>). Rows without a colour are yellow. Other columns are
+            ignored, so the same query can also be a TABLE. This is the <b>Tag status</b> report:
+          </p>
+          <pre class="code">SELECT fullname,
+       CASE status
+         WHEN 'Commissioned' THEN 'green'
+         WHEN 'Installed'    THEN '#1c7ed6'
+         WHEN 'Punch open'   THEN 'orange'
+         ELSE 'red'
+       END AS fullname_color,
+       tag, status, install_date
+FROM tags
+ORDER BY status, tag;</pre>
+          <p>
+            <code class="inline">CASE … WHEN … THEN … END</code> picks a value by condition, and
+            <code class="inline">AS fullname_color</code> names the column.
+          </p>
+
+          <h3 id="sql-filters">Filters in SQL: FILTER_ARGS</h3>
+          <p>
+            Before the report runs, the viewer puts the filter values into a small temporary table called
+            <code class="inline">FILTER_ARGS</code> with two columns: <code class="inline">k</code> (the filter's key)
+            and <code class="inline">v</code> (the value). A dropdown with three values picked gives three rows; an empty
+            text box gives none. The <b>Installed since</b> report reads one value:
+          </p>
+          <pre class="code">SELECT fullname, tag, description, install_date
+FROM tags
+WHERE install_date &gt;= (SELECT v FROM FILTER_ARGS WHERE k = 'since')
+ORDER BY install_date;</pre>
+          <p>The <b>Tags by discipline</b> report takes several picks, and everything when nothing is picked:</p>
+          <pre class="code">SELECT fullname, tag, description, discipline, system, area, status
+FROM tags
+WHERE discipline IN (SELECT v FROM FILTER_ARGS WHERE k = 'discipline')
+   OR NOT EXISTS (SELECT 1 FROM FILTER_ARGS WHERE k = 'discipline')
+ORDER BY tag;</pre>
+          <p>Its <b>Discipline</b> dropdown is filled by:</p>
+          <pre class="code">SELECT DISTINCT discipline AS id, discipline AS label
+FROM tags WHERE discipline LIKE ? ORDER BY 1</pre>
+          <p>
+            <code class="inline">LIKE ?</code> compares with what the user types in the list's search box
+            (<code class="inline">%</code> means “anything”).
+          </p>
+
+          <h3 id="sql-detail">Detail queries: TREE_VIEW_ARGS</h3>
+          <p>
+            When you select an item, the viewer fills a second temporary table, <code class="inline">TREE_VIEW_ARGS</code>,
+            with one column <code class="inline">FULLNAME</code>: the selected item first, then its parent, and so on
+            up to the top folder of the tree. Joining your table to it finds the most specific match — so clicking a
+            small part inside a tagged item still shows the tag. The <b>Tag card</b> report:
+          </p>
+          <pre class="code">SELECT t.tag, t.description, t.discipline, t.system, t.area, t.status,
+       t.install_date, t.datasheet_url AS datasheet,
+       (SELECT json_group_array(json_object(
+                 'label', d.doc_no, 'value', d.url, 'value_link_label', d.title))
+          FROM documents d WHERE d.tag = t.tag) AS documents
+FROM TREE_VIEW_ARGS a
+JOIN tags t ON lower(t.fullname) = lower(a.FULLNAME)
+ORDER BY a.rowid;</pre>
+          <ul class="plain">
+            <li>Only the <b>first row</b> is shown, so <code class="inline">ORDER BY a.rowid</code> puts the clicked item before its parents.</li>
+            <li>The field names are the column names — use <code class="inline">AS</code> to rename them (<code class="inline">datasheet_url AS datasheet</code>).</li>
+            <li>A column built with <code class="inline">json_group_array(json_object('label', …, 'value', …, 'value_link_label', …))</code> becomes one field per entry: <code class="inline">label</code> is the field name, <code class="inline">value</code> the value and <code class="inline">value_link_label</code> the link text when the value is a web address.</li>
+            <li>TABLE and COLORING runs also get <code class="inline">TREE_VIEW_ARGS</code>, filled from the last selection — so a report can work on “what I selected”.</li>
+          </ul>
+
+          <h3 id="sql-attach">Using two databases</h3>
+          <p>
+            A report can read more databases than its Main db with <code class="inline">ATTACH</code>. The path is
+            <code class="inline">sql_assets/&lt;store&gt;/&lt;file name&gt;</code>, as shown under <b>Will lock</b>
+            in the SQL Editor:
+          </p>
+          <pre class="code">ATTACH DATABASE 'sql_assets/main/punchlist.db' AS punch;
+SELECT t.fullname, 'orange' AS fullname_color, t.tag, p.description
+FROM tags t
+JOIN punch.items p ON p.tag = t.tag;</pre>
+          <p>
+            Here <code class="inline">punchlist.db</code> stands for a second database of your own with an
+            <code class="inline">items</code> table; <code class="inline">AS punch</code> is the short name its
+            tables are read by.
+          </p>
+          <p>With <b>(None — attach only)</b> as Main db, a report can work from attached databases only.</p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control</h2>
+          <h3 id="ref-reports">Sql Report — running reports</h3>
+          <div class="ref-table" data-ref="sqlReports"></div>
+          <h3 id="ref-reports-editor">Sql Report — the report editor</h3>
+          <div class="ref-table" data-ref="sqlReportsEditor"></div>
+          <h3 id="ref-editor">SQL Editor</h3>
+          <div class="ref-table" data-ref="sqlEditor"></div>
+          <h3 id="ref-table">SQL Table</h3>
+          <div class="ref-table" data-ref="sqlTable"></div>
+          <h3 id="ref-detail">SQL Detail</h3>
+          <div class="ref-table" data-ref="sqlDetail"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

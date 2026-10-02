@@ -1,0 +1,593 @@
+{
+  "shots": {
+    "f01-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 283.203125,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 295.203125,
+          "y": 136,
+          "w": 821.28125,
+          "h": 582
+        },
+        {
+          "n": 4,
+          "x": 295.203125,
+          "y": 724,
+          "w": 821.28125,
+          "h": 170
+        },
+        {
+          "n": 5,
+          "x": 1122.484375,
+          "y": 136,
+          "w": 311.515625,
+          "h": 758
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-assets": {
+      "w": 287,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 78,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 3,
+          "x": 144,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 4,
+          "x": 210,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-canvas": {
+      "w": 368,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 78,
+          "y": 6,
+          "w": 78.515625,
+          "h": 68
+        },
+        {
+          "n": 3,
+          "x": 158.515625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 4,
+          "x": 224.515625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 5,
+          "x": 290.515625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-drawmode": {
+      "w": 293,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.515625,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 78.515625,
+          "y": 6,
+          "w": 85.328125,
+          "h": 21.328125
+        },
+        {
+          "n": 3,
+          "x": 78.515625,
+          "y": 29.328125,
+          "w": 85.328125,
+          "h": 21.328125
+        },
+        {
+          "n": 4,
+          "x": 78.515625,
+          "y": 52.65625,
+          "w": 85.328125,
+          "h": 21.328125
+        },
+        {
+          "n": 5,
+          "x": 165.84375,
+          "y": 6,
+          "w": 114.671875,
+          "h": 21.328125
+        },
+        {
+          "n": 6,
+          "x": 165.84375,
+          "y": 29.328125,
+          "w": 114.671875,
+          "h": 21.328125
+        },
+        {
+          "n": 7,
+          "x": 165.84375,
+          "y": 52.65625,
+          "w": 114.671875,
+          "h": 21.328125
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-quickclear": {
+      "w": 144,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.515625,
+          "y": 6,
+          "w": 119.96875,
+          "h": 33
+        },
+        {
+          "n": 2,
+          "x": 12.515625,
+          "y": 41,
+          "w": 119.96875,
+          "h": 33
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-hierarchy": {
+      "w": 290,
+      "h": 250,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 8,
+          "y": 31,
+          "w": 216.234375,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 228.234375,
+          "y": 31,
+          "w": 24.015625,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 3,
+          "x": 8,
+          "y": 59,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 36,
+          "y": 59,
+          "w": 24,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 5,
+          "x": 64,
+          "y": 59,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 92,
+          "y": 59,
+          "w": 24,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 7,
+          "x": 120,
+          "y": 59,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 148,
+          "y": 59,
+          "w": 24,
+          "h": 24,
+          "at": "bl"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-search": {
+      "w": 290,
+      "h": 339,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 8,
+          "y": 31,
+          "w": 216.234375,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 8,
+          "y": 59,
+          "w": 269.203125,
+          "h": 85
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-hierarchy-menu": {
+      "w": 354,
+      "h": 223,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f01-console": {
+      "w": 834,
+      "h": 182,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 11.203125,
+          "y": 34.125,
+          "w": 63.6875,
+          "h": 23.75
+        },
+        {
+          "n": 2,
+          "x": 770.484375,
+          "y": 34,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 798.484375,
+          "y": 34,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f01-task-sketch-viewport": {
+      "w": 822,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "ribbonHome": [
+      {
+        "section": "Assets",
+        "label": "Model",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-stack-2 \"><path d=\"M12 4l-8 4l8 4l8 -4l-8 -4\"></path><path d=\"M4 12l8 4l8 -4\"></path><path d=\"M4 16l8 4l8 -4\"></path></svg>",
+        "tooltip": "Open the Model Assets library (imported models in the browser)",
+        "keys": "ALT 604"
+      },
+      {
+        "section": "Assets",
+        "label": "Import",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-package-import \"><path d=\"M12 21l-8 -4.5v-9l8 -4.5l8 4.5v4.5\"></path><path d=\"M12 12l8 -4.5\"></path><path d=\"M12 12v9\"></path><path d=\"M12 12l-8 -4.5\"></path><path d=\"M22 18h-7\"></path><path d=\"M18 15l-3 3l3 3\"></path></svg>",
+        "tooltip": "Open the Import Manager (bring models into the library)",
+        "keys": "ALT 608"
+      },
+      {
+        "section": "Assets",
+        "label": "SQL",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-database \"><path d=\"M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0\"></path><path d=\"M4 6v6a8 3 0 0 0 16 0v-6\"></path><path d=\"M4 12v6a8 3 0 0 0 16 0v-6\"></path></svg>",
+        "tooltip": "Open the SQL Assets library (SQLite databases per store)",
+        "keys": "ALT 631"
+      },
+      {
+        "section": "Assets",
+        "label": "Wipe All",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash-x \"><path d=\"M4 7h16\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path><path d=\"M10 12l4 4m0 -4l-4 4\"></path></svg>",
+        "tooltip": "Wipe ALL locally saved data \u2014 settings, layout, hotkeys, viewpoints, rules AND every imported asset \u2014 then reload",
+        "keys": "ALT 1144"
+      },
+      {
+        "section": "Canvas",
+        "label": "Clear",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Unload every loaded asset and clear the canvas",
+        "keys": "ALT 603"
+      },
+      {
+        "section": "Canvas",
+        "label": "Screenshot",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "Download the current viewport as a PNG (includes the view cube)",
+        "keys": "ALT 1010"
+      },
+      {
+        "section": "Canvas",
+        "label": "Persp.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-perspective \"><path d=\"M6.141 4.163l12 1.714a1 1 0 0 1 .859 .99v10.266a1 1 0 0 1 -.859 .99l-12 1.714a1 1 0 0 1 -1.141 -.99v-13.694a1 1 0 0 1 1.141 -.99\"></path></svg>",
+        "tooltip": "Switch to the perspective camera",
+        "keys": "ALT 610"
+      },
+      {
+        "section": "Canvas",
+        "label": "Ortho",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-cube \"><path d=\"M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718\"></path><path d=\"M12 22v-10\"></path><path d=\"M12 12l8.73 -5.04\"></path><path d=\"M3.27 6.96l8.73 5.04\"></path></svg>",
+        "tooltip": "Switch to the orthographic camera",
+        "keys": "ALT 611"
+      },
+      {
+        "section": "Canvas",
+        "label": "Dark",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-moon \"><path d=\"M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008\"></path></svg>",
+        "tooltip": "Switch to the dark theme",
+        "keys": "ALT 401"
+      },
+      {
+        "section": "Draw Mode",
+        "label": "Sketch",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-pencil \"><path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"></path><path d=\"M13.5 6.5l4 4\"></path></svg>",
+        "tooltip": "Sketch mode: white background with black edge lines only (labels/measurements stay visible; screenshots capture the sketch look). Transparent items are not included \u2014 they produce no edges.",
+        "keys": "ALT 1146"
+      },
+      {
+        "section": "Draw Mode",
+        "label": "Wire",
+        "icon": "",
+        "tooltip": "Wire: plain paper and ink edges, no mesh colours",
+        "keys": "ALT 1216"
+      },
+      {
+        "section": "Draw Mode",
+        "label": "Colour Fill",
+        "icon": "",
+        "tooltip": "Colour fill: wash the mesh colours onto the paper (colourless meshes stay paper)",
+        "keys": "ALT 1217"
+      },
+      {
+        "section": "Draw Mode",
+        "label": "Colour Wire",
+        "icon": "",
+        "tooltip": "Colour wire: the ink takes the mesh colour (colourless meshes keep the sketch ink)",
+        "keys": "ALT 1218"
+      },
+      {
+        "section": "Draw Mode",
+        "label": "Selection Tint",
+        "icon": "",
+        "tooltip": "Show the selection as a colour tint only",
+        "keys": "ALT 1113"
+      },
+      {
+        "section": "Draw Mode",
+        "label": "Selection Outline",
+        "icon": "",
+        "tooltip": "Show the selection as an outline only (items keep their true colours)",
+        "keys": "ALT 1114"
+      },
+      {
+        "section": "Draw Mode",
+        "label": "Selection Both",
+        "icon": "",
+        "tooltip": "Show the selection as both a colour tint and an outline",
+        "keys": "ALT 1115"
+      },
+      {
+        "section": "Quick Clear",
+        "label": "Label",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
+        "tooltip": "Delete the scene's labels \u2014 a live viewpoint's labels are muted instead, never deleted",
+        "keys": "ALT 1141"
+      },
+      {
+        "section": "Quick Clear",
+        "label": "Measurement",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
+        "tooltip": "Delete the scene's measurements \u2014 a live viewpoint's measurements are muted instead, never deleted",
+        "keys": "ALT 1227"
+      }
+    ],
+    "hierarchy": [
+      {
+        "section": "Hierarchy",
+        "label": "Contains (*)",
+        "icon": "",
+        "tooltip": "Contains \u2014 any part of the name matches",
+        "keys": ""
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Equals (=)",
+        "icon": "",
+        "tooltip": "Equals \u2014 whole-string match",
+        "keys": ""
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Fly to selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plane-tilt \"><path d=\"M14.5 6.5l3 -2.9a2.05 2.05 0 0 1 2.9 2.9l-2.9 3l2.5 7.5l-2.5 2.55l-3.5 -6.55l-3 3v3l-2 2l-1.5 -4.5l-4.5 -1.5l2 -2h3l3 -3l-6.5 -3.5l2.5 -2.5l7.5 2.5\"></path></svg>",
+        "tooltip": "Fly to selection\n(fit its bounding box)",
+        "keys": "ALT 625"
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Focus last click",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-2 \"><path d=\"M11.5 12a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0\" fill=\"currentColor\"></path><path d=\"M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"></path><path d=\"M12 3l0 2\"></path><path d=\"M3 12l2 0\"></path><path d=\"M12 19l0 2\"></path><path d=\"M19 12l2 0\"></path></svg>",
+        "tooltip": "Focus last click\n(re-pivot like Alt+click, camera stays)",
+        "keys": "O"
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Go to last click",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-current-location \"><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"></path><path d=\"M4 12a8 8 0 1 0 16 0a8 8 0 1 0 -16 0\"></path><path d=\"M12 2l0 2\"></path><path d=\"M12 20l0 2\"></path><path d=\"M20 12l2 0\"></path><path d=\"M2 12l2 0\"></path></svg>",
+        "tooltip": "Go to last click\n(fly there and pivot, like Space+click)",
+        "keys": "G"
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Focus selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-centered \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
+        "tooltip": "Focus selection\n(pivot on its center, camera stays)",
+        "keys": "ALT 1029"
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Fit visible",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-maximize \"><path d=\"M16 4l4 0l0 4\"></path><path d=\"M14 10l6 -6\"></path><path d=\"M8 20l-4 0l0 -4\"></path><path d=\"M4 20l6 -6\"></path><path d=\"M16 20l4 0l0 -4\"></path><path d=\"M14 14l6 6\"></path><path d=\"M8 4l-4 0l0 4\"></path><path d=\"M4 4l6 6\"></path></svg>",
+        "tooltip": "Fit visible\n(frame everything not hidden, cut to the clipping in force)",
+        "keys": "ALT 1219"
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Collapse all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-fold-up \"><path d=\"M12 13v-8l-3 3m6 0l-3 -3\"></path><path d=\"M9 17l1 0\"></path><path d=\"M14 17l1 0\"></path><path d=\"M19 17l1 0\"></path><path d=\"M4 17l1 0\"></path></svg>",
+        "tooltip": "Collapse the whole tree",
+        "keys": "ALT 801"
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Dotted eye",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-dotted \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12h.01\"></path><path d=\"M3 12h.01\"></path><path d=\"M5 15h.01\"></path><path d=\"M5 9h.01\"></path><path d=\"M19 15h.01\"></path><path d=\"M12 18h.01\"></path><path d=\"M12 6h.01\"></path><path d=\"M8 17h.01\"></path><path d=\"M8 7h.01\"></path><path d=\"M16 17h.01\"></path><path d=\"M16 7h.01\"></path><path d=\"M19 9h.01\"></path></svg>",
+        "tooltip": "Some items below are hidden (hide, or opacity 0)",
+        "keys": ""
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Blue bar on a row",
+        "icon": "",
+        "tooltip": "Partly selected: some of the items below this row are selected (not all). The row highlights fully once everything beneath it is selected \u2014 no need to expand to see where the selection is",
+        "keys": ""
+      },
+      {
+        "section": "Hierarchy",
+        "label": "Crossed-out eye",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-off \"><path d=\"M10.585 10.587a2 2 0 0 0 2.829 2.828\"></path><path d=\"M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hidden (hide, or opacity 0)",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "Search items\u2026",
+        "tooltip": "Type at least two letters of a name. Up to ten matches are listed, highest level first; click one to select it."
+      }
+    ],
+    "console": [
+      {
+        "section": "Console",
+        "label": "INFO",
+        "icon": "",
+        "tooltip": "Show / hide info lines",
+        "keys": "ALT 1223"
+      },
+      {
+        "section": "Console",
+        "label": "WARN",
+        "icon": "",
+        "tooltip": "Show / hide warn lines",
+        "keys": "ALT 1224"
+      },
+      {
+        "section": "Console",
+        "label": "ERROR",
+        "icon": "",
+        "tooltip": "Show / hide error lines",
+        "keys": "ALT 1225"
+      },
+      {
+        "section": "Console",
+        "label": "Download",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Download the whole console as a .txt \u2014 every level, whatever the filter \u2014 to send with a bug report",
+        "keys": "ALT 1401"
+      },
+      {
+        "section": "Console",
+        "label": "Clear",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
+        "tooltip": "Clear the console \u2014 the startup lines (welcome, version, GPU checks) stay",
+        "keys": "ALT 1222"
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

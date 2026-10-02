@@ -1,14 +1,16 @@
 // Framework-free hotkey engine. Zero app imports. See DESIGN.md for the
-// full design. Grammar over keys:
-//   X        tap (press & release)
-//   [X]/[A&B] hold a key/group across the rest of the sequence
-//   A&B      together (same instant — regular keys too, e.g. E&R)
-//   A + B    then (release, press next)
-//   AA/101   runs expand to taps (A+A, 1+0+1); F-keys & named keys stay whole
-//   ++       the literal + key
+// full design. Display grammar over keys:
+//   X         tap (press & release)
+//   A+B       together (same instant — regular keys too, e.g. E+R); no spaces
+//   A B / A,B then (release, press next) — space or comma, display uses space
+//   [X]/[A+B] hold a key/group across the rest of the sequence
+//   AA/101    runs expand to taps (A A, 1 0 1); F-keys & named keys stay whole
+//   PLUS      the literal + key (COMMA: the comma key)
 //
 // A shortcut is a Sequence of Combos. A Combo is modifiers + a set of held
-// keys, canonicalized (mods in fixed order, keys sorted) so "E&R" === "R&E".
+// keys, canonicalized (mods in fixed order, keys sorted) so E+R === R+E. The
+// internal Combo string joins with "&" ("Alt&F1") — never shown, and what
+// saved overrides store, so the display grammar can change without migration.
 
 export type Combo = string;
 export type Sequence = Combo[];
@@ -39,6 +41,8 @@ const NAMED: Record<string, string> = {
   END: 'End',
   DELETE: 'Delete',
   BACKSPACE: 'Backspace',
+  PLUS: 'Equal', // the physical +/= key
+  COMMA: 'Comma',
 };
 const NAMED_CODE_TO_DISPLAY: Record<string, string> = {
   Escape: 'ESC',
@@ -55,6 +59,8 @@ const NAMED_CODE_TO_DISPLAY: Record<string, string> = {
   End: 'END',
   Delete: 'DELETE',
   Backspace: 'BACKSPACE',
+  Equal: 'PLUS',
+  Comma: 'COMMA',
 };
 const MOD_ORDER = ['Ctrl', 'Alt', 'Shift', 'Meta'];
 const FKEY_RE = /^F([1-9]|1[0-2])$/;
@@ -113,9 +119,6 @@ function classify(tok: string): { mod?: string; key?: string } {
   if (/^[A-Za-z]$/.test(tok)) {
     return { key: `Key${up}` };
   }
-  if (tok === '+') {
-    return { key: 'Equal' }; // the physical +/= key (written "++")
-  }
   throw new HotkeyParseError(`unknown key token "${tok}"`);
 }
 
@@ -147,9 +150,9 @@ export function comboFromHeld(e: KeyboardEvent, held: Set<string>): Combo | null
   return makeCombo(mods, [...held, e.code]);
 }
 
-/** Prettify one combo: "Alt&F1" -> "ALT&F1", "Digit1" -> "1", "KeyZ" -> "Z".
+/** Prettify one combo: "Alt&F1" -> "ALT+F1", "Digit1" -> "1", "KeyZ" -> "Z".
  *  Display order: modifiers, then multi-char keys (F-keys/named — usually the
- *  held leader), then single chars — so "1&F1" reads "F1&1". */
+ *  held leader), then single chars — so "1&F1" reads "F1+1". */
 export function formatCombo(c: Combo): string {
   const disp = (p: string): string => {
     if (p.startsWith('Digit')) {
@@ -157,9 +160,6 @@ export function formatCombo(c: Combo): string {
     }
     if (p.startsWith('Key')) {
       return p.slice(3);
-    }
-    if (p === 'Equal') {
-      return '++'; // the + key is written doubled (round-trips)
     }
     if (NAMED_CODE_TO_DISPLAY[p]) {
       return NAMED_CODE_TO_DISPLAY[p];
@@ -173,12 +173,12 @@ export function formatCombo(c: Combo): string {
   const keys = parts
     .filter((p) => !MOD_DISPLAY.includes(p))
     .sort((a, b) => (b.length > 1 ? 1 : 0) - (a.length > 1 ? 1 : 0) || a.localeCompare(b));
-  return [...mods, ...keys].join('&');
+  return [...mods, ...keys].join('+');
 }
 const MOD_DISPLAY = ['CTRL', 'ALT', 'SHIFT', 'META'];
 
-/** Whole sequence for display. Steps join " + "; a run of bare lone digits is
- *  concatenated so ["Alt&F1","Digit1","Digit0","Digit1"] -> "ALT&F1 + 101". */
+/** Whole sequence for display. Steps join with a space; a run of bare lone
+ *  digits is concatenated so ["Alt&F1","Digit1","Digit0","Digit1"] -> "ALT+F1 101". */
 export function formatSequence(seq: Sequence): string {
   const out: string[] = [];
   let digits = '';
@@ -198,38 +198,33 @@ export function formatSequence(seq: Sequence): string {
     }
   }
   flush();
-  return out.join(' + ');
+  return out.join(' ');
 }
 
-/** Parse the display grammar into a Sequence. Whitespace is insignificant.
- *  Brackets [X]/[A&B] mark held keys that persist into every following combo. */
+/** Parse the display grammar into a Sequence. Steps are separated by
+ *  whitespace or commas; "+" joins keys pressed together and must not be
+ *  spaced ("CTRL + Z" is rejected — it reads like the old "then" notation).
+ *  Brackets [X]/[A+B] mark held keys that persist into every following combo. */
 export function parseSequence(str: string): Sequence {
+  if (/\s\+|\+\s/.test(str)) {
+    throw new HotkeyParseError(`spaces around "+" in "${str}" — write CTRL+Z; separate steps with a space`);
+  }
   const seq: Combo[] = [];
   const heldMods: string[] = [];
   const heldKeys: string[] = [];
 
-  // protect the doubled "++" (literal + key) before splitting on the separator
-  const SENT = '\u0001';
-  const steps = str.replaceAll('++', SENT).split('+');
-
-  for (const rawStep of steps) {
-    const step = rawStep.replaceAll(SENT, '+').trim();
+  for (const step of str.split(/[\s,]+/)) {
     if (!step) {
       continue;
     }
 
-    // strip bracketed hold-groups: "[F1&ALT]" adds F1,ALT to the held set and
-    // (on its own) emits no combo; "[F1] 1" isn't valid — holds are their own step
+    // strip bracketed hold-groups: "[F1+ALT]" adds F1,ALT to the held set and
+    // (on its own) emits no combo; anything left in the step is a tap step
     const holdMatches = [...step.matchAll(/\[([^\]]+)\]/g)];
     if (holdMatches.length > 0) {
-      const rest = step
-        .replace(/\[[^\]]+\]/g, '')
-        .replace(/&+/g, '&')
-        .replace(/^&|&$/g, '')
-        .trim();
       for (const m of holdMatches) {
-        for (const t of m[1].split('&')) {
-          const c = classify(t.trim());
+        for (const t of m[1].split('+')) {
+          const c = classify(t);
           if (c.mod) {
             heldMods.push(c.mod);
           } else if (c.key) {
@@ -237,6 +232,7 @@ export function parseSequence(str: string): Sequence {
           }
         }
       }
+      const rest = step.replace(/\[[^\]]+\]/g, '');
       if (rest) {
         parseTapStep(rest, seq, heldMods, heldKeys);
       }
@@ -255,28 +251,27 @@ export function parseSequence(str: string): Sequence {
 /** Parse one non-hold step (a combo or an expandable run) into `seq`,
  *  merging in any currently-held mods/keys. */
 function parseTapStep(step: string, seq: Combo[], heldMods: string[], heldKeys: string[]) {
-  if (step.includes('&')) {
+  if (step.includes('+')) {
     const mods = [...heldMods];
     const keys = [...heldKeys];
-    for (const t of step.split('&')) {
-      const c = classify(t.trim());
+    for (const t of step.split('+')) {
+      if (!t) {
+        throw new HotkeyParseError(`empty key in "${step}" — the + key is written PLUS`);
+      }
+      const c = classify(t);
       if (c.mod) {
         mods.push(c.mod);
       } else if (c.key) {
         keys.push(c.key);
       }
     }
-    // A modifiers-only chord (e.g. "ALT&SHIFT") is a valid leader step; only a
-    // truly empty step (no mods, no keys) is an error.
-    if (keys.length === 0 && mods.length === 0) {
-      throw new HotkeyParseError(`empty step "${step}"`);
-    }
+    // A modifiers-only chord (e.g. "ALT+SHIFT") is a valid leader step
     seq.push(makeCombo(mods, keys));
     return;
   }
   const up = step.toUpperCase();
   if (MODS[up]) {
-    // bare modifier step ("ALT + 101"): a modifiers-only leader combo — the
+    // bare modifier step ("ALT 101"): a modifiers-only leader combo — the
     // matcher emits these when the modifier is tapped and released alone
     seq.push(makeCombo([...heldMods, MODS[up]], heldKeys));
     return;
@@ -287,10 +282,6 @@ function parseTapStep(step: string, seq: Combo[], heldMods: string[], heldKeys: 
   }
   if (FKEY_RE.test(up)) {
     seq.push(makeCombo(heldMods, [...heldKeys, up]));
-    return;
-  }
-  if (step === '+') {
-    seq.push(makeCombo(heldMods, [...heldKeys, 'Equal']));
     return;
   }
   if (/^[A-Za-z0-9]$/.test(step)) {
@@ -593,7 +584,7 @@ export class HotkeyEngine {
 }
 
 /** Capture a sequence for the panel's Record button. Resolves on idle-pause or
- *  Enter, rejects on Escape. Commits a chord (E&R) as one step when its keys
+ *  Enter, rejects on Escape. Commits a chord (E+R) as one step when its keys
  *  are fully released; sequential taps become separate steps. */
 export function recordSequence(opts?: { idleMs?: number }): Promise<Sequence> {
   const idleMs = opts?.idleMs ?? 900;

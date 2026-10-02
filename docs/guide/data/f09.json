@@ -1,0 +1,360 @@
+{
+  "shots": {
+    "f09-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 312.84375,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 324.84375,
+          "y": 136,
+          "w": 1109.15625,
+          "h": 730
+        },
+        {
+          "n": 4,
+          "x": 325.84375,
+          "y": 873,
+          "w": 79.546875,
+          "h": 22,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f09-view": {
+      "w": 668,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 78,
+          "y": 6,
+          "w": 79.890625,
+          "h": 68
+        },
+        {
+          "n": 3,
+          "x": 159.890625,
+          "y": 6,
+          "w": 79.328125,
+          "h": 68
+        },
+        {
+          "n": 4,
+          "x": 241.21875,
+          "y": 6,
+          "w": 73.109375,
+          "h": 68
+        },
+        {
+          "n": 5,
+          "x": 316.328125,
+          "y": 6,
+          "w": 69.203125,
+          "h": 68
+        },
+        {
+          "n": 6,
+          "x": 387.53125,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 7,
+          "x": 453.53125,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 8,
+          "x": 519.53125,
+          "y": 6,
+          "w": 64.0625,
+          "h": 68
+        },
+        {
+          "n": 9,
+          "x": 585.59375,
+          "y": 6,
+          "w": 69.28125,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f09-tree-nav": {
+      "w": 364,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.875,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 78.875,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 3,
+          "x": 155.875,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 4,
+          "x": 221.875,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 5,
+          "x": 287.875,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        }
+      ],
+      "fromGpu": true
+    },
+    "f09-controller": {
+      "w": 226,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.875,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 143.875,
+          "y": 11.5,
+          "w": 46,
+          "h": 22,
+          "at": "tr"
+        },
+        {
+          "n": 3,
+          "x": 143.875,
+          "y": 46.5,
+          "w": 46,
+          "h": 22,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f09-joystick": {
+      "w": 1110,
+      "h": 730,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 1.84375,
+          "y": 264.5,
+          "w": 224,
+          "h": 224
+        },
+        {
+          "n": 2,
+          "x": 884.84375,
+          "y": 264.5,
+          "w": 224,
+          "h": 224
+        }
+      ],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "ribbonPad": [
+      {
+        "section": "View",
+        "label": "Fly To",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plane-tilt \"><path d=\"M14.5 6.5l3 -2.9a2.05 2.05 0 0 1 2.9 2.9l-2.9 3l2.5 7.5l-2.5 2.55l-3.5 -6.55l-3 3v3l-2 2l-1.5 -4.5l-4.5 -1.5l2 -2h3l3 -3l-6.5 -3.5l2.5 -2.5l7.5 2.5\"></path></svg>",
+        "tooltip": "Fly to the selection (fit its bounding box)",
+        "keys": "ALT 625"
+      },
+      {
+        "section": "View",
+        "label": "Focus Click",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-2 \"><path d=\"M11.5 12a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0\" fill=\"currentColor\"></path><path d=\"M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"></path><path d=\"M12 3l0 2\"></path><path d=\"M3 12l2 0\"></path><path d=\"M12 19l0 2\"></path><path d=\"M19 12l2 0\"></path></svg>",
+        "tooltip": "Re-pivot on the last clicked point (same as Alt+click) \u2014 camera stays put",
+        "keys": "O"
+      },
+      {
+        "section": "View",
+        "label": "Go To Click",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-current-location \"><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"></path><path d=\"M4 12a8 8 0 1 0 16 0a8 8 0 1 0 -16 0\"></path><path d=\"M12 2l0 2\"></path><path d=\"M12 20l0 2\"></path><path d=\"M20 12l2 0\"></path><path d=\"M2 12l2 0\"></path></svg>",
+        "tooltip": "Fly to the last clicked point and pivot there \u2014 the Space+click move, after the fact",
+        "keys": "G"
+      },
+      {
+        "section": "View",
+        "label": "Focus Sel.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-centered \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
+        "tooltip": "Re-pivot on the selection center \u2014 camera stays put",
+        "keys": "ALT 1029"
+      },
+      {
+        "section": "View",
+        "label": "Fit Visible",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-maximize \"><path d=\"M16 4l4 0l0 4\"></path><path d=\"M14 10l6 -6\"></path><path d=\"M8 20l-4 0l0 -4\"></path><path d=\"M4 20l6 -6\"></path><path d=\"M16 20l4 0l0 -4\"></path><path d=\"M14 14l6 6\"></path><path d=\"M8 4l-4 0l0 4\"></path><path d=\"M4 4l6 6\"></path></svg>",
+        "tooltip": "Frame everything that is not hidden, cut to the clipping in force \u2014 hide, isolate or clip first to zoom onto a set",
+        "keys": "ALT 1219"
+      },
+      {
+        "section": "View",
+        "label": "Solo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-distribute-vertical \"><path d=\"M4 4l0 16\"></path><path d=\"M20 4l0 16\"></path><path d=\"M9 8a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -8\"></path></svg>",
+        "tooltip": "Close every panel except the main one \u2014 click again to restore the layout",
+        "keys": "ALT 626"
+      },
+      {
+        "section": "View",
+        "label": "Hide",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-off \"><path d=\"M10.585 10.587a2 2 0 0 0 2.829 2.828\"></path><path d=\"M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hide the selected items",
+        "keys": "H"
+      },
+      {
+        "section": "View",
+        "label": "Reset All",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
+        "tooltip": "Unhide all + reset every color and opacity override (whole model)",
+        "keys": "ALT+R"
+      },
+      {
+        "section": "View",
+        "label": "Clear Sel.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-deselect \"><path d=\"M12 8h3a1 1 0 0 1 1 1v3\"></path><path d=\"M16 16h-7a1 1 0 0 1 -1 -1v-7\"></path><path d=\"M12 20v.01\"></path><path d=\"M16 20v.01\"></path><path d=\"M8 20v.01\"></path><path d=\"M4 20v.01\"></path><path d=\"M4 16v.01\"></path><path d=\"M4 12v.01\"></path><path d=\"M4 8v.01\"></path><path d=\"M8 4v.01\"></path><path d=\"M12 4v.01\"></path><path d=\"M16 4v.01\"></path><path d=\"M20 4v.01\"></path><path d=\"M20 8v.01\"></path><path d=\"M20 12v.01\"></path><path d=\"M20 16v.01\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Deselect everything",
+        "keys": "ESC"
+      },
+      {
+        "section": "Tree",
+        "label": "Up",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-big-up \"><path d=\"M9 20v-8h-3.586a1 1 0 0 1 -.707 -1.707l6.586 -6.586a1 1 0 0 1 1.414 0l6.586 6.586a1 1 0 0 1 -.707 1.707h-3.586v8a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1\"></path></svg>",
+        "tooltip": "Select the parent of the active item (same as U)",
+        "keys": "U"
+      },
+      {
+        "section": "Tree",
+        "label": "Down",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-big-down \"><path d=\"M15 4v8h3.586a1 1 0 0 1 .707 1.707l-6.586 6.586a1 1 0 0 1 -1.414 0l-6.586 -6.586a1 1 0 0 1 .707 -1.707h3.586v-8a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1\"></path></svg>",
+        "tooltip": "Select back down into the previous child (same as P)",
+        "keys": "P"
+      },
+      {
+        "section": "Nav",
+        "label": "Orbit",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-rotate-3d \"><path d=\"M12 3a7 7 0 0 1 7 7v4l-3 -3\"></path><path d=\"M22 11l-3 3\"></path><path d=\"M8 15.5l-5 -3l5 -3l5 3v5.5l-5 3l0 -5.5\"></path><path d=\"M3 12.5v5.5l5 3\"></path><path d=\"M8 15.545l5 -3.03\"></path></svg>",
+        "tooltip": "Orbit only \u2014 look and pan, movement keys off",
+        "keys": "ALT 627"
+      },
+      {
+        "section": "Nav",
+        "label": "Fly",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-rotate-360 \"><path d=\"M12 16h4v4\"></path><path d=\"M19.458 11.042c.86 -2.366 .722 -4.58 -.6 -5.9c-2.272 -2.274 -7.185 -1.045 -10.973 2.743c-3.788 3.788 -5.017 8.701 -2.744 10.974c2.227 2.226 6.987 1.093 10.74 -2.515\"></path></svg>",
+        "tooltip": "Fly \u2014 move along the view direction",
+        "keys": "ALT 628"
+      },
+      {
+        "section": "Nav",
+        "label": "Walk",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-walk \"><path d=\"M12 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M7 21l3 -4\"></path><path d=\"M16 21l-2 -4l-3 -3l1 -6\"></path><path d=\"M6 12l2 -3l4 -1l3 3l3 1\"></path></svg>",
+        "tooltip": "Walk \u2014 stay at a constant height",
+        "keys": "ALT 629"
+      },
+      {
+        "section": "Controller",
+        "label": "Joystick",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-device-gamepad-2 \"><path d=\"M12 5h3.5a5 5 0 0 1 0 10h-5.5l-4.015 4.227a2.3 2.3 0 0 1 -3.923 -2.035l1.634 -8.173a5 5 0 0 1 4.904 -4.019h3.4\"></path><path d=\"M14 15l4.07 4.284a2.3 2.3 0 0 0 3.925 -2.023l-1.6 -8.232\"></path><path d=\"M8 9v2\"></path><path d=\"M7 10h2\"></path><path d=\"M14 10h2\"></path></svg>",
+        "tooltip": "On-screen joysticks: left = move, right = look/direction (two fingers still pan)",
+        "keys": "ALT 630"
+      },
+      {
+        "section": "Controller",
+        "label": "Top",
+        "icon": "",
+        "tooltip": "Joystick position from the top edge",
+        "keys": ""
+      },
+      {
+        "section": "Controller",
+        "label": "Top \u2212",
+        "icon": "",
+        "tooltip": "Move the on-screen joystick up",
+        "keys": "ALT 1052"
+      },
+      {
+        "section": "Controller",
+        "label": "Top +",
+        "icon": "",
+        "tooltip": "Move the on-screen joystick down",
+        "keys": "ALT 1053"
+      },
+      {
+        "section": "Controller",
+        "label": "Side",
+        "icon": "",
+        "tooltip": "Joystick position from the side edges",
+        "keys": ""
+      },
+      {
+        "section": "Controller",
+        "label": "Side \u2212",
+        "icon": "",
+        "tooltip": "Move both on-screen joysticks closer to their side edges",
+        "keys": "ALT 1050"
+      },
+      {
+        "section": "Controller",
+        "label": "Side +",
+        "icon": "",
+        "tooltip": "Move both on-screen joysticks inward from their side edges",
+        "keys": "ALT 1051"
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}
