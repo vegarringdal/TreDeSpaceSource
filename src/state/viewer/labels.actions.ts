@@ -100,6 +100,17 @@ export const labelsActions = {
     commit(items.map((l) => ({ ...l, id: nextId++, selected: false })));
   },
 
+  /** Replace the whole set WITHOUT an undo step — the animation showing its
+   *  own labels. Ids are re-based like setAll, or kept exactly (`keepIds`,
+   *  putting the user's own set back). */
+  replaceQuiet(items: SceneLabel[], keepIds = false) {
+    const next = keepIds ? items.map((l) => ({ ...l })) : items.map((l) => ({ ...l, id: nextId++, selected: false }));
+    for (const l of next) {
+      nextId = Math.max(nextId, l.id + 1);
+    }
+    labelsState.set((s) => ({ items: next, version: s.version + 1 }));
+  },
+
   /** Hide/show every label in the viewport (does not touch the items).
    *  Show all ALSO unmutes individually muted labels — the escape hatch for
    *  per-label mutes on labels that are hard to reach once hidden. */

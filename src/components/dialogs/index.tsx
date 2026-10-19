@@ -1,4 +1,5 @@
 import { Toaster } from '@treDeSpaceUI/widgets';
+import { VideoExportDialog } from '../panels/animation/VideoExportDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ErrorDialog } from './ErrorDialog';
 import { LoadingDialog } from './LoadingDialog';
@@ -16,6 +17,7 @@ export function DialogHost() {
       <PromptDialog />
       <ErrorDialog />
       <LoadingDialog />
+      <VideoExportDialog />
       <Toaster />
     </>
   );

@@ -14,6 +14,7 @@ import { apiSecurityState } from '../../state/apiSecurity.state';
 import { assetsActions } from '../../state/assets/assets.actions';
 import { storesActions } from '../../state/stores/stores.actions';
 import { dropClient, forgetBatchOwner, noteBatchOwner, touchClient } from './clients';
+import { animationHandlers } from './handlersAnimation';
 import { appHandlers } from './handlersApp';
 import { assetHandlers } from './handlersAssets';
 import { consoleHandlers } from './handlersConsole';
@@ -53,6 +54,7 @@ const handlers: Record<string, ApiHandler> = {
   ...consoleHandlers,
   ...customHandlers,
   ...hotkeyHandlers,
+  ...animationHandlers,
 };
 registerCommandList(Object.keys(handlers));
 

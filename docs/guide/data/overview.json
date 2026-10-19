@@ -63,13 +63,6 @@
       "marks": [],
       "fromGpu": true
     },
-    "layout-f10": {
-      "w": 1440,
-      "h": 900,
-      "gpu": false,
-      "marks": [],
-      "fromGpu": true
-    },
     "layout-f11": {
       "w": 1440,
       "h": 900,
@@ -84,8 +77,15 @@
       "marks": [],
       "fromGpu": true
     },
+    "layout-a01": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
     "layout-ribbon": {
-      "w": 1221,
+      "w": 1225,
       "h": 130,
       "gpu": false,
       "marks": [
@@ -98,38 +98,37 @@
         },
         {
           "n": 2,
-          "x": 499.984375,
-          "y": 33,
+          "x": 503.453125,
+          "y": 79.65625,
           "w": 112,
           "h": 21.328125
         },
         {
           "n": 3,
-          "x": 966.984375,
+          "x": 970.453125,
           "y": 33,
           "w": 64,
           "h": 68
         },
         {
           "n": 4,
-          "x": 1032.984375,
+          "x": 1036.453125,
           "y": 51,
           "w": 176,
           "h": 24
         },
         {
           "n": 5,
-          "x": 1032.984375,
+          "x": 1036.453125,
           "y": 79,
           "w": 88.5,
           "h": 24,
           "at": "bl"
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "layout-settings-tab": {
-      "w": 395,
+      "w": 407,
       "h": 270,
       "gpu": false,
       "marks": [
@@ -137,19 +136,24 @@
           "n": 1,
           "x": 181,
           "y": 78,
-          "w": 174,
+          "w": 186,
           "h": 24
         },
         {
           "n": 2,
-          "x": 363,
+          "x": 375,
           "y": 78,
           "w": 24,
           "h": 24,
           "at": "tr"
         }
-      ],
-      "fromGpu": true
+      ]
+    },
+    "layout-f10": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": []
     }
   },
   "reference": {
@@ -193,10 +197,10 @@
         "icon": "",
         "keys": "ALT+F1 … ALT+F12",
         "section": "Configured App Layout (ALT + F1-F12)",
-        "label": "Your layouts (Config01–12)",
-        "tooltip": "Empty until you save into them. Click one to switch to it, or to choose it as the target for Save."
+        "label": "Your layouts (Assets, Present, Config03–12)",
+        "tooltip": "ALT+F1 holds the Assets workspace; the others are empty until you save into them. Click one to switch to it, or to choose it as the target for Save."
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.0.141"
 }

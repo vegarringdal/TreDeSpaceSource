@@ -2,6 +2,7 @@ import { IconBox } from '@tabler/icons-react';
 import {
   Button,
   ConfirmDialogCore,
+  DialogFrame,
   ErrorDialogCore,
   LoadingDialogCore,
   Modal,
@@ -18,13 +19,14 @@ export function DialogsDemo() {
   const [prompt, setPrompt] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [frame, setFrame] = useState(false);
   const [custom, setCustom] = useState(false);
   const [promptValue, setPromptValue] = useState('Viewpoint 1');
   const [last, setLast] = useState('');
   return (
     <Section
       title="Dialogs"
-      note="The dialog cores are pure: props in, onResult out, no store coupling — the app wraps them in its own dialogs helper. All four are DialogFrame plus their content: one bordered window with a title bar (and its ✕), a body that scrolls within maxHeight, and a footer rule for the buttons. Escape and a backdrop press close the TOP dialog only. Modal + TitleBar stay exported for a host building something else in the same look (the Custom button shows the bare shell)."
+      note="The dialog cores are pure: props in, onResult out, no store coupling — the app wraps them in its own dialogs helper. All four are DialogFrame plus their content: one bordered window with a title bar (and its ✕), a body that scrolls within maxHeight, and a footer rule for the buttons — build a new dialog the same way (the DialogFrame button). Escape and a backdrop press close the TOP dialog only; for the cores both count as Cancel. Modal + TitleBar stay exported for a host building something else in the same look (the Custom button shows the bare shell)."
       props={[
         'ConfirmDialogCoreProps',
         'PromptDialogCoreProps',
@@ -34,7 +36,23 @@ export function DialogsDemo() {
         'ModalProps',
         'TitleBarProps',
       ]}
-      code={`function ResetButton() {
+      code={`function LicenseButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>License…</Button>
+      {open && (
+        <DialogFrame icon={<IconLicense size={16} className="shrink-0 text-blue-400" />}
+          title="License" width="min(480px, 92vw)" onClose={() => setOpen(false)}
+          footer={<Button variant="primary" onClick={() => setOpen(false)}>Accept</Button>}>
+          {licenseText}
+        </DialogFrame>
+      )}
+    </>
+  );
+}
+
+function ResetButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -42,7 +60,7 @@ export function DialogsDemo() {
       {open && (
         <ConfirmDialogCore title="Reset scene" okLabel="Reset"
           cancelLabel="Cancel" message="Reset the scene to defaults?"
-          onResult={(ok) => { setOpen(false); if (ok) reset(); }} />
+          onResult={(ok) => { setOpen(false); if (ok) { reset(); } }} />
       )}
     </>
   );
@@ -60,6 +78,7 @@ export function DialogsDemo() {
         >
           Loading (1.8 s)
         </Button>
+        <Button onClick={() => setFrame(true)}>DialogFrame</Button>
         <Button onClick={() => setCustom(true)}>Custom (Modal + TitleBar)</Button>
       </div>
       {last && <p className="m-0 mt-2 text-slate-500 text-xs">Last result: {last}</p>}
@@ -99,8 +118,23 @@ export function DialogsDemo() {
         />
       )}
       {loading && <LoadingDialogCore title="Working" label="Pretending to work…" />}
+      {frame && (
+        <DialogFrame
+          icon={<IconBox size={16} className="shrink-0 text-blue-400" />}
+          title="DialogFrame"
+          width={360}
+          onClose={() => setFrame(false)}
+          footer={
+            <Button variant="primary" onClick={() => setFrame(false)}>
+              Done
+            </Button>
+          }
+        >
+          Any content in the shared frame: title bar with its ✕, a body that scrolls inside maxHeight, a footer rule.
+        </DialogFrame>
+      )}
       {custom && (
-        <Modal z={100}>
+        <Modal z={2000}>
           <div className="w-[320px] border border-slate-700 bg-slate-900 shadow-xl">
             <TitleBar icon={<IconBox size={14} />}>Custom dialog</TitleBar>
             <div className="p-3 text-slate-300">

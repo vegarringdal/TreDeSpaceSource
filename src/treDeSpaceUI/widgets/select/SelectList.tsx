@@ -26,7 +26,7 @@ export function SelectList<T extends string = string>({
     <div
       ref={dd.popRef}
       onKeyDown={onKeyDown}
-      className="fixed z-[1000] overflow-hidden border border-slate-700 bg-slate-900 text-slate-200 text-xs shadow-black/40 shadow-lg"
+      className="fixed z-[2500] overflow-hidden border border-slate-700 bg-slate-900 text-slate-200 text-xs shadow-black/40 shadow-lg"
       style={{
         left: pos.left,
         // at least as wide as the trigger, but grow to fit the options

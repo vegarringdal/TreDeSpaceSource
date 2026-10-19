@@ -69,9 +69,10 @@ const GUIDE: readonly GuideGroup[] = [
       { href: 'f07-external.html', title: 'External', key: 'F7' },
       { href: 'f08-panels.html', title: 'Panels', key: 'F8' },
       { href: 'f09-pad.html', title: 'Pad', key: 'F9' },
-      { href: 'f10-viewpoint.html', title: 'Viewpoint', key: 'F10' },
-      { href: 'f11-sql-editor.html', title: 'SQL Editor', key: 'F11' },
-      { href: 'f12-assets.html', title: 'Assets', key: 'F12' },
+      { href: 'f10-animation.html', title: 'Animation', key: 'F10' },
+      { href: 'f11-viewpoint.html', title: 'Viewpoint', key: 'F11' },
+      { href: 'f12-sql-editor.html', title: 'SQL Editor', key: 'F12' },
+      { href: 'a01-assets.html', title: 'Assets', key: 'ALT+F1' },
     ],
   },
   {

@@ -1945,6 +1945,180 @@ payload:  { id: 'transform.undo' }
 response: { ran: true }
 ```
 
+### animation.load
+Load an animation document (`*.tdanim.json`, format `tredespace.animation`,
+version 2). Validated strictly, before anything changes — a wrong type, an
+unknown format, an older (version 1) or newer version is a `bad-payload`
+error and nothing changes (animation mode stays as it was); overlay content
+may not carry HTML or CSS, and images must be `data:` URIs. A good document
+then replaces the open animation without asking — unsaved changes there are
+lost. Animation mode is left first (animated items go back to rest); enter it
+again with `animation.setMode`. Overlay designs whose version differs from
+the viewer's library keep the library's copy and are listed in
+`componentConflicts`.
+
+```js
+payload:  { doc: { format: 'tredespace.animation', version: 2, name: 'Pump skid', scenes: [{ name: 'Assembly', objects: [...], steps: [...] }] } }
+response: { ok: true, errors: [], componentConflicts: [] }
+```
+
+### animation.get
+The open animation document, with the overlay designs and themes it uses
+embedded (what Save downloads).
+
+```js
+payload:  {}
+response: { doc: { format: 'tredespace.animation', version: 2, name: 'Pump skid', scenes: [...], ... } }
+```
+
+### animation.setMode
+Enter animation mode — `playback` (play only) or `author` — optionally on a
+scene id, or leave it with `off` (every animated item returns to where it was;
+animation mode never changes the scene). While presenting, `off` also brings
+back the panels and ribbon the presentation replaced. `not-ready` when the
+mode cannot start (no scene, no 3D view); an unknown scene id is
+`not-found`.
+
+```js
+payload:  { mode: 'playback', scene: 's4f8k2' }
+response: { ok: true }
+```
+
+### animation.present
+Present an animation in one call: load `doc` first when given (exactly as
+`animation.load` — a bad doc is `bad-payload`, and a `scene` it does not
+have `not-found`, before anything changes), make `scene` the active scene
+when given, enter playback and switch to the Present workspace — the 3D view
+alone with the floating play bar (step title, previous / next step, play /
+pause). `play: true` starts it at once; `ribbon: false` collapses the
+ribbon. The workspace is the built-in preset, not the user's ALT+F2 slot.
+Presenting again while presenting keeps what the first one replaced. Leave
+with `animation.setMode` `off` — the user's panels and ribbon come back, as
+with the play bar's Close. `loaded` is the load report, or null without
+`doc`. `not-ready` when the mode cannot start.
+
+```js
+payload:  { doc: { format: 'tredespace.animation', version: 2, name: 'Pump skid', scenes: [...] }, play: true }
+response: { ok: true, loaded: { ok: true, errors: [], componentConflicts: [] } }
+
+payload:  {}                       // present the open animation, paused
+response: { ok: true, loaded: null }
+```
+
+### animation.setBookmarkButton
+Show (or remove, with `button: null`) a SESSION-ONLY Bookmark button: a big
+button in its own **Bookmark** section of the Animation ribbon. When the user
+clicks it the viewer fires the unsolicited `animation.bookmark` event (see
+Events) with the CURRENT animation attached — the host persists it and later
+hands it back to `animation.present` (or `animation.load`). Never persisted:
+a reload drops it until the host sets it again after `app.ready`.
+
+```js
+payload:  { button: { label: 'Bookmark', tooltip: 'Save this animation to the project' } }
+response: { shown: true }
+
+payload:  { button: null }        // remove the button
+response: { shown: false }
+```
+
+### animation.play
+Play the whole scene (no `scope`, or `{ kind: 'all' }`), a range, or one
+step (`{ kind: 'step', step }` — it plays once and stops at the step's end,
+even when the scene loops). It plays from the time slider when that is
+inside the scope (and before its end), else from the scope's start.
+`not-ready` while animation mode is off; an unknown step is `not-found`.
+
+```js
+payload:  { scope: { kind: 'range', from: 4, to: 12 } }   // or {} for everything
+response: { ok: true }
+```
+
+### animation.pause / animation.continue
+Pause at the current time; continue from a pause or from the end of a step
+that pauses there. A camera the user moved goes back to the camera keys' view
+on continue — unless the user switched Camera keys off (then it stays theirs
+until switched on). `not-ready` while animation mode is off.
+
+```js
+payload:  {}
+response: { ok: true }
+```
+
+### animation.seek
+Move the time slider (seconds). Exact: any time shows the scene playing up to
+it would. `not-ready` while animation mode is off.
+
+```js
+payload:  { time: 31.5 }
+response: { ok: true }
+```
+
+### animation.listScenes
+The scenes of the open animation, in file order, and which one is `active` —
+the one the Timeline shows and Play plays. `duration` is in seconds (its last
+key, step or callout end, or its pinned end). Works with animation mode off.
+
+```js
+payload:  {}
+response: { active: 's4f8k2', scenes: [{ id: 's4f8k2', name: 'Assembly', duration: 90, steps: 12, objects: 34 }, { id: 'sm2k9x', name: 'Maintenance', duration: 40, steps: 5, objects: 6 }] }
+```
+
+### animation.setScene
+Make a scene the active one — the one the Timeline shows and Play plays —
+also with animation mode off. With the mode on, playback stops and the time
+slider goes back to the scene's start; the scene's objects are captured
+again (the other scene's are back where they belong). `animation.stateChanged`
+reports the new `scene`. An unknown id is `not-found`.
+
+```js
+payload:  { id: 'sm2k9x' }
+response: { ok: true, scene: 'sm2k9x' }
+```
+
+### animation.listSteps
+The steps of the active scene in play order.
+
+```js
+payload:  {}
+response: { steps: [{ id: 'st7k2m9q', name: 'Pump', text: 'Lower the pump onto the skid.', start: 4, end: 10.5, pauseAtEnd: true }] }
+```
+
+### animation.playStep
+Play one step and stop at its end (even when the scene loops). `not-ready`
+while animation mode is off; an unknown step is `not-found`.
+
+```js
+payload:  { id: 'st7k2m9q' }
+response: { ok: true }
+```
+
+### animation.gotoStep
+Jump to a step's start, paused there. `not-ready` while animation mode is
+off; an unknown step is `not-found`.
+
+```js
+payload:  { id: 'st7k2m9q' }
+response: { ok: true }
+```
+
+### animation.returnCamera
+Blend the camera back to the camera keys' view after the user moved it (it
+also switches Camera keys back on). `not-ready` while animation mode is
+off.
+
+```js
+payload:  {}
+response: { ok: true }
+```
+
+### animation.getState
+The player's status, time slider, step, camera mode and settings.
+
+```js
+payload:  {}
+response: { status: 'paused', mode: 'playback', scene: 's4f8k2', time: 12.4, duration: 90, step: 'st7k2m9q', camera: 'free', speed: 1, loop: false, pingPong: false }
+```
+
 ## Transports
 
 The envelope/commands above are TRANSPORT-AGNOSTIC — correlation ids do the
@@ -2128,6 +2302,54 @@ tooltips keep matching the keys that actually work. SDK:
 ```js
 { tredespace: 1, id: null, type: 'hotkeys.changed', ok: true,
   payload: { ids: ['transform.undo', 'transform.redo'] } }
+```
+
+### animation.stateChanged
+The animation player changed status (`off`, `stopped`, `playing`, `paused`,
+`waiting` — stopped at the end of a step that pauses there), its camera
+(`follow` / `free`), the active `scene` (the user picked another, or
+`animation.setScene`), or its time slider. Time updates are throttled to
+about four per second, and the last one of a burst is always sent; a status,
+camera or scene change is sent at once — pause, stop, leaving the mode
+(`off`), the user taking the camera. `camera` turns `free` the moment the
+user takes the camera (the player never takes it back on its own). SDK:
+`onAnimationState(handler)`.
+
+```js
+{ tredespace: 1, id: null, type: 'animation.stateChanged', ok: true,
+  payload: { status: 'playing', time: 12.4, step: 'st7k2m9q', camera: 'follow', scene: 's4f8k2' } }
+```
+
+### animation.stepStarted / animation.stepEnded
+The step under the time slider changed — also when seeking. `index` is the
+0-based position in the scene's step order (`animation.listSteps`).
+SDK: `onAnimationStep(handler)` (one handler, `phase: 'started' | 'ended'`).
+
+```js
+{ tredespace: 1, id: null, type: 'animation.stepStarted', ok: true,
+  payload: { id: 'st7k2m9q', name: 'Pump', index: 1 } }
+```
+
+### animation.ended
+Playback reached the end of the scene (playing the whole scene — a step or a
+range played to its end is not the end of the scene; `stateChanged` says
+`stopped` then). SDK: `onAnimationEnded(handler)`.
+
+```js
+{ tredespace: 1, id: null, type: 'animation.ended', ok: true, payload: { scene: 's4f8k2' } }
+```
+
+### animation.bookmark
+The user clicked the host-configured Bookmark button in the Animation ribbon
+(`animation.setBookmarkButton`). The payload carries the button's `label`
+and the CURRENT animation document as Save writes it (overlay designs and
+themes embedded) — persist it host-side; `animation.present` with that `doc`
+plays it back. SDK: `onAnimationBookmark(handler)`.
+
+```js
+{ tredespace: 1, id: null, type: 'animation.bookmark', ok: true,
+  payload: { label: 'Bookmark',
+             doc: { format: 'tredespace.animation', version: 2, name: 'Pump skid', scenes: [ … ], … } } }
 ```
 
 ## External app hosting (Settings → External)

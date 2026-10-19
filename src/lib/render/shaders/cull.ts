@@ -61,7 +61,7 @@ struct CullParams {
   sort_mode: u32,    // 1 = route transparent meshlets to the sorted blend list
   sort_far: f32,     // perspective sort-key range end (view depth from the eye)
   new_cap: u32,      // max meshlets pass 2 may newly draw in one frame (0 = no cap)
-  pad1: f32,
+  cull_moved: u32,   // 1 = rigid-transformed meshlets keep the cone + HZB tests
 };
 
 @group(0) @binding(0) var<storage, read> meshlets: array<u32>;
@@ -255,8 +255,20 @@ fn clip_culled(center: vec3f, radius: f32) -> bool {
   return false;
 }
 
-// skip_cone: transformed meshlets skip the cone test — the cone is in the
-// untransformed frame (same rule as native cull.slang).
+// A committed/animated slot matrix is rigid when its upper 3x3 columns are
+// orthonormal. Only then is the rotated cone exact and the unscaled radius
+// valid for the HZB test — a scale edit keeps the old skip.
+fn is_rigid(t: mat4x4f) -> bool {
+  let c0 = t[0].xyz;
+  let c1 = t[1].xyz;
+  let c2 = t[2].xyz;
+  let unit = abs(dot(c0, c0) - 1.0) < 1e-3 && abs(dot(c1, c1) - 1.0) < 1e-3 && abs(dot(c2, c2) - 1.0) < 1e-3;
+  let ortho = abs(dot(c0, c1)) < 1e-3 && abs(dot(c0, c2)) < 1e-3 && abs(dot(c1, c2)) < 1e-3;
+  return unit && ortho;
+}
+
+// skip_cone: transformed meshlets whose cone could not be carried along skip
+// the cone test — the cone is in the untransformed frame (native cull.slang).
 fn frustum_cone_visible(m: MeshletCull, skip_cone: bool) -> bool {
   for (var p = 0u; p < 6u; p++) {
     if (dot(params.planes[p].xyz, m.center) + params.planes[p].w < -m.radius) {
@@ -340,19 +352,28 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   if (vis[i] == 0u) { return; }
   if (item_hidden(i)) { return; }
   var m = load_meshlet(i);
-  // committed item transform: move the bounding sphere to the transformed
-  // position so frustum/clip tests use the right location (native cull.slang)
+  // committed / animated item transform: move the bounding sphere (and, when
+  // cull_moved is on and the matrix is rigid, rotate the cone) so every test
+  // uses the right location (native cull.slang moved the sphere only)
   let tid = item_transform(i);
+  var moved = false;
   if (tid != 0u) {
-    m.center = (transforms_cull[tid] * vec4f(m.center, 1.0)).xyz;
+    let t = transforms_cull[tid];
+    m.center = (t * vec4f(m.center, 1.0)).xyz;
+    if (params.cull_moved == 1u && is_rigid(t)) {
+      m.axis = mat3x3f(t[0].xyz, t[1].xyz, t[2].xyz) * m.axis;
+    } else {
+      moved = true;
+    }
   }
   // live gizmo-drag preview on top (selected items only, like the VS)
   let live = item_live(i);
   if (live) {
     m.center = (model_uni_cull.global * vec4f(m.center, 1.0)).xyz;
+    moved = true;
   }
   if (clip_culled(m.center, m.radius)) { return; }
-  if (frustum_cone_visible(m, tid != 0u || live)) { emit(m, i); }
+  if (frustum_cone_visible(m, moved)) { emit(m, i); }
 }
 `;
 
@@ -448,22 +469,32 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     return;
   }
   var m = load_meshlet(i);
+  // same transform rules as pass 1 (one params buffer feeds both passes)
   let tid = item_transform(i);
+  var moved = false;
   if (tid != 0u) {
-    m.center = (transforms_cull[tid] * vec4f(m.center, 1.0)).xyz;
+    let t = transforms_cull[tid];
+    m.center = (t * vec4f(m.center, 1.0)).xyz;
+    if (params.cull_moved == 1u && is_rigid(t)) {
+      m.axis = mat3x3f(t[0].xyz, t[1].xyz, t[2].xyz) * m.axis;
+    } else {
+      moved = true;
+    }
   }
   let live = item_live(i);
   if (live) {
     m.center = (model_uni_cull.global * vec4f(m.center, 1.0)).xyz;
+    moved = true;
   }
   if (clip_culled(m.center, m.radius)) {
     vis[i] = 0u;
     return;
   }
-  // transformed meshlets skip the HZB test: the pyramid holds last frame's
-  // depths at the OLD position — testing the moved center against it would
-  // wrongly occlude (same rule as native cull.slang)
-  let moved = tid != 0u || live;
+  // moved meshlets skip the HZB test. With cull_moved on, a RIGID transform
+  // is tested: the pyramid is rebuilt every frame from pass-1 depth rendered
+  // at the CURRENT transforms, so occluders sit where they are now (only the
+  // occluder set is a frame stale, which errs visible). The live gizmo drag
+  // and non-rigid (scaled) slots keep the old skip.
   let visible = frustum_cone_visible(m, moved) && (moved || occlusion_visible(m));
   var drawn = vis[i] == 1u; // already drawn in pass 1, never charged again
   if (visible && !drawn) { drawn = emit_new(m, i); }

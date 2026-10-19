@@ -32,8 +32,8 @@ import { type DbModel, HAS_COLOR_OVERRIDE, IS_HIDDEN, models, NO_PARENT, type St
 import { ensureNames, packStates, updateBuffers } from './hierarchyIndex';
 import {
   allocTransformSlot,
+  COMMITTED_SLOTS,
   resetTransformPool,
-  TRANSFORM_POOL,
   transforms,
   transformsSnapshot,
 } from './transformPool';
@@ -422,7 +422,7 @@ export const snapshotApi = {
             slotForMidx[k] = existing;
             continue;
           }
-          if (poolAllocs >= TRANSFORM_POOL - 1) {
+          if (poolAllocs >= COMMITTED_SLOTS - 1) {
             result.poolExhausted = true;
             continue; // slot stays 0 = identity
           }

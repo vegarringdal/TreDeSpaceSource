@@ -11,6 +11,9 @@
 // point, Space = fly to picked point.
 export type Mat4 = Float32Array;
 
+/** What kind of user input moved the camera (CameraController.onUserInput). */
+export type CameraInputKind = 'orbit' | 'pan' | 'dolly' | 'fly' | 'viewCube' | 'flyTo' | 'touch';
+
 const DEG = Math.PI / 180;
 
 // native CameraConfig::default
@@ -60,6 +63,15 @@ export class CameraController {
   /** Fired on orbit-style input (alt+click, wheel dolly, space+click) — the
    *  app uses it to hop back into orbit mode. */
   onOrbitIntent: (() => void) | null = null;
+  /** Fired on any camera change the app did not make for the animation
+   *  itself — mouse / touch / keys, and programmatic moves too (fit, home,
+   *  viewpoints, set view): the animation player switches from following to a
+   *  free camera. The player's own moves run inside quietly(). */
+  onUserInput: ((kind: CameraInputKind) => void) | null = null;
+  /** >0 while quietly() runs: moves that do not count as the user's */
+  private quietDepth = 0;
+  /** Ignore user input (the animation player's kiosk lock while playing). */
+  inputLocked = false;
   /** Analog inputs from the on-screen touch pads, −1..1.
    *  padMove = [strafe(+right), forward(+fwd)]; padLook = look-around. */
   padMove: [number, number] = [0, 0];
@@ -159,11 +171,13 @@ export class CameraController {
   /** Set the orbit angles directly (no animation) — used for the default
    *  load view. az/el in radians; negative elevation looks down. */
   setView(azimuth: number, elevation: number) {
+    this.reportMove();
     this.azimuth = this.tAz = azimuth;
     this.elevation = this.tEl = elevation;
   }
 
   fit(min: number[], max: number[]) {
+    this.reportMove();
     for (let i = 0; i < 3; i++) {
       this.target[i] = (min[i] + max[i]) / 2;
     }
@@ -175,10 +189,29 @@ export class CameraController {
   /** Instant restore of a full pose (GPU recovery re-seats the camera on a
    *  fresh renderer): no animation, smoothing targets snapped too. */
   setPose(target: readonly [number, number, number], azimuth: number, elevation: number, distance: number) {
+    this.reportMove();
     this.target.set(target);
     this.setView(azimuth, elevation);
     this.orbitDistance = this.tDist = Math.max(distance, 0.05);
     this.anim = null;
+  }
+
+  /** Run camera moves that are not the user's (the animation player
+   *  following its camera keys): onUserInput stays silent. */
+  quietly<T>(fn: () => T): T {
+    this.quietDepth++;
+    try {
+      return fn();
+    } finally {
+      this.quietDepth--;
+    }
+  }
+
+  /** A programmatic move made for the user (fit, viewpoint, set view). */
+  private reportMove(): void {
+    if (this.quietDepth === 0) {
+      this.onUserInput?.('flyTo');
+    }
   }
 
   // Animate to a new pivot/distance keeping azimuth/elevation (native dolly()).
@@ -200,6 +233,10 @@ export class CameraController {
   // View-cube snap: animate to the given azimuth/elevation around the current
   // pivot at the current distance (native ViewCube SnapView).
   snapView(azimuth: number, elevation: number, smoothTime: number) {
+    if (this.inputLocked) {
+      return;
+    }
+    this.onUserInput?.('viewCube');
     this.dolly([this.target[0], this.target[1], this.target[2]], this.orbitDistance, smoothTime);
     if (this.anim) {
       // rotate the SHORT way round: wrap the azimuth delta to (-π, π]
@@ -210,6 +247,10 @@ export class CameraController {
   }
 
   rePivot(point: [number, number, number]) {
+    if (this.inputLocked) {
+      return;
+    }
+    this.onUserInput?.('orbit');
     this.onOrbitIntent?.();
     // Alt+LMB (any nav mode): keep the EYE where it is — move only the orbit
     // pivot to the clicked point, rotating slightly to face it. The camera
@@ -231,6 +272,10 @@ export class CameraController {
   }
 
   flyTo(point: [number, number, number]) {
+    if (this.inputLocked) {
+      return;
+    }
+    this.onUserInput?.('flyTo');
     this.onOrbitIntent?.();
     // Space: fly ~15% of the current distance toward the point (native 0.6 s)
     this.dolly(point, Math.max(this.orbitDistance * 0.15, 0.5), 0.6);
@@ -240,6 +285,7 @@ export class CameraController {
    *  target/distance while rotating the SHORT way to the saved azimuth/
    *  elevation — the same dolly+override pattern as snapView/rePivot. */
   goToPose(target: [number, number, number], azimuth: number, elevation: number, distance: number, smoothTime = 0.5) {
+    this.reportMove();
     this.dolly(target, Math.max(distance, 0.05), smoothTime);
     if (this.anim) {
       const delta = Math.atan2(Math.sin(azimuth - this.azimuth), Math.cos(azimuth - this.azimuth));
@@ -253,6 +299,9 @@ export class CameraController {
     const sprint = this.keys.has('shift') ? SPRINT_MULT : 1;
     const { f, right, up } = this.axes();
 
+    if (this.inputLocked) {
+      this.dropInput();
+    }
     const interacting =
       this.orbitDX !== 0 ||
       this.orbitDY !== 0 ||
@@ -267,6 +316,7 @@ export class CameraController {
     if (interacting) {
       this.anim = null;
       this.lastInputT = performance.now();
+      this.onUserInput?.(this.inputKind());
     }
 
     // wheel: exponential dolly (native update_camera:335-347)
@@ -318,6 +368,7 @@ export class CameraController {
       ady -= 1;
     }
     if (adx !== 0 || ady !== 0) {
+      this.onUserInput?.('pan');
       const step = Math.max(this.orbitDistance, 0.1) * 0.8 * dt * this.keyPanSens;
       for (let i = 0; i < 3; i++) {
         // +right for ArrowRight — matches RMB pan and the vertical arrows (was
@@ -329,7 +380,7 @@ export class CameraController {
     // WASD/QE movement (native move_camera:598-660). A = +right (screen-left).
     // fly: W/S go along the full view direction (dive when looking down).
     // walk: W/S move in the ground plane (Z held) — like walking while your
-    // head (mouse look) turns; E/Q still change height deliberately.
+    // head (mouse look) turns; Q/E still change height deliberately.
     // 'orbit' mode: pure orbit navigation — movement keys and the move pad
     // are ignored so a stray touch can't walk the camera away.
     const orbit = this.navMode === 'orbit';
@@ -376,11 +427,11 @@ export class CameraController {
       if (this.padMove[0] !== 0) {
         add(right, -this.padMove[0]); // left pad: strafe
       }
-      if (this.keys.has('e')) {
-        mv[2] += 1;
-      }
       if (this.keys.has('q')) {
-        mv[2] -= 1;
+        mv[2] += 1; // Q = up
+      }
+      if (this.keys.has('e')) {
+        mv[2] -= 1; // E = down
       }
     }
     const ml = Math.hypot(mv[0], mv[1], mv[2]);
@@ -432,6 +483,33 @@ export class CameraController {
     this.azimuth = settle(this.azimuth, this.tAz);
     this.elevation = settle(this.elevation, this.tEl);
     this.orbitDistance = settle(this.orbitDistance, this.tDist);
+  }
+
+  /** Discard every accumulated input (kiosk lock). */
+  private dropInput() {
+    this.orbitDX = this.orbitDY = this.panDX = this.panDY = this.wheel = 0;
+    this.padMove = [0, 0];
+    this.padLook = [0, 0];
+    for (const k of ['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']) {
+      this.keys.delete(k);
+    }
+  }
+
+  /** The dominant input this frame, for onUserInput. */
+  private inputKind(): CameraInputKind {
+    if (this.touches.size > 0) {
+      return 'touch';
+    }
+    if (this.wheel !== 0) {
+      return 'dolly';
+    }
+    if (this.panDX !== 0 || this.panDY !== 0) {
+      return 'pan';
+    }
+    if (this.orbitDX !== 0 || this.orbitDY !== 0) {
+      return 'orbit';
+    }
+    return 'fly';
   }
 
   get animating(): boolean {

@@ -56,15 +56,15 @@ export function HotkeysDemo() {
   return (
     <Section
       title="Hotkeys"
-      note="The keyboard-shortcut system: a dependency-free engine with a display grammar — A+B together, A B (or A,B) then, [X] hold, digit runs (101), double-taps, modifier-only leaders — plus an app-level registry (hotkeysActions.register) with per-user overrides, localStorage persistence and keymap import/export. The Tooltip widget reads that registry for its shortcut footers. This demo drives a page-local HotkeyEngine; while this tab is open, try the bindings below. They pause while typing in a field — except pure F-key combos, which are never muted — and a muted press that carries Ctrl/Alt/Meta (the ALT+SHIFT leader inside the Grammar playground) is reported through setMutedListener / setHotkeyMutedNotifier instead of silently doing nothing."
-      props={['HotkeyDef', 'Registered', 'Sequence']}
+      note="The keyboard-shortcut system: a dependency-free engine with a display grammar — A+B together, A B (or A,B) then, [X] hold, digit runs (101), double-taps, modifier-only leaders — plus an app-level registry (hotkeysActions.register) with per-user overrides, localStorage persistence and keymap import/export. The Tooltip widget reads that registry for its shortcut footers. This demo drives a page-local HotkeyEngine; while this tab is open, try the bindings below. They pause while typing in a field — a raw engine lets a binding through there only when it sets allowInInput: true (exempting pure F-key combos by default is the registry's job) — and a muted press that carries Ctrl/Alt/Meta (the ALT+SHIFT leader inside the Grammar playground) is reported through setMutedListener / setHotkeyMutedNotifier instead of silently doing nothing."
+      props={['HotkeyDef', 'HotkeyInfo', 'MutedHotkey', 'Registered', 'Sequence']}
       code={`import { formatSequence, hotkeysActions, setHotkeyMutedNotifier } from '@tredespace/ui/hotkeys';
 import { toast } from '@tredespace/ui/widgets';
 
 hotkeysActions.register([
   {
     id: 'view.fit', category: 'View', label: 'Fit view',
-    description: 'Frame the whole model', defaultKeys: 'Z Z',
+    description: 'Frame the whole model.', defaultKeys: 'Z Z',
     run: () => fitView(),
   },
 ]);

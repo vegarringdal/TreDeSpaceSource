@@ -150,7 +150,22 @@ function installPageHelpers() {
     }
     return null;
   };
-  window.__doc = { find, rectOf, panelFrame, leftSplitter, sectionOf };
+  /** Centre of the horizontal splitter on the top edge of panel `id`'s stack. */
+  const topSplitter = (id) => {
+    const stack = document.querySelector(`.dock-panel[data-panel="${id}"]`)?.closest('section.dock-tabs');
+    const r = stack?.getBoundingClientRect();
+    if (!r) {
+      return null;
+    }
+    for (const sp of document.querySelectorAll('.dock-splitter')) {
+      const b = sp.getBoundingClientRect();
+      if (b.width > b.height && Math.abs(b.bottom - r.top) < 8 && b.left <= r.left + 1 && b.right >= r.right - 1) {
+        return { x: r.left + r.width / 2, y: b.top + b.height / 2 };
+      }
+    }
+    return null;
+  };
+  window.__doc = { find, rectOf, panelFrame, leftSplitter, topSplitter, sectionOf };
 }
 
 // -----------------------------------------------------------------------------
@@ -231,6 +246,21 @@ function makeContext(page, data, seen) {
       await page.mouse.move(at.x, at.y);
       await page.mouse.down();
       await page.mouse.move(at.x - (width - frame.w), at.y, { steps: 8 });
+      await page.mouse.up();
+      await page.mouse.move(1, 1);
+      await sleep(UI_SETTLE_MS);
+    },
+
+    /** Drag the splitter above panel `id`'s stack so it is `height` px tall. */
+    async heighten(id, height) {
+      const at = await page.evaluate((i) => window.__doc.topSplitter(i), id);
+      const frame = await page.evaluate((i) => window.__doc.panelFrame(i), id);
+      if (!at || !frame) {
+        throw new Error(`docs-shots: no splitter above ${id}`);
+      }
+      await page.mouse.move(at.x, at.y);
+      await page.mouse.down();
+      await page.mouse.move(at.x, at.y - (height - frame.h), { steps: 8 });
       await page.mouse.up();
       await page.mouse.move(1, 1);
       await sleep(UI_SETTLE_MS);

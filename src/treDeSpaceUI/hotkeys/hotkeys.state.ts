@@ -21,7 +21,9 @@ export function setHotkeyAnnouncer(fn: ((message: string) => void) | null) {
 /** A shortcut the user completed inside a text field where it is muted (not
  *  `allowInInput`): the keys typed as usual and nothing ran. */
 export interface MutedHotkey {
+  /** The shortcut's id. */
   id: string;
+  /** Its label (for the "nothing happened" note). */
   label: string;
   /** the combo that was pressed, in display grammar */
   keys: string;
@@ -40,27 +42,53 @@ export function setHotkeyMutedNotifier(fn: ((hit: MutedHotkey) => void) | null) 
 
 /** A shortcut definition (metadata + default + action). Registered at boot. */
 export interface HotkeyDef {
-  id: string; // stable dotted id, e.g. "transform.undo"
-  category: string; // UI group — one collapsible panel per category
+  /** Stable dotted id, e.g. "transform.undo" — what `shortcut=` props, `run(id)`
+   *  and saved overrides reference; renaming one breaks every caller. */
+  id: string;
+  /** UI group — one collapsible settings section per category. */
+  category: string;
+  /** Short name: the settings row and the "⌨ label · combo" announcement. */
   label: string;
+  /** One or two sentences ending with a period — the tooltip body of any
+   *  control with this `shortcut` and no tooltip of its own, and the settings
+   *  text. */
   description: string;
-  defaultKeys: string; // default combo in display grammar, e.g. "ALT 101"
+  /** Default combo in display grammar, e.g. "CTRL+Z" or "ALT 101". */
+  defaultKeys: string;
+  /** The action. Fire-and-forget. */
   run: () => void;
-  allowInInput?: boolean; // default: true for a pure F-key combo, else false; user-overridable
-  timeout?: number; // ms between steps for THIS shortcut
-  context?: () => boolean; // extra guard — must return true for the shortcut to fire
+  /** Fire even while a text field has focus. Default: true when the LIVE
+   *  combo is all F1–F12, else false; the user's override wins. */
+  allowInInput?: boolean;
+  /** ms allowed between the steps of THIS sequence (default 1500). */
+  timeout?: number;
+  /** Extra guard, checked at every key step: while it returns false the
+   *  binding is out of the match and its keys reach the page as usual. */
+  context?: () => boolean;
+  /** 'press' (default) fires on keydown. 'tap' fires on key-up of a single
+   *  combo, only if no other key, pointer press or wheel happened while it
+   *  was held and it was held no longer than `tapMaxMs` — so a key that is
+   *  also a held modifier (Space+click) keeps that meaning. */
+  trigger?: 'press' | 'tap';
+  /** ms a tap may be held before it counts as a hold (default 1000) */
+  tapMaxMs?: number;
 }
 
 /** One shortcut as plain data — what a settings panel, a command palette or
  *  a host API shows: the def's metadata plus the LIVE combo (`keys`, the
  *  user's override when there is one). From `hotkeysActions.list()`. */
 export interface HotkeyInfo {
+  /** As on the HotkeyDef. */
   id: string;
+  /** As on the HotkeyDef. */
   category: string;
+  /** As on the HotkeyDef. */
   label: string;
+  /** As on the HotkeyDef. */
   description: string;
   /** effective combo in display grammar, e.g. "ALT 101" */
   keys: string;
+  /** The def's default combo (display grammar). */
   defaultKeys: string;
   /** true when the user has overridden anything on this shortcut */
   isCustom: boolean;
@@ -133,6 +161,8 @@ function rebuild() {
       timeout: overrides[d.id]?.timeout ?? d.timeout,
       allowInInput: allowsInput(d, sequence, overrides[d.id]),
       context: d.context,
+      trigger: d.trigger,
+      tapMaxMs: d.tapMaxMs,
     };
   });
   engine.setBindings(list);

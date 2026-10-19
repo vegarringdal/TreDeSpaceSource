@@ -1,4 +1,4 @@
-import { DatePicker, type DateRange } from '@treDeSpaceUI/widgets';
+import { DatePicker, type DateRange, Labelled } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { Section } from './Section';
 
@@ -18,18 +18,24 @@ export function DatePickerDemo() {
     useState<DateRange>({ start: null, end: null });
   return (
     <>
-      <DatePicker value={date} onChange={setDate} />
+      <Labelled label="Due" labelPosition="left">
+        <DatePicker value={date} onChange={setDate} />
+      </Labelled>
       <DatePicker range value={range} onChange={setRange} />
     </>
   );
 }`}
     >
-      <label className="mb-1 block text-slate-400 text-xs">Any date — {date ?? 'nothing picked'}</label>
-      <DatePicker className="max-w-56" value={date} onChange={setDate} />
-      <label className="mt-3 mb-1 block text-slate-400 text-xs">Bounded to 2026-08-10 … 2026-09-15</label>
-      <DatePicker className="max-w-56" min="2026-08-10" max="2026-09-15" value={bounded} onChange={setBounded} />
-      <label className="mt-3 mb-1 block text-slate-400 text-xs">Range — click start, then end</label>
-      <DatePicker range className="max-w-72" value={range} onChange={setRange} />
+      {/* the pickers take no label props — Labelled puts one in a form row */}
+      <Labelled label={`Any date — ${date ?? 'nothing picked'}`}>
+        <DatePicker className="max-w-56" value={date} onChange={setDate} />
+      </Labelled>
+      <Labelled className="mt-3" label="Bounded to 2026-08-10 … 2026-09-15">
+        <DatePicker className="max-w-56" min="2026-08-10" max="2026-09-15" value={bounded} onChange={setBounded} />
+      </Labelled>
+      <Labelled className="mt-3" label="Range — click start, then end">
+        <DatePicker range className="max-w-72" value={range} onChange={setRange} />
+      </Labelled>
     </Section>
   );
 }

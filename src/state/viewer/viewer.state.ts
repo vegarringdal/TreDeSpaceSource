@@ -43,6 +43,9 @@ export interface ViewerState {
   fastAA: boolean; // accumulation TAA
   msaa4x: boolean;
   freezeCull: boolean;
+  /** Cull upgrade (DESIGN.md › Animation): rigid-transformed and animated meshlets
+   *  keep the cone + HZB occlusion tests instead of always drawing in-frustum. */
+  cullMoved: boolean;
   /** Render scale (canvas px per CSS px). Ignored when useDevicePixelRatio. */
   pixelRatio: number;
   /** Follow window.devicePixelRatio instead of the fixed pixelRatio. */
@@ -213,6 +216,7 @@ export const initialViewerState: ViewerState = {
   fastAA: false,
   msaa4x: true,
   freezeCull: false,
+  cullMoved: false,
   pixelRatio: 1,
   useDevicePixelRatio: false,
   smartPixelRatio: true,

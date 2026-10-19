@@ -17,21 +17,30 @@ export function SmallPartsDemo() {
 
   return (
     <Section
-      title="Link / Swatch / Spinner / CopyButton / Vec3Input"
-      note="The small single-purpose parts. Link gives every out-of-app link one look (new tab, noreferrer). Swatch is a colour chip — clickable in a palette, static as a read-out. Spinner and ProgressBar are the busy indicators the loading dialog is built from. CopyButton owns its own “Copied” confirmation, so no panel hand-rolls that timer. Vec3Input is three steppers on one row for a point, a size or an axis."
+      title="Link / Swatch / Spinner / ProgressBar / CopyButton / Vec3Input"
+      note="The small single-purpose parts. Link gives every out-of-app link one look (new tab, noreferrer). Swatch is a colour chip — clickable in a palette, static as a read-out. Spinner and ProgressBar are the busy indicators the loading dialog is built from. CopyButton owns its own “Copied” confirmation, so no panel hand-rolls that timer. Vec3Input is three steppers on one row for a point, a size or an axis — `step` (default 0.5), `min` / `max`, `unit` and per-axis `tooltips` apply across the row."
       props={['LinkProps', 'SwatchProps', 'SpinnerProps', 'ProgressBarProps', 'CopyButtonProps', 'Vec3InputProps']}
-      code={`function ShapeEditor({ shape, onChange }) {
+      code={`const PALETTE = ['#e11d48', '#f59e0b', '#22c55e', '#3b82f6'];
+
+type Shape = { center: Vec3; color: string };
+
+function ShapeEditor({ shape, onChange }: { shape: Shape; onChange: (patch: Partial<Shape>) => void }) {
   return (
     <>
-      <Vec3Input label="Center" value={shape.center}
-        onChange={(center) => onChange({ center })} />
+      <Vec3Input label="Center" unit="m" tooltips={['Center X', 'Center Y', 'Center Z']}
+        value={shape.center} onChange={(center) => onChange({ center })} />
       <div className="flex gap-1">
         {PALETTE.map((c) => (
-          <Swatch key={c} color={c} active={c === shape.color}
+          <Swatch key={c} color={c} tooltip={c} active={c === shape.color}
             onClick={() => onChange({ color: c })} />
         ))}
       </div>
       <CopyButton value={() => JSON.stringify(shape)}>Copy JSON</CopyButton>
+      {/* busy: a spinner, a bar at 40 %, an indeterminate sweep */}
+      <Spinner />
+      <ProgressBar value={0.4} />
+      <ProgressBar />
+      <Link href="https://example.com/docs">Read the docs</Link>
     </>
   );
 }`}

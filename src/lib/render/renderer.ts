@@ -19,6 +19,7 @@
 
 import { projectToScreen } from '../math/project';
 import type { PackedModel } from '../model/pack';
+import { SLOT_FLOATS, TRANSFORM_POOL } from '../modeldb/transformPoolLayout';
 import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
 
 /** what the GPU upload needs — the worker keeps itemBounds for itself */
@@ -47,7 +48,8 @@ function emptyPack(itemCount: number): GpuPackedModel {
 }
 
 /** A worker StateUpdate as the renderer needs it (structural; no modeldb import). */
-export type ItemStateUpdate = { model: number; states: Uint32Array; transparent: boolean };
+/** Item states (3 words per item) from item `first` on (absent: 0). */
+export type ItemStateUpdate = { model: number; states: Uint32Array; transparent: boolean; first?: number };
 
 /** Any colour group with baked alpha below 1 — the model's initial
  *  `transparent` before its first state update (a fresh model has no
@@ -529,6 +531,7 @@ export class Renderer {
     darkThr: 0.07,
     darkFloor: 0, // render pure-black material colours at this unlit luma (0 = off)
     freezeCull: false, // keep last cull results, camera stays live
+    cullMoved: false, // rigid-transformed meshlets keep cone + HZB tests (DESIGN.md › Animation, D21)
     debugBuf: 0, // 0 off, 1 normal, 2 depth, 3 item id, 4 raw edge, 5 ao
     aoMode: 0, // 0 off, 1 motion (every frame), 2 static (accumulate at rest)
     aoRadius: 0.8, // world-space sampling radius (m)
@@ -722,9 +725,17 @@ export class Renderer {
   // until TAA/AO have fully accumulated — only then is the presented swapchain
   // (post output: edges, AA, AO, view cube) copied. What you see is what you get.
   private pendingSnap: ((img: { w: number; h: number; rgba: Uint8ClampedArray }) => void) | null = null;
-  snapshot(): Promise<{ w: number; h: number; rgba: Uint8ClampedArray }> {
+  /** the pending snapshot takes the next presented frame, converged or not */
+  private snapAnyFrame = false;
+  /** `anyFrame`: capture the next presented frame without waiting for
+   *  TAA / AO to converge (draft video frames). */
+  snapshot(opts: { anyFrame?: boolean } = {}): Promise<{ w: number; h: number; rgba: Uint8ClampedArray }> {
+    this.snapAnyFrame = !!opts.anyFrame;
     return new Promise((res) => (this.pendingSnap = res));
   }
+
+  /** Leave the view cube out of the presented frame (video export). */
+  hideViewCube = false;
 
   // Extra render-resolution multiplier for a hi-res snapshot, applied ON TOP of
   // dpr in frame(). Kept OUT of `options` on purpose — viewport.ts's per-frame
@@ -738,6 +749,20 @@ export class Renderer {
    *  render — just more pixels — so the result stays anti-aliased. Never
    *  downscales below the current render resolution. The continuous rAF loop
    *  resizes to the new scale next frame and back once it's restored. */
+  /** Render so the long edge has ~`longEdge` px until called with null
+   *  (video export: one size for every frame instead of a resize per
+   *  snapshot). Never below the current render resolution. */
+  holdCaptureSize(longEdge: number | null): void {
+    if (longEdge === null) {
+      this.captureScale = 1;
+      return;
+    }
+    const canvas = this.hostCanvas;
+    const longCss = Math.max(canvas.clientWidth, canvas.clientHeight) || 1;
+    const target = Math.min(longEdge, this.device.limits.maxTextureDimension2D);
+    this.captureScale = Math.max(1, target / (longCss * this.dpr));
+  }
+
   async snapshotHiRes(targetLongEdge = 3840): Promise<{ w: number; h: number; rgba: Uint8ClampedArray }> {
     const canvas = this.hostCanvas;
     const longCss = Math.max(canvas.clientWidth, canvas.clientHeight) || 1;
@@ -910,6 +935,12 @@ export class Renderer {
   /** Helper line list: [x, y, z, colorBits(f32-bitcast)] per vertex, pairs.
    *  `key` identifies the content (default: the joined values — pass a cheap
    *  one for big lists); an unchanged key skips the upload and keeps AA. */
+  /** Are these helper lines (by key) already uploaded? — lets a caller skip
+   *  building the vertex array every frame. */
+  hasHelperLines(key: string): boolean {
+    return key === this.lastLineKey;
+  }
+
   setHelperLines(verts: Float32Array, key = verts.join(',')) {
     if (key === this.lastLineKey) {
       return;
@@ -1074,11 +1105,12 @@ export class Renderer {
       size: 1040, // ClipData in shaders.ts (planes + mask + 8 tagged-union shapes; slot 0 = default box)
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // committed item-transform pool (mat4 slots, worker TRANSFORM_POOL);
-    // slot 0 = identity, shared by every model's render + cull bind groups
+    // item-transform pool (mat4 slots, transformPoolLayout.ts — committed
+    // edits below the animation band, animation playback inside it); slot 0 =
+    // identity, shared by every model's render + cull bind groups
     this.transformsBuf = dev.createBuffer({
       label: 'transformsBuf',
-      size: 4096 * 64,
+      size: TRANSFORM_POOL * SLOT_FLOATS * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
     dev.queue.writeBuffer(this.transformsBuf, 0, new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
@@ -1926,7 +1958,12 @@ export class Renderer {
     // what the GPU sees (a lagging gate would route glass to a list nobody
     // scans — one frame of vanished items)
     m.transparent = u.transparent;
-    this.device.queue.writeBuffer(m.itemStateBuf, 0, u.states, 0, Math.min(u.states.length, m.itemCount * 3));
+    const first = u.first ?? 0;
+    if (first >= m.itemCount) {
+      return;
+    }
+    const words = Math.min(u.states.length, (m.itemCount - first) * 3);
+    this.device.queue.writeBuffer(m.itemStateBuf, first * 12, u.states, 0, words);
     if (!quiet) {
       this.stateVersion++; // re-render even when idle
     }
@@ -1947,11 +1984,30 @@ export class Renderer {
     this.stateVersion++;
   }
 
-  /** Upload the used region of the worker's transform pool (mat4 slots). */
+  /** Upload the used region of the worker's transform pool (mat4 slots). The
+   *  worker's snapshot never reaches the animation band, but the hook still
+   *  fires so the animation player can re-assert its slots after any upload. */
   writeTransforms(pool: Float32Array) {
-    this.device.queue.writeBuffer(this.transformsBuf, 0, pool, 0, Math.min(pool.length, 4096 * 16));
+    this.device.queue.writeBuffer(this.transformsBuf, 0, pool, 0, Math.min(pool.length, TRANSFORM_POOL * SLOT_FLOATS));
+    this.stateVersion++;
+    this.onTransformsUploaded?.();
+  }
+
+  /** Partial upload: `data.length / 16` slots starting at `firstSlot` (the
+   *  animation band, written every playback frame). */
+  writeTransformSlots(firstSlot: number, data: Float32Array) {
+    const first = Math.max(0, Math.min(firstSlot, TRANSFORM_POOL));
+    const count = Math.min(data.length, (TRANSFORM_POOL - first) * SLOT_FLOATS);
+    if (count <= 0) {
+      return;
+    }
+    this.device.queue.writeBuffer(this.transformsBuf, first * SLOT_FLOATS * 4, data, 0, count);
     this.stateVersion++;
   }
+
+  /** Called after every writeTransforms() — the animation player re-applies
+   *  its band here (DESIGN.md › Animation › Engine). */
+  onTransformsUploaded: (() => void) | null = null;
 
   /** Live (non-tombstoned) models for export UIs — indices align with the worker. */
   liveModels(): { index: number; name: string }[] {
@@ -2774,7 +2830,7 @@ export class Renderer {
     this.wasMoving = moving;
     const key =
       `${vpKey};${pxCut};${opt.meshletVis};${opt.protectDist};` +
-      `${opt.fastAA};${opt.msaa4x};${opt.freezeCull};` +
+      `${opt.fastAA};${opt.msaa4x};${opt.freezeCull};${opt.cullMoved};` +
       `${opt.geoEdges};${opt.itemEdges};${opt.sketch};${opt.edgeColor.join(',')};${opt.fadeExp};` +
       `${opt.depthThr};${opt.normalThr};${opt.whiteOnDark};${opt.darkThr};${opt.darkFloor};${opt.debugBuf};` +
       `${opt.smoothDepthThr};${opt.smoothNormalThr};${opt.smoothFadeExp};` +
@@ -2999,6 +3055,7 @@ export class Renderer {
       new Uint32Array(params)[56] = sortActive ? 1 : 0;
       pf[57] = this.sortFar(eye);
       new Uint32Array(params)[58] = Math.max(0, Math.floor(opt.newMeshletCap));
+      new Uint32Array(params)[59] = opt.cullMoved ? 1 : 0;
       dev.queue.writeBuffer(this.paramsBuf, 0, params);
     }
 
@@ -3390,15 +3447,17 @@ export class Renderer {
     }
 
     // view cube on top of the finished frame (after post so TAA never smears it)
-    this.viewCube.draw(
-      enc,
-      swapView,
-      canvas,
-      this.format,
-      this.dpr * this.captureScale,
-      !!(this.options.msaa4x || this.options.fastAA),
-      this.timings,
-    );
+    if (!this.hideViewCube) {
+      this.viewCube.draw(
+        enc,
+        swapView,
+        canvas,
+        this.format,
+        this.dpr * this.captureScale,
+        !!(this.options.msaa4x || this.options.fastAA),
+        this.timings,
+      );
+    }
 
     const pickJob = this.encodeDepthPick(enc, dev);
 
@@ -3577,9 +3636,10 @@ export class Renderer {
     swapTex: GPUTexture,
   ): (() => void) | null {
     let snapJob: (() => void) | null = null;
-    if (this.pendingSnap && ready) {
+    if (this.pendingSnap && (ready || this.snapAnyFrame)) {
       const resolve = this.pendingSnap;
       this.pendingSnap = null;
+      this.snapAnyFrame = false;
       const rowBytes = Math.ceil((canvas.width * 4) / 256) * 256;
       const snapBuf = dev.createBuffer({
         label: 'snapBuf',

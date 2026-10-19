@@ -164,6 +164,9 @@
 //   'instance.changed'           — the shared instance-data blob changed
 //   'viewpoints.bookmark'        — user clicked the host bookmark button
 //                                  (onViewpointsBookmark; config attached)
+//   'animation.bookmark'         — user clicked the host Bookmark button in
+//                                  the Animation ribbon (onAnimationBookmark;
+//                                  the animation doc attached)
 //   'theme.changed'              — viewer theme switched, from any route
 //                                  (onThemeChanged) — restyle your frames
 //   'dialog.changed'             — an external dialog or panel opened / was
@@ -205,6 +208,10 @@
 //     onViewpointsBookmark fires with the config blob → persist it; restore
 //     later with viewpointsSet(config) or a hosted file via viewpointsSetUrl
 //     (showViewer:true docks the presentation panel).
+//   Animation bookmarks:  animationSetBookmarkButton({label}) → user clicks →
+//     onAnimationBookmark fires with the animation doc → persist it; present
+//     it later with animationPresent({ doc, play: true }) (loads it, plays it
+//     back in the Present workspace with the floating play bar).
 //   Context-dependent UI: externalAppsSet([...]) after ready() installs
 //     SESSION-ONLY entries in the viewer's External ribbon (never persisted —
 //     re-set them after every app.ready).
@@ -593,6 +600,8 @@ export interface RenderingSettings {
   fpsLimit: number;
   /** debug: stop updating the cull result */
   freezeCull: boolean;
+  /** moved / animated items keep the back-face and occlusion tests (rigid moves only) */
+  cullMoved: boolean;
   /** metres around the camera never pixel-culled */
   protectDist: number;
   /** pixel-size cut while the camera moves (px) */
@@ -1181,6 +1190,113 @@ export interface ViewpointsConfig {
   viewpoints: unknown[];
 }
 
+/** What `animationLoad` reports: overlay designs whose version in the doc
+ *  differs from the viewer's library (the library copy is kept). */
+export interface AnimationLoadReport {
+  ok: boolean;
+  errors: string[];
+  componentConflicts: { id: string; fileVersion: number; libraryVersion: number }[];
+}
+
+/** Options of {@link TredespaceClient.animationPresent}. */
+export interface AnimationPresentOptions {
+  /** an animation document to load first (as `animationLoad` takes it);
+   *  absent = present the one that is open */
+  doc?: Record<string, unknown>;
+  /** the scene id to present (absent = the active scene) */
+  scene?: string;
+  /** start playing at once (default false: it waits for the play bar) */
+  play?: boolean;
+  /** keep the Animation ribbon open above the 3D view (default true) */
+  ribbon?: boolean;
+}
+
+/** Result of {@link TredespaceClient.animationPresent}. */
+export interface AnimationPresentResult {
+  ok: boolean;
+  /** the load report when `doc` was given, else null */
+  loaded: AnimationLoadReport | null;
+}
+
+/** Payload of the unsolicited `animation.bookmark` event — fired when the
+ *  user clicks the host-configured Bookmark button in the Animation ribbon.
+ *  Carries the CURRENT animation (as Save writes it, overlay designs
+ *  embedded) — hand it back to `animationPresent({ doc })` or
+ *  `animationLoad(doc)` to restore it. */
+export interface AnimationBookmarkEvent {
+  /** the configured button label */
+  label: string;
+  doc: Record<string, unknown>;
+}
+
+/** What the animation player plays: the whole scene, a time range, or one
+ *  step (it stops at the step's end). */
+export type AnimationPlayScope =
+  | { kind: 'all' }
+  | { kind: 'range'; from: number; to: number }
+  | { kind: 'step'; step: string };
+
+/** One step of the active scene: a named span whose card shows while it runs. */
+export interface AnimationStepInfo {
+  id: string;
+  name: string;
+  /** the step's text (its card shows it) */
+  text: string;
+  /** scene seconds */
+  start: number;
+  end: number;
+  /** playback waits at its end */
+  pauseAtEnd: boolean;
+}
+
+/** One scene of the open animation (`animationListScenes`). */
+export interface AnimationSceneInfo {
+  id: string;
+  name: string;
+  /** seconds: its last key, step or callout end, or its pinned end */
+  duration: number;
+  /** how many steps and objects it has */
+  steps: number;
+  objects: number;
+}
+
+/** The animation player's state (`animationGetState`). */
+export interface AnimationPlayerState {
+  status: 'off' | 'stopped' | 'playing' | 'paused' | 'waiting';
+  mode: 'off' | 'playback' | 'author';
+  scene: string | null;
+  time: number;
+  duration: number;
+  step: string | null;
+  camera: 'follow' | 'free';
+  speed: number;
+  loop: boolean;
+  pingPong: boolean;
+}
+
+/** Payload of `animation.stateChanged` — the animation player's status,
+ *  time and camera mode (throttled to ~4 per second while playing; a status
+ *  change is always sent). */
+export interface AnimationStateEvent {
+  status: 'off' | 'stopped' | 'playing' | 'paused' | 'waiting';
+  /** the time slider, scene seconds */
+  time: number;
+  /** step id at the time slider, or null */
+  step: string | null;
+  /** 'free' once the user moved the camera during playback */
+  camera: 'follow' | 'free';
+  /** the active scene's id (the one the Timeline shows and Play plays) */
+  scene: string | null;
+}
+
+/** Payload of `animation.stepStarted` / `animation.stepEnded`. */
+export interface AnimationStepEvent {
+  id: string;
+  name: string;
+  /** 0-based position in the scene's step order */
+  index: number;
+}
+
 /** Payload of the unsolicited `viewpoints.bookmark` event — fired when the
  *  user clicks the host-configured bookmark button in the Viewpoints panel.
  *  Carries the CURRENT config so no follow-up `viewpointsGet` is needed. */
@@ -1664,6 +1780,11 @@ export interface TredespaceEventMap {
   'sql.table:progress': { rows: number };
   'custom.event': CustomEventPayload;
   'custom.clients.changed': ClientsChangedEvent;
+  'animation.stateChanged': AnimationStateEvent;
+  'animation.stepStarted': AnimationStepEvent;
+  'animation.stepEnded': AnimationStepEvent;
+  'animation.ended': { scene: string };
+  'animation.bookmark': AnimationBookmarkEvent;
   'client.closed': ClientClosedEvent;
   'relay.changed': RelayChangedEvent;
 }
@@ -2748,6 +2869,156 @@ export class TredespaceClient {
    *  `viewpointsSetBookmarkButton`). Returns an unsubscribe function. */
   onViewpointsBookmark(handler: (e: ViewpointsBookmarkEvent) => void, opts?: SubscribeOptions): () => void {
     return this.on('viewpoints.bookmark', (payload) => handler(payload as ViewpointsBookmarkEvent), opts);
+  }
+
+  // ── animation player ──────────────────────────────────────────────────────
+  /** Load an animation document (the `*.tdanim.json` object — format
+   *  `tredespace.animation`, version 2). It is validated strictly before
+   *  anything changes (wrong types reject the load and nothing changes, the
+   *  mode included; overlay content is checked: no HTML/CSS, `data:` images
+   *  only); a good one replaces the open animation without asking. Animation
+   *  mode is left first; enter it again with `animationSetMode`. Overlay
+   *  designs that differ from the viewer's own library are reported, not
+   *  adopted. */
+  animationLoad(doc: Record<string, unknown>): Promise<Result<AnimationLoadReport>> {
+    return this.send('animation.load', { doc });
+  }
+
+  /** The open animation document, with the overlay designs and themes it
+   *  uses embedded — save it, or load it into another viewer. */
+  animationGet(): Promise<Result<{ doc: Record<string, unknown> }>> {
+    return this.send('animation.get', {});
+  }
+
+  /** Enter animation mode — `playback` (play only) or `author` — optionally
+   *  on a given scene, or leave it (`off`: every animated item goes back to
+   *  where it was; while presenting, the user's panels come back too). */
+  animationSetMode(mode: 'off' | 'playback' | 'author', scene?: string): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.setMode', scene === undefined ? { mode } : { mode, scene });
+  }
+
+  /** Present an animation: optionally load `doc` first, then play it back
+   *  in the Present workspace — the 3D view alone with the floating play bar
+   *  (step title, previous / next step, play / pause) — on the active scene
+   *  or `scene`, playing at once with `play: true`. One call from an
+   *  animation file (or a bookmark's doc) to a running presentation; a bad
+   *  doc or an unknown scene changes nothing. Leave it with
+   *  `animationSetMode('off')` — the user's panels come back. */
+  animationPresent(opts: AnimationPresentOptions = {}): Promise<Result<AnimationPresentResult>> {
+    return this.send('animation.present', { ...opts });
+  }
+
+  /** Show (or remove, with null) a SESSION-ONLY Bookmark button — a big
+   *  button in its own Bookmark section of the Animation ribbon. When the
+   *  user clicks it the viewer fires the unsolicited `animation.bookmark`
+   *  event with the current animation attached — subscribe with
+   *  `onAnimationBookmark` and persist it; `animationPresent({ doc })`
+   *  brings it back. Never persisted: re-set it after every `app.ready`. */
+  animationSetBookmarkButton(button: { label: string; tooltip?: string } | null): Promise<Result<{ shown: boolean }>> {
+    return this.send('animation.setBookmarkButton', { button });
+  }
+
+  /** Subscribe to the animation Bookmark button's clicks (see
+   *  `animationSetBookmarkButton`). Returns an unsubscribe function. */
+  onAnimationBookmark(handler: (e: AnimationBookmarkEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('animation.bookmark', (payload) => handler(payload as AnimationBookmarkEvent), opts);
+  }
+
+  /** Play — the whole scene (no scope), a time range, or one step (it plays
+   *  once and stops at its end). It plays from the time slider when that is
+   *  inside the scope, else from the scope's start. */
+  animationPlay(scope?: AnimationPlayScope): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.play', scope === undefined ? {} : { scope });
+  }
+
+  /** Pause at the current time (the scene stays at its animated pose). */
+  animationPause(): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.pause', {});
+  }
+
+  /** Continue from a pause or the end of a step that pauses there; a camera
+   *  the user moved goes back to the camera keys' view (not when they
+   *  switched Camera keys off). */
+  animationContinue(): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.continue', {});
+  }
+
+  /** Move the time slider (seconds). Seeking is exact: any time shows the
+   *  same scene as playing up to it. */
+  animationSeek(time: number): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.seek', { time });
+  }
+
+  /** The scenes of the open animation, in file order, and which one is
+   *  `active` — the one the Timeline shows and Play plays. Works with
+   *  animation mode off. */
+  animationListScenes(): Promise<Result<{ active: string | null; scenes: AnimationSceneInfo[] }>> {
+    return this.send('animation.listScenes', {});
+  }
+
+  /** Make scene `id` the active one — the one the Timeline shows and Play
+   *  plays (with animation mode off too). With the mode on, playback stops
+   *  and the time slider goes back to the scene's start. An unknown id is
+   *  `not-found`. */
+  animationSetScene(id: string): Promise<Result<{ ok: boolean; scene: string }>> {
+    return this.send('animation.setScene', { id });
+  }
+
+  /** The steps of the active scene in play order, with their spans. */
+  animationListSteps(): Promise<Result<{ steps: AnimationStepInfo[] }>> {
+    return this.send('animation.listSteps', {});
+  }
+
+  /** Play one step and stop at its end (even when the scene loops). */
+  animationPlayStep(id: string): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.playStep', { id });
+  }
+
+  /** Jump to a step's start, paused there. */
+  animationGotoStep(id: string): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.gotoStep', { id });
+  }
+
+  /** Blend the camera back to the camera keys' view after the user moved it. */
+  animationReturnCamera(): Promise<Result<{ ok: boolean }>> {
+    return this.send('animation.returnCamera', {});
+  }
+
+  /** The player's status, time, step, camera mode and settings. */
+  animationGetState(): Promise<Result<AnimationPlayerState>> {
+    return this.send('animation.getState', {});
+  }
+
+  /** Subscribe to the animation player's status / time / camera mode /
+   *  active scene (`animation.stateChanged`). Returns an unsubscribe
+   *  function. */
+  onAnimationState(handler: (e: AnimationStateEvent) => void, opts?: SubscribeOptions): () => void {
+    return this.on('animation.stateChanged', (payload) => handler(payload as AnimationStateEvent), opts);
+  }
+
+  /** Subscribe to steps starting and ending under the time slider
+   *  (`animation.stepStarted` / `animation.stepEnded`). Returns one
+   *  unsubscribe function for both. */
+  onAnimationStep(
+    handler: (e: AnimationStepEvent & { phase: 'started' | 'ended' }) => void,
+    opts?: SubscribeOptions,
+  ): () => void {
+    const a = this.on(
+      'animation.stepStarted',
+      (p) => handler({ ...(p as AnimationStepEvent), phase: 'started' }),
+      opts,
+    );
+    const b = this.on('animation.stepEnded', (p) => handler({ ...(p as AnimationStepEvent), phase: 'ended' }), opts);
+    return () => {
+      a();
+      b();
+    };
+  }
+
+  /** Subscribe to the end of the scene (`animation.ended`). Returns an
+   *  unsubscribe function. */
+  onAnimationEnded(handler: (e: { scene: string }) => void, opts?: SubscribeOptions): () => void {
+    return this.on('animation.ended', (p) => handler(p as { scene: string }), opts);
   }
 
   // ── external dialogs (open external-app modals) ───────────────────────────

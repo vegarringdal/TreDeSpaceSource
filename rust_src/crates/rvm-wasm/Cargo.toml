@@ -2,6 +2,7 @@
 name = "rvm-wasm"
 version = "0.2.0"
 edition = "2024"
+license = "MIT"
 description = "WebAssembly shell for rvm2glb: RVM → GLB in the browser (Worker + OPFS)"
 
 [lib]

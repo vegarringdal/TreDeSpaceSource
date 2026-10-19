@@ -16,7 +16,9 @@ type Props = Readonly<{
 }>;
 
 /** One tree line: partial bar, twisty, icon, label, trailing node. The twisty
- *  toggles expansion ONLY — it never touches the selection. */
+ *  toggles expansion ONLY — it never touches the selection. The row is a
+ *  focusable treeitem, not a <button>, so `trailing` may hold buttons; Enter
+ *  and Space click it. */
 export function TreeRow({ row, style, extras, onToggle, onRowClick, onRowContextMenu }: Props) {
   const content = (
     <>
@@ -78,17 +80,26 @@ export function TreeRow({ row, style, extras, onToggle, onRowClick, onRowContext
   }
 
   return (
-    <button
-      type="button"
+    <div
+      role="treeitem"
+      tabIndex={0}
+      aria-selected={!!row.selected}
+      aria-expanded={row.expandable ? !!row.expanded : undefined}
       data-key={row.key}
       data-tooltip={row.tooltip}
-      className={cn(cls, 'cursor-pointer')}
+      className={cn(cls, 'cursor-pointer focus-visible:outline-1 focus-visible:outline-blue-400')}
       style={style}
       draggable={extras?.draggable}
       onDragStart={extras?.onDragStart}
       onDragOver={extras?.onDragOver}
       onDrop={extras?.onDrop}
       onClick={(e) => onRowClick?.(row, e)}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+          e.preventDefault();
+          e.currentTarget.click();
+        }
+      }}
       onContextMenu={(e) => {
         if (onRowContextMenu) {
           e.preventDefault();
@@ -98,6 +109,6 @@ export function TreeRow({ row, style, extras, onToggle, onRowClick, onRowContext
       {...extras?.data}
     >
       {content}
-    </button>
+    </div>
   );
 }

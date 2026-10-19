@@ -16,6 +16,8 @@ export type Combo = string;
 export type Sequence = Combo[];
 
 export const DEFAULT_TIMEOUT = 1500; // ms between sequence steps
+/** A `trigger: 'tap'` key held longer than this is a hold, not a tap. */
+export const DEFAULT_TAP_MAX_MS = 1000;
 
 const MODS: Record<string, string> = {
   CTRL: 'Ctrl',
@@ -312,13 +314,27 @@ export function isValidKeys(str: string): boolean {
 // the matcher
 // -----------------------------------------------------------------------------
 
+/** One binding as the engine matches it — what `HotkeyEngine.setBindings`
+ *  takes (the registry builds these from its HotkeyDefs). */
 export interface Registered {
+  /** Binding id — handed back to the muted listener. */
   id: string;
+  /** Parsed steps (`parseSequence`). */
   sequence: Sequence;
+  /** Called when the sequence completes (and is not muted). */
   run: () => void;
+  /** ms allowed between steps (default 1500). */
   timeout?: number;
+  /** Fire while a text field has focus. No F-key default here — the registry
+   *  computes that; a raw engine needs it set explicitly. */
   allowInInput?: boolean;
+  /** Extra guard, checked at every step; false = not matched, keys not claimed. */
   context?: () => boolean;
+  /** 'press' (default) fires on keydown; 'tap' fires on key-up of a clean
+   *  single-combo tap (see HotkeyEngine) — a multi-step tap never fires. */
+  trigger?: 'press' | 'tap';
+  /** 'tap': ms the key may be held before it counts as a hold (default 1000). */
+  tapMaxMs?: number;
 }
 
 function startsWith(seq: Sequence, prefix: Combo[]): boolean {
@@ -363,8 +379,18 @@ export function hasCommandModifier(seq: Sequence): boolean {
   return seq.some((c) => comboParts(c).mods.some((m) => COMMAND_MODS.has(m)));
 }
 
+/** A single-combo `trigger: 'tap'` binding armed by its keydown. */
+interface ArmedTap {
+  r: Registered;
+  code: string;
+  t0: number;
+  consumed: boolean;
+}
+
 export class HotkeyEngine {
   private registered: Registered[] = [];
+  private taps: Registered[] = [];
+  private tap: ArmedTap | null = null;
   private held = new Set<string>(); // non-modifier codes currently down
   private modCodes = new Set<string>(); // bare-modifier codes currently down
   private modChord = new Set<string>(); // modifier NAMES seen during this hold (peak)
@@ -378,7 +404,10 @@ export class HotkeyEngine {
   private running = false;
 
   setBindings(list: Registered[]) {
-    this.registered = list;
+    // tap bindings never take part in sequence matching: they fire on key-up
+    this.registered = list.filter((r) => r.trigger !== 'tap');
+    this.taps = list.filter((r) => r.trigger === 'tap' && r.sequence.length === 1);
+    this.tap = null;
     this.reset();
   }
   setProgressListener(fn: (p: Combo[]) => void) {
@@ -400,6 +429,7 @@ export class HotkeyEngine {
     window.addEventListener('keydown', this.onKeyDown, true);
     window.addEventListener('keyup', this.onKeyUp, true);
     window.addEventListener('pointerdown', this.onPointerDown, true);
+    window.addEventListener('wheel', this.onWheel, { capture: true, passive: true });
     window.addEventListener('blur', this.onBlur);
   }
   stop() {
@@ -407,15 +437,28 @@ export class HotkeyEngine {
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('keyup', this.onKeyUp, true);
     window.removeEventListener('pointerdown', this.onPointerDown, true);
+    window.removeEventListener('wheel', this.onWheel, true);
     window.removeEventListener('blur', this.onBlur);
     this.reset();
     this.held.clear();
+    this.tap = null;
   }
 
   /** A mouse press CONSUMES a pure modifier hold (alt+click camera pivot etc.)
-   *  — releasing the modifier afterwards must not emit it as a leader step. */
+   *  — releasing the modifier afterwards must not emit it as a leader step —
+   *  and an armed tap (Space+click is fly-to, not play/pause). */
   private onPointerDown = () => {
     this.pureModHold = false;
+    if (this.tap) {
+      this.tap.consumed = true;
+    }
+  };
+
+  /** A wheel turn while a tap key is held makes it a hold gesture. */
+  private onWheel = () => {
+    if (this.tap) {
+      this.tap.consumed = true;
+    }
   };
 
   /** Clear in-flight state WITHOUT firing a pending match (blur/stop/rebind). */
@@ -459,6 +502,7 @@ export class HotkeyEngine {
   }
 
   private onBlur = () => {
+    this.tap = null;
     this.held.clear();
     this.modCodes.clear();
     this.modChord.clear();
@@ -469,6 +513,9 @@ export class HotkeyEngine {
   private onKeyUp = (e: KeyboardEvent) => {
     if (suspendDepth > 0) {
       return;
+    }
+    if (this.tap && e.code === this.tap.code) {
+      this.releaseTap(e);
     }
     if (isBareModifier(e.code)) {
       this.modCodes.delete(e.code);
@@ -498,6 +545,9 @@ export class HotkeyEngine {
     if (e.repeat) {
       return; // ignore auto-repeat
     }
+    if (this.tap && e.code !== this.tap.code) {
+      this.tap.consumed = true; // another key (W, Shift…) joined: not a tap
+    }
     if (isBareModifier(e.code)) {
       if (this.modCodes.size === 0) {
         this.pureModHold = true;
@@ -516,8 +566,40 @@ export class HotkeyEngine {
       return; // (shouldn't happen — not a bare modifier)
     }
     this.held.add(e.code);
+    this.armTap(combo, e);
     this.feed(combo, e);
   };
+
+  /** Arm a tap binding on its keydown. The keydown is NOT claimed: other
+   *  listeners (the camera's held-Space for fly-to) still see it. */
+  private armTap(combo: Combo, e: KeyboardEvent) {
+    if (this.tap) {
+      return;
+    }
+    const inInput = isEditable(e.target);
+    const r = this.taps.find(
+      (t) => t.sequence[0] === combo && (t.context?.() ?? true) && (!inInput || t.allowInInput === true),
+    );
+    if (r) {
+      this.tap = { r, code: e.code, t0: performance.now(), consumed: false };
+    }
+  }
+
+  /** Key-up of the armed tap key: fire when it stayed a clean, short tap,
+   *  and claim the key-up so a focused button is not also activated. */
+  private releaseTap(e: KeyboardEvent) {
+    const t = this.tap;
+    this.tap = null;
+    if (!t || t.consumed || performance.now() - t.t0 > (t.r.tapMaxMs ?? DEFAULT_TAP_MAX_MS)) {
+      return;
+    }
+    if (!(t.r.context?.() ?? true)) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    t.r.run();
+  }
 
   /** True if `combo` starts, or continues, some registered binding — used to
    *  gate modifier-chord emission so stray taps are ignored. */

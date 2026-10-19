@@ -2,8 +2,10 @@ import type { ReactNode } from 'react';
 
 export interface TreeFile {
   kind: 'file';
+  /** Shown name. */
   name: string;
-  path: string; // unique key: scan path, or an asset id for virtual trees
+  /** Unique key: a scan path, or an asset id for virtual trees. */
+  path: string;
   /** Present for scanned directories; virtual trees carry ids instead. */
   handle?: FileSystemFileHandle;
   /** Optional dim suffix (file size etc). */
@@ -12,8 +14,11 @@ export interface TreeFile {
 
 export interface TreeDir {
   kind: 'dir';
+  /** Shown name. */
   name: string;
+  /** Unique key ('' for the root). */
   path: string;
+  /** Child files and dirs, in display order. */
   children: TreeNode[];
   /** 'section' renders as a dimmed full-width category band (still
    *  collapsible) — grouping chrome rather than content, e.g. a store. */

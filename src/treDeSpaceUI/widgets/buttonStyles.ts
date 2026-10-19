@@ -1,8 +1,9 @@
 // The Button look, shared with SegmentedControl so a run of segments and a
 // stand-alone button are the same height and weight.
 
-/** Height/padding scale. `md` (24px) lines up with the inputs. */
-export type ButtonSize = 'xs' | 'sm' | 'md';
+/** Height/padding scale. `md` (24px) lines up with the inputs; `lg` (40px)
+ *  is the touch target for player controls on tablets. */
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
 
 /** Emphasis. `primary` is the confirming action of a dialog or form, `danger`
  *  a destructive one, `ghost` a borderless action inside dense chrome. */
@@ -17,12 +18,22 @@ export const BUTTON_SIZE: Readonly<Record<ButtonSize, string>> = {
   xs: 'h-4 px-1 text-[10px]',
   sm: 'h-5 px-2 text-[11px]',
   md: 'h-6 px-2',
+  lg: 'h-10 px-3 text-sm',
 };
 
 export const BUTTON_ICON_SIZE: Readonly<Record<ButtonSize, string>> = {
   xs: 'h-4 w-4 p-0',
   sm: 'h-5 w-5 p-0',
   md: 'h-6 w-6 p-0',
+  lg: 'h-10 w-10 p-0',
+};
+
+/** The leading-icon box per size: 14×14, 20×20 on the touch size. */
+export const BUTTON_ICON_BOX: Readonly<Record<ButtonSize, string>> = {
+  xs: 'h-3.5 w-3.5 [&>svg]:h-3.5 [&>svg]:w-3.5',
+  sm: 'h-3.5 w-3.5 [&>svg]:h-3.5 [&>svg]:w-3.5',
+  md: 'h-3.5 w-3.5 [&>svg]:h-3.5 [&>svg]:w-3.5',
+  lg: 'h-5 w-5 [&>svg]:h-5 [&>svg]:w-5',
 };
 
 /** Height floor a wrapping button keeps once its label runs to two lines. */
@@ -30,6 +41,7 @@ export const BUTTON_MIN_H: Readonly<Record<ButtonSize, string>> = {
   xs: 'min-h-4',
   sm: 'min-h-5',
   md: 'min-h-6',
+  lg: 'min-h-10',
 };
 
 export const BUTTON_VARIANT: Readonly<Record<ButtonVariant, string>> = {

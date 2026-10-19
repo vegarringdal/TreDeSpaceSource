@@ -110,10 +110,16 @@ works even without Tailwind.
 import { Button, Select, initTooltips } from '@tredespace/ui/widgets';
 import { DockView, definePanel, split, tabs, useDockManager } from '@tredespace/ui/dockable';
 import { hotkeysActions } from '@tredespace/ui/hotkeys';
+import { createStore, cn } from '@tredespace/ui/lib';
 \`\`\`
 
 Call \`initTooltips()\` once at startup to enable the \`data-tooltip\`
 attribute tooltips (and hotkey-combo footers via \`data-shortcut\`).
+
+## Usage guide
+
+\`GUIDE.md\` in this package is the complete usage reference: every widget's
+idioms, the dockable shell, the hotkey system and the state pattern.
 `;
 
 export function packUi() {
@@ -179,9 +185,10 @@ export function packUi() {
     )}\n`,
   );
 
-  // 4. license + readme
+  // 4. license + readme + the library's usage guide
   writeFileSync(resolve(STAGE, 'LICENSE'), MIT(new Date().getFullYear(), 'Vegar Ringdal'));
   writeFileSync(resolve(STAGE, 'README.md'), README(version));
+  cpSync(resolve(SRC, 'README.md'), resolve(STAGE, 'GUIDE.md'));
 
   // 5. pack
   execFileSync('npm', ['pack', STAGE, '--pack-destination', OUT_DIR], { cwd: root, stdio: 'inherit' });

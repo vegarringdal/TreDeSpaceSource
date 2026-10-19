@@ -11,13 +11,17 @@ export interface CopyButtonProps {
   children?: ReactNode;
   /** Label while the confirmation shows (default "Copied"). */
   copiedLabel?: string;
+  /** Button size (default `md`). */
   size?: ButtonSize;
+  /** Icon only — no label; give it a `tooltip`. */
   iconOnly?: boolean;
+  /** Grey out and block copying. */
   disabled?: boolean;
   /** Styled tooltip (data-tooltip). */
   tooltip?: string;
   /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
   shortcut?: string;
+  /** Extra classes on the button. */
   className?: string;
 }
 

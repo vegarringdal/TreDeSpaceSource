@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F10 Animation</title>
+  <meta name="description" content="Guide to the F10 Animation layout: make objects from the model, key them on the Timeline, add steps, overlays and camera moves, and play or export the animation." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F10</p>
+      <h1>Animation</h1>
+      <p class="lede">
+        Show how something is put together, one step at a time: items move into place, appear and disappear, the camera follows and cards explain each step. You make <b>objects</b> from what you select and key them on the <b>Timeline</b>, much like Navisworks Animator. The model itself is never changed — leave animation mode and everything is back where it was. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F10</p>
+          <h2>The Animation layout</h2>
+          <p>
+            Press <kbd>F10</kbd> (or pick <b>Animation</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the animation workspace. It opens the <b>Animation</b> ribbon, puts the
+            <b>Timeline</b> (with the Overlay Preview behind it) under the 3D view, and the <b>Key</b> panel, the Overlay
+            Editor and Set Color on the right.
+          </p>
+          <figure class="shot" data-shot="f10-layout">
+            <figcaption>The F10 layout before anything has been animated.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Animation ribbon</b> — turn animating on and off, new / open / save, export, the animation panels, undo, and what the 3D view shows.</li>
+            <li><b>Hierarchy</b> — pick the items you want to animate here or in the 3D view.</li>
+            <li><b>3D view</b> — shows the animation at the time slider, and the move / rotate gizmo while you pose items.</li>
+            <li><b>Timeline</b> — everything you need while animating: the toolbar (make objects, key, play, export) and a row for each object and for the camera, the clipping, the colours, the labels and measurements, the steps and the overlays. The <b>Overlay Preview</b> tab behind it shows the card you are designing.</li>
+            <li><b>Key</b> panel (with the <b>Overlay Editor</b> and <b>Set Color</b> behind it) — the values of the key you picked, or of the next key you are about to make.</li>
+          </ol>
+
+          <div class="concept">
+            <p class="concept-title">How an animation is made</p>
+            <ul>
+              <li><b>Objects</b> are what moves: select one or more items and make them an object — a pump, a skid, a valve wheel. Each object has <b>one row</b> on the Timeline.</li>
+              <li><b>Keys</b> are diamonds on an object's row: where the object is at that time. A key holds its place in the model plus a <i>move</i> and a <i>rotate</i> — never a change from the key before — so moving one key never shifts the others. Between two keys the object moves; before its first key it waits at that key, after its last key it stays.</li>
+              <li>A key can also <b>hide</b>, <b>show</b> or <b>colour</b> the object from its time on. Hidden stretches are hatched on the row.</li>
+              <li>The <b>Camera</b>, <b>Clipping</b>, <b>Colour rules</b>, <b>Labels</b> and <b>Measurements</b> rows key the view, the clip box and planes, Set Color rules, and the labels and measurements on screen the same way.</li>
+              <li><b>Steps</b> are named stretches of time — "Base frame", "Pump", "Motor" — with a card that explains them. Playback can wait at the end of a step; the play buttons jump from step to step.</li>
+              <li><b>Overlays</b> are shown for a while: a callout hanging from an object, or a title card, caption or info card anywhere on the screen.</li>
+              <li>A file can hold several <b>scenes</b> — "Assembly" and "Maintenance", for example — each with its own objects and rows.</li>
+            </ul>
+            <p>
+              Items only move and turn; they are never stretched or resized. Nothing is saved into the model: leave
+              animation mode and every item is back exactly where it was. Animation mode also <b>starts from a clean
+              scene</b> — colours, hidden items, items you moved with the Transform ribbon and your clipping are put
+              aside, so an animation looks the same for everyone — and gives them back when you leave.
+            </p>
+          </div>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Animation ribbon</h2>
+          <figure class="shot" data-shot="f10-ribbon"></figure>
+          <ol class="legend-list">
+            <li><b>Animate</b> (<kbd>ALT 901</kbd>) — starts animating. Press it again to stop (<kbd>ALT 903</kbd> also leaves playback); every animated item goes back to where it was. <b>Present</b> next to it (<kbd>ALT 1573</kbd>) shows the 3D view alone with the play bar; its <b>Close</b> brings back the panels, ribbon and mode you had.</li>
+            <li><b>New</b> (<kbd>ALT 960</kbd>), <b>Open</b> (<kbd>ALT 925</kbd>) an animation file (<code class="inline">*.tdanim.json</code>) and <b>Save</b> (<kbd>ALT 926</kbd>) — downloads the animation as a file, including the look of its cards and callouts. It reads <b>Save*</b> when there are unsaved changes.</li>
+            <li><b>Export</b> — <b>Video</b> (<kbd>ALT 1410</kbd>), <b>Step stills</b> as a PDF (<kbd>ALT 1494</kbd>), and <b>Brief for AI</b> (<kbd>ALT 1549</kbd>): the brief Claude Code writes an animation from (see <a href="#task-claude">Build an animation with Claude Code</a>, which also shows the shortcuts that make the item lists it needs).</li>
+            <li><b>Panels</b> — shows or hides the Timeline (<kbd>ALT 692</kbd>), Key (<kbd>ALT 691</kbd>), Set Color (<kbd>CTRL+C</kbd>), Overlay Editor (<kbd>ALT 695</kbd>) and Overlay Preview (<kbd>ALT 696</kbd>); a highlighted one is open. Drag one to place it where you want it.</li>
+            <li><b>Motion paths</b> (<kbd>ALT 956</kbd>) — draws the path each moving object takes in the 3D view, with a tick at each key. The picked key is a big yellow cross.</li>
+            <li><b>Overlays</b> (<kbd>ALT 921</kbd>) — shows or hides the step cards and callouts.</li>
+            <li><b>Camera keys</b> (<kbd>ALT 1571</kbd>) — on, the view follows the camera keys; off, you orbit freely while it plays or you scrub, and it stays off through Play, Continue and starting again until you switch it on, press <kbd>R</kbd> or key the camera. Moving the view yourself only frees it until the next Play or Continue. Greyed out while the scene has no camera keys.</li>
+            <li><b>Undo</b> / <b>Redo</b> (<kbd>CTRL+Z</kbd> / <kbd>CTRL+Y</kbd> while animating) — undo and redo animation changes; they have their own history.</li>
+          </ol>
+          <p>
+            When the viewer is embedded in another web page, that page can add a <b>Bookmark</b> section at the end of
+            the ribbon. Its button (<kbd>ALT 1572</kbd>) sends the animation as it is to the page — to keep it with your
+            project, for example — and the page can open and present it again later.
+          </p>
+          <p class="note">
+            Your work is also kept automatically in the browser. If the app is closed before you save, the Timeline
+            offers the unsaved animation at its top the next time: <b>Recover</b> (<kbd>ALT 981</kbd>) opens it,
+            <b>Discard</b> (<kbd>ALT 982</kbd>) throws it away. Until you choose it is kept as it was.
+          </p>
+        </section>
+
+        <section id="panels" class="g-sec">
+          <p class="sec-kick">Panels</p>
+          <h2>The Timeline</h2>
+          <p>
+            Everything you do while animating is on the Timeline. Its toolbar wraps onto a second line when the panel is
+            narrow.
+          </p>
+          <figure class="shot" data-shot="f10-toolbar"></figure>
+          <ol class="legend-list">
+            <li><b>Scene ▾</b> (<kbd>ALT 1588</kbd> opens it) — the scene you work on, by its name; switch scenes (<kbd>ALT 924</kbd> goes to the next), <b>rename</b> it (<kbd>ALT 1581</kbd>), add one (<kbd>ALT 1349</kbd> — both ask for a name) or delete it (<kbd>ALT 1350</kbd>).</li>
+            <li><b>+ Object</b> (<kbd>ALT 961</kbd>) — makes the selection an object, named after the selected item, with a key at the time slider holding where it stands. Its <b>▾</b> makes many at once: <b>one per child</b> of each selected node (<kbd>ALT 1582</kbd>) — a group becomes its parts, a row each — or <b>one per selected node</b> (<kbd>ALT 1583</kbd>); <b>Select all the objects</b> (<kbd>ALT 1584</kbd>) selects every object's items. See <a href="#task-parts">Animate a group part by part</a>.</li>
+            <li><b>Move</b> and <b>Rotate</b> (<kbd>ALT 1510</kbd> / <kbd>ALT 1511</kbd>) — put the move or rotate gizmo on the current object (its items are selected if nothing is). <b>Pivot ▾</b> next to them (<kbd>ALT 1590</kbd> opens it) chooses what the object turns about when a key has no pivot of its own: the centre or a side of its box — Centre (<kbd>ALT 1380</kbd>), Bottom (<kbd>ALT 1522</kbd>), Top, Front, Back, Left, Right (<kbd>ALT 1594</kbd>–<kbd>ALT 1598</kbd>); <kbd>ALT 1523</kbd> steps through them — or the gizmo's pivot as a point of the object (<kbd>ALT 1352</kbd>). The object stays where every key has it.</li>
+            <li><b>Key</b> (<kbd>I</kbd>, or <kbd>ALT 943</kbd>) — keys the current row at the time slider: the object's pose, the view, the clipping, the colour rules, the labels or measurements, or a new step.</li>
+            <li><b>Delete key</b> (<kbd>ALT 944</kbd>, or <kbd>Delete</kbd> on the Timeline) — deletes the picked keys.</li>
+            <li><b>Previous / next key</b> (<kbd>ALT 945</kbd> / <kbd>ALT 946</kbd>) — move the time slider to the key before or after, on the current row (on every row when none is current).</li>
+            <li><b>Auto-key</b> (the record dot, <kbd>ALT 947</kbd>) — while on, every drag of the gizmo is keyed at once (a red frame round the 3D view shows it). Off, a drag only poses the object until you press Key.</li>
+            <li><b>Look tools</b> for the current object, from the time slider on — the eye <b>shows or hides</b> it (<kbd>ALT 1553</kbd>, whichever it is not at the time slider); the <b>key colour</b>; <b>Colour</b> (<kbd>ALT 1326</kbd>) keys it in that colour, and its <b>▾</b> has <b>Own colour</b> (<kbd>ALT 1327</kbd>), <b>Transparent</b> (<kbd>ALT 1554</kbd>), <b>Opaque</b> (<kbd>ALT 1555</kbd>), <b>Hide</b> and <b>Show</b>.</li>
+            <li><b>Rules</b> (<kbd>ALT 1323</kbd>) — keys the colour rules built in the Key panel on the Colour rules row. Its <b>▾</b> keys quick rules for the <b>selection</b> — any items, not only objects: <b>colour</b> it in the key colour (<kbd>ALT 1556</kbd>), make it <b>transparent</b> (<kbd>ALT 1557</kbd>), <b>hide</b> it (<kbd>ALT 1558</kbd>) or show <b>only</b> it (<kbd>ALT 1559</kbd>) — and for the whole model: <b>hide everything</b> (<kbd>ALT 1560</kbd>) or back to <b>its own colours</b> (<kbd>ALT 1561</kbd>). <b>Edit the rules in force</b> (<kbd>ALT 1562</kbd>) picks that key so the Key panel edits it.</li>
+            <li><b>Overlay ▾</b> (<kbd>ALT 1585</kbd> opens it) — puts an overlay on the Overlays row from the time slider for 3 seconds: a <b>callout</b> hanging from the selection (<kbd>ALT 942</kbd>), a <b>title card</b> (<kbd>ALT 1346</kbd>), a <b>caption</b> (<kbd>ALT 1345</kbd>), an <b>info card</b> (<kbd>ALT 1347</kbd>), a <b>step card</b> (<kbd>ALT 1348</kbd>), a <b>warning banner</b> (<kbd>ALT 1663</kbd>), or a design of your own.</li>
+            <li><b>Camera</b> (<kbd>ALT 948</kbd>) — keys the view at the time slider; its <b>▾</b> keys a saved <b>viewpoint</b> instead, adds an <b>Orbit</b> (<kbd>ALT 1406</kbd>) or hands the view back to the camera keys (<kbd>R</kbd>). <b>Clipping</b> (<kbd>ALT 1341</kbd>) keys the clipping.</li>
+            <li><b>Time</b> and the transport — type the time slider's time; <b>to the start</b> (<kbd>ALT 1505</kbd>, <kbd>Home</kbd>), <b>previous step</b> (<kbd>SHIFT+J</kbd>), <b>Play / Pause / Continue</b> (<kbd>K</kbd> or a short tap on <kbd>SPACE</kbd>; <b>Continue</b> alone is <kbd>ALT 912</kbd>), <b>next step</b> (<kbd>SHIFT+L</kbd>), <b>Stop</b> (<kbd>ALT 904</kbd>) and <b>to the end</b> (<kbd>ALT 1506</kbd>, <kbd>End</kbd>). Without a button: play <b>faster</b> / <b>slower</b> (<kbd>ALT 910</kbd> / <kbd>ALT 911</kbd>, 0.25× to 4×, remembered), <b>replay the step</b> (<kbd>ALT 905</kbd>) and play the <b>in / out range</b> (<kbd>ALT 1306</kbd>). With the mode off, <kbd>K</kbd> here starts animating first.</li>
+            <li><b>Loop</b> (<kbd>ALT 909</kbd>) — start again at the end. <b>Ping-pong</b> (<kbd>ALT 1512</kbd>) — at the end, play back to the start.</li>
+            <li><b>Snap</b> (<kbd>ALT 1308</kbd>) — dragged keys and bars snap to other keys, step edges and half seconds. <b>Zoom</b> out / in (<kbd>ALT 1310</kbd> / <kbd>ALT 1309</kbd>, or <kbd>CTRL</kbd> + wheel).</li>
+            <li><b>Present</b> (the screen icon, <kbd>ALT 1573</kbd>) — the 3D view alone with the play bar; <b>Close</b> on the play bar comes back to this layout. <b>Export ▾</b> (the download icon at the right end, <kbd>ALT 1587</kbd> opens it) — <b>Video (.mp4)</b>, <b>Step stills (PDF)</b>, and the <b>brief</b> for AI (see <a href="#task-claude">Build an animation with Claude Code</a>).</li>
+          </ol>
+
+          <figure class="shot" data-shot="f10-timeline">
+            <figcaption>Three loudspeakers sliding in one after another, a step each, a camera key at the start and a label on the first.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Steps</b> — one bar per step, with its name. A small flag at the end of a step means playback waits there.</li>
+            <li><b>Camera</b> — camera keys. With no keys the view is yours while it plays; one key fixes the view; more keys make it glide (or cut) from view to view.</li>
+            <li><b>Colour rules</b> — Set Color rules from a time on. The <b>Clipping</b> row above it does the same for the clipping, and the <b>Labels</b> and <b>Measurements</b> rows below it for labels and measurements (see <a href="#task-labels">Show labels and measurements</a>).</li>
+            <li><b>Overlays</b> — a lane for each overlay, named by its design and title, with its bar and its position keys.</li>
+            <li><b>Objects</b> — the object rows sit under it, with how many there are; the arrow folds them away. Click it for the object tools in the Key panel.</li>
+            <li>An <b>object's row</b> — its keys (a hollow diamond holds the object still until it, then it jumps), a coloured bar where it moves between keys.</li>
+            <li>A <b>hatched</b> stretch — the object is hidden there.</li>
+          </ol>
+          <p>
+            The <b>Scene</b> row at the top shows the scene by its name; click it for the scene's settings in the Key
+            panel (name, end, loop, step card), right-click it to rename the scene or pin its end.
+            <b>Click a row's name</b> to make it the current row — the row <b>Key</b> keys; for an object, its items are
+            selected so the gizmo sits on them. Selecting an object's items in the 3D view makes it current too.
+            <kbd>CTRL</kbd>-click an object's name to add it to the objects selected (or drop it again), and
+            <kbd>SHIFT</kbd>-click to pick every object from the current one to it: their names light up, one gizmo
+            drag poses them all and <b>Key</b> keys each.
+            <b>Click a diamond</b> to pick the key: the time slider jumps to it and the Key panel shows its values;
+            <kbd>SHIFT</kbd>-click or drag a box over empty space to pick several. <b>Drag</b> diamonds to retime them,
+            drag a step's or overlay's bar or its edges. <kbd>CTRL+C</kbd> / <kbd>CTRL+V</kbd> copy the picked keys and
+            paste them at the time slider (into the current row), <kbd>Delete</kbd> deletes them, <kbd>←</kbd> /
+            <kbd>→</kbd> step the time slider (<kbd>SHIFT</kbd> for a second) and the Timeline scrolls to keep it in
+            view. Click or drag the ruler to move the time slider; <kbd>SHIFT</kbd>-drag it to mark an in / out range
+            for a video. Drag the time slider — or a diamond, a bar or its edge — to the left or right edge and hold
+            it there: the Timeline scrolls along, faster the further past the edge you go, and what you drag rides
+            on the edge (so you can put a key past the end of the scene). Right-click a key or a bar for
+            what you can do with it, a row's name for that row's actions at the time slider, or empty space in a lane
+            — the time slider moves to the click first. The dashed line is where the scene ends: at its last key, step
+            or callout, unless you pin it in the scene settings.
+          </p>
+          <p class="note">
+            When the animation only plays back — presented by a web page that embeds the viewer, say — the Timeline
+            says <b>Playing back only</b> and hides its editing tools; press <b>Animate</b> there to edit.
+          </p>
+
+          <h2 id="panel-key">The Key panel</h2>
+          <p>
+            The Key panel shows what you picked. For an object row it shows the <b>next key</b> — the pose at the time
+            slider that <b>Key</b> will key:
+          </p>
+          <figure class="shot" data-shot="f10-next-key">
+            <figcaption>The second loudspeaker moved 0.4 m sideways with the gizmo, not keyed yet.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Key</b> — keys the pose (the same as <kbd>I</kbd>).</li>
+            <li><b>Time</b>, <b>Move</b>, <b>Rotate</b>, <b>Pivot</b> and <b>Offset</b> — where the object will be, and what Move and Rotate are about. Type values instead of dragging the gizmo: the object follows. Changing <b>Time</b> moves the time slider and takes the pose along.</li>
+            <li><b>Arrives</b> — how the object gets to this key: <b>Smooth</b> (eases in and out), <b>Linear</b> (an even speed), or <b>Hold</b> (it stays where it was and jumps at the key) — <kbd>ALT 1516</kbd>–<kbd>ALT 1518</kbd>.</li>
+            <li><b>Discard</b> (<kbd>ESC</kbd>, <kbd>ALT 1524</kbd>) — puts the object back where its keys have it.</li>
+            <li><b>From the time slider on</b> — <b>Hide</b> (<kbd>ALT 1507</kbd>), <b>Show</b> (<kbd>ALT 1508</kbd>), <b>Colour</b> (<kbd>ALT 1326</kbd>, in the colour below) or <b>Own colour</b> (<kbd>ALT 1327</kbd>): a key at the time slider that does just that.</li>
+            <li><b>Object</b> — its name; <b>Pivot</b> (as <b>Pivot ▾</b> on the Timeline) and <b>Path</b> (<b>Smooth</b> curves it through its keys); <b>Muted</b> stops animating it; <b>Delete object</b>.</li>
+            <li><b>Items</b> — what the object holds: nodes added (<b>+</b>) and nodes left out (<b>−</b>), each with <b>×</b> to drop it, and how many items that makes. <b>Add selection</b> (<kbd>ALT 1563</kbd>) and <b>Remove selection</b> (<kbd>ALT 1564</kbd>) change it; <b>Select</b> (<kbd>ALT 962</kbd>) selects its items; <b>Update from selection</b> (<kbd>ALT 1353</kbd>) gives it the selected items instead and keeps every key. When a group says the same more simply, a <b>Closest group</b> line offers it (<kbd>ALT 1565</kbd>) — see <a href="#task-sets">A group minus a few</a>.</li>
+            <li><b>Slide in</b> — from which side, how far (in metres) and how long: see <a href="#task-slide">Slide something into place</a>.</li>
+          </ol>
+
+          <p>Click a key on the Timeline, and the panel shows that key:</p>
+          <figure class="shot" data-shot="f10-key"></figure>
+          <ol class="legend-list">
+            <li><b>Time</b> — retimes the key; the time slider moves with it, so Key still re-poses it.</li>
+            <li><b>Move</b> and <b>Rotate</b> — where the object is at this key, measured from its place in the model.</li>
+            <li><b>Arrives</b> — Smooth, Linear or Hold, as above (<kbd>ALT 1516</kbd>–<kbd>ALT 1518</kbd>).</li>
+            <li><b>Spin into this key</b> (<kbd>ALT 1385</kbd>) — the object turns whole turns about an axis on the way here (a wheel, a fan): set the axis and the degrees (360 = one turn; <kbd>ALT 1386</kbd> / <kbd>ALT 1387</kbd>). A key added in the middle of a spin takes its share of the turns.</li>
+            <li><b>Visible</b>, <b>Colour</b>, <b>Opacity</b> — what the key changes from its time on, or <b>As before</b>: it leaves it as the keys before it have it. Shown / hidden <kbd>ALT 1382</kbd>, visibility as before <kbd>ALT 1525</kbd>; colour as before <kbd>ALT 1526</kbd>; opacity on / off <kbd>ALT 1527</kbd>, − / + <kbd>ALT 1383</kbd> / <kbd>ALT 1384</kbd>.</li>
+            <li><b>Delete</b> the key (or the picked keys).</li>
+            <li><b>Pivot</b> and <b>Offset</b> — what Move and Rotate are about, and what the object turns about on the way here: as the object, or the centre or a side of its box (<b>Bottom</b>, <b>Top</b>, <b>Front</b>, <b>Back</b>, <b>Left</b>, <b>Right</b>), moved by the Offset in metres. A side is the object's own side wherever its keys have put it: turned over, its Bottom turns with it. The rotate gizmo turns about this pivot; move the pivot with the Transform ribbon's <b>Set pivot</b> and the Offset follows (see <a href="#task-hinge">Swing something on a hinge</a>). Picking a side starts its Offset at zero, and changing them leaves the object where it is. A new key takes the pivot of the key the object is heading to — the next key, or after the last key the last one, so as you go on the pivot stays on the same spot of the object. A pivot that is a point (from a file, or a key made before this way of working) shows as <b>Centre</b> plus the offset to that point. <kbd>ALT 1574</kbd> steps through the sides; <kbd>ALT 1570</kbd> goes back to the object's own pivot.</li>
+          </ol>
+
+          <p>Pick a step on the Steps row:</p>
+          <figure class="shot" data-shot="f10-step"></figure>
+          <ol class="legend-list">
+            <li><b>Name</b> and <b>Text</b> — what its card shows (<code class="inline">**bold**</code> and line breaks in the text).</li>
+            <li><b>Start</b> and <b>End</b> — steps never overlap; their edges stop at the neighbours.</li>
+            <li><b>Pause at the end</b> (<kbd>ALT 1514</kbd>) — playback waits here until you press Continue; a video waits too.</li>
+            <li><b>Card</b> — the scene's step card (<kbd>ALT 1539</kbd>), a card of its own (<kbd>ALT 1540</kbd> — a design, its values, where on the screen, the text size <kbd>ALT 1542</kbd> / <kbd>ALT 1543</kbd>, a colour theme) or none (<kbd>ALT 1541</kbd>). <b>Notes</b> below are for you, not the audience. <b>Play this step</b> (<kbd>ALT 906</kbd>) plays it once; <b>Delete</b> (<kbd>ALT 1515</kbd>) removes it.</li>
+          </ol>
+          <p>
+            Pick the <b>Steps</b> row itself and the panel offers <b>Add a step here</b> and the scene's step card;
+            the <b>Overlays</b> row offers <b>Add an overlay ▾</b> (<kbd>ALT 1586</kbd> opens it); the <b>Objects</b> row
+            the object tools of <a href="#task-parts">Animate a group part by part</a>. <kbd>ALT 1372</kbd> takes the
+            panel back to the scene.
+          </p>
+
+          <p>
+            Pick a <b>camera key</b> and the panel shows where it looks from — <b>Position</b> — and what it looks at —
+            <b>Target</b> — in model coordinates (metres); type new values and the view follows. It arrives with a
+            <b>Glide</b> (<kbd>ALT 1408</kbd>), at an <b>Even</b> speed (<kbd>ALT 1528</kbd>) or as a <b>Cut</b>
+            (<kbd>ALT 1409</kbd>). <b>Take this view</b> (<kbd>ALT 1529</kbd>) gives it the view you have now, <b>Go
+            there</b> (<kbd>ALT 1530</kbd>) looks through it.
+          </p>
+          <p>
+            A <b>clipping key</b> works the same way: <b>Glide</b>, <b>Even</b> or <b>Switch</b> (<kbd>ALT 1343</kbd>,
+            <kbd>ALT 1531</kbd>, <kbd>ALT 1344</kbd>), <b>Take this clipping</b> (<kbd>ALT 1532</kbd>) gives it the
+            clipping you have now, and <b>Go there</b> (<kbd>ALT 1533</kbd>) shows it.
+          </p>
+          <p>
+            The <b>Colour rules</b> row holds the Set Color rule editor itself. Pick a rules key and you edit it in
+            place — the scene shows each change at once, and one burst of edits undoes in one step. With the row
+            current and no key picked it is the <b>next rules key</b>: add rules (they show on the scene, on top of the
+            rules in force) and press <b>Key rules</b>. The key's mode is <b>Reset</b>, <b>Append</b> or <b>Hide</b>
+            (<kbd>ALT 1534</kbd>–<kbd>ALT 1536</kbd>); <b>+ Rule</b> (<kbd>ALT 1566</kbd>) adds one. <b>Rules in
+            force</b> (<kbd>ALT 1567</kbd>) starts from what is shown at the time slider; <b>From Set Color</b>
+            (<kbd>ALT 1537</kbd>) takes the Set Color panel's rules, whose Save and Load stay there — <kbd>ALT 1324</kbd>
+            sends these rules there, and <b>Rules ▾ → Open Set Color</b> (<kbd>ALT 1538</kbd>) opens it.
+          </p>
+          <figure class="shot" data-shot="f10-rules"></figure>
+          <p>With nothing picked, the panel shows the scene:</p>
+          <figure class="shot" data-shot="f10-scene"></figure>
+          <p>
+            Its <b>name</b>; where it <b>ends</b> — <b>Pin here</b> (<kbd>ALT 1519</kbd>) ends it at the time slider,
+            <b>Unpin</b> (<kbd>ALT 1520</kbd>) lets it follow its content again; <b>Loop</b> and <b>Ping-pong</b>; the
+            <b>Step card</b> every step shows unless it has its own (<kbd>ALT 978</kbd> switches step cards on and off)
+            and its theme; and <b>Keep labels on screen</b> (<kbd>ALT 1340</kbd>): labels hanging from objects never
+            leave the view — when the camera moves so a label would be cut off, it jumps to the other side or is pushed
+            back inside. <b>Problems</b> at the bottom of the panel lists anything that will not play as you expect —
+            items not found in the loaded models, an item in two objects, an object moving while it is hidden — with
+            <b>Go to</b> (<kbd>ALT 988</kbd>).
+          </p>
+
+          <p>
+            Pick an <b>overlay</b> (its bar on the Overlays row) and the panel shows it: its <b>Design</b> and
+            <b>Theme</b> — <b>Edit style…</b> (<kbd>ALT 976</kbd>) opens the design in the Overlay Editor,
+            <b>Detach</b> (<kbd>ALT 977</kbd>) gives this overlay a copy of its own — its values, and where it sits:
+            the <b>Anchor</b> is the <b>Screen</b>, an <b>Object</b> it hangs from or a <b>Point</b> in the model
+            (<kbd>ALT 1650</kbd>–<kbd>ALT 1652</kbd>). On the screen a <b>Pin</b> puts it in a corner or on an edge and
+            <b>X</b> / <b>Y</b> fine-tune it (<kbd>ALT 1653</kbd>–<kbd>ALT 1656</kbd>); hanging from something,
+            <b>dx</b> / <b>dy</b> set the label's offset (<kbd>ALT 1657</kbd>–<kbd>ALT 1660</kbd>) and <b>Leader
+            line</b> (<kbd>ALT 1661</kbd>) draws the line to it, in a colour of its own. <b>Clear place keys</b>
+            (<kbd>ALT 1339</kbd>) drops its position keys; <b>Scale</b> (<kbd>ALT 1389</kbd> / <kbd>ALT 1390</kbd>) and
+            <b>Text size</b> (<kbd>ALT 1395</kbd> / <kbd>ALT 1396</kbd>) size it; <b>Show</b> / <b>Hide</b> times and the
+            <b>Enter</b> / <b>Exit</b> effects say when and how it comes and goes; the bin (<kbd>ALT 1388</kbd>)
+            deletes it. An overlay whose object was deleted is hidden and listed under <b>Problems</b>.
+          </p>
+
+          <h3 id="panel-overlay-editor">Overlay Editor and Overlay Preview</h3>
+          <p>
+            Step cards and callouts are built from a few blocks — boxes, text, images, icons, a progress bar. The
+            <b>Overlay Editor</b> is where you change their look, and the <b>Overlay Preview</b> shows the result live
+            while you work. Opening a design for editing brings both to the front.
+          </p>
+          <figure class="shot" data-shot="f10-overlay-editor">
+            <figcaption>Editing the step card: the preview under the 3D view changes as soon as a value in the editor on the right does.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Library</b> — your designs and themes. <b>New ▾</b> (<kbd>ALT 1591</kbd> opens it) starts one from a preset — <kbd>ALT 1311</kbd> makes a step card straight away — and the bin (<kbd>ALT 1599</kbd>) removes one of yours; a theme holds the shared colours. A card without a theme is <b>Auto</b>: it follows the app — Light in the light theme, Dark in the dark one; pick <b>Dark</b> or <b>Light</b> (for a step card, the scene's step card or a callout in the Key panel) to force one. The preview's theme picker shows a design in each. <b>Export ▾</b> (<kbd>ALT 1593</kbd> opens it) saves the open design to a <code class="inline">.tdoverlay.json</code> file (<kbd>ALT 1499</kbd>), or all your own designs and themes in one file (<kbd>ALT 1500</kbd>); <b>Import…</b> (<kbd>ALT 1501</kbd>) adds a file's designs and themes to your library — if one of them has the id of one of yours but is made differently, you are asked whose to keep.</li>
+            <li><b>Outline</b> — the blocks of the design. Select one to edit it, add blocks with <b>Block ▾</b> (<kbd>ALT 1592</kbd> opens it; a text block <kbd>ALT 1312</kbd>, a box, image, icon, divider or progress bar <kbd>ALT 1600</kbd>–<kbd>ALT 1604</kbd>), move them up and down or remove them (<kbd>ALT 1313</kbd>–<kbd>ALT 1315</kbd>). <b>Undo</b> / <b>Redo</b> (<kbd>ALT 1317</kbd> / <kbd>ALT 1318</kbd>) and <b>Save</b> (<kbd>ALT 1319</kbd>) are in the editor's toolbar. Under the outline, <b>Block</b> holds the selected block's colours, fonts, borders, spacing and text. Text can contain placeholders like <code class="inline">{{step.name}}</code>, <code class="inline">{{step.text}}</code> or <code class="inline">{{step.index}}</code> that fill in by themselves while the animation plays; <b>Parameters</b> add your own, such as a title each callout sets for itself.</li>
+            <li><b>Preview</b> (<kbd>ALT 696</kbd>) — shows or hides the Overlay Preview panel.</li>
+            <li><b>Overlay Preview</b> — the design, live. <b>Fit</b> zooms it to fill the preview; <b>720p</b>, <b>1080p</b> and <b>1440p</b> show its real size on a screen that tall (<kbd>ALT 1642</kbd>–<kbd>ALT 1645</kbd>). Pick a background — dark, light or chequered (<kbd>ALT 1646</kbd>–<kbd>ALT 1648</kbd>) — and press <b>Effect</b> (<kbd>ALT 1316</kbd>) to replay how it appears. <b>Sample values</b> and <b>Sample step</b> let you type real text to see how the card copes; they are not saved.</li>
+          </ol>
+          <p>
+            <b>Card size</b>, at the top of the editor, sets how wide the whole card is: <b>Auto</b> (as wide as its
+            text, between <b>Min</b> and <b>Max</b>) or <b>Fixed</b> (<kbd>ALT 1611</kbd> / <kbd>ALT 1612</kbd>; the widths
+            step with <kbd>ALT 1605</kbd>–<kbd>ALT 1610</kbd>). <b>Text size</b> (<kbd>ALT 1502</kbd> /
+            <kbd>ALT 1503</kbd>) makes every text of the design bigger or smaller at once. Every stepper and choice of
+            a block has a hotkey too (<kbd>ALT 1613</kbd>–<kbd>ALT 1641</kbd>, <b>Rich text</b> <kbd>ALT 1649</kbd>) —
+            hover it to see which. For <b>font sizes and colours
+            per card</b>, add a <i>number</i> or <i>colour</i> value under <b>Parameters</b> and pick it in a text
+            block's <b>Size</b> or in a colour field: every card using the design then sets its own. Press <b>Save</b>
+            to store the design in your library; every card using it changes with it.
+          </p>
+
+          <h3 id="panel-playbar">The play bar</h3>
+          <figure class="shot" data-shot="f10-playbar"></figure>
+          <p>
+            When animation mode is on and the Timeline is not open — after <b>Present</b>, or in a layout without the
+            Timeline (<kbd>ALT+F2</kbd>, full screen) while animating — a play bar floats over the 3D view — with
+            several scenes it starts with the scene that plays, a menu to pick another (<kbd>ALT 1589</kbd> opens it):
+            <span class="mk">1</span> the step you are in and its name, <span class="mk">2</span> previous step, play / pause / continue and next step,
+            <span class="mk">3</span> a slider to scrub, <span class="mk">4</span> <b>Camera keys</b> (<kbd>ALT 1571</kbd>,
+            when the scene has camera keys): on, the view follows them; off, you orbit freely until you switch it on
+            again — and <span class="mk">5</span> <b>Close</b> (<kbd>ALT 903</kbd>): after Present it brings back the
+            panels, ribbon and mode you had, otherwise it leaves animation mode. On a tablet its buttons are bigger.
+          </p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-key">Make an object and key it</h3>
+          <ol class="steps">
+            <li>Press <b>Animate</b> if you are not animating already.</li>
+            <li>Select the items that move together — in the Hierarchy (a whole node is easiest) or the 3D view — and press <b>+ Object</b> (<kbd>ALT 961</kbd>). It gets a row on the Timeline and a key at the time slider holding where it stands.</li>
+            <li>Move the time slider to when it should be somewhere else (drag the ruler, type the time, or <kbd>←</kbd> / <kbd>→</kbd>).</li>
+            <li>Press <b>Move</b> or <b>Rotate</b> on the Timeline and drag the gizmo — as often as you like; it only <i>poses</i> the object — or type the values in the Key panel's <b>Next key</b>.</li>
+            <li>Press <b>Key</b> (<kbd>I</kbd>). Repeat for every pose: it moves from key to key.</li>
+          </ol>
+          <p class="note">
+            Until you press Key, a banner over the 3D view says the object is <i>moved — not keyed</i>. Moving the time
+            slider or playing drops that pose, and the object goes back to where its keys have it — press Key first. You
+            can skip <b>+ Object</b>: posing or keying a selection that is not an object yet makes it one. With
+            <b>Auto-key</b> on, every drag is keyed straight away.
+          </p>
+
+          <h3 id="task-edit">Change a key</h3>
+          <ol class="steps">
+            <li>Click its diamond. The time slider jumps there, the object's items are selected, and the Key panel shows the key.</li>
+            <li>Type new values, or drag the gizmo and press <b>Key</b> — it replaces the key at that time and keeps what it hides, shows or colours.</li>
+            <li>Drag diamonds sideways to change when things happen; one drag is one undo step. Pick several (drag a box, or <kbd>SHIFT</kbd>-click) to move them together.</li>
+            <li>To reuse a movement, pick its keys, <kbd>CTRL+C</kbd> (<kbd>ALT 1402</kbd>), put the time slider and the current row where it should go, <kbd>CTRL+V</kbd> (<kbd>ALT 1403</kbd>).</li>
+          </ol>
+
+          <h3 id="task-hide">Hide, show or colour an object</h3>
+          <ol class="steps">
+            <li>Make the object's row current (click its name) and move the time slider to when it should change.</li>
+            <li>Press the eye or <b>Colour</b> on the Timeline (its <b>▾</b> for own colour, transparent or opaque), or <b>Hide</b>, <b>Show</b>, <b>Colour</b> or <b>Own colour</b> in the Key panel (or right-click the row). A key appears at the time slider; from there on the object is hidden, shown or coloured until a later key says otherwise.</li>
+          </ol>
+          <p class="note">
+            A key both places the object and changes what it looks like. If you add a hide key in the middle of a
+            movement, the movement passes through that key — usually what you want; move the key if not.
+          </p>
+
+          <h3 id="task-sets">A group minus a few</h3>
+          <p>
+            An object can hold a whole group and leave a few nodes in it out — a module lifted into place without its
+            foundation, a skid without the pipe that stays connected. A group follows the model: what is added under
+            it later moves with it.
+          </p>
+          <ol class="steps">
+            <li>Select the group in the Hierarchy and press <b>+ Object</b>.</li>
+            <li>Select the nodes that stay behind and press <b>Remove selection</b> in the Key panel's <b>Items</b> (<kbd>ALT 1564</kbd>). They are listed with a <b>−</b>: the group minus these.</li>
+            <li>Changed your mind? Select one and press <b>Add selection</b> (<kbd>ALT 1563</kbd>), or press <b>×</b> next to it.</li>
+          </ol>
+          <p class="note">
+            If you built the object from many nodes one by one, the Key panel may find the <b>closest group</b> — the
+            group holding them all, minus the few you did not pick. Press <b>Use it</b> and the object is the group minus
+            those, with exactly the same items.
+          </p>
+
+          <h3 id="task-parts">Animate a group part by part</h3>
+          <p>
+            A rack of loudspeakers, a stack of modules, the panels of a skid: when a group is made of parts that each
+            move on their own, make all the objects in one go.
+          </p>
+          <ol class="steps">
+            <li>Select the group in the Hierarchy and choose <b>+ Object ▾ → One per child</b> (<kbd>ALT 1582</kbd>). Each of its parts becomes an object, in the order the Hierarchy lists them, with a key at the time slider holding where it stands. Selected several nodes? <b>One per selected node</b> (<kbd>ALT 1583</kbd>) makes an object of each.</li>
+            <li>The new rows sit under <b>Objects</b> on the Timeline. Click one to key it alone, as usual.</li>
+            <li>To move several together, <kbd>CTRL</kbd>-click their names (or <kbd>SHIFT</kbd>-click for a run of them), drag the gizmo and press <b>Key</b>: each gets its own key. <b>Select all the objects</b> (<kbd>ALT 1584</kbd>) takes them all.</li>
+          </ol>
+          <p class="note">
+            Nodes that are an object already are skipped, so pressing it twice does no harm. More than 50 objects
+            at once asks first. The <b>Objects</b> row's Key panel has the same buttons.
+          </p>
+
+          <h3 id="task-hinge">Swing something on a hinge</h3>
+          <ol class="steps">
+            <li>Make the object current and key it closed at the time it starts to open.</li>
+            <li>Move the time slider to when it is open. In the Key panel set <b>Pivot</b> to the side the hinge is on (say <b>Right</b>): the rotate gizmo moves there. If the hinge is not in the middle of that side, type an <b>Offset</b>, or drag the pivot onto the hinge with the <a href="f05-transform.html">Transform</a> ribbon's <b>Set pivot</b> (then <b>Lock</b>) — the Offset follows.</li>
+            <li>Type the <b>Rotate</b> angle (or turn it with the gizmo) and press <b>Key</b>. It turns about the hinge, and on the way to the key it swings instead of sliding round.</li>
+          </ol>
+          <p class="note">
+            Each key has its own pivot: a lid can lift about its hinge and then slide away about its centre. A key you
+            add after the last one takes its pivot, so the hinge stays on the hinge as you go on.
+          </p>
+
+          <h3 id="task-slide">Slide something into place</h3>
+          <ol class="steps">
+            <li>Make the object current and move the time slider to when it should appear.</li>
+            <li>In the Key panel open <b>Slide in</b>: pick the side it comes from (above, below, ±X, ±Y), how far away it starts in metres, and how long it takes.</li>
+            <li>Press <b>Slide in from the time slider</b> (<kbd>ALT 1509</kbd>). It waits hidden away from its place, appears at the time slider and slides into place.</li>
+          </ol>
+
+          <h3 id="task-camera">Move the camera with the story</h3>
+          <ol class="steps">
+            <li>Click the <b>Camera</b> row. Set up the view and press <b>Key</b> (or <b>Key view</b>, <kbd>ALT 948</kbd>).</li>
+            <li>Move the time slider, set up the next view and press Key again. The camera glides between the keys; pick a key and set <b>Arrives</b> to <b>Cut</b> (<kbd>ALT 1409</kbd>) to jump instead.</li>
+            <li>For a turntable, frame the item and press <b>Orbit</b> (<kbd>ALT 1406</kbd>) on the Camera row: one turn around what you look at, in 8 seconds.</li>
+            <li>To use a saved <a href="f11-viewpoint.html">viewpoint</a>, open the <b>Camera ▾</b> menu on the Timeline and pick it: its view becomes a camera key at the time slider.</li>
+          </ol>
+          <p>
+            The view follows the camera keys while the animation plays and while you scrub. As soon as you move the view
+            yourself it stays where you put it, so you can set up the next view and press Key; keying the camera,
+            <kbd>R</kbd>, and <b>Play</b> or <b>Continue</b> hand it back to the animation — unless you switched
+            <b>Camera keys</b> off, which keeps it yours until you switch it on. A scene without camera keys never
+            touches your view.
+          </p>
+
+          <h3 id="task-clip">Cut the model open during the animation</h3>
+          <ol class="steps">
+            <li>Click the <b>Clipping</b> row and set up the clipping with the usual ribbons — <a href="f03-clip-box.html">clip box</a>, <a href="f02-clip-plane.html">clip planes</a> or clip shapes.</li>
+            <li>Press <b>Key</b> (or <kbd>ALT 1341</kbd>). Move the time slider, change the clipping, Key again: the box and planes glide from key to key — a section sweeping through the model. Set a key's <b>Arrives</b> to <b>Switch</b> to jump instead.</li>
+          </ol>
+
+          <h3 id="task-colours">Hide or colour the plant during the animation</h3>
+          <ol class="steps">
+            <li>Click the <b>Colour rules</b> row and move the time slider to when the rules should apply.</li>
+            <li>In the Key panel add a <b>Rule</b> and set it up as in <a href="panel-set-color.html">Set Color</a> — for example <b>Hide</b> mode with a rule that keeps the foundation, or a rule that paints one system red. The scene shows it while you work (not keyed yet).</li>
+            <li>Press <b>Key rules</b> (<kbd>I</kbd>). From that time on, the scene is coloured that way.</li>
+            <li>Add another rules key later to change the picture again — <b>Append</b> puts its rules on top of the ones before, <b>Reset</b> starts from a clean scene. To change a rules key, click its diamond and edit it right there in the Key panel.</li>
+          </ol>
+          <p>
+            For the everyday cases you do not need to build rules at all: select the items, and the <b>Rules ▾</b> menu on the
+            Timeline keys a rule that colours them, makes them transparent, hides them or shows only them from the time
+            slider on. <b>Hide everything</b> and <b>The model's own colours</b> key the whole model. They are ordinary
+            rules keys — click one to change it in the Key panel.
+          </p>
+          <p class="note">
+            An object's own keys win over the rules: in a hidden plant, a <b>Show</b> key on an object brings it in at its
+            time — the way to build something up from nothing.
+          </p>
+
+          <h3 id="task-labels">Show labels and measurements</h3>
+          <p>
+            While you animate, your own labels and measurements are put aside (they come back when you stop), so
+            the animation shows only what it keys.
+          </p>
+          <ol class="steps">
+            <li>Click the <b>Labels</b> row and move the time slider to when they should show.</li>
+            <li>Add labels with the <a href="panel-label.html">Label</a> panel as usual — or press <b>From the scene</b> in the Key panel (<kbd>ALT 1577</kbd>) to bring in the ones you had — and set their colours there.</li>
+            <li>Press <b>Key labels</b> (<kbd>I</kbd>, <kbd>ALT 1575</kbd>). From that time on they show; before the first key there are none.</li>
+            <li>Later, pick the key (or key again) and untick a label in the Key panel to hide it from there on, or press <b>None from here</b> (<kbd>ALT 1579</kbd>).</li>
+          </ol>
+          <p class="note">
+            The <b>Measurements</b> row works the same way with the <a href="f06-measurements.html">measuring tools</a> (<kbd>ALT 1576</kbd>, <kbd>ALT 1578</kbd>,
+            <kbd>ALT 1580</kbd>). Labels and measurements stay where they are in the model — for a label that follows a
+            moving part, add a callout from <b>Overlay ▾</b>.
+          </p>
+
+          <h3 id="task-steps">Divide the animation into steps</h3>
+          <ol class="steps">
+            <li>Click the <b>Steps</b> row, move the time slider to where a step begins and press <b>Key</b> (<kbd>ALT 1513</kbd>): a step from there to the next step (or 5 seconds).</li>
+            <li>In the Key panel give it a <b>Name</b> and a <b>Text</b> — its card shows them while the step runs. Drag its edges on the Timeline to fit the keys it belongs to.</li>
+            <li>Tick <b>Pause at the end</b> where the audience should get a moment; the play buttons and the play bar jump from step to step.</li>
+          </ol>
+
+          <h3 id="task-callout">Explain something with a callout or a card</h3>
+          <ol class="steps">
+            <li>Select the item in the 3D view and pick <b>Callout on the selection</b> in <b>Overlay ▾</b> on the Timeline (<kbd>ALT 942</kbd>): a label with a leader line hangs from it for 3 seconds from the time slider. The same menu puts a <b>title card</b>, a <b>caption</b> or an <b>info card</b> on the screen.</li>
+            <li>Click its bar to change its text, design, where it hangs and when it shows; drag the bar or its edges on the Timeline.</li>
+            <li>To move it over time — to keep it clear of the item while the camera turns — press <b>Key here</b> (<kbd>ALT 1338</kbd>), move the time slider and drag the overlay in the 3D view: each drag adds a position key.</li>
+          </ol>
+
+          <h3 id="task-claude">Build an animation with Claude Code</h3>
+          <p>
+            For an animation with hundreds of items, let Claude Code write it. You hand over two files: the
+            <b>brief</b> from the Timeline's <b>Export ▾</b> (how the animation file works — what to ask you, every
+            option, patterns, your cards and a schema to check against) and an <b>item list</b> of the items you mean,
+            made with its shortcuts.
+          </p>
+          <ol class="steps">
+            <li><b>Export ▾ → Brief for AI…</b> (<kbd>ALT 1549</kbd>) downloads <code class="inline">animation-brief.md</code>.</li>
+            <li>To let Claude group by more than names and position — by system, area or discipline — first run a query in the SQL editor whose result has a <code class="inline">fullname</code> column and the attributes you care about.</li>
+            <li>Select the items in the Hierarchy or the 3D view and press an <b>Item list for AI</b> shortcut: <b>selected nodes</b> (<kbd>ALT 1550</kbd>), <b>children of selected</b> (<kbd>ALT 1551</kbd>) or <b>every leaf under the selection</b> (<kbd>ALT 1552</kbd>). You get <code class="inline">animation-items.csv</code>: each item's name, fullname, parent, depth, how many items are under it, its model, the centre and size of its box where it stands now, and the SQL result's columns (at most 20 000 rows).</li>
+            <li>To change an animation you already have, also <b>Save</b> it and give Claude the file.</li>
+            <li>Tell Claude what you want, for example: <i>"Build an animation from animation-brief.md and animation-items.csv: the whole plant hidden first, the skid built bottom-up, one step per level with a card, a label on each motor."</i> The brief tells Claude to ask what it is missing — above all, what is visible at the start.</li>
+            <li>Open the file Claude wrote with <b>Open</b> on the Animation ribbon (<kbd>ALT 925</kbd>). A file with a mistake is not opened; the message says what and where.</li>
+          </ol>
+          <p class="note">
+            In a copy of the app's source, <code class="inline">npm run anim:check animation.tdanim.json</code> checks a
+            file the way Open does (exit code 0 = it opens). Animation files from the earlier parts-and-clips version of the tool cannot be
+            opened; make them again on the Timeline.
+          </p>
+
+          <h3 id="task-present">Present an animation</h3>
+          <ol class="steps">
+            <li>Press <b>Present</b> on the Animation ribbon or the Timeline (<kbd>ALT 1573</kbd>): the 3D view alone with the play bar over it.</li>
+            <li>Press play (or tap <kbd>SPACE</kbd>). At the end of a step that pauses, the animation waits with that step's card up; press play again (<b>Continue</b>, <kbd>ALT 912</kbd>) when your audience is ready.</li>
+            <li>While it waits you can look around freely; Continue brings the camera back to the camera keys (unless you switched <b>Camera keys</b> off).</li>
+            <li><b>Close</b> on the play bar brings back the panels, ribbon and mode you had.</li>
+          </ol>
+
+          <h3 id="task-save">Save and share an animation</h3>
+          <ol class="steps">
+            <li>Press <b>Save</b> (<kbd>ALT 926</kbd>). The animation is downloaded as a <code class="inline">.tdanim.json</code> file.</li>
+            <li>Anyone with the same models loaded can open it with <b>Open…</b> (<kbd>ALT 925</kbd>) and play it.</li>
+          </ol>
+
+          <h3 id="task-video">Make a video</h3>
+          <ol class="steps">
+            <li>Pick <b>Export ▾ → Video</b> on the Timeline (<kbd>ALT 1410</kbd>).</li>
+            <li>Choose the <b>Size</b> (720p, 1080p or 1440p — the width follows the shape of the 3D view) and the <b>Frame rate</b>. With several scenes, pick <b>All scenes</b> (<kbd>ALT 1664</kbd>) — every scene, one after another — or <b>One scene</b> (<kbd>ALT 1665</kbd>) and which one under <b>Scene</b> (<kbd>ALT 1666</kbd> steps through them).</li>
+            <li>For one scene, <b>What</b>: the <b>Whole scene</b> (<kbd>ALT 1667</kbd>) or a <b>Part</b> (<kbd>ALT 1668</kbd>) — type its <b>Start</b> and <b>End</b> in seconds, or fill them from the <b>In / out range</b> you marked on the Timeline (<kbd>ALT 1669</kbd>) or the <b>Step at the time slider</b> (<kbd>ALT 1670</kbd>). An End past the scene's end holds its last picture. The line under the fields says how long the video will be.</li>
+            <li><b>Quality</b>: <b>Draft</b> (<kbd>ALT 1413</kbd>) renders each frame once and is quick; <b>Best</b> (<kbd>ALT 1414</kbd>) smooths every frame like a screenshot and takes several times longer. <b>Wait at pausing steps</b> holds the picture that many seconds (0 to 10, − / + <kbd>ALT 1419</kbd> / <kbd>ALT 1420</kbd>) at the end of steps that pause there, with the step's card up. Untick <b>Overlays</b> (<kbd>ALT 1418</kbd>) to leave out the cards and callouts. <kbd>ALT 1415</kbd> and <kbd>ALT 1416</kbd> step through the sizes and frame rates, <kbd>ALT 1417</kbd> switches between the whole scene and a part; <b>Close</b> (<kbd>ALT 1662</kbd>) leaves without exporting.</li>
+            <li>Press <b>Export</b> (<kbd>ALT 1411</kbd>). The video is made frame by frame, so it plays smoothly however slow the computer is. Keep the tab in front while it runs: in a hidden tab the browser stops drawing, so the export waits — the tab's title says so — and carries on when you come back. <b>Cancel</b> (<kbd>ALT 1412</kbd>) stops it. The video is written to the browser's storage as it is made and then downloaded as <code class="inline">.mp4</code>, so a long one needs free disk space rather than memory.</li>
+          </ol>
+          <p class="note">
+            The camera follows the camera keys; without any it stays where it is. The selection is cleared for the video;
+            it comes back afterwards, with the scene that was open, the time slider, your own view and Camera keys as
+            you had them.
+          </p>
+
+          <h3 id="task-stills">Make step stills</h3>
+          <p>
+            For work instructions: <b>Export ▾ → Step stills (PDF)</b> (<kbd>ALT 1494</kbd>). Every step gets a page: its
+            number and name, the step's last frame — everything in place, with its card and overlays — and its text
+            under the picture.
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control</h2>
+          <h3 id="ref-ribbon">The Animation ribbon</h3>
+          <div class="ref-table" data-ref="ribbonAnimation"></div>
+          <h3 id="ref-timeline">The Timeline</h3>
+          <div class="ref-table" data-ref="animationTimeline"></div>
+          <h3 id="ref-next-key">The Key panel: next key and object</h3>
+          <div class="ref-table" data-ref="animationObject"></div>
+          <h3 id="ref-key">The Key panel: a key</h3>
+          <div class="ref-table" data-ref="animationKey"></div>
+          <h3 id="ref-step">The Key panel: a step</h3>
+          <div class="ref-table" data-ref="animationStep"></div>
+          <h3 id="ref-scene">The Key panel: the scene</h3>
+          <div class="ref-table" data-ref="animationScene"></div>
+          <h3 id="ref-rules">The Key panel: colour rules</h3>
+          <div class="ref-table" data-ref="animationRules"></div>
+          <h3 id="ref-camera">The Key panel: a camera key</h3>
+          <div class="ref-table" data-ref="animationCamera"></div>
+          <h3 id="ref-overlay">The Key panel: an overlay</h3>
+          <div class="ref-table" data-ref="animationOverlay"></div>
+          <h3 id="ref-overlay-editor">The Overlay Editor</h3>
+          <div class="ref-table" data-ref="overlayEditor"></div>
+          <h3 id="ref-overlay-preview">The Overlay Preview</h3>
+          <div class="ref-table" data-ref="overlayPreview"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

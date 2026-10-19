@@ -9,6 +9,8 @@ import { initTooltips, VerticalTabs } from '@treDeSpaceUI/widgets';
 import { createRoot } from 'react-dom/client';
 import { BadgeDemo } from './gallery/BadgeDemo';
 import { ButtonDemo } from './gallery/ButtonDemo';
+import { CardFlowDemo } from './gallery/CardFlowDemo';
+import { ChapterListDemo } from './gallery/ChapterListDemo';
 import { CheckboxDemo } from './gallery/CheckboxDemo';
 import { CollapsibleDemo } from './gallery/CollapsibleDemo';
 import { ColorSelectDemo } from './gallery/ColorSelectDemo';
@@ -22,6 +24,7 @@ import { HotkeysDemo } from './gallery/HotkeysDemo';
 import { InfoDemo } from './gallery/InfoDemo';
 import { InlinePanelDemo } from './gallery/InlinePanelDemo';
 import { MenuDemo } from './gallery/MenuDemo';
+import { MotionInputsDemo } from './gallery/MotionInputsDemo';
 import { NumberInputDemo } from './gallery/NumberInputDemo';
 import { PackageCard } from './gallery/PackageCard';
 import { PanelChromeDemo } from './gallery/PanelChromeDemo';
@@ -32,10 +35,14 @@ import { SegmentedDemo } from './gallery/SegmentedDemo';
 import { SelectDemo } from './gallery/SelectDemo';
 import { SmallPartsDemo } from './gallery/SmallPartsDemo';
 import { SqlEditorDemo } from './gallery/SqlEditorDemo';
+import { StyleInputsDemo } from './gallery/StyleInputsDemo';
+import { TemplateInputsDemo } from './gallery/TemplateInputsDemo';
 import { TextFieldDemo } from './gallery/TextFieldDemo';
+import { TimelineDemo } from './gallery/TimelineDemo';
 import { TimePickerDemo } from './gallery/TimePickerDemo';
 import { ToastDemo } from './gallery/ToastDemo';
 import { TooltipDemo } from './gallery/TooltipDemo';
+import { TransportDemo } from './gallery/TransportDemo';
 import { TreeViewDemo } from './gallery/TreeViewDemo';
 import { VerticalTabsDemo } from './gallery/VerticalTabsDemo';
 import './theme';
@@ -73,6 +80,13 @@ const GALLERY = [
   { id: 'small', label: 'Small parts', content: <SmallPartsDemo /> },
   { id: 'picker', label: 'useFilePicker', content: <FilePickerDemo /> },
   { id: 'ribbon', label: 'Ribbon', content: <RibbonDemo /> },
+  { id: 'transport', label: 'Transport', content: <TransportDemo /> },
+  { id: 'chapters', label: 'ChapterList', content: <ChapterListDemo /> },
+  { id: 'motion', label: 'Time & rotation', content: <MotionInputsDemo /> },
+  { id: 'timeline', label: 'Timeline', content: <TimelineDemo /> },
+  { id: 'cardflow', label: 'CardFlow', content: <CardFlowDemo /> },
+  { id: 'style', label: 'Style inputs', content: <StyleInputsDemo /> },
+  { id: 'template', label: 'Template inputs', content: <TemplateInputsDemo /> },
   { id: 'dock', label: 'Dockable', content: <DockDemo /> },
 ];
 
@@ -82,7 +96,7 @@ function Gallery() {
     <>
       <PackageCard />
       <div className="mb-16 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 font-sans text-[12px] text-slate-200 leading-[1.45] shadow-lg">
-        <VerticalTabs className="h-[720px]" tabs={GALLERY} />
+        <VerticalTabs className="h-[max(720px,calc(100vh-6rem))]" tabs={GALLERY} />
       </div>
     </>
   );

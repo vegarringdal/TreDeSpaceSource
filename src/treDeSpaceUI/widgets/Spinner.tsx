@@ -3,8 +3,9 @@ import { cn } from '../lib/cn';
 export interface SpinnerProps {
   /** Diameter in px (default 14). */
   size?: number;
-  /** Accessible label — also the hover tooltip. */
+  /** Accessible label — also the hover tooltip (default "Loading"). */
   label?: string;
+  /** Extra classes on the svg (e.g. a text colour — the arc uses currentColor). */
   className?: string;
 }
 
@@ -31,6 +32,7 @@ export interface ProgressBarProps {
   value?: number | null;
   /** Bar height in px (default 6). */
   height?: number;
+  /** Extra classes on the track (full width by default). */
   className?: string;
 }
 

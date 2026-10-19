@@ -37,101 +37,90 @@
         },
         {
           "n": 5,
-          "x": 86.25,
+          "x": 80.34375,
           "y": 727,
-          "w": 56.140625,
+          "w": 59.46875,
           "h": 24
         },
         {
           "n": 6,
-          "x": 150.390625,
+          "x": 147.8125,
           "y": 727,
-          "w": 56.5625,
+          "w": 58.796875,
           "h": 24
         },
         {
           "n": 7,
-          "x": 214.953125,
+          "x": 214.609375,
           "y": 727,
-          "w": 114.78125,
+          "w": 121.03125,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "settings-rendering-aa": {
-      "w": 300,
+      "w": 312,
       "h": 206,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-rendering-transparency": {
       "w": 312,
       "h": 146,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-rendering-vram": {
       "w": 312,
       "h": 362,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-rendering-selection": {
       "w": 312,
       "h": 206,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-lighting": {
       "w": 404,
       "h": 348,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-gpu": {
       "w": 312,
-      "h": 198,
+      "h": 150,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-navigation": {
       "w": 312,
       "h": 410,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-edges": {
-      "w": 300,
+      "w": 312,
       "h": 182,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-ao": {
       "w": 312,
       "h": 266,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-gizmo": {
       "w": 404,
       "h": 412,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-shortcuts": {
       "w": 404,
-      "h": 610,
+      "h": 646,
       "gpu": false,
       "marks": [
         {
@@ -151,28 +140,27 @@
         {
           "n": 3,
           "x": 98,
-          "y": 578,
+          "y": 614,
           "w": 300,
           "h": 26
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "settings-shortcut-record": {
       "w": 312,
-      "h": 231,
+      "h": 347,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 15,
           "y": 159.78125,
-          "w": 183.734375,
+          "w": 182.53125,
           "h": 24
         },
         {
           "n": 2,
-          "x": 206.734375,
+          "x": 205.53125,
           "y": 159.78125,
           "w": 24,
           "h": 24,
@@ -180,42 +168,37 @@
         },
         {
           "n": 3,
-          "x": 238.734375,
+          "x": 237.53125,
           "y": 159.78125,
-          "w": 58.265625,
+          "w": 59.46875,
           "h": 24,
           "at": "tr"
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "settings-stats": {
       "w": 404,
-      "h": 620,
+      "h": 636,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-editor": {
       "w": 312,
       "h": 394,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-external": {
       "w": 404,
       "h": 341,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "settings-about": {
       "w": 404,
       "h": 389,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     }
   },
   "reference": {
@@ -331,6 +314,13 @@
         "icon": "",
         "tooltip": "Freeze / unfreeze the cull",
         "keys": "ALT 433"
+      },
+      {
+        "section": "Culling",
+        "label": "Occlusion-cull moved items",
+        "icon": "",
+        "tooltip": "Moved and animated items keep the back-face and occlusion tests (rigid moves only) instead of always being drawn",
+        "keys": "ALT 990"
       },
       {
         "section": "Culling",
@@ -1358,5 +1348,5 @@
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.0.141"
 }

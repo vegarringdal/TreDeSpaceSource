@@ -1,4 +1,5 @@
-// The app's shortcut table — the ONLY hotkey file that imports action stores.
+// The app's shortcut table — with animationBindings.ts (the Animation
+// category, spread in below), the only hotkey files that import action stores.
 // Each entry ties a stable id + written-out default to a one-line action thunk.
 // Codes are grouped (1xx transform, 2xx color, 5xx selection) and ASSIGNED, not
 // auto-numbered: inserting a binding must not renumber the others.
@@ -12,6 +13,7 @@ import {
   validateBindings,
 } from '@treDeSpaceUI/hotkeys';
 import { toast } from '@treDeSpaceUI/widgets';
+import { isTimelineFocused } from '../components/panels/animation-timeline/timelineFocus';
 import { openClipShapesPanel, requestClipShapesLoad } from '../components/panels/clip-shapes/clipShapesPanel';
 import { ribbonClipShapesActions as clipshape } from '../components/panels/clip-shapes/ribbonClipShapes.actions';
 import { consoleActions } from '../components/panels/console/console.actions';
@@ -54,6 +56,7 @@ import { callTableAction, openSqlTablePanel } from '../components/panels/sql-tab
 import { openViewpointsPanel, openViewpointViewerPanel } from '../components/panels/viewpoints/viewpointsPanel';
 import { openProductPage } from '../lib/productUrl';
 import { storageKey } from '../lib/storageKeys';
+import { animationUiState } from '../state/animation/animationUi.state';
 import { apiSecurityState } from '../state/apiSecurity.state';
 import { assetsActions } from '../state/assets/assets.actions';
 import { assetsState } from '../state/assets/assets.state';
@@ -74,6 +77,11 @@ import { getRenderer, viewerActions } from '../state/viewer/viewer.actions';
 import { type ViewerState, viewerState } from '../state/viewer/viewer.state';
 import { viewpointsActions } from '../state/viewer/viewpoints.actions';
 import { viewpointsState } from '../state/viewer/viewpoints.state';
+import { ANIMATION_AUTHOR_HOTKEYS, ANIMATION_PLAYER_HOTKEYS } from './animationBindings';
+import { ANIMATION_KEY_HOTKEYS } from './animationKeyBindings';
+import { ANIMATION_LOOK_HOTKEYS } from './animationLookBindings';
+import { ANIMATION_TOOL_HOTKEYS } from './animationToolBindings';
+import { OVERLAY_FIELD_HOTKEYS } from './overlayFieldBindings';
 
 /** Clamp-bump one numeric viewer setting (drives the number-input +/- hotkeys). */
 function bump(field: keyof ViewerState, delta: number, lo: number, hi: number) {
@@ -335,6 +343,8 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ESCAPE',
     description: 'Deselect everything',
     run: () => void viewerActions.clearSelection(),
+    // while a pose waits for Key, Esc drops the pose instead
+    context: () => animationUiState.get().posing === null,
   },
   {
     id: 'selection.hide',
@@ -407,6 +417,8 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'I',
     description: 'Select everything that is not selected',
     run: () => void viewerActions.invertSelection(),
+    // while authoring an animation, I is Key (posing.actions listens for it)
+    context: () => animationUiState.get().mode.kind !== 'author',
   },
   {
     id: 'selection.unhideSel',
@@ -1438,6 +1450,15 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT 433',
     description: 'Freeze / unfreeze the cull',
     run: () => viewerState.set((s) => ({ freezeCull: !s.freezeCull })),
+  },
+  {
+    id: 'render.cullMoved',
+    category: 'View',
+    label: 'Toggle occlusion culling of moved items',
+    defaultKeys: 'ALT 990',
+    description:
+      'Moved and animated items keep the back-face and occlusion tests (rigid moves only) instead of always being drawn',
+    run: () => viewerState.set((s) => ({ cullMoved: !s.cullMoved })),
   },
   {
     id: 'render.vertexPull',
@@ -3482,7 +3503,14 @@ export const HOTKEYS: HotkeyDef[] = [
       'Download the whole Console as a text file — every level, whatever the filter — to send with a bug report',
     run: () => consoleActions.download(),
   },
-  // — Panels ribbon: show / hide a built-in panel (ALT 670-690, five CTRL chords) —
+  // — Animation (ALT 901-989, animationBindings.ts) —
+  ...ANIMATION_PLAYER_HOTKEYS,
+  ...ANIMATION_AUTHOR_HOTKEYS,
+  ...ANIMATION_KEY_HOTKEYS,
+  ...ANIMATION_LOOK_HOTKEYS,
+  ...ANIMATION_TOOL_HOTKEYS,
+  ...OVERLAY_FIELD_HOTKEYS,
+  // — Panels ribbon: show / hide a built-in panel (ALT 670-695, five CTRL chords) —
   ...PANEL_TOGGLES.map((p) => ({
     id: panelToggleHotkeyId(p.id),
     category: 'Panels',
@@ -3490,6 +3518,8 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: p.keys,
     description: `Show / hide the ${p.title} panel — closing then toggling it back returns it where it was`,
     run: () => togglePanelById(p.id),
+    // Ctrl+C / Ctrl+V on the focused Timeline copy and paste keys
+    ...(p.keys.startsWith('CTRL+') ? { context: () => !isTimelineFocused() } : {}),
   })),
 ];
 

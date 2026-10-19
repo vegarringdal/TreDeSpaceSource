@@ -491,6 +491,653 @@ Decisions:
   (`sqlEditorPayload.ts`) returning `{ error }` — vitest has no
   `@treDeSpaceUI` alias, so a test cannot import `protocol.ts`.
 
+## Animation — objects and keys, like Navisworks Animator (LIVE, 2026-10)
+
+Built 2026-10-14 → 16 on branch `animation01`, then rebuilt the same week
+around one idea: **objects you keyframe on a timeline**, the way Navisworks
+Animator works, but simpler (D53). The planning docs are folded into this
+section. Code comments cite it as `DESIGN.md › Animation › <subsection>` and
+decisions by number (`D27`) — see **Decisions** at the end; numbers of the
+first build that the rebuild replaced are kept and marked *superseded*. The
+user side is the guide page `docs/guide/f10-animation.html`.
+
+### What it is
+
+Rigid item animation (move + rotate) for assembly / maintenance sequences
+and walkthroughs. A file holds **scenes**; a scene holds **objects** (item
+sets made from the selection, each with **one row of keys**, under a
+foldable **Objects** row), a **Scene** row (its settings), a **Camera**
+row, a **Clipping** row (`section` in the file), a **Colour rules** row
+(Set Color rules in time), **Labels** and **Measurements** rows (the sets
+shown, D76), **steps** (named spans with a card that can pause playback)
+and an **Overlays** row (`callouts`: a callout on an object, a title card,
+caption or info card on screen, shown for a while). Everything while animating sits
+in the **Timeline** (toolbar, rows, transport, export); the **Key** panel
+edits what is picked — a key, or the *next* key at the time slider. Video
+and step-stills export, a brief for Claude Code, and a host API.
+
+Workspace F10 (Animation): the Animation ribbon (Animation — Animate, the
+big **Present** button (ALT 1573), New, Open, Save —, Export — Video, Step
+stills, Brief for AI —, Panels — toggles for Timeline, Key, Set Color,
+Overlay Editor, Overlay Preview, open = selected, drag to place —, View —
+Motion paths, Overlays, Camera keys: follow the camera keys or orbit
+freely, ALT 1571 —, Edit — Undo / Redo, and the host's **Bookmark**
+section when a host sets one, D73), the Timeline at the bottom, the Key
+panel with Overlay Editor and Set Color on the right. **Present** (the
+button) puts playback in the Present workspace: the 3D view alone with the
+floating play bar (D74); ALT+F2 is only that layout slot — it does not
+start the mode. Panels: Key (ALT 691), Timeline (692), Overlay Editor
+(695), Overlay Preview (696). Hotkeys: the Animation category — kept
+commands keep their ALT 9xx / 13xx / 14xx codes, new ones run from ALT 1505
+(to ALT 1663); `K` and a **Space tap** play / pause, `SHIFT+J/L` previous /
+next step, `R` returns the camera, and **`I` keys** while authoring
+(posing.actions listens for it; the viewer's Invert selection on I is off
+by its context meanwhile — both sit on window capture, so the table's
+claim could not stop the other listener).
+
+### Rigid only — no scale (D1)
+
+Scale is not an animation transform: (1) a scaled CAD item lies about its
+dimensions, measurements and snapping, and a construction sequence never
+needs it; (2) the cull moves the bounding-sphere centre by the item matrix
+but never scales the radius; (3) authored normals are transformed by the
+matrix directly, no inverse-transpose — exact for rigid motion only;
+(4) the meshlet cone test stays exact under rotation, not under
+non-uniform scale. Uniform scale, if ever demanded, needs radius ×
+max-axis-scale in the cull plus a decision about normals. (The Transform
+ribbon's gizmo does scale — that is an editing feature, not animation.)
+
+### Data model
+
+`src/lib/animation/types.ts` (pure, JSON-serializable); parse / validate in
+`io.ts` — version 2, strict, every error names its JSON path; version 1
+files (the parts-and-clips tool) are refused with a clear message (D60).
+Units: seconds, metres, degrees in the UI, quaternions in storage.
+
+```
+AnimationDoc  (format 'tredespace.animation', version 2)
+├── scenes[]              one active (Timeline → Scene ▾)
+│   ├── objects[]         name, items (lower-cased fullnames, D11),
+│   │                     exclude? (left out, D64), pivot (a side of the
+│   │                     box — centre, bottom, top, front, back, left,
+│   │                     right — or a point), path (straight | smooth),
+│   │                     keys[], muted?
+│   ├── camera[]          { t, view, interp }
+│   ├── section[]         clipping: { t, value (box, planes, shapes), interp }
+│   ├── colorRules[]      { t, mode (reset | append | hide), rules }
+│   ├── labels[]          { t, labels } — the label set shown from t on
+│   ├── measurements[]    { t, measurements } — the measurement set from t on
+│   ├── steps[]           { id, name, text, start, end, card?, pauseAtEnd, notes? }
+│   ├── callouts[]        overlays: { id, instance, start, end, enter, exit, keys? }
+│   └── loop, pingPong, end?, stepCard, keepOverlaysOnScreen?
+├── overlayInstances[]    what callouts show: values, anchor, scale, textScale
+└── overlayComponents[] / overlayThemes[]   embedded copies (D14)
+```
+
+- **An object key is absolute** (D54): `move` / `rotate` are the object's
+  offset from where it stands in the model — about the key's pivot (D75),
+  else the object's — never a change from the key before. `interp` is how it arrives at the key: `smooth`
+  (eased), `linear`, `hold` (stays, then jumps). `spin` adds whole turns on
+  the way (slerp alone cannot pass 180°); `pivot` (`{ at, offset? }`: a
+  side of the box or a point) is what the key is about (D75). `visible`,
+  `opacity`, `color` are
+  **instant** and optional — absent = as the key before.
+- **Before an object's first key it stands at that key; after its last it
+  stays** — for the instant values too (they are read at
+  max(T, first key)).
+- Camera: no keys = the view is free, one = set there, more = it glides
+  (`hold` = a cut). Clipping keys hold before the first and after the last;
+  colour-rules keys apply from their time (before the first: the scene's own
+  colours); an Append key builds on the rules before (`rules.ts`).
+- Steps may not overlap (the parser refuses it, the editors stop at the
+  neighbours). Callout position keys are timed from the callout's start, so
+  moving the callout moves them.
+- Missing ids of scenes, objects, steps and callouts are made up on load;
+  an object key's rotation may be written as `{ axis, degrees }` — both for
+  files Claude writes. `stepCard` absent = the built-in step card.
+- **An object's items nest** (D64): `items` adds nodes (with what is under
+  them), `exclude` leaves nodes out; the worker applies both top down by
+  tree depth (`resolveItems`), the deeper one winning and a leave-out
+  winning a tie — "the module minus its foundation", and a node listed
+  inside a left-out one comes back. Names, not item indices, so a re-cooked
+  model keeps the set.
+- **An item in two objects follows the first one** (the worker gives each
+  item one band slot; the Problems list says so). Navisworks moves it by
+  both; composing slots is not worth it for how rarely it is wanted.
+
+### Evaluation
+
+Pure functions in `src/lib/animation/` (`interp.ts`, `scene.ts`,
+`evaluate.ts`, `rules.ts`, `clipState.ts`, `overlayKeys.ts`), unit-tested.
+
+- **Pose:** `D(t) = T(move) · T(pivot) · R(rotate) · T(−pivot)`;
+  `itemWorld = D · base` (base = the item's committed slot at mode entry).
+  Rotation is shortest-path slerp, plus the key's `spin` turned in
+  (`AA(axis, deg·e) · slerp(r0, AA(axis, −deg) · r1, e)` lands exactly on
+  the key). `path: 'smooth'` is a Hermite curve through the keys with zero
+  tangents at holds (D30).
+- **A key's pivot** (D75, `pivots.ts`): `pivot` on a key is a side of the
+  object's rest box — `center`, `bottom` (−Z), `top`, `front` (−Y), `back`,
+  `left` (−X), `right`, the view cube's names — or a point of the object
+  where it stands in the model (rest coordinates, a hinge), plus an
+  `offset` (m); absent = the object's pivot (itself a side or a point).
+  The key's `move` / `rotate` are ABOUT that point q: pose = T(move) · T(q) ·
+  R · T(−q), so q's world position at the key is move + q. On the way into a
+  key the object turns about that key's q_b: its point travels from where
+  the key before puts it (`posePoint`) to move_b + q_b, eased, while R
+  slerps — a door keyed open on its hinge swings; when both keys share the
+  pivot this is the old lerp of moves (and the smooth path). Sides resolve
+  from the rest boxes the session knows (`EvalContext.boxes`).
+  `sampleTransform` takes a key → point resolver and returns the pose with
+  the pivot it is about. An inserted key takes the pivot of the key it
+  heads to, so the motion keeps its shape.
+- **One row per object, no composition**: the object's pose is its own row
+  sampled at T. `evaluate(view, T, ctx)` returns the same `FrameState` the
+  engine always took (poses, visible, opacity, colours, the rules, camera,
+  clip, overlays, the step at T) — the engine below did not change.
+- **Seeking is stateless:** the frame depends on its arguments only.
+- **Per-object caching:** each object's result is kept with the stretch it
+  stays valid for (between two keys that do not move it, or before the
+  first / after the last), so a still object hands back the same pose
+  object and the band skips its write (D47's idea, much simpler now).
+- **The scene view** (`scene.ts`, memoized per scene object): the duration
+  (pinned `end`, else the last key, step end or callout end) and the steps
+  in order; `stepAt` (the step running at T), `lastStepAt` (what
+  `{{step.*}}` shows in a gap), `neighbourStep` (◀ goes back to the current
+  step's start unless T is within 0.5 s of it).
+- **Problems** (`problems.ts`): items not found, items shared by two
+  objects, an object moving while hidden, a callout whose overlay or design
+  is missing.
+
+### Engine and runtime
+
+- **Transform pool** (`transformPoolLayout.ts`): 32 768 mat4 slots (2 MB);
+  the top **16 384 are the animation band**, which the committed allocator
+  never enters. One slot per (object, base slot) pair; moving objects get
+  slots first (D47). The session captures the **active scene's** objects
+  and re-enters when the scene, its objects or the loaded models change.
+- **Animation mode owns the scene** (D12, D24, D39): `animEnter` captures
+  every model's `tidx` runs, colour / opacity / hidden state and the
+  clipping, and starts **clean** — items moved with the Transform ribbon go
+  back to their original place too — and the user's own labels and
+  measurements are put aside (D76) — so an animation plays the same for
+  everyone. `animExit` restores all of it; no undo entries are made. While
+  the mode owns slots, the worker **refuses committed transform edits**
+  (D22); gizmo drags go to posing.
+- **Per frame** (`src/state/animation/runtime.ts`, main thread):
+  evaluate → write `D · base` (with a pose not keyed yet on top) into the
+  band → `writeTransformSlots`. A full pool upload re-applies the band. A
+  paused pose is synced to the worker (`animSyncBand`) so selection bounds,
+  fit and the gizmo follow. Visibility / opacity / colour and the colour
+  rules go to the worker as diffs (`runtimeVisibility.ts`); the worker
+  keeps its look / blend machinery (D23–D26), always at mix 1 now.
+- **Residency:** each object's swept bounds over its keys go to residency,
+  so an object animated far from its rest box is not evicted.
+- **Cull upgrade** (D21) — Settings → Culling → *Occlusion-cull moved
+  items*, **off by default**: moved meshlets keep the cone and HiZ tests
+  when their matrix is verified rigid; otherwise they are drawn whenever in
+  the frustum. Needs the in-app A/B before it becomes the default.
+
+### Authoring
+
+- **Make an object** (D55): select items, **+ Object** — named after the
+  selected node, with a key at the time slider holding where it stands. A
+  selection that is not an object yet also becomes one when you pose it or
+  press Key. The same items reuse their object.
+- **The current row** is what Key keys: the row picked in the Timeline (its
+  object's items get selected so the gizmo sits on them), or the object
+  whose items you select in the 3D view.
+- **Pose, then Key** (D56, Blender's way, kept from D52): a gizmo drag only
+  poses — a world-space matrix per object (`setPendingPose`) drawn on top of
+  the evaluated pose; the Key panel shows the **next key** it would write
+  (`posingActions.nextKey`) and typed values pose too (`G = K · D⁻¹`); Time
+  moves the slider and carries the pose. **Key** (`I`, the Timeline's Key)
+  folds it: `K = G · D` decomposed about the pivot; a key already at that
+  time keeps its spin and instant values. Moving the time slider or playing
+  drops a pose not keyed (toast); Esc and *Discard* drop it too.
+  **Auto-key** (red frame) keys every drag at once.
+- **Edit a key** (D57): click its diamond — the time slider jumps there,
+  the object is selected, the Key panel shows its values; posing and Key
+  re-pose it. Drag diamonds to retime (one undo step per drag — the rows are
+  taken at the drag's start), box-select, Ctrl+C / Ctrl+V at the time
+  slider, Delete.
+- **Items like a Navisworks set — and better** (D64, D65): the Key panel's
+  *Items* lists the nodes added (+) and left out (−), each with ×; *Add
+  selection* / *Remove selection* (names shown as the tree spells them,
+  `animTreeNames`; stored lower-cased) edit the lists hierarchy-aware in the
+  worker (`animEditItemSet`): adding drops the entries under the node and
+  the leave-outs it overrides, listing it only when no group above holds
+  it; removing drops the entries under it and leaves it out when a group
+  above still holds it; an object is never emptied. The **closest group**
+  (`animClosestGroup`): the lowest named node holding every listed node,
+  minus the maximal subtrees not in the set (≤ 12) — suggested under the
+  list ("Closest group: X minus N — Use it") only when it is simpler (fewer
+  entries) and the set sits in one model. A group follows the model: an
+  item added under it later moves with it. The Claude brief asks for the
+  highest node plus `exclude` for the same reason.
+- **Many objects at once, several posed together** (D78): *+ Object ▾*
+  (and the **Objects** row's Key panel) makes one object per child of each
+  selected node — a group becomes its parts, in the Hierarchy's order — or
+  one per selected node (`objectsActions.fromSelectionParts`, the worker's
+  `animSelectionParts`), each keyed at the time slider where it stands, in
+  one commit; nodes that are an object already are skipped, more than 50
+  ask first. The object rows sit under a collapsible **Objects** group row
+  (`@objects`, a UI row only — nothing in the file). Ctrl-click on a row
+  name adds / drops that object, Shift-click picks the run from the current
+  object (`timelineEditActions.pickRow` mods → `selectObjects`, the union of
+  their item sets via `animSelectActors`); `objectSelection` (the objects
+  owning selected items, from the selection sync) lights the names up. The
+  gizmo already poses every object the selection names and Key keys each,
+  so nothing else changes; the Next key header says `+N`.
+- **Instant keys:** *Hide / Show / Colour / Own colour from here* put a key
+  at the time slider holding where the object stands (an inserted key takes
+  the arriving interpolation of the key after it, so a movement keeps its
+  shape as far as possible).
+- **A key's pivot** (D75, D79): *Pivot* (As the object · Centre · Bottom ·
+  Top · Front · Back · Left · Right) and *Offset* sit under Rotate, for a
+  picked key and for the next key (`nextPivot`, like `nextInterp`, cleared by
+  Key). Changing them keeps the pose — the object stays, Move / Rotate are
+  re-said about the new pivot (`rePivot`) — and typed Rotate then turns
+  about it. Picking a side starts its Offset at zero. A key whose pivot is a
+  point (a file's hinge, or a key from before D79) reads as *Centre* plus
+  the offset that reaches the point (`choiceOf(spec, box)`), so the numbers
+  say where it is; an edit rewrites it as Centre + offset. A new key takes
+  the pivot of the key the object is heading to — the next key, else the
+  last (`keyHere`), side and offset. The object's own Pivot (a Select of the
+  same sides, or Point) is the default; changing it re-says every key
+  without a pivot of its own about the new point, so nothing moves (D84).
+- **The gizmo turns about the key's pivot** (D79, `gizmoPivotSync.ts`):
+  while authoring with an object row current, the Transform ribbon's pivot
+  is put on the picked key's pivot, else the next key's, at the object's
+  pose at the time slider (its keys plus a pose not keyed yet — also with a
+  key picked, so the gizmo follows the object while scrubbing) — a side is the object's
+  own side carried by that pose, so Bottom after a tip-over is the object's
+  turned bottom, not the bottom of the box it fills now. Moving that pivot
+  by hand (Set pivot → drag, an item's centre) writes the key's Offset from
+  its side (`pivotThrough`: K⁻¹·P − side), the side kept; a picked key is
+  re-said about it (pose kept). A reset (a new selection, Cancel) puts it
+  back; leaving authoring clears a pivot the sync put there. It replaces
+  D75's "a locked pivot becomes a new key's Point", the Key panel's *Point*
+  choice and the *Pivot gizmo here* / *Point from the set pivot* buttons
+  (ALT 1568 / 1569 retired).
+- **Slide in** (D58): a side (six), a distance in metres and a time — a
+  hidden key at 0 away from place (when nothing keys the object before),
+  a shown key away at the time slider (hold), and its place at the end.
+- **Camera / Clipping rows**: set up the view / clip the model, then Key.
+  Moving the view yourself frees the camera until you Key it or press Play
+  (D10). The orbit helper writes eight camera keys; the Camera split
+  button keys a saved **viewpoint**'s camera at the time slider (D67). A
+  picked camera key shows its **Position** (the eye) and **Target** as
+  points in the model, typed values move its view (D69; `cameraEye.ts`, the
+  viewer's az / el convention, elevation clamped to ±89°). The row is
+  called **Clipping** in the UI; the file keeps `section` (D70).
+- **Colour rules row** (D68, replacing D59's round trip): the Key panel
+  holds the Set Color rule editor itself (`RuleEditor` bound through
+  `MultiColorProvider` to `rulesEditorState`). A picked rules key is edited
+  in place — each edit a commit, a burst one undo step, the scene showing it
+  at once. With the row current and no key picked the editor is the **next
+  rules key**: an Append draft (on top of the rules in force) previewed as
+  a pending rule set, dropped like a pose when the time slider moves; Key
+  keys it and picks the new key. *Rules in force* starts the draft from the
+  composed rules at the time slider; *From Set Color* (and Set Color's Run
+  while authoring) brings the big panel's rules in — its Save / Load stay
+  there. `rulesEditor.actions` binds it while authoring.
+- **Labels and Measurements rows** (D76, `annotations.actions.ts`,
+  `lib/animation/annotations.ts`): a key holds the animation's own copy of a
+  label set / measurement set (fixed points in the model — they do not
+  follow moving objects; Overlays do), shown from its time on, none before
+  the first key; each label's mute and colours, each measurement's
+  visibility, are part of it. Entering the mode puts the user's sets aside
+  (exact, ids kept — so a live viewpoint does not count as edited) and
+  un-mutes the stores; leaving puts them back. The runtime's frame handler
+  (`setAnnotationsHandler`) shows the key in force when it changes, quietly
+  (`labelsActions.replaceQuiet`: no undo step, ids re-based so new labels
+  never collide; skipped when the screen already shows it — an edit that
+  went into the key, so typing in the Label panel keeps focus). While
+  authoring the normal Label panel and measuring tools edit what is on
+  screen: with the row's key in force picked the edit goes into it
+  (coalesced), otherwise it waits for Key on the row (`previewLabels` /
+  `previewMeasurements`, the viewport banner) and a later key coming into
+  force drops it. The Key panel lists what is on screen with an on / off
+  box each, *From the scene* (the put-aside set) and *None from here*.
+  Captures leave muted labels out and use each label's leader colour.
+- **Quick colour rules** (D66): the Rules split button's menu keys Set Color
+  rules made from the **selection** — any items, not only objects — as one
+  `multi` filter of the selected nodes: *colour* (the key colour) /
+  *transparent* / *hide* on top of the rules before (Append), *only the
+  selection* (Hide mode), plus *hide everything* (Hide, no rules — build up
+  from nothing) and *the model's own colours* (Reset). They are ordinary
+  rules keys: the Key panel edits them (*Edit the rules in force*). Colour
+  belongs to rules, motion to objects — an item that is only coloured needs
+  no object.
+- **Steps**: Key on the Steps row adds one from the time slider to the next
+  step (or 5 s) — never inside another; edges stop at the neighbours.
+- **The Timeline** (`src/components/panels/animation-timeline/`): toolbar —
+  Scene ▾ (the scene's name; switch, rename…, new…, delete — new and rename
+  ask for a name) · + Object · Move Rotate Pivot ▾ · Key · Delete key · ◀
+  key ▶ · Auto-key (a record dot, red while on) · the look tools (show /
+  hide toggle, key colour — a compact swatch —, Colour ▾ — own colour,
+  transparent, opaque, hide, show —, Rules ▾ — the Key panel's rules, quick
+  rules) · Overlay ▾ (callout on the selection, title card, caption, info
+  card, step card, warning, the user's designs — D71) · Camera ▾
+  (viewpoints, orbit, back to the camera keys) · Clipping · time box ·
+  ⏮ ◀step ▶/⏸ step▶ ■ ⏭ · Loop · Ping-pong · Snap · Zoom · Present (a
+  screen icon) · Export ▾ (a download icon) (D67) — two rows in the F10
+  layout's Timeline; the menu buttons open from hotkeys of their own (D83).
+  Rows — Scene (a bar with its name over the whole scene: its settings in
+  the Key panel), Steps (bars, pause markers), Camera / Clipping (diamonds,
+  glide bars), Colour rules, Labels, Measurements, Overlays (a lane per
+  overlay, named by its design and title) and the object rows under a
+  foldable Objects row (D78; filled diamonds; hollow where the key holds;
+  bars between keys that move; hatched where hidden); a dashed end mark
+  (the @treDeSpaceUI Timeline's `hollow` points and `endMark`). Playing
+  back only, the Timeline is read-only (D82).
+- **The Key panel** (`src/components/panels/animation/`, panel id
+  `animation`): the picked key; an object row's next key + the object (name,
+  its *Items* — added / left out, *Add* / *Remove selection*, *Select*,
+  *Update from selection* (keys kept), the closest group —, pivot, path,
+  Slide in, mute, delete); the camera (position / target) / clipping row
+  and keys; the colour rules (the rule editor itself); a step (name, text,
+  start / end, pause, its card, notes); an overlay (design,
+  values, anchor, place keys, size, times, effects); or the scene (name,
+  end — pinned or not —, loop, ping-pong, step card, labels on screen) and
+  the Problems list.
+
+### Steps and callouts
+
+- A **step** is a named span on the Steps row: while it runs its card
+  shows — its own (`card`: design, values, place pin, text size, theme),
+  the scene's step card (`stepCard`, the built-in Step card by default), or
+  none — as a virtual overlay `step:<id>`; playback can wait at its end
+  (`pauseAtEnd`; the video holds there). `{{step.name / text / index /
+  count}}` fill in; the older `{{part.*}}` / `{{actor.name}}` still resolve
+  (designs saved earlier keep working). Previous / next step in the
+  transport, the play bar and the host API; one still per step.
+- A **callout** shows an overlay instance from `start` to `end` with enter
+  / exit effects, hanging from an object (anchor kind `object`) or on
+  screen; once it has position keys (or Auto-key is on) a drag in the view
+  keys its place at the time slider.
+
+### Player
+
+- **The player never takes the camera back** (D10): any camera input
+  switches it to *free*; Return blends back to the camera row (a
+  smoothstep onto a moving camera, a fly onto a still one); Play from a stop
+  and Continue follow the camera keys again.
+- **Space tap** = play / pause (D9): fires on a clean key-up, built as the
+  generic hotkey option `trigger: 'tap'`.
+- Stops at the end of a step with *pause at end* (status `waiting`;
+  Continue goes on), at the end, or loops / plays back (**Loop** and
+  **Ping-pong** are the scene's, D61). Scopes: the scene, a step (stops at
+  its end), the Timeline's in / out range.
+- **Presenting** (D62): the floating play bar over the 3D view (the scene to
+  play when there are several, the step number and title, previous / next
+  step, a scrubber, the Camera keys toggle — follow the camera keys or orbit
+  freely; switched off it stays off through Play, Continue and a restart
+  (`cameraOff`), while a mere view move still returns on Play (D10) —,
+  Close) shows whenever the mode is on and the Timeline is not
+  open.
+- **Present** (D74, `present.actions.ts`): the ribbon's big Present, the
+  Timeline's screen icon, ALT 1573 and the host's `animation.present` enter
+  playback in the built-in Present workspace after taking a snapshot of the
+  dock (`layoutsActions.snapshot`: panels, floating windows, active ribbon,
+  collapsed or not, selected slot) and the mode. Close on the play bar (and
+  ALT 903) restores both — authoring again, or the mode off; pressed again
+  while presenting, Present keeps the first snapshot. Leaving another way
+  (Animate) just drops it.
+
+### Overlays
+
+- **Rendering** (D15): one `<svg>` under the viewport host; each instance
+  is a `<g>` (leader + card) whose card is inline-styled HTML in a
+  `<foreignObject>`. Screenshots and video serialize it as a `data:` URL at
+  shot resolution. System fonts only.
+- **Themes** (D77): an overlay, step card or scene step card without a
+  theme is **Auto** — drawn with the Light theme in the app's light theme
+  and Dark in the dark one (`autoTheme`, the library's copies, so restyling
+  Dark / Light restyles Auto); picking Dark or Light forces it, user themes
+  as before. The Overlay Editor's preview has the same picker (Auto by
+  default) and its Theme section edits the theme in effect ("Dark (auto)").
+  The built-in "Default (dark)" is now named Dark (id `theme.default` kept;
+  saved library copies take the new name).
+- **Safety** (D13): no raw HTML / CSS from anyone — structured styles
+  mapped to CSS in code, escaped text, validated colours, `data:` images
+  only (≤ 1 MB), icons from a fixed list. The design parsers live in
+  `src/lib/overlay/overlayParse.ts` (shared JSON readers in
+  `src/lib/jsonFields.ts`); the library, overlay files and animation files
+  all go through them.
+- **Components** have parameters and text templates — `{{param}}`,
+  `{{step.*}}`, `{{object.name}}`, `{{time}}`, `{{duration}}`; `showIf`
+  hides a block. Presets: Step card, Callout, Caption bar, Title card, Info
+  card with image, Warning banner. The library is per user in OPFS; an
+  animation file embeds the designs it uses (D14).
+- **Values drive styles** (D51): a style colour may be `{{key}}` of a
+  colour value and a text `size` `{{key}}` of a number value; a design's own
+  `textScale` multiplies every text, times the placed card's.
+- **Overlay files** (D51): `*.tdoverlay.json` — Overlay Editor Export ▾ /
+  Import…; built-in ids are refused; the design JSON Schema is
+  `overlaySchema.ts`.
+- Effects are computed from the overlay's progress, never CSS transitions,
+  so seeking and capture are exact (D18); *Keep labels on screen* flips or
+  clamps attached labels (D32).
+
+### Capture: video and step stills
+
+`captureSession.ts` is shared: one render size, view cube hidden, no
+selection / hover, residency paused; per frame seek → worker colours
+synced → snapshot (converged in Best quality) → overlays composited as
+screenshots do → scaled. **Video** (D36, D88, D89): offline, frame by frame;
+WebCodecs encodes, Mediabunny packs the MP4 and **streams it into a file**
+(OPFS `temp/video`) as it is made — the index reserved at the start
+(`fastStart: 'reserve'`, the frame count is known up front), so the file is
+Fast Start yet never held in memory; the download reads it from disk, and
+the next export clears the folder. What it shows (`videoSegments`): every
+scene one after another, each whole (empty ones left out), or one scene —
+whole, or a part from Start to End (seconds; filled from the in / out range
+or the step at the time slider; an End past the scene's end holds its last
+picture). Between scenes the player switches and captures the next scene at
+once (`syncSessionNow({ force })`), and goes back to the open scene after.
+It waits at steps that pause, their card up. The dialog says how long the
+video will be. The camera is the camera row's (without keys the view stays
+as it is). A hidden tab stops drawing, so the export waits there (the tab's
+title says so). **Step stills** (D49):
+one picture per step at its end into a PDF (`pdfWriter.ts`), titled with
+its number and name, its text below.
+
+### Files and host API
+
+- `*.tdanim.json` via the ribbon's New / Open / Save (version 2; older or newer → an error, nothing
+  changes). OPFS: `animation_draft.json` (autosave every 5 s while dirty;
+  an earlier session's draft is offered at the top of the Timeline —
+  Recover / Discard, ALT 981 / 982 — and kept untouched until then: no
+  autosave over it, no delete on New / Open / Save) and
+  `overlay_components.json` (the library).
+- **Claude** (D63): the Timeline's Export ▾ → *Brief for AI…* (and the
+  ribbon's Export › Brief for AI)
+  (`brief.ts`) — what to ask the user (above all what is visible at the
+  start), how a scene and every Timeline row plays, several scenes in one
+  file (each from the model as loaded, objects per scene, shared overlays),
+  every field — camera views (negative elevation looks down, the short-way
+  glide), clipping, labels and measurements written by hand —, patterns and
+  a two-scene example (each opens as it stands — a test checks), the user's
+  cards and themes, custom designs, what the app's Problems list flags, and
+  the JSON Schema (`animSchema.ts`, every field the parser reads); the *Item list for AI* shortcuts
+  (ALT 1550 / 1551 / 1552 — selected nodes / children / every leaf; not
+  in the menu, which keeps just the brief) write `animation-items.csv` — name, fullname,
+  parent, depth, items, model, centre, size — with the SQL result's columns
+  joined on when it has a fullname column. `npm run anim:check <file>`
+  parses a file the way Open does and lists design fields the parser would
+  drop.
+- postMessage: `animation.load / get / setMode (mode, scene) / present /
+  setBookmarkButton / play (scene, range or step) / pause / continue / seek /
+  listScenes / setScene / listSteps / playStep / gotoStep / returnCamera /
+  getState` and the events `animation.stateChanged (with the active scene) /
+  stepStarted / stepEnded / ended / bookmark` — see `EVENTS.md`.
+  `listScenes` / `setScene` work with the mode off too (D87).
+- **Host presenting and bookmarks** (D73): `animation.present` is one call
+  from a file to a running presentation — load the doc (optional), the
+  scene, playback, the built-in Present workspace (`presentWorkspace`, not
+  the user's ALT+F2 slot; `ribbon: false` collapses the ribbon), `play`.
+  `animation.setBookmarkButton` puts a SESSION-ONLY big button in its own
+  Bookmark section at the end of the Animation ribbon (`hostBookmark.*`,
+  hotkey ALT 1572); a click emits `animation.bookmark` with the doc as Save
+  writes it — the twin of the viewpoints bookmark. The demo's Animation
+  section picks a file, loads / presents it, sets the button and presents the
+  last bookmark.
+- A saved dock layout naming a panel the app no longer has loads without it
+  (`DockManager.loadLayout` drops unknown panels).
+
+### Testing
+
+`npm run test:anim` (`scripts/anim-e2e.mjs`, scenarios in
+`tests/e2e/animation.e2e.mjs`, in-page probe `tests/e2e/animProbe.ts`) boots
+the app headless with a sample model and every animation panel open, and
+drives each flow through the actions its buttons and hotkeys call — + Object,
+posing and Key, editing a picked key, the next-key values and Time, instant
+keys, Slide in, the camera / section / colour-rules rows (with Set Color's
+Run previewing), steps (filling, pausing, previous / next), callouts,
+item sets (a group minus the selection moving without it, add back, the
+closest group, hierarchy-aware add / remove), quick colour rules, the show /
+hide toggle and viewpoint camera keys, the Key panel's rule editor (in-place
+key edits with one undo step, the previewed draft, rules in force), camera
+key points, overlay lanes, a key's pivot, and the Labels / Measurements
+rows (keyed from the screen, on / off into the key, the user's sets put
+aside and restored),
+Timeline drags / copy / paste / delete with undo, Auto-key, mute, update
+from selection, scenes, loop / ping-pong, the file round trip and the v1
+refusal, the host API, and what the panels show — and the review's
+regressions (`review:` scenarios): real I and Ctrl+C key presses (`t.press`),
+the row-name right-click, step room, auto-key on loose items, typed values
+with several objects, rules keys keeping poses, pivots that never move the
+object, the waiting step's card, the draft bar, Present over Present, an
+exit while entering, menu hotkeys and the read-only playback Timeline. A console error or React
+warning fails the scenario. Video and stills need a GPU snapshot and are
+not covered. Unit tests (vitest) cover the pure core (`animationModel`,
+`animationKeyRows`, `animationInterp`, `animationBrief`).
+
+### What Navisworks users struggle with — and the answer here
+
+From Autodesk forums, AUGI and tutorials, before the rebuild: keys relative
+to the key before (objects start in the wrong place) → keys are absolute and
+the first key is visible; **no multi-select of keys** → box-select, Shift,
+copy / paste; rotations past 180° turn the short way → spin; the pivot does
+not stick → the pivot belongs to the object; edits lost when you scrub → the
+*not keyed* banner, a toast, and Time carrying the pose; the camera moves
+while you scrub object keys → moving the view frees it; no visibility key →
+show / hide keys as hatched spans; values only in a modal dialog → the Key
+panel, always open; export freezes or drops overlays → offline frame-by-
+frame MP4 with overlays.
+
+### Open
+
+- In-app A/B of the cull upgrade before it becomes the default (D21).
+- The new tool in-app on a real GPU (the e2e suite is state-level and
+  headless): video and step stills, the Timeline at scale (hundreds of
+  objects), residency of objects animated far away.
+- On host demand: overlay designs and live values over the SDK; a command
+  to add keys.
+- Not built: per-object loop / ping-pong, an item moved by two objects at
+  once, a shared (team) overlay library, a `{{prop.TAG}}` placeholder from
+  the model DB, click-to-play triggers.
+- **Search-set objects** (Navisworks' search sets): an object defined by
+  Set Color filters, so items matching later move too. The matching lives
+  inside `applyColorRules`; it would have to be pulled out as a pure
+  "fullnames matching these filters" worker call first. Groups with
+  `exclude` cover most of it today (a group follows the model).
+
+### Declined — don't re-propose
+
+Scale (D1); item fades and colour / look fades (D5, D53 — instant keys);
+ghosting and spotlight (D53); a Bezier / curve editor (D30 — smooth paths);
+audio; collision-aware paths; a viewpoint that opens an animation (D34);
+the Planner / Storyboard / wizard / parts model (replaced by D53 — don't
+bring parts back as containers).
+
+### Decisions
+
+| ID | Decision |
+|---|---|
+| D1 | Rigid motion only — no scale. |
+| D2 | 99 % of use is move + rotate; design around that. |
+| D3 | *Superseded by D54.* Keys are deltas from the rest pose. |
+| D4 | *Superseded by D53.* Sequences are reusable clips. |
+| D5 | No item fade; opacity is an instant value. |
+| D6 | 2D overlays as reusable components with an editor, styles and text templates. |
+| D7 | *Superseded by D53.* Animations built from linked parts. |
+| D8 | Viewer story: play, pause, move the camera freely, continue. |
+| D9 | Space tap = play / pause (`trigger: 'tap'`); Space + click stays fly-to; `K` too. |
+| D10 | The player never takes the camera back on its own. |
+| D11 | Item identity = lower-cased fullname (as viewpoints and `.tdsnap`). |
+| D12 | Animation mode does not modify the scene: enter captures, exit restores; no undo entries. |
+| D13 | Overlays take no raw HTML / CSS; structured styles, escaped text, `data:` images. |
+| D14 | Overlay library per user (OPFS); animation files embed the designs they use. |
+| D15 | Overlays are one SVG layer with foreignObject cards; captured as a `data:` URL. |
+| D16 | *Superseded by D53* (one row per object, no composition). |
+| D17 | *Superseded by D53* (callouts carry their own times). |
+| D18 | Overlay enter / exit effects computed per frame, never CSS transitions. |
+| D19 | Opacity keys clamp to ≥ 1 % in the worker; hiding is visibility's job. |
+| D20 | *Amended:* animation hotkeys keep their ALT codes; new ones from ALT 1505; `I` keys while authoring. |
+| D21 | Cull upgrade ships off by default; cone + HiZ only for verified-rigid slots. |
+| D22 | The worker refuses committed transform edits while animation mode owns slots. |
+| D23 | Colour rules in time are Set Color rule sets (the worker's look machinery). |
+| D24 | Animation mode always starts from a clean scene (colours, opacity, hidden). |
+| D25 | Layering: clean scene → colour rules → objects' own keys. |
+| D26 | *Superseded by D53* (no fades; the worker blends at mix 1). |
+| D27 | *Superseded by D59.* |
+| D28 | *Superseded by D53* (the wizard is gone). |
+| D29 | Picking a key moves the time slider there; the gizmo re-poses it (D57). |
+| D30 | Smooth paths (Hermite through the keys); no Bezier handles. |
+| D31 | *Superseded by D53* (an object is one set; make one per item if needed). |
+| D32 | Callout position keys; keep labels on screen. |
+| D33 | Clipping keys: the Clipping row (`section`) glides or switches. |
+| D34 | "Save this moment" (viewpoint → animation link) removed. |
+| D35–D37 | *Superseded:* the ribbon is now Animation · Export · Panels · View · Edit (D53). |
+| D36 | Video export offline, frame by frame; WebCodecs + mp4-muxer (*mp4-muxer superseded by D89*). |
+| D38 | Append colour rules build on the rules before. |
+| D39 | The clean start covers Transform-ribbon moves too. |
+| D40–D46, D48, D50 | *Superseded by D53 / D63* (the Planner and plan files are gone; the brief describes the animation file). |
+| D47 | Performance: movers get slots first, per-object result caching, content keys. |
+| D49 | Step stills: one picture per step into a PDF. |
+| D51 | Custom designs: values drive font sizes and colours, a design's own text size, overlay files. |
+| D52 | *Kept as D56.* Posing like Blender. |
+| D53 | **Rebuild like Navisworks Animator**: scenes of objects (one key row each), camera / section / colour-rules rows, steps as named spans with a card, callouts; parts, clips, sequences, links, roles, the Planner, Storyboard, wizard, Player panel, ghosting, spotlight and fades go. |
+| D54 | Object keys are absolute (offset from the model place); before the first key it stands there, after the last it stays; instant values absent = as before. |
+| D55 | An object is made from the selection (named after its node, a key where it stands); a selection that is not an object becomes one when posed or keyed. |
+| D56 | Pose, then Key: drags draw a pending pose, Key (`I`) keys it at the time slider, scrubbing drops it; Auto-key is opt-in with a red frame. |
+| D57 | The Key panel edits the picked key or the next key at the time slider; the Timeline holds Capture (Key), Move / Rotate and the transport. |
+| D58 | Slide in takes a distance in metres, not × the item size. |
+| D59 | *Partly superseded by D68:* colour rules keyed on the Colour rules row; no separate animation Set Color panel. |
+| D60 | Start fresh: file version 2; version 1 files are refused. |
+| D61 | Loop and ping-pong per scene only. |
+| D62 | Presenting = the floating play bar (step title, previous / next step); no step-list panel. |
+| D63 | The Claude brief, schema and `anim:check` describe the version 2 file; item lists stay. |
+| D64 | Objects hold nodes added **and** left out (`exclude`), nested by tree depth, the deeper one winning — a group minus a few, like Navisworks sets with an exclusion they lack. |
+| D65 | Add / Remove selection edit the lists hierarchy-aware in the worker (changed the least, kept tidy, never emptied); the closest group is suggested only when it is simpler and in one model. Claude is told to prefer the highest node plus `exclude`. |
+| D66 | Quick colour-rules keys from the selection (colour / transparent / hide / only these) and for the whole model (hide everything / own colours) — ordinary rules keys, edited in the Key panel since D68; colour stays the rules' job, motion the objects'. |
+| D67 | The Timeline toolbar carries every everyday key: show / hide toggle, key colour, Colour ▾, Rules ▾, Camera ▾ (viewpoints, orbit), Clipping — each with a hotkey (ALT 1553–1565 new). |
+| D68 | The Key panel holds the Set Color rule editor: a picked rules key is edited in place, otherwise it is the next rules key (an Append draft previewed, dropped like a pose, Key keys and picks it); Set Color's Run and *From Set Color* feed it. |
+| D69 | A camera key shows and takes its eye position and target as points; az / el / distance are derived (elevation ±89°). |
+| D70 | "Section" is called **Clipping** in the UI; the file field stays `section` (files keep opening). |
+| D71 | The Callouts row is the **Overlays** row (`callouts` in the file): callouts, title cards, captions, info cards, step cards and the user's designs, added from the toolbar's Overlay ▾; lanes are named by design and title. |
+| D72 | *Superseded by D75* (a key's pivot only shaped the motion into it; its pose stayed about the object's pivot). |
+| D73 | The host presents an animation in one call (`animation.present`) and gets a SESSION-ONLY Bookmark button in its own ribbon section (`animation.setBookmarkButton` → `animation.bookmark` with the doc). |
+| D74 | Present remembers the layout and mode it replaced; the play bar's Close restores them. The play bar's camera control is a follow / orbit-freely toggle. |
+| D75 | A key's pivot (a side of the object's box, or a point; plus an offset) is what its Move / Rotate are about and what it turns about on the way in; it sits under Rotate in the Key panel, for picked and next keys, and changing it keeps the pose. |
+| D76 | Labels and Measurements rows: keys hold the animation's own copy of a set, shown from their time on; the user's sets are put aside while animating; the normal tools edit what is on screen (into the picked key in force, else waiting for Key). |
+| D77 | Overlays without a theme are Auto: the app's light / dark theme (Light / Dark); Dark or Light forces one. Callouts get a theme picker; the Overlay Editor previews Auto by default. |
+| D78 | + Objects one per child / per selected node (keyed where they stand, existing ones skipped); object rows grouped under a collapsible Objects row; Ctrl / Shift on row names select several objects to pose together. |
+| D79 | The gizmo's pivot and the key's are one point while authoring: the ribbon pivot sits on the picked / next key's pivot at the object's pose now (sides are the object's own, turned along), dragging it writes the key's offset from its side; a side starts at offset 0; a point pivot reads as Centre + offset (no Point choice); new keys carry the pivot on. |
+| D80 | Authoring folds keys in double precision and "the same place" is 0.1 mm (`SAME_PLACE_M`): a key pressed twice without moving is a pause on the smooth path, far from the origin too; the smooth path rests at keys next to a Hold. |
+| D81 | While playback waits at a pausing step's end, that step stays the step and its card stays up (evaluate's `held`); video hold frames and step stills hold their step's card. One step plays once (Loop / Ping-pong are the scene's); a pausing step at the end of a looping scene pauses; `animation.ended` only for the whole scene. |
+| D82 | The mode started from the Timeline's workspace (K, an export, with the Timeline or Key panel open) is authoring; playing back only, the Timeline is read-only with a hint and the Key panel waits for Animate. |
+| D83 | Menu buttons open from hotkeys of their own (`menuRequests`, the shared `useMenuAnchor(menuId)`); the Overlay Editor's design fields, the preview's toolbar and an overlay's place get hotkeys that press the control on screen (`pressControl`). |
+| D84 | Changing an object's pivot keeps every key's pose; Pivot from the gizmo is the point of the object under it where it is drawn now. |
+| D85 | Key on several objects is one undo step; a Timeline drag is one undo step however slow (`GESTURE_COALESCE`); keying colour rules keeps object poses and Key on objects keeps a rules preview (pending poses and rules clear separately); the next key's interp / pivot apply to their object only. |
+| D86 | An earlier session's unsaved animation is offered at the top of the Timeline (Recover / Discard) and kept untouched until then. |
+| D87 | The host gets and sets the active scene: `animation.listScenes` (id, name, duration, steps, objects, and the active one) and `animation.setScene` (with the mode on: stopped at the scene's start); `animation.stateChanged` carries `scene` and goes out when it changes. |
+| D88 | Video export: all scenes one after another, or one scene — whole, or a part from Start to End (typed, or from the in / out range or the step at the time slider); replaces "the step at the time slider / the in / out range" choices. |
+| D89 | The MP4 is packed by **Mediabunny** (MPL-2.0, unmodified; mp4-muxer is deprecated in its favour) and streams into an OPFS file as it is made (index reserved at the start for the known frame count), downloaded from disk — memory no longer grows with the video's length. The encoder stays ours (codec fallback, hidden-tab recovery); Mediabunny only muxes. |
+
 ## postMessage host API
 
 Shipped: the viewer embeds (iframe or `window.open`) and is driven by a host

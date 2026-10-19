@@ -10,6 +10,7 @@ import {
 } from './buttonStyles';
 
 export interface SegmentedOption<T extends string = string> {
+  /** The value this segment selects. */
   value: T;
   /** Omit for an icon-only segment. */
   label?: ReactNode;
@@ -19,21 +20,27 @@ export interface SegmentedOption<T extends string = string> {
   tooltip?: string;
   /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
   shortcut?: string;
+  /** Grey out this segment alone (the control's `disabled` greys all). */
   disabled?: boolean;
 }
 
 export interface SegmentedControlProps<T extends string = string> {
+  /** The selected value — its segment renders active. */
   value: T;
+  /** The segments, left to right. */
   options: readonly SegmentedOption<T>[];
+  /** Receives the clicked segment's value. */
   onChange: (value: T) => void;
-  /** Height/padding scale — matches {@link Button}. */
+  /** Height/padding scale — matches {@link Button} (default `md`). */
   size?: ButtonSize;
   /** Split the row evenly between the segments instead of hugging the labels. */
   grow?: boolean;
   /** Fill the parent's height exactly (a ribbon slot) instead of the size's
    *  fixed height. */
   fill?: boolean;
+  /** Grey out every segment. */
   disabled?: boolean;
+  /** Extra classes on the group element. */
   className?: string;
 }
 

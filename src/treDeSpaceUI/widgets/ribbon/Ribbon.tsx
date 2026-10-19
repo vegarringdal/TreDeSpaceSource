@@ -1,4 +1,6 @@
 import { Children, isValidElement, type ReactNode } from 'react';
+import { RibbonNumber } from './RibbonNumber';
+import { RibbonSlot } from './RibbonSlot';
 import { RIBBON_ROWS, type RibbonSize } from './ribbonSizes';
 
 export { RibbonButton, type RibbonButtonProps } from './RibbonButton';
@@ -15,15 +17,28 @@ export function Ribbon({ children, className = '' }: { children: ReactNode; clas
   );
 }
 
+/** The rows a section child takes: its own `size`, else what it draws at. */
+function packedSize(child: ReactNode): RibbonSize {
+  if (!isValidElement(child)) {
+    return 'big';
+  }
+  const own = (child.props as { size?: RibbonSize }).size;
+  if (own) {
+    return own;
+  }
+  return child.type === RibbonSlot || child.type === RibbonNumber ? 'medium' : 'big';
+}
+
 /**
  * A titled group: the item area on top, a tinted full-width title band
  * underneath that reads as the group's footer in both themes.
  * Children declare a `size` (big = 1 per column, medium = 2, mini = 3); the
  * section packs them into equal-width columns in order, and a column that is
  * not completely full centres its content vertically.
- * The size is read off each DIRECT child element's props, so a component that
- * wraps a RibbonButton must take `size` as its own prop (a size decided
- * inside it is invisible here and the child is packed as `big`).
+ * The size is read off each DIRECT child element's props (a RibbonSlot or
+ * RibbonNumber without one packs as the `medium` it draws, anything else as
+ * `big`), so a component that wraps a RibbonButton must take `size` as its
+ * own prop — a size decided inside it is invisible here.
  */
 export function RibbonSection({
   title,
@@ -38,7 +53,7 @@ export function RibbonSection({
   let column: ReactNode[] = [];
   let used = 0;
   for (const child of Children.toArray(children)) {
-    const size: RibbonSize = (isValidElement(child) && (child.props as { size?: RibbonSize }).size) || 'big';
+    const size = packedSize(child);
     if (used + RIBBON_ROWS[size] > 6) {
       columns.push(column);
       column = [];

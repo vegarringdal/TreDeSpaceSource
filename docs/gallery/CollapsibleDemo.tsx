@@ -11,7 +11,7 @@ export function CollapsibleDemo() {
   return (
     <Section
       title="Collapsible"
-      note="A titled section that collapses — for organising long settings tabs. The header can carry a right-aligned aside (count, badge), action buttons (a reset that greys out at defaults) and an info popover. Uncontrolled by default; pass `open` + `onToggle` when something else owns the state — an accordion, or a search that must open every matching group."
+      note="A titled section that collapses — for organising long settings tabs. The header can carry a right-aligned aside (count, badge), action buttons (a reset that greys out at defaults) and an info popover. A closed section unmounts its body (InlinePanel keeps it and animates shut). Uncontrolled by default (open); pass `open` + `onToggle` when something else owns the state — an accordion, or a search that must open every matching group."
       props={['CollapsibleProps']}
       code={`function RenderingSettings() {
   const [edits, setEdits] = useState(0);
@@ -46,7 +46,9 @@ export function CollapsibleDemo() {
         </Button>
       </Collapsible>
       <Collapsible title="Collapsed by default" defaultOpen={false}>
-        <p className="m-0 py-1 text-slate-400">Sections animate open and closed without measuring.</p>
+        <p className="m-0 py-1 text-slate-400">
+          defaultOpen={'{false}'} starts it shut; a closed section unmounts its body.
+        </p>
       </Collapsible>
       {/* controlled: one open at a time */}
       {['a', 'b'].map((id) => (

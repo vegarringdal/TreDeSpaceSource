@@ -24,7 +24,9 @@ function applyEdit(ta: HTMLTextAreaElement, edit: TextEdit, onChange: (v: string
 }
 
 export interface SqlCodeEditorProps {
+  /** The SQL text. */
   value: string;
+  /** Receives the text after every edit (typing, Tab indents, Enter). */
   onChange: (v: string) => void;
   /** Ctrl/Cmd+Enter inside the editor. */
   onRun?: () => void;

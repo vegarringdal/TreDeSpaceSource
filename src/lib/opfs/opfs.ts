@@ -11,6 +11,8 @@ import { storageKey } from '../storageKeys';
 //                    (sql_assets/<store>/<file>.db) so ATTACH DATABASE works
 //                    against a plain path.
 //   temp/            scratch space for tools (safe to clear any time)
+//   overlay_components.json  the user's 2D overlay library (animation tool)
+//   animation_draft.json     the autosaved animation draft
 
 async function dir(name: string): Promise<FileSystemDirectoryHandle> {
   const root = await navigator.storage.getDirectory();
@@ -27,7 +29,20 @@ export const tempDir = () => dir('temp');
 /** Everything the viewer owns at the OPFS root — what "Clear all local data"
  *  removes. Nothing else at the root is touched: a host page sharing the
  *  origin may keep its own files there. */
-export const VIEWER_OPFS_ENTRIES = ['stores.json', 'model_assets', 'sql_assets', 'temp', 'manual_assets'] as const;
+export const VIEWER_OPFS_ENTRIES = [
+  'stores.json',
+  'model_assets',
+  'sql_assets',
+  'temp',
+  'manual_assets',
+  'overlay_components.json',
+  'animation_draft.json',
+] as const;
+
+/** The user's overlay component + theme library (DESIGN.md › Animation, D14). */
+export const OVERLAY_LIBRARY_FILE = 'overlay_components.json';
+/** The autosaved animation draft (DESIGN.md › Animation › Files and host API). */
+export const ANIMATION_DRAFT_FILE = 'animation_draft.json';
 
 export async function removeViewerOpfsEntries(): Promise<void> {
   try {
@@ -122,6 +137,13 @@ export async function stepTempDir(): Promise<FileSystemDirectoryHandle> {
  *  thread downloads the finished file, then deletes it. */
 export async function exportTempDir(): Promise<FileSystemDirectoryHandle> {
   return (await tempDir()).getDirectoryHandle('export', { create: true });
+}
+
+/** temp/video — the animation video export streams its MP4 here and the
+ *  download reads it straight from disk. The next video export clears it
+ *  (deleting it at once could cut the running download off). */
+export async function videoTempDir(): Promise<FileSystemDirectoryHandle> {
+  return (await tempDir()).getDirectoryHandle('video', { create: true });
 }
 
 /** temp/uploads — staging for chunk-uploaded imports (one `<id>.part` per

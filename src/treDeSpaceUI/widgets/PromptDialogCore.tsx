@@ -4,14 +4,21 @@ import { DialogFrame } from './DialogFrame';
 import { TextInput } from './text/TextField';
 
 export interface PromptDialogCoreProps {
+  /** Title-bar text. */
   title: string;
+  /** The question above the field. */
   message: string;
+  /** The field's text — controlled, yours to keep. */
   value: string;
+  /** OK button text. */
   okLabel: string;
+  /** Cancel button text (default 'Cancel'). */
   cancelLabel?: string;
+  /** Receives the text on every keystroke. */
   onChange: (value: string) => void;
-  /** Called with true for OK/Enter, false for Cancel/Escape. */
+  /** Called with true for OK/Enter, false for Cancel, Escape, the backdrop or the ✕. */
   onResult: (ok: boolean) => void;
+  /** Stacking layer (default 2000). */
   z?: number;
 }
 

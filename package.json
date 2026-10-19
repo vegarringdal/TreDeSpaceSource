@@ -1,7 +1,7 @@
 {
   "name": "tredespace",
   "private": true,
-  "version": "0.0.141",
+  "version": "0.0.142",
   "type": "module",
   "author": "Vegar Ringdal <vegar.ringdal@postboxen.no>",
   "scripts": {
@@ -12,8 +12,10 @@
     "typecheck": "npm run gen:docs && tsc --noEmit",
     "check:size": "node scripts/check-component-size.mjs",
     "test:boot": "node scripts/boot-test.mjs",
+    "test:anim": "node scripts/anim-e2e.mjs",
     "gen:notices": "node scripts/gen-third-party-notices.mjs",
     "docs:shots": "node scripts/doc-shots.mjs",
+    "anim:check": "node scripts/anim-check.mjs",
     "gen:apidocs": "node scripts/gen-api-docs.mjs",
     "lint": "biome lint",
     "format": "biome format --write",
@@ -29,6 +31,7 @@
     "clsx": "2.1.1",
     "comlink": "4.4.2",
     "lit-html": "3.3.3",
+    "mediabunny": "^1.61.1",
     "meshoptimizer": "1.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",

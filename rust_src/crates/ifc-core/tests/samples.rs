@@ -1,8 +1,8 @@
 //! End-to-end integration tests: run real IFC sample files through `convert()` and validate
 //! the produced GLB(s). These exercise the full ifc-lite → mesh → GLB pipeline that the unit
-//! tests (synthetic meshes) don't. Small samples are committed under
-//! `convertSamples/ifc`; the
-//! test skips gracefully if a file is absent (e.g. the git-ignored large models).
+//! tests (synthetic meshes) don't. The samples are third-party files, not kept in git —
+//! `convertSamples/ifc/fetch-samples.sh` downloads them. A test skips a sample that is
+//! absent, but `every_mode_produces_valid_glb` fails when none is there.
 
 use std::path::PathBuf;
 
@@ -99,7 +99,11 @@ fn every_mode_produces_valid_glb() {
         }
         ran += 1;
     }
-    assert!(ran > 0, "no sample files found under {:?}", samples_dir());
+    assert!(
+        ran > 0,
+        "no sample files found under {:?} — run convertSamples/ifc/fetch-samples.sh",
+        samples_dir()
+    );
 }
 
 #[test]

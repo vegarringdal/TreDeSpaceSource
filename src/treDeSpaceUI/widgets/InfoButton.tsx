@@ -4,9 +4,9 @@ import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
 
 export interface InfoButtonProps {
-  /** The explanation shown in the popover — the old InfoBox content. */
+  /** The explanation shown in the popover. */
   children: ReactNode;
-  /** Accessible label / hover tooltip for the trigger. */
+  /** Accessible label / hover tooltip for the trigger (default 'More info'). */
   label?: string;
   className?: string;
 }
@@ -100,7 +100,7 @@ export function InfoButton({ children, label = 'More info', className = '' }: In
           <div
             ref={popRef}
             role="dialog"
-            className="fixed z-[2000]"
+            className="fixed z-[2700]"
             style={{ left: pos.left, top: pos.top, width: pos.width }}
           >
             {/* arrow pointing back at the icon — a rotated square straddling the

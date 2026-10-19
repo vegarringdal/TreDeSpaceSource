@@ -18,8 +18,15 @@ export function ButtonDemo() {
       title="Button"
       note="The app's button: 24 px tall (size md) so it lines up with the inputs. `variant` sets the emphasis — primary for the confirming action, danger for a destructive one, ghost for dense chrome — while `active` is a state and wins over it. `wrap` lets a long label take a second line, `grow` splits a row, `loading` swaps the icon for a spinner, and read-only mode renders a non-interactive chip in the same box."
       props={['ButtonProps', 'ButtonVariant', 'ButtonSize']}
-      code={`function Actions() {
+      code={`// frameSelection / save / remove / work are yours
+function Actions() {
   const [on, setOn] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    await work();
+    setBusy(false);
+  };
   return (
     <div className="flex items-center gap-1.5">
       <Button icon={<IconFocus2 />} onClick={frameSelection}>Frame</Button>
@@ -27,6 +34,7 @@ export function ButtonDemo() {
       <Button variant="danger" icon={<IconTrash />} onClick={remove}>Delete</Button>
       <Button active={on} onClick={() => setOn(!on)}>Toggle</Button>
       <Button loading={busy} onClick={run}>Run</Button>
+      <Button iconOnly size="sm" icon={<IconTrash />} tooltip="Remove" onClick={remove} />
       <Button readOnly>Ctrl+F</Button>
     </div>
   );
@@ -54,6 +62,7 @@ export function ButtonDemo() {
           <Button size="xs">xs</Button>
           <Button size="sm">sm</Button>
           <Button size="md">md</Button>
+          <Button size="lg">lg</Button>
           <Button size="xs" iconOnly icon={<IconTrash />} tooltip="xs icon" />
           <Button size="sm" iconOnly icon={<IconTrash />} tooltip="sm icon" />
           <Button badge={12}>With badge</Button>

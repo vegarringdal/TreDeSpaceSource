@@ -5,7 +5,8 @@
 //
 // Undo is PER-DOMAIN by design: TWO independent stacks and nothing else —
 // STATE (color/opacity/visibility, owned by apiColor; apiVisibility pushes
-// onto it) and TRANSFORMS (apiTransform). There is no global undo.
+// onto it) and TRANSFORMS (apiTransform). There is no global undo. Animation
+// mode (apiAnimation) is not an edit: it borrows slots and restores them.
 //
 // This file is only the composition root: each domain lives in its own module
 // (shared state in dbState/transformPool, indexes in hierarchyIndex/
@@ -13,6 +14,7 @@
 // object is the single Comlink surface — external code imports ONLY the types
 // re-exported here.
 import * as Comlink from 'comlink';
+import { animationApi } from './apiAnimation';
 import { colorApi } from './apiColor';
 import { exportApi } from './apiExport';
 import { modelsApi } from './apiModels';
@@ -22,6 +24,7 @@ import { transformApi } from './apiTransform';
 import { treeApi } from './apiTree';
 import { visibilityApi } from './apiVisibility';
 
+export type { AnimActorSpec, AnimEnterResult, AnimSlotBinding } from './apiAnimation';
 export type { ExportGeom } from './apiExport';
 export type { SnapshotApplyResult, SnapshotSaveOptions } from './apiSnapshot';
 export type { ColorRuleSpec } from './colorRules';
@@ -34,7 +37,7 @@ export {
   type StateUpdate,
   type TreeNode,
 } from './dbState';
-export { TRANSFORM_POOL } from './transformPool';
+export { ANIM_BAND_FIRST, ANIM_BAND_SIZE, TRANSFORM_POOL } from './transformPoolLayout';
 
 const api = {
   ...modelsApi,
@@ -45,6 +48,7 @@ const api = {
   ...transformApi,
   ...exportApi,
   ...snapshotApi,
+  ...animationApi,
 };
 
 export type ModelDbApi = typeof api;

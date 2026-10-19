@@ -3,10 +3,15 @@ import { Labelled, type LabelledProps } from '../fieldChrome';
 import { useNumberInputControl } from './useNumberInputControl';
 
 export interface NumberInputProps extends LabelledProps {
+  /** Current value; shown rounded to `precision`. */
   value: number;
+  /** Receives every change, clamped to [min, max] and rounded to `precision`. */
   onChange: (value: number) => void;
+  /** Lower bound (default: none). */
   min?: number;
+  /** Upper bound (default: none). */
   max?: number;
+  /** Increment of − / +, ↑ / ↓, a wheel notch and each 4 px of drag (default 1). */
   step?: number;
   /** Decimals shown/kept; derived from step when omitted. */
   precision?: number;
@@ -16,8 +21,9 @@ export interface NumberInputProps extends LabelledProps {
   tooltip?: string;
   /** Hotkey id (data-shortcut) for the field — the tooltip gets a combo footer. */
   shortcut?: string;
-  /** Hotkey ids for the − / + steppers (renders data-shortcut for the footer). */
+  /** Hotkey id for the − stepper (data-shortcut — its tooltip shows the combo). */
   decShortcut?: string;
+  /** Hotkey id for the + stepper (data-shortcut — its tooltip shows the combo). */
   incShortcut?: string;
 }
 
@@ -27,7 +33,8 @@ const STEPPER_CLS =
 /**
  * A stepper in the studio look: − and + on either side, and a "rolling"
  * middle — scroll the wheel over it, or press and drag horizontally like a
- * Blender field. A plain click still focuses it for typing.
+ * Blender field. A plain click still focuses it for typing: Enter or blur
+ * commits, Escape reverts, ↑ / ↓ step.
  */
 export function NumberInput({
   value,

@@ -12,7 +12,8 @@ Built by Vite (three page inputs) and served at `<host>/docs/`.
   the SDK**, then a types appendix. Offers the SDK for download.
 - `demo.html` — the live mini-demo: embeds the real viewer and drives it.
 - `guide/` — the **end-user guide**, one page per app layout
-  (`f01-home.html` … `f12-assets.html`), shared panels on their own pages
+  (`f01-home.html` … `f12-sql-editor.html`, plus `a01-assets.html` for the
+  ALT+F1 preset), shared panels on their own pages
   (`panel-*.html`) and `index.html` as the start page (layout overview + the
   App Layout ribbon). Prose is hand-written in the HTML; the pictures, marker
   boxes and reference tables come from `npm run docs:shots` (see "User-guide
@@ -62,7 +63,9 @@ Built by Vite (three page inputs) and served at `<host>/docs/`.
 puppeteer through every scene in `guide/scenes/*.mjs` (`_lib.mjs` holds the
 shared helpers): each scene boots a fresh app in an incognito context,
 imports Huldra sample RVMs from `convertSamples/rvm`, sets up a layout or
-panel state and captures crops. Outputs, all **committed** (the build never
+panel state and captures crops (the a01 scene also imports an IFC sample, which
+is not in git — run `convertSamples/ifc/fetch-samples.sh` first). Outputs, all
+**committed** (the build never
 needs a browser):
 
 - `guide/img/<shot>.webp` — one image per `<figure data-shot="<shot>">`.

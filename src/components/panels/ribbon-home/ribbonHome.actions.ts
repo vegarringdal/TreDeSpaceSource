@@ -1,8 +1,8 @@
-import { projectToScreen } from '../../../lib/math/project';
 import { removeViewerOpfsEntries } from '../../../lib/opfs/opfs';
 import { clearViewerStorage } from '../../../lib/storageKeys';
+import { drawViewportOverlays } from '../../../state/viewer/captureOverlays';
 import { labelsActions } from '../../../state/viewer/labels.actions';
-import { labelsState, type SceneLabel } from '../../../state/viewer/labels.state';
+import { labelsState } from '../../../state/viewer/labels.state';
 import { measurementsActions } from '../../../state/viewer/measurements.actions';
 import { measurementsState } from '../../../state/viewer/measurements.state';
 import { residency } from '../../../state/viewer/residency';
@@ -14,94 +14,6 @@ import { consoleActions } from '../console/console.actions';
 import { type RibbonHomeState, ribbonHomeState } from './ribbonHome.state';
 
 const log = (label: string) => consoleActions.log('info', `Home → ${label}`);
-
-/** Rich-text line → [text, bold] segments (matches the label overlay's **bold**). */
-function boldSegments(line: string): [string, boolean][] {
-  const out: [string, boolean][] = [];
-  let bold = false;
-  for (const part of line.split('**')) {
-    if (part) {
-      out.push([part, bold]);
-    }
-    bold = !bold;
-  }
-  return out;
-}
-
-/** Draw the scene labels (leader lines + boxes) onto the screenshot canvas —
- *  they are HTML, not SVG, so the SVG-overlay compositor misses them. */
-function drawLabels(ctx: CanvasRenderingContext2D, sx: number, sy: number) {
-  const r = getRenderer();
-  if (!r?.canvasEl) {
-    return;
-  }
-  const s = labelsState.get();
-  if (s.items.length === 0) {
-    return;
-  }
-  const w = r.canvasEl.clientWidth;
-  const h = r.canvasEl.clientHeight;
-  const at = (l: SceneLabel) => projectToScreen(r.viewProjMatrix, w, h, l.anchor);
-  // leader lines + anchor dots first (labels draw on top, like the DOM order)
-  for (const l of s.items) {
-    const a = at(l);
-    if (!a || (l.offset[0] === 0 && l.offset[1] === 0)) {
-      continue;
-    }
-    ctx.strokeStyle = s.leaderColor;
-    ctx.fillStyle = s.leaderColor;
-    ctx.lineWidth = 1.5 * sx;
-    ctx.beginPath();
-    ctx.moveTo(a[0] * sx, a[1] * sy);
-    ctx.lineTo((a[0] + l.offset[0]) * sx, (a[1] + l.offset[1]) * sy);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(a[0] * sx, a[1] * sy, 2.5 * sx, 0, 2 * Math.PI);
-    ctx.fill();
-  }
-  const fontPx = 12 * sx;
-  const lineH = 15 * sx;
-  const padX = 6 * sx;
-  const padY = 2 * sx;
-  for (const l of s.items) {
-    const a = at(l);
-    if (!a) {
-      continue;
-    }
-    const lines = (s.richText ? l.text.split('\n') : [l.text]).map(boldSegments);
-    let maxW = 0;
-    for (const segs of lines) {
-      let lw = 0;
-      for (const [text, bold] of segs) {
-        ctx.font = `${bold ? 'bold ' : ''}${fontPx}px sans-serif`;
-        lw += ctx.measureText(text).width;
-      }
-      maxW = Math.max(maxW, lw);
-    }
-    const bw = maxW + padX * 2;
-    const bh = lines.length * lineH + padY * 2;
-    const x0 = (a[0] + l.offset[0]) * sx - bw / 2;
-    const y0 = (a[1] + l.offset[1]) * sy - bh / 2;
-    ctx.globalAlpha = l.opacity;
-    ctx.fillStyle = l.bg;
-    ctx.fillRect(x0, y0, bw, bh);
-    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-    ctx.lineWidth = 1 * sx;
-    ctx.strokeRect(x0, y0, bw, bh);
-    ctx.fillStyle = l.textColor;
-    ctx.textBaseline = 'middle';
-    lines.forEach((segs, i) => {
-      let x = x0 + padX;
-      const y = y0 + padY + lineH * (i + 0.5);
-      for (const [text, bold] of segs) {
-        ctx.font = `${bold ? 'bold ' : ''}${fontPx}px sans-serif`;
-        ctx.fillText(text, x, y);
-        x += ctx.measureText(text).width;
-      }
-    });
-    ctx.globalAlpha = 1;
-  }
-}
 
 export const ribbonHomeActions = {
   remove: () => void viewerActions.removeAll(),
@@ -158,37 +70,7 @@ export const ribbonHomeActions = {
     ctx.putImageData(new ImageData(new Uint8ClampedArray(shot.rgba), shot.w, shot.h), 0, 0);
     const shotW = shot.w;
     const shotH = shot.h;
-    // composite the viewport's SVG overlays (CSS px → device px scale)
-    const host = r.canvasEl?.parentElement;
-    if (host) {
-      for (const svg of host.querySelectorAll(':scope > svg')) {
-        const rect = svg.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) {
-          continue;
-        }
-        const clone = svg.cloneNode(true) as SVGSVGElement;
-        clone.setAttribute('width', String(rect.width));
-        clone.setAttribute('height', String(rect.height));
-        const url = URL.createObjectURL(
-          new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }),
-        );
-        try {
-          const img = new Image();
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = () => reject(new Error('overlay rasterise failed'));
-            img.src = url;
-          });
-          ctx.drawImage(img, 0, 0, shotW, shotH);
-        } catch {
-          // overlay skipped — still deliver the base screenshot
-        } finally {
-          URL.revokeObjectURL(url);
-        }
-      }
-    }
-    // scene labels are HTML (not SVG) — draw them directly
-    drawLabels(ctx, shotW / Math.max(1, r.canvasEl.clientWidth), shotH / Math.max(1, r.canvasEl.clientHeight));
+    await drawViewportOverlays(ctx, shotW, shotH);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     return blob ? { blob, width: shotW, height: shotH } : null;
   },

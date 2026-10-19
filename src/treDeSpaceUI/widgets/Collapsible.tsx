@@ -4,6 +4,7 @@ import { cn } from '../lib/cn';
 import { InfoButton } from './InfoButton';
 
 export interface CollapsibleProps {
+  /** Header text. */
   title: ReactNode;
   /** Optional right-aligned note in the header (count, badge…). */
   aside?: ReactNode;
@@ -14,18 +15,23 @@ export interface CollapsibleProps {
    *  between the aside and the info icon. They sit outside the toggle, so a
    *  click never collapses the section. */
   actions?: ReactNode;
-  /** Uncontrolled initial state. */
+  /** Uncontrolled initial state (default true — open). */
   defaultOpen?: boolean;
   /** Controlled state — pair with onToggle (e.g. a search that must open every
    *  matching group). */
   open?: boolean;
+  /** The header was clicked: the state it asks for. */
   onToggle?: (open: boolean) => void;
+  /** The body — unmounted while closed (its local state resets). */
   children: ReactNode;
   className?: string;
   /** Classes merged over the body's default `flex flex-col gap-2 p-2` — for a
    *  section whose content brings its own padding (a divided list). */
   bodyClassName?: string;
-  /** Fill the remaining panel height while open; the BODY scrolls, not the panel. */
+  /** Fill the remaining panel height while open. The body is clipped to it
+   *  (overflow-hidden) — its content provides the scroller (a FileTree, a
+   *  TreeView, a `min-h-0 flex-1 overflow-y-auto` child); the panel itself
+   *  does not scroll. */
   fill?: boolean;
   /** Height floor for a `fill` section (Tailwind class, e.g. "min-h-64").
    *  Without it a filled section shrinks to nothing when several of them share

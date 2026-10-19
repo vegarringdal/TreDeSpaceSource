@@ -1,4 +1,6 @@
 import { definePanel, type PanelDefinition } from '@treDeSpaceUI/dockable';
+import { KeyPanel } from './components/panels/animation/KeyPanel';
+import { AnimationTimeline } from './components/panels/animation-timeline/AnimationTimeline';
 import { ClipShapes } from './components/panels/clip-shapes/ClipShapes';
 import { Console } from './components/panels/console/Console';
 import { Export } from './components/panels/export/Export';
@@ -8,7 +10,10 @@ import { Labels } from './components/panels/labels/Labels';
 import { Measurements } from './components/panels/measurements/Measurements';
 import { ModelAssets } from './components/panels/model-assets/ModelAssets';
 import { MultiColor } from './components/panels/multi-color/MultiColor';
+import { OverlayEditor } from './components/panels/overlay-editor/OverlayEditor';
+import { OverlayPreviewPanel } from './components/panels/overlay-editor/OverlayPreviewPanel';
 import { QuickColors } from './components/panels/quick-colors/QuickColors';
+import { RibbonAnimation } from './components/panels/ribbon-animation/RibbonAnimation';
 import { RibbonClippingBox } from './components/panels/ribbon-clipping-box/RibbonClippingBox';
 import { RibbonClippingPlane } from './components/panels/ribbon-clipping-plane/RibbonClippingPlane';
 import { RibbonExternal } from './components/panels/ribbon-external/RibbonExternal';
@@ -47,6 +52,7 @@ export const panels: PanelDefinition[] = [
   definePanel({ id: 'ribbonSelectionColor', title: 'Selection Color', ...ribbon, component: RibbonSelectionColor }),
   definePanel({ id: 'ribbonSelectionTransform', title: 'Transform', ...ribbon, component: RibbonSelectionTransform }),
   definePanel({ id: 'ribbonMeasurements', title: 'Measurement', ...ribbon, component: RibbonMeasurements }),
+  definePanel({ id: 'ribbonAnimation', title: 'Animation', ...ribbon, component: RibbonAnimation }),
   definePanel({ id: 'ribbonPanels', title: 'Panel', ...ribbon, component: RibbonPanels }),
   definePanel({ id: 'ribbonLayout', title: 'App Layout', ...ribbon, component: RibbonLayout }),
   definePanel({ id: 'ribbonExternal', title: 'External', ...ribbon, component: RibbonExternal }),
@@ -76,8 +82,8 @@ export const panels: PanelDefinition[] = [
   definePanel({ id: 'sqlDetail', title: 'SQL Detail', home: 'right', component: SqlDetail }),
   definePanel({ id: 'multiColor', title: 'Set Color', home: 'right', component: MultiColor }),
   definePanel({ id: 'labels', title: 'Label', home: 'right', component: Labels }),
-  definePanel({ id: 'importManager', title: 'Import Manager', home: 'right', component: ImportManager }),
   definePanel({ id: 'export', title: 'Export', home: 'right', component: Export }),
+  definePanel({ id: 'importManager', title: 'Import Manager', home: 'right', component: ImportManager }),
   definePanel({ id: 'viewpoints', title: 'Viewpoint Editor', home: 'right', component: Viewpoints }),
   definePanel({ id: 'viewpointViewer', title: 'Viewpoint Viewer', home: 'left', component: ViewpointViewer }),
   definePanel({ id: 'labelsViewpoint', title: 'Label (viewpoint)', home: 'right', component: LabelsViewpoint }),
@@ -93,6 +99,12 @@ export const panels: PanelDefinition[] = [
     home: 'right',
     component: MultiColorViewpoint,
   }),
+
+  // animation tool (DESIGN.md › Animation) — opened on demand
+  definePanel({ id: 'animationTimeline', title: 'Timeline', home: 'bottom', component: AnimationTimeline }),
+  definePanel({ id: 'overlayPreview', title: 'Overlay Preview', home: 'bottom', component: OverlayPreviewPanel }),
+  definePanel({ id: 'overlayEditor', title: 'Overlay Editor', home: 'right', component: OverlayEditor }),
+  definePanel({ id: 'animation', title: 'Key', home: 'right', component: KeyPanel }),
 
   viewport, // plain DOM + three.js, no React
 ];

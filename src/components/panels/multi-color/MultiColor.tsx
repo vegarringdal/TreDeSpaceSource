@@ -1,20 +1,14 @@
 import { IconDownload, IconEraser, IconPlayerPlay, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { Button, Collapsible, readFileText, Select, type SelectOption, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, readFileText, Select, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
-import type { ColorRulesMode } from './multiColor.state';
+import { COLOR_RULES_MODE_OPTIONS, COLOR_RULES_MODE_TOOLTIP } from './colorRulesModes';
 import { MultiColorCtx, MultiColorProvider } from './multiColorContext';
 import { RuleEditor } from './RuleEditor';
 import { RulesListHeader } from './RulesListHeader';
 
 export { MultiColorProvider };
-
-const MODE_OPTIONS: readonly SelectOption<ColorRulesMode>[] = [
-  { value: 'reset', label: 'Reset model' },
-  { value: 'append', label: 'Append only' },
-  { value: 'hide', label: 'Hide model' },
-];
 
 /** MultiColor: a sequenced list of filter+color rules applied to the whole
  *  model in order — bulk coloring driven by names / pasted tag lists. */
@@ -41,12 +35,8 @@ export function MultiColor() {
           <div className="flex items-center gap-1.5">
             <Select
               className="min-w-0 flex-1"
-              tooltip={
-                'Reset model — clears every existing color, opacity and hidden override before the rules run (like Alt+R).\n\n' +
-                'Append only — layers the rules on top of what is already colored.\n\n' +
-                'Hide model — hides EVERYTHING first; the rules unhide and color only what they match.'
-              }
-              options={MODE_OPTIONS}
+              tooltip={COLOR_RULES_MODE_TOOLTIP}
+              options={COLOR_RULES_MODE_OPTIONS}
               value={s.mode}
               onChange={(mode) => {
                 if (mode) {

@@ -11,13 +11,13 @@ import { type M4, m4AboutPoint, m4AxisRotate, m4AxisScale, m4Identity, m4Mul, m4
 import { selectionApi } from './apiSelection';
 import { models, type StateUpdate } from './dbState';
 import { packStates, transferUpdates, updateBuffers } from './hierarchyIndex';
-import { allocTransformSlot, transforms, transformsSnapshot } from './transformPool';
+import { allocTransformSlot, isAnimModeActive, transforms, transformsSnapshot } from './transformPool';
 
 /** One undo RECORD per model: the whole per-item slot band as drawrange-style
  *  RLE runs — u32 triples [start, count, slot]. Group transforms give every
  *  distinct base ONE shared slot, so runs are naturally few: a whole model
  *  moved as one group is one run (12 bytes), not 8 bytes × items. */
-interface TransformUndoRecord {
+export interface TransformUndoRecord {
   model: number;
   runs: Uint32Array;
 }
@@ -51,7 +51,7 @@ function pushTransformUndo(step: TransformUndoStep) {
 }
 
 /** RLE-capture one model's whole transform-slot band. */
-function captureTransformRuns(model: number): TransformUndoRecord {
+export function captureTransformRuns(model: number): TransformUndoRecord {
   const m = models[model];
   const runs: number[] = [];
   if (m.itemCount > 0) {
@@ -69,7 +69,7 @@ function captureTransformRuns(model: number): TransformUndoRecord {
   return { model, runs: Uint32Array.from(runs) };
 }
 
-function restoreTransformRuns(rec: TransformUndoRecord) {
+export function restoreTransformRuns(rec: TransformUndoRecord) {
   const m = models[rec.model];
   const runs = rec.runs;
   for (let r = 0; r < runs.length; r += 3) {
@@ -135,6 +135,9 @@ export const transformApi = {
 
   /** Bake `group * old` into new slots for every selected item. */
   applyGroupTransform(group: M4): { updates: StateUpdate[]; transforms: Float32Array } {
+    if (isAnimModeActive()) {
+      return { updates: [], transforms: new Float32Array(0) }; // D12: refused in animation mode
+    }
     const updates: StateUpdate[] = [];
     const step: TransformUndoRecord[] = [];
     models.forEach((m, idx) => {
@@ -173,6 +176,9 @@ export const transformApi = {
 
   /** Reset the selection's transforms to identity (undoable). */
   resetTransformOnSelection(): StateUpdate[] {
+    if (isAnimModeActive()) {
+      return [];
+    }
     const updates: StateUpdate[] = [];
     const step: TransformUndoRecord[] = [];
     models.forEach((m, idx) => {
@@ -194,6 +200,9 @@ export const transformApi = {
 
   /** Reset every transform everywhere (undoable, transform domain). */
   resetAllTransforms(): StateUpdate[] {
+    if (isAnimModeActive()) {
+      return [];
+    }
     const updates: StateUpdate[] = [];
     const step: TransformUndoRecord[] = [];
     models.forEach((m, idx) => {
@@ -219,6 +228,9 @@ export const transformApi = {
   },
 
   undoTransform(): StateUpdate[] {
+    if (isAnimModeActive()) {
+      return [];
+    }
     const step = transformUndo.pop();
     if (!step) {
       return [];
@@ -236,6 +248,9 @@ export const transformApi = {
   },
 
   redoTransform(): StateUpdate[] {
+    if (isAnimModeActive()) {
+      return [];
+    }
     const step = transformRedo.pop();
     if (!step) {
       return [];

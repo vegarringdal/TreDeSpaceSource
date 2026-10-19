@@ -6,14 +6,19 @@ import { NumberInput } from './number/NumberInput';
 export type Vec3 = readonly [number, number, number];
 
 export interface Vec3InputProps {
+  /** The x/y/z triple shown in the three fields. */
   value: Vec3;
+  /** Receives the whole triple with the edited component replaced. */
   onChange: (value: [number, number, number]) => void;
   /** Row caption in a fixed column before the fields. */
   label?: ReactNode;
   /** Label column width in px (default 48) — share one value down a form. */
   labelWidth?: number;
+  /** Stepper step for all three fields (default 0.5). */
   step?: number;
+  /** Lower bound for each component. */
   min?: number;
+  /** Upper bound for each component. */
   max?: number;
   /** Decimals shown/kept; derived from step when omitted. */
   precision?: number;
@@ -21,7 +26,9 @@ export interface Vec3InputProps {
   unit?: string;
   /** Per-axis styled tooltips, in x/y/z order. */
   tooltips?: readonly [string, string, string];
+  /** Grey out all three fields. */
   disabled?: boolean;
+  /** Extra classes on the row (a grid: label column + three fields). */
   className?: string;
 }
 

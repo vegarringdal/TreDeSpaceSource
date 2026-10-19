@@ -13,6 +13,7 @@ export function RibbonSlot({
   children,
   className = '',
 }: {
+  /** big = 1 per column, medium = 2 stacked (default), mini = 3 stacked. */
   size?: RibbonSize;
   children?: ReactNode;
   className?: string;

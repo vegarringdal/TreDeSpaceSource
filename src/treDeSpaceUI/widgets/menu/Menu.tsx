@@ -9,7 +9,9 @@ export type { MenuEntry, MenuItem, MenuSeparator } from './menuTypes';
 export interface MenuProps {
   /** Viewport coordinates of the press that opened it; null renders nothing. */
   anchor: Readonly<{ x: number; y: number }> | null;
+  /** Entries in order; falsy entries are skipped, `{ separator: true }` draws a rule. */
   items: readonly MenuEntry[];
+  /** An outside press, Escape and a pick all call this — clear `anchor` here. */
   onClose: () => void;
   /** Width floor in px (default 160) — keeps a short menu from looking cramped. */
   minWidth?: number;

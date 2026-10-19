@@ -18,13 +18,16 @@ export interface DateTimePickerProps {
   value: string | null;
   /** Receives the picked moment, or null when cleared. */
   onChange: (value: string | null) => void;
-  /** Earliest / latest pickable day (ISO `yyyy-mm-dd`, inclusive) — bounds
-   *  the calendar only, not the time of day. */
+  /** Earliest pickable day (ISO `yyyy-mm-dd`, inclusive) — bounds the
+   *  calendar only, not the time of day. */
   min?: string;
+  /** Latest pickable day (ISO `yyyy-mm-dd`, inclusive) — calendar only. */
   max?: string;
   /** Snap picked minutes to this step (default 1 = exact minute). */
   minuteStep?: number;
+  /** Shown while empty (default 'Pick date & time…'). */
   placeholder?: string;
+  /** Grey out and block opening. */
   disabled?: boolean;
   className?: string;
   /** Styled tooltip (data-tooltip) on the field. */

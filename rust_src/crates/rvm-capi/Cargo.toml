@@ -2,6 +2,7 @@
 name = "rvm-capi"
 version = "0.2.0"
 edition = "2024"
+license = "MIT"
 description = "C ABI for rvm2glb: RVM → GLB with streaming I/O + progress callbacks"
 
 [lib]

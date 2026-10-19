@@ -2,6 +2,7 @@
 name = "rvm-core"
 version = "0.2.0"
 edition = "2024"
+license = "MIT"
 description = "RVM → GLB conversion kernel (merged / instanced / standard)"
 
 [lib]

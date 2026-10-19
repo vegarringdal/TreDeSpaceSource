@@ -47,6 +47,11 @@ import { emitApiEvent, setGpuState } from '../../../lib/messageApi/transport';
 import { ViewGizmo } from '../../../lib/overlay/ViewGizmo';
 import { Renderer } from '../../../lib/render/renderer';
 import { buildViewCubeGeometry } from '../../../lib/render/viewCubeGpu';
+import { animationDocState } from '../../../state/animation/animationDoc.state';
+import { animationUiState } from '../../../state/animation/animationUi.state';
+import { animationHelperLines } from '../../../state/animation/helperLines';
+import { playerState } from '../../../state/animation/player.state';
+import { attachAnimationViewport, postFrameAnimation, tickAnimation } from '../../../state/animation/runtime';
 import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { db, transfer } from '../../../state/viewer/db';
 import { gizmoLabelsState } from '../../../state/viewer/gizmoLabels.state';
@@ -60,6 +65,7 @@ import { collectStats, formatOverlay } from '../../../state/viewer/statsRows';
 import { registerRenderer, viewerActions } from '../../../state/viewer/viewer.actions';
 import { viewerState } from '../../../state/viewer/viewer.state';
 import { vramBudgetMb } from '../../../state/viewer/vramBudget';
+import { mountPlayBar } from '../animation-playbar/mountPlayBar';
 import { consoleActions } from '../console/console.actions';
 import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonClippingPlaneActions } from '../ribbon-clipping-plane/ribbonClippingPlane.actions';
@@ -287,6 +293,8 @@ export const viewport: PanelDefinition = {
     let measureAim: MeasureAim | null = null;
     let measureBar: { dispose(): void } | null = null;
     let residencyBoxes: ResidencyBoxOverlay | null = null;
+    let detachAnimation: (() => void) | null = null;
+    let unmountPlayBar: (() => void) | null = null;
     let removeMeasureKeys: (() => void) | null = null;
     let unsubLabels: (() => void) | null = null;
     // selection-gizmo drag bookkeeping: the live preview matrix (gizmo rides
@@ -428,6 +436,7 @@ export const viewport: PanelDefinition = {
       // smart wins over both manual fields: mobile = 1, desktop = native DPR
       o.pixelRatio = s.smartPixelRatio ? (isMobileDevice() ? 1 : null) : s.useDevicePixelRatio ? null : s.pixelRatio;
       o.freezeCull = s.freezeCull;
+      o.cullMoved = s.cullMoved;
       o.geoEdges = s.geoEdges;
       o.itemEdges = s.itemEdges;
       o.sketch = s.sketch;
@@ -467,7 +476,12 @@ export const viewport: PanelDefinition = {
       const labels = labelsState.get();
       const measures = measurementsState.get();
       const markers = markerLines.update(labels.items, labels.muted, measures.items, measures.muted);
-      renderer.setHelperLines(concatLines(clip.lines, markers), `${clip.lines.join(',')}|${markerLines.version}`);
+      // animation authoring: motion paths + the pull-out ghost box
+      const anim = animationHelperLines();
+      const lineKey = `${clip.lines.join(',')}|${markerLines.version}|${anim.key}`;
+      if (!renderer.hasHelperLines(lineKey)) {
+        renderer.setHelperLines(concatLines(concatLines(clip.lines, markers), anim.verts), lineKey);
+      }
       renderer.setMarkerSpheres(markerLines.instances, markerLines.opaqueCount, `${markerLines.version}`);
       // Seed a new clip shape at the scene centre with a scene-scaled radius.
       const { min, max } = renderer.sceneBounds;
@@ -548,7 +562,19 @@ export const viewport: PanelDefinition = {
       ribbonClippingPlaneState,
       labelsState,
       measurementsState,
+      animationDocState,
+      animationUiState,
     ].map((store) => store.subscribe(markOptionsDirty));
+    // the player store ticks while playing — only its status matters here
+    let lastAnimStatus = playerState.get().status;
+    unsubOptions.push(
+      playerState.subscribe(() => {
+        if (playerState.get().status !== lastAnimStatus) {
+          lastAnimStatus = playerState.get().status;
+          markOptionsDirty();
+        }
+      }),
+    );
     const hostResize = new ResizeObserver(markOptionsDirty);
     hostResize.observe(host);
 
@@ -599,6 +625,9 @@ export const viewport: PanelDefinition = {
       measureOverlay = new MeasureOverlay(host, renderer);
       labelOverlay = new LabelOverlay(host, renderer);
       residencyBoxes = new ResidencyBoxOverlay(host, renderer);
+      // animation player: band writes + the 2D overlay layer (DESIGN.md › Animation)
+      detachAnimation = attachAnimationViewport(host, renderer);
+      unmountPlayBar = mountPlayBar(host);
       measureBar = attachMeasureBar(host);
       // measure-probe trace (Settings → Stats → verbose trace → Console)
       const traceDeps = { host, canvas, renderer };
@@ -770,7 +799,7 @@ export const viewport: PanelDefinition = {
           if (level > 0) {
             const hit = id !== null ? renderer.itemFromGlobalId(id) : null;
             if (hit) {
-              void viewerActions.selectAtLevel(hit.model, hit.item, level);
+              void viewerActions.selectAtLevel(hit.model, hit.item, level, additive);
             }
             return;
           }
@@ -940,12 +969,14 @@ export const viewport: PanelDefinition = {
         }
         const cubeQ = cameraQuat(renderer.camera.forward());
         renderer.setViewCube(gizmo ? gizmo.getRect() : null, cubeHoverId(), cubeQ);
+        tickAnimation(now); // playhead + band slots + camera follow, before the frame
         renderer.frame(canvas);
         residency.tick(renderer, now); // VRAM budget (no-op while disabled)
         gizmo?.update(cubeQ);
         clipGizmo?.update();
         measureOverlay?.update();
         labelOverlay?.update();
+        postFrameAnimation();
         residencyBoxes?.update();
 
         const st = viewerState.get();
@@ -1008,6 +1039,8 @@ export const viewport: PanelDefinition = {
       measureOverlay?.dispose();
       labelOverlay?.dispose();
       residencyBoxes?.dispose();
+      detachAnimation?.();
+      unmountPlayBar?.();
       measureAim?.dispose();
       measureBar?.dispose();
       removeMeasureKeys?.();

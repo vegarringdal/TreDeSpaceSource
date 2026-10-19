@@ -2,7 +2,7 @@
 name = "ifc-cli"
 version = "0.1.0"
 edition = "2024"
-license = "MPL-2.0"
+license = "MIT"
 description = "Command-line IFC → GLB converter."
 
 [[bin]]

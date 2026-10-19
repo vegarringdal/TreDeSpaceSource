@@ -3,12 +3,17 @@ import { Button } from './Button';
 import { DialogFrame } from './DialogFrame';
 
 export interface ConfirmDialogCoreProps {
+  /** Title-bar text. */
   title: string;
+  /** The question (newlines kept). */
   message: string;
+  /** OK button text. */
   okLabel: string;
+  /** Cancel button text. */
   cancelLabel: string;
-  /** Called with true for OK, false for Cancel/Escape. */
+  /** Called with true for OK, false for Cancel, Escape, the backdrop or the ✕. */
   onResult: (ok: boolean) => void;
+  /** Stacking layer (default 2000). */
   z?: number;
 }
 

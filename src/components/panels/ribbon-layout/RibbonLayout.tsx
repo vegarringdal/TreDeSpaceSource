@@ -53,7 +53,7 @@ export function RibbonLayout() {
       <RibbonSection title="Configured App Layouts (Shortcut F1-F12)">
         {s.slots.slice(0, LAYOUT_SLOTS).map(slotButton)}
       </RibbonSection>
-      {/* the 12 user slots (ALT+F1-F12) — empty until the user saves into them */}
+      {/* the 12 user slots (ALT+F1-F12) — ALT+F1 / ALT+F2 ship the Assets and Present presets, the rest are empty until saved into */}
       <RibbonSection title="Configured App Layout (ALT+F1-F12)">
         {s.slots.slice(LAYOUT_SLOTS).map((slot, i) => slotButton(slot, LAYOUT_SLOTS + i))}
       </RibbonSection>

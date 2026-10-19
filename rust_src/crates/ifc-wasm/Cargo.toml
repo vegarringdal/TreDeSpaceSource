@@ -2,7 +2,7 @@
 name = "ifc-wasm"
 version = "0.1.0"
 edition = "2024"
-license = "MPL-2.0"
+license = "MIT"
 description = "WebAssembly bindings for ifc2glb (IFC → GLB in the browser)."
 
 [lib]

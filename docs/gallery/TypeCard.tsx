@@ -10,6 +10,8 @@ interface FieldInfo {
 interface TypeInfo {
   doc: string;
   extends: string | null;
+  /** An object type alias (`type X = { … }`), shown field by field. */
+  alias?: boolean;
   fields: FieldInfo[];
 }
 const TYPES: Record<string, TypeInfo> = widgetData.types;
@@ -25,7 +27,7 @@ export function TypeCard({ name }: { name: string }) {
   return (
     <div className="mt-3 max-w-[640px] rounded border border-slate-800">
       <div className="border-slate-800 border-b bg-slate-900 px-3 py-1.5 font-mono text-[11.5px]">
-        <span className="hl-kw">{t ? 'interface' : 'type'}</span> <span className="hl-ty">{name}</span>
+        <span className="hl-kw">{t && !t.alias ? 'interface' : 'type'}</span> <span className="hl-ty">{name}</span>
         {t?.extends && (
           <>
             {' '}

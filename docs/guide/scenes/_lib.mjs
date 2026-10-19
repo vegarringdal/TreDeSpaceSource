@@ -58,7 +58,7 @@ export async function flyTo(ctx, fullname) {
 }
 
 
-/** Apply app layout F<n> (1-12) — the same as pressing the F-key. */
+/** Apply app layout slot <n> — 1-12 = F1-F12, 13-24 = ALT+F1-F12 (the same as pressing the key). */
 export async function layout(ctx, n) {
   await ctx.call('/src/state/layouts.state.ts', 'layoutsActions', 'activate', n - 1);
   await ctx.sleep(600);

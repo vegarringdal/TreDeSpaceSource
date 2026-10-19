@@ -36,6 +36,10 @@ export const PANEL_TOGGLES: readonly PanelToggle[] = [
   { id: 'labelsViewpoint', title: 'Label (viewpoint)', keys: 'ALT 688' },
   { id: 'measurementsViewpoint', title: 'Measurement (viewpoint)', keys: 'ALT 689' },
   { id: 'multiColorViewpoint', title: 'Set Color (viewpoint)', keys: 'ALT 690' },
+  { id: 'animation', title: 'Key', keys: 'ALT 691' },
+  { id: 'animationTimeline', title: 'Timeline', keys: 'ALT 692' },
+  { id: 'overlayEditor', title: 'Overlay Editor', keys: 'ALT 695' },
+  { id: 'overlayPreview', title: 'Overlay Preview', keys: 'ALT 696' },
 ];
 
 const TOGGLE_IDS = new Set(PANEL_TOGGLES.map((p) => p.id));

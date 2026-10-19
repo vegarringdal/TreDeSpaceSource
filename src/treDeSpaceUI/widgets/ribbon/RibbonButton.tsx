@@ -7,6 +7,7 @@ export interface RibbonButtonProps {
   label?: ReactNode;
   /** big = 1 per column, medium = 2 stacked, mini = 3 stacked. */
   size?: RibbonSize;
+  /** On / selected look (the ribbon's toggle state). */
   selected?: boolean;
   /** Optional icon/label colour override while selected (default: theme blue). */
   selectedColor?: string;
@@ -18,8 +19,8 @@ export interface RibbonButtonProps {
   title?: string;
   /** Styled tooltip (data-tooltip); supports "\n" for multiple lines. */
   tooltip?: string;
-  /** Hotkey id (see hotkeys/bindings.ts). Renders data-shortcut; the tooltip
-   *  gets a footer line showing the current combo. */
+  /** Hotkey id (data-shortcut) — the tooltip gets a footer line showing the
+   *  current combo. */
   shortcut?: string;
   onClick?: () => void;
   /** Raw pointer-down — used to start a drag (e.g. dragging a panel out of the

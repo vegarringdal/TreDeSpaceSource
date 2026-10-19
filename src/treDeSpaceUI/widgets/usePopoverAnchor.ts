@@ -14,7 +14,7 @@ export type PopoverAnchor = Readonly<{
 
 /**
  * Shared open/anchor state for body-portaled popovers (Select, DatePicker,
- * TimePicker): closes on outside pointerdown, anchors to the trigger while
+ * TimePicker, DateTimePicker): closes on outside pointerdown, anchors to the trigger while
  * anything scrolls or resizes, and flips upward when the estimated popover
  * height does not fit below and there is more room above.
  */

@@ -10,9 +10,9 @@ export function TextFieldDemo() {
   return (
     <Section
       title="TextInput / TextArea"
-      note="Single- and multi-line text fields with a label on top or to the left (share one labelWidth so stacked fields align), a clear button, and onCommit for Enter/blur-style handling."
+      note="Single- and multi-line text fields with the shared label props — on top, to the left (share one labelWidth so stacked fields align) or split — a clear button (`clearable`; `onClear` overrides it, e.g. reset-to-default), `tooltip` + `shortcut`, and onCommit for commit-style handling (TextInput: Enter and blur; TextArea: blur). TextInput also takes `autoFocus` for a dialog's single field and an `onKeyDown` that runs first — preventDefault() there skips the Enter commit."
       props={['TextInputProps', 'TextAreaProps', 'LabelledProps']}
-      code={`function Details() {
+      code={`function Details({ onSaveTag }: { onSaveTag: (tag: string) => void }) {
   const [name, setName] = useState('Torus knot');
   const [tag, setTag] = useState('hero-prop');
   const [notes, setNotes] = useState('');
@@ -20,7 +20,8 @@ export function TextFieldDemo() {
     <>
       <TextInput label="Name" value={name} onChange={setName} />
       <TextInput label="Tag" labelPosition="left" labelWidth={44}
-        value={tag} onChange={setTag} onCommit={saveTag} />
+        tooltip="Saved on Enter or when you leave the field"
+        value={tag} onChange={setTag} onCommit={onSaveTag} />
       <TextArea label="Notes" labelPosition="left" labelWidth={44}
         minHeight={56} value={notes} onChange={setNotes} />
     </>

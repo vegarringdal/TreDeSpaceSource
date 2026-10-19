@@ -4,6 +4,7 @@ import { Badge } from './Badge';
 import {
   BUTTON_ACTIVE,
   BUTTON_BASE,
+  BUTTON_ICON_BOX,
   BUTTON_ICON_SIZE,
   BUTTON_MIN_H,
   BUTTON_SIZE,
@@ -15,7 +16,7 @@ import { Spinner } from './Spinner';
 
 export interface ButtonProps {
   children?: ReactNode;
-  /** Optional leading icon (locked to 14×14). */
+  /** Optional leading icon (locked to 14×14; 20×20 at size lg). */
   icon?: ReactNode;
   /** The click event is passed so handlers can read modifiers (e.g. Alt). */
   onClick?: (e: ReactMouseEvent) => void;
@@ -98,9 +99,7 @@ export function Button({
       onClick={readOnly ? undefined : onClick}
     >
       {leading != null && (
-        <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">
-          {leading}
-        </span>
+        <span className={cn('flex shrink-0 items-center justify-center', BUTTON_ICON_BOX[size])}>{leading}</span>
       )}
       {children}
       {badge != null && <Badge className="ml-0.5">{badge}</Badge>}

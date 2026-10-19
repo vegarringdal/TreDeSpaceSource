@@ -2,12 +2,15 @@ import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
 
 export interface LinkProps {
+  /** Target URL. */
   href: string;
+  /** Link text. */
   children: ReactNode;
   /** Open in a new tab (default true) — `rel` is set with it. */
   external?: boolean;
   /** Styled tooltip (data-tooltip). */
   tooltip?: string;
+  /** Extra classes on the anchor. */
   className?: string;
 }
 

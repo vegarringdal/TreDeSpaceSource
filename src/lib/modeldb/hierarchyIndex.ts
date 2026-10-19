@@ -7,6 +7,7 @@ import {
   IS_SELECTED,
   isEffectivelyHidden,
   modelHasTransparency,
+  models,
   NO_PARENT,
   type StateUpdate,
 } from './dbState';
@@ -172,6 +173,121 @@ export function interleaveStates(m: DbModel): Uint32Array<ArrayBuffer> {
 export function packStates(m: DbModel, modelIdx: number): StateUpdate {
   m.stateVersion = (m.stateVersion ?? 0) + 1;
   return { model: modelIdx, states: interleaveStates(m), transparent: modelHasTransparency(m) };
+}
+
+/** Per model, the item intervals a change touched: flat [lo, hi) pairs. */
+export type DirtyRanges = Map<number, number[]>;
+
+/** Changed items below this share of their model upload on their own. */
+const PARTIAL_UPLOAD_SHARE = 0.25;
+/** Runs this close are written as one (fewer, slightly longer writes). */
+const RUN_GAP = 16;
+/** More runs than this upload the whole model instead. */
+const MAX_RUNS = 64;
+
+/** Model `mi` changed items [lo, hi). */
+export function markDirty(d: DirtyRanges, mi: number, lo: number, hi: number): void {
+  const pairs = d.get(mi);
+  if (pairs) {
+    pairs.push(lo, hi);
+  } else {
+    d.set(mi, [lo, hi]);
+  }
+}
+
+/** Model `mi` changed these (ascending) items — marked as runs. */
+export function markItems(d: DirtyRanges, mi: number, items: ArrayLike<number>): void {
+  let i = 0;
+  while (i < items.length) {
+    const lo = items[i];
+    let hi = lo + 1;
+    while (i + 1 < items.length && items[i + 1] <= hi + RUN_GAP) {
+      i++;
+      hi = items[i] + 1;
+    }
+    markDirty(d, mi, lo, hi);
+    i++;
+  }
+}
+
+/** The span [min lo, max hi) of a model's dirty intervals, or null. */
+export function dirtyBounds(d: DirtyRanges, mi: number): { lo: number; hi: number } | null {
+  const pairs = d.get(mi);
+  if (!pairs || pairs.length === 0) {
+    return null;
+  }
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let k = 0; k < pairs.length; k += 2) {
+    lo = Math.min(lo, pairs[k]);
+    hi = Math.max(hi, pairs[k + 1]);
+  }
+  return { lo, hi };
+}
+
+/** Sorted, merged runs of flat [lo, hi) pairs (RUN_GAP apart at least). */
+function mergeRuns(pairs: readonly number[]): [number, number][] {
+  const runs: [number, number][] = [];
+  for (let k = 0; k < pairs.length; k += 2) {
+    runs.push([pairs[k], pairs[k + 1]]);
+  }
+  runs.sort((a, b) => a[0] - b[0]);
+  const out: [number, number][] = [];
+  for (const r of runs) {
+    const last = out[out.length - 1];
+    if (last && r[0] <= last[1] + RUN_GAP) {
+      last[1] = Math.max(last[1], r[1]);
+    } else {
+      out.push([r[0], r[1]]);
+    }
+  }
+  return out;
+}
+
+/** Items [lo, hi) of one model, stamped with a new stateVersion — the upload
+ *  of a change confined to a few items (an actor's colour fade), where the
+ *  whole model would cost 12 B per item every frame. */
+export function packStateRange(
+  m: DbModel,
+  modelIdx: number,
+  lo: number,
+  hi: number,
+  transparent = modelHasTransparency(m),
+): StateUpdate {
+  m.stateVersion = (m.stateVersion ?? 0) + 1;
+  const a = Math.max(0, lo);
+  const b = Math.min(m.itemCount, hi);
+  const out = new Uint32Array(Math.max(0, b - a) * 3);
+  for (let i = a; i < b; i++) {
+    const o = (i - a) * 3;
+    out[o] = m.states[i * 2];
+    out[o + 1] = m.states[i * 2 + 1];
+    out[o + 2] = m.tidx[i];
+  }
+  return { model: modelIdx, states: out, transparent, first: a };
+}
+
+/** The uploads for `d`: per model its changed runs on their own while they
+ *  are few and a small part of it, else the whole model. */
+export function packDirty(d: DirtyRanges): StateUpdate[] {
+  const out: StateUpdate[] = [];
+  for (const [mi, pairs] of d) {
+    const m = models[mi];
+    if (!m || m.removed) {
+      continue;
+    }
+    const runs = mergeRuns(pairs);
+    const covered = runs.reduce((n, r) => n + (r[1] - r[0]), 0);
+    if (runs.length > MAX_RUNS || covered >= m.itemCount * PARTIAL_UPLOAD_SHARE) {
+      out.push(packStates(m, mi));
+      continue;
+    }
+    const transparent = modelHasTransparency(m);
+    for (const [lo, hi] of runs) {
+      out.push(packStateRange(m, mi, lo, hi, transparent));
+    }
+  }
+  return out;
 }
 
 /** Buffers of a StateUpdate list, for the transfer mark on a wrapper object

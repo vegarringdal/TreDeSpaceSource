@@ -7,13 +7,10 @@ import { useSyncExternalStore } from 'react';
  *   const ui = createStore({ sidebarOpen: false });
  *   ui.set({ sidebarOpen: !ui.get().sidebarOpen });   // flip a bool → every user re-renders
  *   const { sidebarOpen } = ui.use();                 // inside any component
+ *   const open = ui.useSelect((s) => s.sidebarOpen);  // re-renders only when it changes
  *
  * Works outside React too (plain DOM, three.js, timers): subscribe() directly.
  */
-/** The store handle createStore returns — for code parameterized over a store
- *  instance (e.g. the Set Color editor bound to global vs viewpoint rules). */
-export type Store<T extends object> = ReturnType<typeof createStore<T>>;
-
 export function createStore<T extends object>(initial: T) {
   let state = initial;
   const listeners = new Set<() => void>();
@@ -42,5 +39,15 @@ export function createStore<T extends object>(initial: T) {
       // biome-ignore lint/correctness/useHookAtTopLevel: `use` is itself a hook — callers obey the rules of hooks.
       return useSyncExternalStore(subscribe, get);
     },
+    /** One derived value: the component re-renders only when it changes
+     *  (Object.is). The selector must return a primitive or a reference that
+     *  stays the same while its inputs do — never a fresh object or array. */
+    useSelect<S>(selector: (state: T) => S): S {
+      return useSyncExternalStore(subscribe, () => selector(state));
+    },
   };
 }
+
+/** The store handle createStore returns — for code parameterized over a store
+ *  instance (e.g. the Set Color editor bound to global vs viewpoint rules). */
+export type Store<T extends object> = ReturnType<typeof createStore<T>>;

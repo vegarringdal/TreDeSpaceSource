@@ -1,5 +1,6 @@
 // Guide scene: the start page (index.html) — one full-screen picture per app
-// layout (F1-F12), the App Layout ribbon and Settings → Layouts.
+// layout (F1-F12 and the ALT+F1 Assets preset), the App Layout ribbon and
+// Settings → Layouts.
 import { layout, PANEL_W, SAMPLES } from './_lib.mjs';
 
 const LR = { panel: 'ribbonLayout' };
@@ -10,17 +11,19 @@ async function captureLayouts(ctx) {
     await layout(ctx, n);
     await ctx.shot(`layout-f${String(n).padStart(2, '0')}`, { crop: 'app', gpu: 'prefer' });
   }
+  await layout(ctx, 13);
+  await ctx.shot('layout-a01', { crop: 'app', gpu: 'prefer' });
 }
 
 async function captureLayoutRibbon(ctx) {
   await layout(ctx, 1);
   await ctx.open('ribbonLayout');
-  await ctx.click({ ...LR, text: 'Config01' });
+  await ctx.click({ ...LR, text: 'Config03' });
   await ctx.shot('layout-ribbon', {
     crop: { union: [{ css: '.dock-tab[data-tab="ribbonHome"]' }, { ...LR, section: 'Override Selected' }] },
     marks: [
       { n: 1, el: { ...LR, text: 'Home' } },
-      { n: 2, el: { ...LR, text: 'Config01' } },
+      { n: 2, el: { ...LR, text: 'Config03' } },
       { n: 3, el: { ...LR, tooltip: 'Save the current panel layout' } },
       { n: 4, el: { ...LR, tooltip: 'Ribbon tab focused' } },
       { n: 5, el: { ...LR, text: 'Ribbon Open' }, at: 'bl' },
@@ -43,8 +46,9 @@ async function captureLayoutRibbon(ctx) {
       },
       {
         section: 'Configured App Layout (ALT + F1-F12)',
-        label: 'Your layouts (Config01–12)',
-        tooltip: 'Empty until you save into them. Click one to switch to it, or to choose it as the target for Save.',
+        label: 'Your layouts (Assets, Present, Config03–12)',
+        tooltip:
+          'ALT+F1 holds the Assets workspace; the others are empty until you save into them. Click one to switch to it, or to choose it as the target for Save.',
         keys: 'ALT+F1 … ALT+F12',
       },
     ],

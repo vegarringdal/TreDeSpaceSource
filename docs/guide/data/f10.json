@@ -1,49 +1,5 @@
 {
   "shots": {
-    "f10-edit-locked": {
-      "w": 398,
-      "h": 331,
-      "gpu": false,
-      "marks": [
-        {
-          "n": 1,
-          "x": 4,
-          "y": 8,
-          "w": 322.59375,
-          "h": 16
-        },
-        {
-          "n": 2,
-          "x": 334.59375,
-          "y": 4,
-          "w": 59.40625,
-          "h": 24
-        }
-      ],
-      "fromGpu": true
-    },
-    "f10-edit-dirty": {
-      "w": 398,
-      "h": 331,
-      "gpu": false,
-      "marks": [
-        {
-          "n": 1,
-          "x": 168.15625,
-          "y": 6,
-          "w": 79.59375,
-          "h": 20
-        },
-        {
-          "n": 2,
-          "x": 255.75,
-          "y": 4,
-          "w": 138.25,
-          "h": 24
-        }
-      ],
-      "fromGpu": true
-    },
     "f10-layout": {
       "w": 1440,
       "h": 900,
@@ -60,519 +16,2708 @@
           "n": 2,
           "x": 6,
           "y": 136,
-          "w": 190,
+          "w": 226.5625,
           "h": 758
         },
         {
           "n": 3,
-          "x": 202,
+          "x": 238.5625,
           "y": 136,
-          "w": 200,
-          "h": 758
+          "w": 821.28125,
+          "h": 452
         },
         {
           "n": 4,
-          "x": 408,
-          "y": 136,
-          "w": 434,
-          "h": 758
+          "x": 238.5625,
+          "y": 594,
+          "w": 821.28125,
+          "h": 300
         },
         {
           "n": 5,
-          "x": 848,
+          "x": 1065.84375,
           "y": 136,
-          "w": 300,
-          "h": 376
+          "w": 368.15625,
+          "h": 758
+        }
+      ]
+    },
+    "f10-timeline": {
+      "w": 822,
+      "h": 455,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 28.5625,
+          "y": 135.296875,
+          "w": 30.78125,
+          "h": 15.390625
+        },
+        {
+          "n": 2,
+          "x": 28.5625,
+          "y": 158.296875,
+          "w": 43.171875,
+          "h": 15.390625
+        },
+        {
+          "n": 3,
+          "x": 28.5625,
+          "y": 204.296875,
+          "w": 66.25,
+          "h": 15.390625
+        },
+        {
+          "n": 4,
+          "x": 28.5625,
+          "y": 273.296875,
+          "w": 48.5,
+          "h": 15.390625
+        },
+        {
+          "n": 5,
+          "x": 28.5625,
+          "y": 319.296875,
+          "w": 60.640625,
+          "h": 15.390625
         },
         {
           "n": 6,
-          "x": 848,
-          "y": 518,
-          "w": 300,
-          "h": 376
+          "x": 40.5625,
+          "y": 342.296875,
+          "w": 80.234375,
+          "h": 15.390625
         },
         {
           "n": 7,
-          "x": 1154,
-          "y": 136,
-          "w": 280,
-          "h": 376
-        },
-        {
-          "n": 8,
-          "x": 1154,
-          "y": 518,
-          "w": 280,
-          "h": 376
+          "x": 155.5625,
+          "y": 366,
+          "w": 35.484375,
+          "h": 14
         }
-      ],
-      "fromGpu": true
+      ]
     },
-    "f10-editor": {
-      "w": 334,
-      "h": 213,
+    "f10-overlay-editor": {
+      "w": 1208,
+      "h": 770,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 9,
-          "y": 32,
-          "w": 119.078125,
-          "h": 24
+          "x": 787,
+          "y": 67,
+          "w": 88,
+          "h": 23.390625
         },
         {
           "n": 2,
-          "x": 134.078125,
-          "y": 32,
-          "w": 65.78125,
-          "h": 24
+          "x": 879,
+          "y": 223,
+          "w": 312,
+          "h": 226
         },
         {
           "n": 3,
-          "x": 205.859375,
-          "y": 32,
-          "w": 66.1875,
-          "h": 24
+          "x": 837,
+          "y": 36,
+          "w": 80.828125,
+          "h": 20
         },
         {
           "n": 4,
-          "x": 9,
-          "y": 62,
-          "w": 91.3125,
-          "h": 24
-        },
-        {
-          "n": 5,
-          "x": 18,
-          "y": 99,
-          "w": 152.109375,
-          "h": 16
-        },
-        {
-          "n": 6,
-          "x": 18,
-          "y": 133,
-          "w": 153.0625,
-          "h": 32
+          "x": 6.5625,
+          "y": 309,
+          "w": 769.4375,
+          "h": 455
         }
-      ],
-      "fromGpu": true
+      ]
     },
-    "f10-row-head": {
-      "w": 310,
-      "h": 110,
+    "f10-ribbon": {
+      "w": 1428,
+      "h": 124,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 163.0625,
-          "y": 12,
-          "w": 72.9375,
-          "h": 20,
-          "at": "bl"
+          "x": 11,
+          "y": 28,
+          "w": 64.28125,
+          "h": 68
         },
         {
           "n": 2,
-          "x": 240,
-          "y": 12,
-          "w": 20,
-          "h": 20,
-          "at": "bl"
+          "x": 143.28125,
+          "y": 28,
+          "w": 74.0625,
+          "h": 21.328125
         },
         {
           "n": 3,
-          "x": 262,
+          "x": 230.34375,
+          "y": 28,
+          "w": 105.984375,
+          "h": 21.328125
+        },
+        {
+          "n": 4,
+          "x": 349.328125,
+          "y": 28,
+          "w": 96.859375,
+          "h": 21.328125
+        },
+        {
+          "n": 5,
+          "x": 600.375,
+          "y": 28,
+          "w": 120.171875,
+          "h": 21.328125
+        },
+        {
+          "n": 6,
+          "x": 600.375,
+          "y": 51.328125,
+          "w": 120.171875,
+          "h": 21.328125
+        },
+        {
+          "n": 7,
+          "x": 600.375,
+          "y": 74.65625,
+          "w": 120.171875,
+          "h": 21.328125
+        },
+        {
+          "n": 8,
+          "x": 733.546875,
+          "y": 39.671875,
+          "w": 73.359375,
+          "h": 21.328125
+        }
+      ]
+    },
+    "f10-toolbar": {
+      "w": 832,
+      "h": 73,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 10.5625,
+          "y": 12,
+          "w": 93.578125,
+          "h": 20
+        },
+        {
+          "n": 2,
+          "x": 117.140625,
+          "y": 12,
+          "w": 73.828125,
+          "h": 20
+        },
+        {
+          "n": 3,
+          "x": 213.96875,
           "y": 12,
           "w": 20,
           "h": 20
         },
         {
           "n": 4,
-          "x": 284,
+          "x": 285.96875,
           "y": 12,
+          "w": 57.953125,
+          "h": 20
+        },
+        {
+          "n": 5,
+          "x": 347.921875,
+          "y": 12,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 6,
+          "x": 371.921875,
+          "y": 12,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 7,
+          "x": 419.921875,
+          "y": 12,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 8,
+          "x": 538.921875,
+          "y": 12,
+          "w": 73.703125,
+          "h": 20
+        },
+        {
+          "n": 9,
+          "x": 635.625,
+          "y": 12,
+          "w": 67.6875,
+          "h": 20
+        },
+        {
+          "n": 10,
+          "x": 726.3125,
+          "y": 12,
+          "w": 89.796875,
+          "h": 20
+        },
+        {
+          "n": 11,
+          "x": 10.5625,
+          "y": 40,
+          "w": 81.171875,
+          "h": 20
+        },
+        {
+          "n": 12,
+          "x": 363.921875,
+          "y": 40,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 13,
+          "x": 579.921875,
+          "y": 40,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 14,
+          "x": 636.921875,
+          "y": 40,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 15,
+          "x": 778.3125,
+          "y": 40,
+          "w": 43.53125,
+          "h": 20
+        }
+      ]
+    },
+    "f10-next-key": {
+      "w": 420,
+      "h": 758,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 325.046875,
+          "y": 30,
+          "w": 57.953125,
+          "h": 20
+        },
+        {
+          "n": 2,
+          "x": 9,
+          "y": 65,
+          "w": 402,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 9,
+          "y": 217.296875,
+          "w": 38.453125,
+          "h": 15.390625
+        },
+        {
+          "n": 4,
+          "x": 343.390625,
+          "y": 243,
+          "w": 67.609375,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 9,
+          "y": 265,
+          "w": 402,
+          "h": 15.390625
+        },
+        {
+          "n": 6,
+          "x": 1,
+          "y": 340.390625,
+          "w": 418,
+          "h": 404
+        },
+        {
+          "n": 7,
+          "x": 10,
+          "y": 403.390625,
+          "w": 400,
+          "h": 98
+        },
+        {
+          "n": 8,
+          "x": 10,
+          "y": 563.390625,
+          "w": 400,
+          "h": 146
+        }
+      ]
+    },
+    "f10-key": {
+      "w": 420,
+      "h": 758,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 65,
+          "w": 402,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 9,
+          "y": 99.296875,
+          "w": 56,
+          "h": 15.390625
+        },
+        {
+          "n": 3,
+          "x": 9,
+          "y": 217.296875,
+          "w": 38.453125,
+          "h": 15.390625
+        },
+        {
+          "n": 4,
+          "x": 9,
+          "y": 243,
+          "w": 124.515625,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 9,
+          "y": 267,
+          "w": 56,
+          "h": 16
+        },
+        {
+          "n": 6,
+          "x": 363,
+          "y": 30,
           "w": 20,
           "h": 20,
           "at": "tr"
         },
         {
-          "n": 5,
-          "x": 6,
-          "y": 50,
-          "w": 84.203125,
-          "h": 24
-        },
-        {
-          "n": 6,
-          "x": 96.203125,
-          "y": 50,
-          "w": 149.765625,
-          "h": 24
-        },
-        {
           "n": 7,
-          "x": 6,
-          "y": 80,
-          "w": 74.59375,
-          "h": 24
+          "x": 9,
+          "y": 187.296875,
+          "w": 56,
+          "h": 15.390625
         }
-      ],
-      "fromGpu": true
+      ]
     },
-    "f10-row-content": {
-      "w": 310,
-      "h": 367,
-      "gpu": false,
-      "marks": [
-        {
-          "n": 1,
-          "x": 76,
-          "y": 6,
-          "w": 228,
-          "h": 24
-        },
-        {
-          "n": 2,
-          "x": 6,
-          "y": 74,
-          "w": 298,
-          "h": 68.5
-        },
-        {
-          "n": 3,
-          "x": 6,
-          "y": 178.5,
-          "w": 105.21875,
-          "h": 24
-        },
-        {
-          "n": 4,
-          "x": 117.21875,
-          "y": 178.5,
-          "w": 155.046875,
-          "h": 24
-        },
-        {
-          "n": 5,
-          "x": 6,
-          "y": 208.5,
-          "w": 127.0625,
-          "h": 24
-        },
-        {
-          "n": 6,
-          "x": 6,
-          "y": 260.5,
-          "w": 298,
-          "h": 68.5
-        },
-        {
-          "n": 7,
-          "x": 6,
-          "y": 337,
-          "w": 298,
-          "h": 24
-        }
-      ],
-      "fromGpu": true
-    },
-    "f10-setcolor": {
+    "f10-step": {
       "w": 420,
-      "h": 276,
+      "h": 758,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 9,
-          "y": 34,
-          "w": 334.59375,
+          "y": 65,
+          "w": 402,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 9,
+          "y": 189.5,
+          "w": 199,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 9,
+          "y": 219.5,
+          "w": 122.09375,
+          "h": 16
+        },
+        {
+          "n": 4,
+          "x": 9,
+          "y": 243.5,
+          "w": 56,
+          "h": 16
+        }
+      ]
+    },
+    "f10-rules": {
+      "w": 420,
+      "h": 758,
+      "gpu": false,
+      "marks": []
+    },
+    "f10-scene": {
+      "w": 420,
+      "h": 758,
+      "gpu": false,
+      "marks": []
+    },
+    "f10-playbar": {
+      "w": 589,
+      "h": 50,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15.859375,
+          "y": 17,
+          "w": 83.421875,
           "h": 16
         },
         {
           "n": 2,
-          "x": 351.59375,
-          "y": 30,
-          "w": 59.40625,
+          "x": 107.28125,
+          "y": 13,
+          "w": 24,
           "h": 24
         },
         {
           "n": 3,
-          "x": 342.078125,
-          "y": 102,
-          "w": 59.921875,
-          "h": 24
-        }
-      ],
-      "fromGpu": true
-    },
-    "f10-scene-muted": {
-      "w": 420,
-      "h": 144,
-      "gpu": false,
-      "marks": [
-        {
-          "n": 1,
-          "x": 9,
-          "y": 107.625,
-          "w": 402,
-          "h": 24
-        }
-      ],
-      "fromGpu": true
-    },
-    "f10-viewpoint-muted": {
-      "w": 420,
-      "h": 126,
-      "gpu": false,
-      "marks": [
-        {
-          "n": 1,
-          "x": 9,
-          "y": 89.75,
-          "w": 402,
-          "h": 24
-        }
-      ],
-      "fromGpu": true
-    },
-    "f10-unsaved": {
-      "w": 340,
-      "h": 167,
-      "gpu": false,
-      "marks": [
-        {
-          "n": 1,
-          "x": 255.21875,
-          "y": 124.5,
-          "w": 61.78125,
-          "h": 24
-        },
-        {
-          "n": 2,
-          "x": 171.9375,
-          "y": 124.5,
-          "w": 77.28125,
-          "h": 24
-        }
-      ],
-      "fromGpu": true
-    },
-    "f10-viewer": {
-      "w": 200,
-      "h": 301,
-      "gpu": false,
-      "marks": [
-        {
-          "n": 1,
-          "x": 9,
-          "y": 32,
-          "w": 66.1875,
-          "h": 24
-        },
-        {
-          "n": 2,
-          "x": 81.1875,
-          "y": 32,
-          "w": 104.140625,
-          "h": 24
-        },
-        {
-          "n": 3,
-          "x": 9,
-          "y": 62,
-          "w": 125.5625,
-          "h": 24
+          "x": 263.25,
+          "y": 17,
+          "w": 128,
+          "h": 16
         },
         {
           "n": 4,
-          "x": 9,
-          "y": 128,
-          "w": 182,
-          "h": 30
+          "x": 399.25,
+          "y": 13,
+          "w": 116.171875,
+          "h": 24
         },
         {
           "n": 5,
-          "x": 9,
-          "y": 158,
-          "w": 182,
-          "h": 95
+          "x": 523.421875,
+          "y": 13,
+          "w": 50.703125,
+          "h": 24
         }
-      ],
-      "fromGpu": true
-    },
-    "f10-task-pa-viewport": {
-      "w": 260,
-      "h": 758,
-      "gpu": true,
-      "marks": [],
-      "fromGpu": true
-    },
-    "f10-task-escape-viewport": {
-      "w": 260,
-      "h": 758,
-      "gpu": true,
-      "marks": [],
-      "fromGpu": true
+      ]
     }
   },
   "reference": {
-    "viewpoints": [
+    "animationTimeline": [
       {
-        "section": "Top",
-        "label": "Add viewpoint",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera-plus \"><path d=\"M12 20h-7a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
-        "tooltip": "Snapshot the current camera and clipping into a new EMPTY viewpoint and activate it \u2014 labels, measurements, rules and selection start blank (use the Copy buttons to bring content in)",
-        "keys": "ALT 1126"
+        "section": "",
+        "label": "Scene 1 ▾",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-movie \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M8 4l0 16\"></path><path d=\"M16 4l0 16\"></path><path d=\"M4 8l4 0\"></path><path d=\"M4 16l4 0\"></path><path d=\"M4 12l16 0\"></path><path d=\"M16 8l4 0\"></path><path d=\"M16 16l4 0\"></path></svg>",
+        "tooltip": "The scene you work on — switch, rename, add or delete one",
+        "keys": "ALT 1588"
       },
       {
-        "section": "Top",
-        "label": "Save",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
-        "tooltip": "Save every viewpoint to a JSON file",
-        "keys": "ALT 1130"
+        "section": "",
+        "label": "Object",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "The selection as an object, with a key at the time slider holding where it stands",
+        "keys": "ALT 961"
       },
       {
-        "section": "Top",
-        "label": "Load",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
-        "tooltip": "Load viewpoints from a JSON file (replaces the current set)",
-        "keys": "ALT 1131"
-      },
-      {
-        "section": "Top",
-        "label": "Delete all",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
-        "tooltip": "Delete every viewpoint \u2014 a live viewpoint's content goes back to the scene first",
-        "keys": "ALT 1228"
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Content badge",
+        "section": "",
+        "label": "",
         "icon": "",
-        "tooltip": "Labels \u00b7 Measurements \u00b7 Selected fullnames \u00b7 Set Color rules stored in this viewpoint",
+        "tooltip": "Many objects at once: one per child or per selected node; select them all",
         "keys": ""
       },
       {
-        "section": "Each viewpoint",
-        "label": "Insert before",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-row-insert-top \"><path d=\"M4 18v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1\"></path><path d=\"M12 9v-4\"></path><path d=\"M10 7l4 0\"></path></svg>",
-        "tooltip": "Insert a NEW empty viewpoint (current camera + clipping) before this one",
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-move \"><path d=\"M18 9l3 3l-3 3\"></path><path d=\"M15 12h6\"></path><path d=\"M6 9l-3 3l3 3\"></path><path d=\"M3 12h6\"></path><path d=\"M9 18l3 3l3 -3\"></path><path d=\"M12 15v6\"></path><path d=\"M15 6l-3 -3l-3 3\"></path><path d=\"M12 3v6\"></path></svg>",
+        "tooltip": "Move gizmo on the current object — drag to pose, then Key",
+        "keys": "ALT 1510"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-rotate \"><path d=\"M19.95 11a8 8 0 1 0 -.5 4m.5 5v-5h-5\"></path></svg>",
+        "tooltip": "Rotate gizmo on the current object — drag to pose, then Key",
+        "keys": "ALT 1511"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-crosshair \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path><path d=\"M9 12l6 0\"></path><path d=\"M12 9l0 6\"></path></svg>",
+        "tooltip": "What the current object turns about (keys without a pivot of their own)",
+        "keys": "ALT 1590"
+      },
+      {
+        "section": "",
+        "label": "Key",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-key \"><path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"></path><path d=\"M15 9h.01\"></path></svg>",
+        "tooltip": "Key the current row at the time slider: the pose, the view, the clipping, the colour rules, the labels or measurements, or a new step (I)",
+        "keys": "ALT 943"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-key-off \"><path d=\"M10.17 6.159l2.316 -2.316a2.877 2.877 0 0 1 4.069 0l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.33 2.33\"></path><path d=\"M14.931 14.948a2.863 2.863 0 0 1 -1.486 -.79l-.301 -.302l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.863 2.863 0 0 1 -.794 -1.504\"></path><path d=\"M15 9h.01\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Delete the picked keys (Delete)",
+        "keys": "ALT 944"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevron-left \"><path d=\"M15 6l-6 6l6 6\"></path></svg>",
+        "tooltip": "Time slider to the previous key of the current row",
+        "keys": "ALT 945"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevron-right \"><path d=\"M9 6l6 6l-6 6\"></path></svg>",
+        "tooltip": "Time slider to the next key of the current row",
+        "keys": "ALT 946"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"none\" class=\"tabler-icon tabler-icon-player-record-filled text-slate-500\"><path d=\"M8 5.072a8 8 0 1 1 -3.995 7.213l-.005 -.285l.005 -.285a8 8 0 0 1 3.995 -6.643z\"></path></svg>",
+        "tooltip": "Auto-key: every gizmo drag keys at the time slider straight away (red frame)",
+        "keys": "ALT 947"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"></path></svg>",
+        "tooltip": "Hide the current object from the time slider on",
+        "keys": "ALT 1553"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "",
+        "tooltip": "The colour Colour from here (and Colour the selection) keys",
         "keys": ""
       },
       {
-        "section": "Each viewpoint",
-        "label": "Move up",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
-        "tooltip": "Move this viewpoint up in the list",
-        "keys": ""
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Move down",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
-        "tooltip": "Move this viewpoint down in the list",
-        "keys": ""
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Activate",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-player-play \"><path d=\"M7 4v16l13 -8l-13 -8\"></path></svg>",
-        "tooltip": "Activate: fly the camera, apply clipping, show this viewpoint's labels/measurements, run its color rules and select its items",
-        "keys": "ALT 1127"
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Update camera/clip",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
-        "tooltip": "Update this viewpoint's camera pose and clipping (box + planes + shapes) from the current view",
-        "keys": "ALT 1128"
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Delete",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
-        "tooltip": "Delete this viewpoint",
-        "keys": "ALT 1129"
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Copy labels",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-map-pin-plus \"><path d=\"M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path><path d=\"M12.794 21.322a2 2 0 0 1 -2.207 -.422l-4.244 -4.243a8 8 0 1 1 13.59 -4.616\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
-        "tooltip": "Copy the scene Labels panel's labels into this viewpoint \u2014 overrides the viewpoint's labels",
-        "keys": "ALT 1132"
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Copy measurements",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-ruler \"><path d=\"M5 4h14a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-7a1 1 0 0 0 -1 1v7a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1\"></path><path d=\"M4 8l2 0\"></path><path d=\"M4 12l3 0\"></path><path d=\"M4 16l2 0\"></path><path d=\"M8 4l0 2\"></path><path d=\"M12 4l0 3\"></path><path d=\"M16 4l0 2\"></path></svg>",
-        "tooltip": "Copy the scene Measurements panel's measurements into this viewpoint \u2014 overrides the viewpoint's measurements",
-        "keys": "ALT 1133"
-      },
-      {
-        "section": "Each viewpoint",
-        "label": "Copy set colors",
+        "section": "",
+        "label": "Colour",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
-        "tooltip": "Copy the global Set Color editor's rules into this viewpoint \u2014 overrides the viewpoint's rules",
-        "keys": "ALT 1134"
+        "tooltip": "The current object in the key colour from the time slider on",
+        "keys": "ALT 1326"
       },
       {
-        "section": "Each viewpoint",
-        "label": "From selection",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list-check \"><path d=\"M3.5 5.5l1.5 1.5l2.5 -2.5\"></path><path d=\"M3.5 11.5l1.5 1.5l2.5 -2.5\"></path><path d=\"M3.5 17.5l1.5 1.5l2.5 -2.5\"></path><path d=\"M11 6l9 0\"></path><path d=\"M11 12l9 0\"></path><path d=\"M11 18l9 0\"></path></svg>",
-        "tooltip": "Fill the list from the currently selected items (selection roots)",
-        "keys": "ALT 1135"
-      },
-      {
+        "section": "",
+        "label": "",
         "icon": "",
-        "keys": "",
-        "section": "Each viewpoint",
-        "label": "Name",
-        "tooltip": "The viewpoint name, shown in the list and in the Viewpoint Viewer."
+        "tooltip": "Own colour, transparency, hide or show from the time slider on",
+        "keys": ""
       },
       {
-        "icon": "",
-        "keys": "",
-        "section": "Each viewpoint",
-        "label": "Description",
-        "tooltip": "Free text shown under the active viewpoint in the Viewpoint Viewer. **bold** and new lines work."
+        "section": "",
+        "label": "Rules",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-color-filter \"><path d=\"M13.58 13.79c.27 .68 .42 1.43 .42 2.21c0 1.77 -.77 3.37 -2 4.46a5.93 5.93 0 0 1 -4 1.54c-3.31 0 -6 -2.69 -6 -6c0 -2.76 1.88 -5.1 4.42 -5.79\"></path><path d=\"M17.58 10.21c2.54 .69 4.42 3.03 4.42 5.79c0 3.31 -2.69 6 -6 6a5.93 5.93 0 0 1 -4 -1.54\"></path><path d=\"M6 8a6 6 0 1 0 12 0a6 6 0 1 0 -12 0\"></path></svg>",
+        "tooltip": "Key the colour rules built in the Key panel, from the time slider on",
+        "keys": "ALT 1323"
       },
       {
+        "section": "",
+        "label": "",
         "icon": "",
-        "keys": "",
-        "section": "Each viewpoint",
-        "label": "Selected on activation",
-        "tooltip": "Item names, one per line, that are selected when the viewpoint is activated. Empty = nothing selected."
+        "tooltip": "Quick rules for the selection or the whole model; edit the rules in force",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Overlay ▾",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-message-2-plus \"><path d=\"M8 9h8\"></path><path d=\"M8 13h6\"></path><path d=\"M12.5 20.5l-.5 .5l-3 -3h-3a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v5.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
+        "tooltip": "A callout on the selection, a title, a caption, an info card… on the Overlays row, from the time slider",
+        "keys": "ALT 1585"
+      },
+      {
+        "section": "",
+        "label": "Camera",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "Camera key: the view now, at the time slider",
+        "keys": "ALT 948"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "",
+        "tooltip": "Key a saved viewpoint, orbit, back to the camera keys",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Clipping",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-box \"><path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"></path><path d=\"M12 12l8 -4.5\"></path><path d=\"M12 12l0 9\"></path><path d=\"M12 12l-8 -4.5\"></path></svg>",
+        "tooltip": "Clipping key: the clipping now (box, planes, shapes), at the time slider",
+        "keys": "ALT 1341"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "The time slider, in seconds — type a time or step it with − / +; a pose not keyed yet moves along (on the Timeline ← / → step it too, Shift a whole second)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-bar-to-left \"><path d=\"M10 12l10 0\"></path><path d=\"M10 12l4 4\"></path><path d=\"M10 12l4 -4\"></path><path d=\"M4 4l0 16\"></path></svg>",
+        "tooltip": "Time slider to the start (Home)",
+        "keys": "ALT 1505"
+      },
+      {
+        "section": "",
+        "label": "Play",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"none\" class=\"tabler-icon tabler-icon-player-play-filled \"><path d=\"M6 4v16a1 1 0 0 0 1.524 .852l13 -8a1 1 0 0 0 0 -1.704l-13 -8a1 1 0 0 0 -1.524 .852z\"></path></svg>",
+        "tooltip": "Play playback",
+        "keys": "K"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"none\" class=\"tabler-icon tabler-icon-player-stop-filled \"><path d=\"M17 4h-10a3 3 0 0 0 -3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3 -3v-10a3 3 0 0 0 -3 -3z\"></path></svg>",
+        "tooltip": "Stop and go to the start",
+        "keys": "ALT 904"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-bar-to-right \"><path d=\"M14 12l-10 0\"></path><path d=\"M14 12l-4 4\"></path><path d=\"M14 12l-4 -4\"></path><path d=\"M20 4l0 16\"></path></svg>",
+        "tooltip": "Time slider to the end (End)",
+        "keys": "ALT 1506"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-repeat \"><path d=\"M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3\"></path><path d=\"M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3\"></path></svg>",
+        "tooltip": "Loop: start again at the end",
+        "keys": "ALT 909"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-left-right \"><path d=\"M21 17l-18 0\"></path><path d=\"M6 10l-3 -3l3 -3\"></path><path d=\"M3 7l18 0\"></path><path d=\"M18 20l3 -3l-3 -3\"></path></svg>",
+        "tooltip": "Ping-pong: at the end, play back to the start",
+        "keys": "ALT 1512"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-magnet \"><path d=\"M4 13v-8a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v8a2 2 0 0 0 6 0v-8a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v8a8 8 0 0 1 -16 0\"></path><path d=\"M4 8l5 0\"></path><path d=\"M15 8l4 0\"></path></svg>",
+        "tooltip": "Snap to keys, step edges and the grid",
+        "keys": "ALT 1308"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-zoom-out \"><path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"></path><path d=\"M7 10l6 0\"></path><path d=\"M21 21l-6 -6\"></path></svg>",
+        "tooltip": "Zoom out (Ctrl+wheel)",
+        "keys": "ALT 1310"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-zoom-in \"><path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"></path><path d=\"M7 10l6 0\"></path><path d=\"M10 7l0 6\"></path><path d=\"M21 21l-6 -6\"></path></svg>",
+        "tooltip": "Zoom in (Ctrl+wheel)",
+        "keys": "ALT 1309"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-presentation \"><path d=\"M3 4l18 0\"></path><path d=\"M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10\"></path><path d=\"M12 16l0 4\"></path><path d=\"M9 20l6 0\"></path><path d=\"M8 12l3 -3l2 2l3 -3\"></path></svg>",
+        "tooltip": "Present: the 3D view alone with the play bar — Close on the play bar comes back here",
+        "keys": "ALT 1573"
+      },
+      {
+        "section": "",
+        "label": "▾",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Export: a video, step stills or the brief for AI",
+        "keys": "ALT 1587"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "",
+        "tooltip": "Drag to widen or narrow the names",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Scene",
+        "icon": "",
+        "tooltip": "The scene's settings in the Key panel — name, end, loop, step card",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Scene 1",
+        "icon": "",
+        "tooltip": "Scene 1\n00:00.0 → 00:01.0",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Overlays",
+        "icon": "",
+        "tooltip": "Add an overlay from the Key panel — a callout, title, caption or card",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Objects",
+        "icon": "",
+        "tooltip": "The object tools in the Key panel: + Object, one per child or per node, select them all",
+        "keys": ""
       }
     ],
-    "viewpointViewer": [
+    "animationObject": [
       {
         "section": "",
-        "label": "Load",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
-        "tooltip": "Load viewpoints from a JSON file (replaces the current set)",
-        "keys": "ALT 1131"
+        "label": "Key",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-key \"><path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"></path><path d=\"M15 9h.01\"></path></svg>",
+        "tooltip": "Key the pose at the time slider (I)",
+        "keys": "ALT 943"
       },
       {
         "section": "",
-        "label": "Mute labels",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-map-pin-off \"><path d=\"M9.442 9.432a3 3 0 0 0 4.113 4.134m1.445 -2.566a3 3 0 0 0 -3 -3\"></path><path d=\"M17.152 17.162l-3.738 3.738a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 0 1 -.476 -10.794m2.18 -1.82a8.003 8.003 0 0 1 10.91 10.912\"></path><path d=\"M3 3l18 18\"></path></svg>",
-        "tooltip": "Hide/show all labels in the viewport",
-        "keys": "ALT 1139"
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Back to the scene settings",
+        "keys": "ALT 1372"
       },
       {
         "section": "",
-        "label": "Mute measures",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-ruler-off \"><path d=\"M8 4h11a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-4m-3.713 .299a1 1 0 0 0 -.287 .701v7a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1v-14c0 -.284 .118 -.54 .308 -.722\"></path><path d=\"M4 8h2\"></path><path d=\"M4 12h3\"></path><path d=\"M4 16h2\"></path><path d=\"M12 4v3\"></path><path d=\"M16 4v2\"></path><path d=\"M3 3l18 18\"></path></svg>",
-        "tooltip": "Hide/show all measurements in the viewport",
-        "keys": "ALT 720"
-      },
-      {
-        "section": "",
-        "label": "Viewpoint name",
+        "label": "−+",
         "icon": "",
-        "tooltip": "Activate this viewpoint",
+        "tooltip": "Where the next key goes (s): the time slider moves, the pose goes along",
         "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "X from its place (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Y from its place (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Z from its place (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Rotate about X (°)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Rotate about Y (°)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Rotate about Z (°)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "As the object",
+        "icon": "",
+        "tooltip": "What Move and Rotate are about, and what it turns about on the way here",
+        "keys": "ALT 1574"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Pivot offset X (m) from the side above — dragging the pivot in the view sets it too",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Pivot offset Y (m) from the side above — dragging the pivot in the view sets it too",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Pivot offset Z (m) from the side above — dragging the pivot in the view sets it too",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Smooth",
+        "icon": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" aria-hidden=\"true\"><polyline points=\"1.00,13.00 2.00,12.76 3.00,12.11 4.00,11.13 5.00,9.89 6.00,8.49 7.00,7.00 8.00,5.51 9.00,4.11 10.00,2.88 11.00,1.89 12.00,1.24 13.00,1.00\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"></polyline></svg>",
+        "tooltip": "Smooth",
+        "keys": "ALT 1516"
+      },
+      {
+        "section": "",
+        "label": "Linear",
+        "icon": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" aria-hidden=\"true\"><polyline points=\"1.00,13.00 2.00,12.00 3.00,11.00 4.00,10.00 5.00,9.00 6.00,8.00 7.00,7.00 8.00,6.00 9.00,5.00 10.00,4.00 11.00,3.00 12.00,2.00 13.00,1.00\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"></polyline></svg>",
+        "tooltip": "Linear",
+        "keys": "ALT 1517"
+      },
+      {
+        "section": "",
+        "label": "Hold",
+        "icon": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" aria-hidden=\"true\"><polyline points=\"1.00,13.00 2.00,13.00 3.00,13.00 4.00,13.00 5.00,13.00 6.00,13.00 7.00,13.00 8.00,13.00 9.00,13.00 10.00,13.00 11.00,13.00 12.00,13.00 13.00,1.00\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"></polyline></svg>",
+        "tooltip": "Hold",
+        "keys": "ALT 1518"
+      },
+      {
+        "section": "",
+        "label": "Discard",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-back-up \"><path d=\"M9 14l-4 -4l4 -4\"></path><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"></path></svg>",
+        "tooltip": "Put it back where the keys have it",
+        "keys": "ALT 1524"
+      },
+      {
+        "section": "",
+        "label": "Hide",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-off \"><path d=\"M10.585 10.587a2 2 0 0 0 2.829 2.828\"></path><path d=\"M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hidden from here (a key at the time slider)",
+        "keys": "ALT 1507"
+      },
+      {
+        "section": "",
+        "label": "Show",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"></path></svg>",
+        "tooltip": "Shown from here (a key at the time slider)",
+        "keys": "ALT 1508"
+      },
+      {
+        "section": "",
+        "label": "Colour",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "This colour from here (a key at the time slider)",
+        "keys": "ALT 1326"
+      },
+      {
+        "section": "",
+        "label": "Own colour",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette-off \"><path d=\"M15 15h-1a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25a9 9 0 0 1 -6.372 -15.356\"></path><path d=\"M8 4c1.236 -.623 2.569 -1 4 -1c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828a4.516 4.516 0 0 1 -1.127 .73\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Its own colour again from here",
+        "keys": "ALT 1327"
+      },
+      {
+        "section": "",
+        "label": "#ef4444",
+        "icon": "",
+        "tooltip": "The colour Colour keys",
+        "keys": ""
+      },
+      {
+        "section": "Object",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "The object's name on its Timeline row",
+        "keys": ""
+      },
+      {
+        "section": "Items",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Take this node out of the list",
+        "keys": ""
+      },
+      {
+        "section": "Items",
+        "label": "Add selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "The selected nodes join the object (a node it leaves out comes back)",
+        "keys": "ALT 1563"
+      },
+      {
+        "section": "Items",
+        "label": "Remove selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-minus \"><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "The selected nodes leave the object — a node inside a group is left out of it",
+        "keys": "ALT 1564"
+      },
+      {
+        "section": "Items",
+        "label": "Select",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-pointer \"><path d=\"M7.904 17.563a1.2 1.2 0 0 0 2.228 .308l2.09 -3.093l4.907 4.907a1.067 1.067 0 0 0 1.509 0l1.047 -1.047a1.067 1.067 0 0 0 0 -1.509l-4.907 -4.907l3.113 -2.09a1.2 1.2 0 0 0 -.309 -2.228l-13.582 -3.904l3.904 13.563\"></path></svg>",
+        "tooltip": "Select its items in the 3D view and the Hierarchy",
+        "keys": "ALT 962"
+      },
+      {
+        "section": "Items",
+        "label": "Update from selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-refresh \"><path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\"></path><path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\"></path></svg>",
+        "tooltip": "Its items become the selection's — every key stays",
+        "keys": "ALT 1353"
+      },
+      {
+        "section": "Object",
+        "label": "Centre",
+        "icon": "",
+        "tooltip": "What its keys turn about unless a key has a pivot of its own",
+        "keys": "ALT 1523"
+      },
+      {
+        "section": "Object",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-crosshair \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path><path d=\"M9 12l6 0\"></path><path d=\"M12 9l0 6\"></path></svg>",
+        "tooltip": "Pivot = the point of the object under the gizmo's pivot (move that with the Transform ribbon's Set pivot); nothing moves",
+        "keys": "ALT 1352"
+      },
+      {
+        "section": "Object",
+        "label": "Straight",
+        "icon": "",
+        "tooltip": "Straight lines between its keys",
+        "keys": "ALT 1336"
+      },
+      {
+        "section": "Object",
+        "label": "Smooth",
+        "icon": "",
+        "tooltip": "A curve through its keys",
+        "keys": "ALT 1337"
+      },
+      {
+        "section": "Slide in",
+        "label": "From above",
+        "icon": "",
+        "tooltip": "The side it comes from",
+        "keys": "ALT 1548"
+      },
+      {
+        "section": "Slide in",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "How far away it starts (metres)",
+        "keys": ""
+      },
+      {
+        "section": "Slide in",
+        "label": "−",
+        "icon": "",
+        "tooltip": "Slide in distance: one step down.",
+        "keys": "ALT 1544"
+      },
+      {
+        "section": "Slide in",
+        "label": "+",
+        "icon": "",
+        "tooltip": "Slide in distance: one step up.",
+        "keys": "ALT 1545"
+      },
+      {
+        "section": "Slide in",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Seconds it takes to slide into place",
+        "keys": ""
+      },
+      {
+        "section": "Slide in",
+        "label": "−",
+        "icon": "",
+        "tooltip": "Slide in time: one step down.",
+        "keys": "ALT 1546"
+      },
+      {
+        "section": "Slide in",
+        "label": "+",
+        "icon": "",
+        "tooltip": "Slide in time: one step up.",
+        "keys": "ALT 1547"
+      },
+      {
+        "section": "Slide in",
+        "label": "Slide in from the time slider",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-bar-to-down \"><path d=\"M4 20l16 0\"></path><path d=\"M12 14l0 -10\"></path><path d=\"M12 14l4 -4\"></path><path d=\"M12 14l-4 -4\"></path></svg>",
+        "tooltip": "Hidden away until the time slider, then it slides into place (keys in that time are replaced)",
+        "keys": "ALT 1509"
+      },
+      {
+        "section": "Object",
+        "label": "Muted",
+        "icon": "",
+        "tooltip": "Not animated: its items stand where the model has them",
+        "keys": "ALT 1521"
+      },
+      {
+        "section": "Object",
+        "label": "Delete object",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete the object and its keys (its items stay where the model has them)",
+        "keys": "ALT 1354"
+      }
+    ],
+    "animationKey": [
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this key",
+        "keys": "ALT 944"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Back to the scene settings",
+        "keys": "ALT 1372"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "This key's time (s) — the time slider moves with it",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "X from its place (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Y from its place (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Z from its place (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Rotate about X (°)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Rotate about Y (°)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Rotate about Z (°)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "As the object",
+        "icon": "",
+        "tooltip": "What Move and Rotate are about, and what it turns about on the way here",
+        "keys": "ALT 1574"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Pivot offset X (m) from the side above — dragging the pivot in the view sets it too",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Pivot offset Y (m) from the side above — dragging the pivot in the view sets it too",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Pivot offset Z (m) from the side above — dragging the pivot in the view sets it too",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Smooth",
+        "icon": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" aria-hidden=\"true\"><polyline points=\"1.00,13.00 2.00,12.76 3.00,12.11 4.00,11.13 5.00,9.89 6.00,8.49 7.00,7.00 8.00,5.51 9.00,4.11 10.00,2.88 11.00,1.89 12.00,1.24 13.00,1.00\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"></polyline></svg>",
+        "tooltip": "Smooth",
+        "keys": "ALT 1516"
+      },
+      {
+        "section": "",
+        "label": "Linear",
+        "icon": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" aria-hidden=\"true\"><polyline points=\"1.00,13.00 2.00,12.00 3.00,11.00 4.00,10.00 5.00,9.00 6.00,8.00 7.00,7.00 8.00,6.00 9.00,5.00 10.00,4.00 11.00,3.00 12.00,2.00 13.00,1.00\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"></polyline></svg>",
+        "tooltip": "Linear",
+        "keys": "ALT 1517"
+      },
+      {
+        "section": "",
+        "label": "Hold",
+        "icon": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" aria-hidden=\"true\"><polyline points=\"1.00,13.00 2.00,13.00 3.00,13.00 4.00,13.00 5.00,13.00 6.00,13.00 7.00,13.00 8.00,13.00 9.00,13.00 10.00,13.00 11.00,13.00 12.00,13.00 13.00,1.00\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"></polyline></svg>",
+        "tooltip": "Hold",
+        "keys": "ALT 1518"
+      },
+      {
+        "section": "",
+        "label": "Spin into this key",
+        "icon": "",
+        "tooltip": "Turn about an axis on the way to this key (a wheel, a fan) — the rotation above is where it ends",
+        "keys": "ALT 1385"
+      },
+      {
+        "section": "",
+        "label": "As before",
+        "icon": "",
+        "tooltip": "This key does not change it",
+        "keys": "ALT 1525"
+      },
+      {
+        "section": "",
+        "label": "Shown",
+        "icon": "",
+        "tooltip": "Shown from this key on",
+        "keys": "ALT 1508"
+      },
+      {
+        "section": "",
+        "label": "Hidden",
+        "icon": "",
+        "tooltip": "Hidden from this key on",
+        "keys": "ALT 1507"
+      },
+      {
+        "section": "",
+        "label": "Own",
+        "icon": "",
+        "tooltip": "The item's own colour from this key on",
+        "keys": "ALT 1327"
+      },
+      {
+        "section": "",
+        "label": "Colour",
+        "icon": "",
+        "tooltip": "This colour from this key on",
+        "keys": "ALT 1326"
+      },
+      {
+        "section": "",
+        "label": "Opacity from this key",
+        "icon": "",
+        "tooltip": "Set how opaque it is from this key on (otherwise as before)",
+        "keys": "ALT 1527"
+      },
+      {
+        "section": "Object",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "The object's name on its Timeline row",
+        "keys": ""
+      },
+      {
+        "section": "Items",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Take this node out of the list",
+        "keys": ""
+      },
+      {
+        "section": "Items",
+        "label": "Add selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "The selected nodes join the object (a node it leaves out comes back)",
+        "keys": "ALT 1563"
+      },
+      {
+        "section": "Items",
+        "label": "Remove selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-minus \"><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "The selected nodes leave the object — a node inside a group is left out of it",
+        "keys": "ALT 1564"
+      },
+      {
+        "section": "Items",
+        "label": "Select",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-pointer \"><path d=\"M7.904 17.563a1.2 1.2 0 0 0 2.228 .308l2.09 -3.093l4.907 4.907a1.067 1.067 0 0 0 1.509 0l1.047 -1.047a1.067 1.067 0 0 0 0 -1.509l-4.907 -4.907l3.113 -2.09a1.2 1.2 0 0 0 -.309 -2.228l-13.582 -3.904l3.904 13.563\"></path></svg>",
+        "tooltip": "Select its items in the 3D view and the Hierarchy",
+        "keys": "ALT 962"
+      },
+      {
+        "section": "Items",
+        "label": "Update from selection",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-refresh \"><path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\"></path><path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\"></path></svg>",
+        "tooltip": "Its items become the selection's — every key stays",
+        "keys": "ALT 1353"
+      },
+      {
+        "section": "Object",
+        "label": "Centre",
+        "icon": "",
+        "tooltip": "What its keys turn about unless a key has a pivot of its own",
+        "keys": "ALT 1523"
+      },
+      {
+        "section": "Object",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-crosshair \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path><path d=\"M9 12l6 0\"></path><path d=\"M12 9l0 6\"></path></svg>",
+        "tooltip": "Pivot = the point of the object under the gizmo's pivot (move that with the Transform ribbon's Set pivot); nothing moves",
+        "keys": "ALT 1352"
+      },
+      {
+        "section": "Object",
+        "label": "Straight",
+        "icon": "",
+        "tooltip": "Straight lines between its keys",
+        "keys": "ALT 1336"
+      },
+      {
+        "section": "Object",
+        "label": "Smooth",
+        "icon": "",
+        "tooltip": "A curve through its keys",
+        "keys": "ALT 1337"
+      },
+      {
+        "section": "Slide in",
+        "label": "From above",
+        "icon": "",
+        "tooltip": "The side it comes from",
+        "keys": "ALT 1548"
+      },
+      {
+        "section": "Slide in",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "How far away it starts (metres)",
+        "keys": ""
+      },
+      {
+        "section": "Slide in",
+        "label": "−",
+        "icon": "",
+        "tooltip": "Slide in distance: one step down.",
+        "keys": "ALT 1544"
+      },
+      {
+        "section": "Slide in",
+        "label": "+",
+        "icon": "",
+        "tooltip": "Slide in distance: one step up.",
+        "keys": "ALT 1545"
+      },
+      {
+        "section": "Slide in",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Seconds it takes to slide into place",
+        "keys": ""
+      },
+      {
+        "section": "Slide in",
+        "label": "−",
+        "icon": "",
+        "tooltip": "Slide in time: one step down.",
+        "keys": "ALT 1546"
+      },
+      {
+        "section": "Slide in",
+        "label": "+",
+        "icon": "",
+        "tooltip": "Slide in time: one step up.",
+        "keys": "ALT 1547"
+      },
+      {
+        "section": "Slide in",
+        "label": "Slide in from the time slider",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-bar-to-down \"><path d=\"M4 20l16 0\"></path><path d=\"M12 14l0 -10\"></path><path d=\"M12 14l4 -4\"></path><path d=\"M12 14l-4 -4\"></path></svg>",
+        "tooltip": "Hidden away until the time slider, then it slides into place (keys in that time are replaced)",
+        "keys": "ALT 1509"
+      },
+      {
+        "section": "Object",
+        "label": "Muted",
+        "icon": "",
+        "tooltip": "Not animated: its items stand where the model has them",
+        "keys": "ALT 1521"
+      },
+      {
+        "section": "Object",
+        "label": "Delete object",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete the object and its keys (its items stay where the model has them)",
+        "keys": "ALT 1354"
+      }
+    ],
+    "animationStep": [
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-player-play \"><path d=\"M7 4v16l13 -8l-13 -8\"></path></svg>",
+        "tooltip": "Play this step",
+        "keys": "ALT 906"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this step (the objects' keys stay)",
+        "keys": "ALT 1515"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Back to the scene settings",
+        "keys": "ALT 1372"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "The step's name — its card shows it ({{step.name}})",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Lower **SX-HA86-011A** onto its bracket.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "The step's text ({{step.text}}): **bold**, line breaks",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "When the step starts (s)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "When the step ends (s) — playback can wait here",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Pause at the end",
+        "icon": "",
+        "tooltip": "Playback waits at the end of this step until Continue",
+        "keys": "ALT 1514"
+      },
+      {
+        "section": "",
+        "label": "Scene card",
+        "icon": "",
+        "tooltip": "The scene's step card (Key panel → scene)",
+        "keys": "ALT 1539"
+      },
+      {
+        "section": "",
+        "label": "Own",
+        "icon": "",
+        "tooltip": "A card of its own: a design and its values",
+        "keys": "ALT 1540"
+      },
+      {
+        "section": "",
+        "label": "None",
+        "icon": "",
+        "tooltip": "No card for this step",
+        "keys": "ALT 1541"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "",
+        "tooltip": "Notes for the presenter — not in the picture",
+        "keys": ""
+      }
+    ],
+    "animationRules": [
+      {
+        "section": "",
+        "label": "Key rules",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "These rules as a key at the time slider",
+        "keys": "ALT 1323"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Back to the scene settings",
+        "keys": "ALT 1372"
+      },
+      {
+        "section": "",
+        "label": "Reset",
+        "icon": "",
+        "tooltip": "A clean model first, then these rules",
+        "keys": "ALT 1534"
+      },
+      {
+        "section": "",
+        "label": "Append",
+        "icon": "",
+        "tooltip": "On top of the rules before",
+        "keys": "ALT 1535"
+      },
+      {
+        "section": "",
+        "label": "Hide",
+        "icon": "",
+        "tooltip": "Everything hidden; the rules show what they match",
+        "keys": "ALT 1536"
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-row-insert-top \"><path d=\"M4 18v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1\"></path><path d=\"M12 9v-4\"></path><path d=\"M10 7l4 0\"></path></svg>",
+        "tooltip": "Insert a new rule BEFORE this one",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
+        "tooltip": "Move this rule up (rules run top to bottom)",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
+        "tooltip": "Move this rule down (rules run top to bottom)",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "On",
+        "icon": "",
+        "tooltip": "Enable / disable this rule — disabled rules are skipped",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this rule",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "Default",
+        "icon": "",
+        "tooltip": "Restore the original mesh color",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "Custom",
+        "icon": "",
+        "tooltip": "Apply the picked color",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "How opaque the matched items are: 1 = as they are, 0 = hidden",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "0",
+        "icon": "",
+        "tooltip": "Quick set: opacity 0 — matched items are hidden. This sets the hide flag rather than a 0 % override; move the rule off 0 and its items come back",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "1",
+        "icon": "",
+        "tooltip": "Quick set: opacity 1 — fully opaque (default)",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "All stores×",
+        "icon": "",
+        "tooltip": "Scope this rule to models loaded from one store — All stores matches every loaded model",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "Append",
+        "icon": "",
+        "tooltip": "Append adds this row's matches to the rule's result; Remove subtracts them from the rows above; Keep keeps only what the rows above (in this rule) found that this row matches too — e.g. Append a folder, then Keep contains HVAC",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-row-insert-top \"><path d=\"M4 18v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1\"></path><path d=\"M12 9v-4\"></path><path d=\"M10 7l4 0\"></path></svg>",
+        "tooltip": "Insert a new filter row BEFORE this one",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
+        "tooltip": "Move this filter row up (rows run top to bottom — Keep / Remove act on the rows above)",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
+        "tooltip": "Move this filter row down (rows run top to bottom — Keep / Remove act on the rows above)",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Remove this filter row",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Insert the LAST selected name — whatever is the current selection root: the row you clicked in the tree, the item you picked in the viewport, or where U / P walked to. Replaces this row's text; in Multi mode it is appended as a new line instead",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "Contains",
+        "icon": "",
+        "tooltip": "Contains: name contains the text. Equals: exact name, * wildcard at start/end. Starts/Ends with: name starts/ends with the text. Wildcard: exact name with * wildcards anywhere. Multi: paste one name per line, each matched exactly. All case-insensitive",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "All lvl",
+        "icon": "",
+        "tooltip": "The filter is applied to the NAMES at this hierarchy level (counted like the tree, import folders included) — each match includes its whole subtree. Lvl 1 tests the import folder name, so a hit takes everything under the folder. All lvl = match at any level, the import folder names included",
+        "keys": ""
+      },
+      {
+        "section": "#1 The speakers",
+        "label": "Add filter",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a filter row to this rule",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Rule",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "A new rule at the end: filters find the items by name, then a colour, an opacity, or hidden (opacity 0)",
+        "keys": "ALT 1566"
+      },
+      {
+        "section": "",
+        "label": "Rules in force",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-copy \"><path d=\"M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666\"></path><path d=\"M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1\"></path></svg>",
+        "tooltip": "Start from the rules in force at the time slider, to change them from here on",
+        "keys": "ALT 1567"
+      },
+      {
+        "section": "",
+        "label": "From Set Color",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-bar-to-down \"><path d=\"M4 20l16 0\"></path><path d=\"M12 14l0 -10\"></path><path d=\"M12 14l4 -4\"></path><path d=\"M12 14l-4 -4\"></path></svg>",
+        "tooltip": "The Set Color panel's rules as the next rules key",
+        "keys": "ALT 1537"
+      }
+    ],
+    "animationCamera": [
+      {
+        "section": "",
+        "label": "Key view",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "The view now as a camera key at the time slider (I)",
+        "keys": "ALT 948"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Back to the scene settings",
+        "keys": "ALT 1372"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "This key's time (s)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this key",
+        "keys": "ALT 944"
+      },
+      {
+        "section": "",
+        "label": "Glide",
+        "icon": "",
+        "tooltip": "The view glides here, easing in and out",
+        "keys": "ALT 1408"
+      },
+      {
+        "section": "",
+        "label": "Even",
+        "icon": "",
+        "tooltip": "The view moves here at an even speed",
+        "keys": "ALT 1528"
+      },
+      {
+        "section": "",
+        "label": "Cut",
+        "icon": "",
+        "tooltip": "The view jumps here at the key",
+        "keys": "ALT 1409"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Where the eye is: X (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Where the eye is: Y (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Where the eye is: Z (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "What it looks at: X (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "What it looks at: Y (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "What it looks at: Z (m)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Take this view",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "This key takes the view now",
+        "keys": "ALT 1529"
+      },
+      {
+        "section": "",
+        "label": "Go there",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"></path></svg>",
+        "tooltip": "Look through this key (the time slider goes there)",
+        "keys": "ALT 1530"
+      },
+      {
+        "section": "",
+        "label": "Orbit",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-rotate-360 \"><path d=\"M12 16h4v4\"></path><path d=\"M19.458 11.042c.86 -2.366 .722 -4.58 -.6 -5.9c-2.272 -2.274 -7.185 -1.045 -10.973 2.743c-3.788 3.788 -5.017 8.701 -2.744 10.974c2.227 2.226 6.987 1.093 10.74 -2.515\"></path></svg>",
+        "tooltip": "One turn around what the view looks at, from the time slider (8 s)",
+        "keys": "ALT 1406"
+      }
+    ],
+    "animationOverlay": [
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Remove this overlay",
+        "keys": "ALT 1388"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Back to the scene settings",
+        "keys": "ALT 1372"
+      },
+      {
+        "section": "",
+        "label": "Callout",
+        "icon": "",
+        "tooltip": "The design this overlay uses",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Auto (Light now)",
+        "icon": "",
+        "tooltip": "Its colour theme — Auto follows the app's light / dark theme",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Edit style…",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "Restyle the design in the Overlay Editor (applies everywhere it is used)",
+        "keys": "ALT 976"
+      },
+      {
+        "section": "",
+        "label": "Detach",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-copy \"><path d=\"M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666\"></path><path d=\"M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1\"></path></svg>",
+        "tooltip": "Give this overlay its own copy of the design (a one-off style)",
+        "keys": "ALT 977"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Title",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Screen",
+        "icon": "",
+        "tooltip": "Pinned to a place on the screen",
+        "keys": "ALT 1650"
+      },
+      {
+        "section": "",
+        "label": "Object",
+        "icon": "",
+        "tooltip": "Hangs from an object and follows it",
+        "keys": "ALT 1651"
+      },
+      {
+        "section": "",
+        "label": "Point",
+        "icon": "",
+        "tooltip": "Hangs from a fixed point in the model",
+        "keys": "ALT 1652"
+      },
+      {
+        "section": "",
+        "label": "SX-HA86-011A",
+        "icon": "",
+        "tooltip": "The object the overlay hangs from",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Label offset from the object, sideways (px)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−",
+        "icon": "",
+        "tooltip": "A step less: Overlay label offset dx (the field's −).",
+        "keys": "ALT 1657"
+      },
+      {
+        "section": "",
+        "label": "+",
+        "icon": "",
+        "tooltip": "A step more: Overlay label offset dx (the field's +).",
+        "keys": "ALT 1658"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Label offset from the object, up / down (px)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−",
+        "icon": "",
+        "tooltip": "A step less: Overlay label offset dy (the field's −).",
+        "keys": "ALT 1659"
+      },
+      {
+        "section": "",
+        "label": "+",
+        "icon": "",
+        "tooltip": "A step more: Overlay label offset dy (the field's +).",
+        "keys": "ALT 1660"
+      },
+      {
+        "section": "",
+        "label": "Leader line",
+        "icon": "",
+        "tooltip": "Draw a line from the label to the object",
+        "keys": "ALT 1661"
+      },
+      {
+        "section": "",
+        "label": "#e2e8f0",
+        "icon": "",
+        "tooltip": "Colour of the line and dot that tie the label to its object",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Key here",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-key \"><path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"></path><path d=\"M15 9h.01\"></path></svg>",
+        "tooltip": "A position key at the time slider (where it is now); after that, dragging it in the view keys the time slider",
+        "keys": "ALT 1338"
+      },
+      {
+        "section": "",
+        "label": "Clear",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-key-off \"><path d=\"M10.17 6.159l2.316 -2.316a2.877 2.877 0 0 1 4.069 0l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.33 2.33\"></path><path d=\"M14.931 14.948a2.863 2.863 0 0 1 -1.486 -.79l-.301 -.302l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.863 2.863 0 0 1 -.794 -1.504\"></path><path d=\"M15 9h.01\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Remove every position key — the overlay keeps one place",
+        "keys": "ALT 1339"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "The overlay's size on screen",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−",
+        "icon": "",
+        "tooltip": "Overlay size: one step down.",
+        "keys": "ALT 1389"
+      },
+      {
+        "section": "",
+        "label": "+",
+        "icon": "",
+        "tooltip": "Overlay size: one step up.",
+        "keys": "ALT 1390"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Every text in this overlay this many times its designed size — padding and boxes stay as designed",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−",
+        "icon": "",
+        "tooltip": "Overlay text size: one step down.",
+        "keys": "ALT 1395"
+      },
+      {
+        "section": "",
+        "label": "+",
+        "icon": "",
+        "tooltip": "Overlay text size: one step up.",
+        "keys": "ALT 1396"
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "When the overlay appears (s on the scene clock)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "When the overlay goes (s on the scene clock)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Fade",
+        "icon": "",
+        "tooltip": "How the overlay appears",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Fade",
+        "icon": "",
+        "tooltip": "How the overlay goes away",
+        "keys": ""
+      }
+    ],
+    "animationScene": [
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Back to the scene settings",
+        "keys": "ALT 1372"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "The scene's name (the Timeline's Scene ▾)",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Pin here",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-pin \"><path d=\"M15 4.5l-4 4l-4 1.5l-1.5 1.5l7 7l1.5 -1.5l1.5 -4l4 -4\"></path><path d=\"M9 15l-4.5 4.5\"></path><path d=\"M14.5 4l5.5 5.5\"></path></svg>",
+        "tooltip": "Pin the end at the time slider",
+        "keys": "ALT 1519"
+      },
+      {
+        "section": "",
+        "label": "Loop",
+        "icon": "",
+        "tooltip": "Start again at the end",
+        "keys": "ALT 909"
+      },
+      {
+        "section": "",
+        "label": "Ping-pong",
+        "icon": "",
+        "tooltip": "At the end, play back to the start",
+        "keys": "ALT 1512"
+      },
+      {
+        "section": "",
+        "label": "Step card",
+        "icon": "",
+        "tooltip": "The card every step shows unless it has its own",
+        "keys": "ALT 978"
+      },
+      {
+        "section": "",
+        "label": "Auto (Light now)",
+        "icon": "",
+        "tooltip": "The step card's colour theme — Auto follows the app's light / dark theme",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Keep labels on screen",
+        "icon": "",
+        "tooltip": "Labels hanging from objects flip and clamp to stay inside the view",
+        "keys": "ALT 1340"
+      }
+    ],
+    "overlayEditor": [
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-back-up \"><path d=\"M9 14l-4 -4l4 -4\"></path><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"></path></svg>",
+        "tooltip": "Undo",
+        "keys": "ALT 1317"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-forward-up \"><path d=\"M15 14l4 -4l-4 -4\"></path><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"></path></svg>",
+        "tooltip": "Redo",
+        "keys": "ALT 1318"
+      },
+      {
+        "section": "",
+        "label": "Preview",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board-split \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 12h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 9h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Show / hide the live preview (its own panel, so it stays in view while you edit)",
+        "keys": "ALT 696"
+      },
+      {
+        "section": "",
+        "label": "Save",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-device-floppy \"><path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"></path><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M14 4l0 4l-6 0l0 -4\"></path></svg>",
+        "tooltip": "Save to your library — every overlay using it is restyled",
+        "keys": "ALT 1319"
+      },
+      {
+        "section": "",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "The component's name in the library",
+        "keys": ""
+      },
+      {
+        "section": "Card size",
+        "label": "Auto",
+        "icon": "",
+        "tooltip": "As wide as the content and its padding, between Min and Max",
+        "keys": "ALT 1611"
+      },
+      {
+        "section": "Card size",
+        "label": "Fixed",
+        "icon": "",
+        "tooltip": "Always this wide",
+        "keys": "ALT 1612"
+      },
+      {
+        "section": "Card size",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "The card's width in px (at 1080p)",
+        "keys": ""
+      },
+      {
+        "section": "Card size",
+        "label": "−",
+        "icon": "",
+        "tooltip": "A step less: Design width (the field's −).",
+        "keys": "ALT 1605"
+      },
+      {
+        "section": "Card size",
+        "label": "+",
+        "icon": "",
+        "tooltip": "A step more: Design width (the field's +).",
+        "keys": "ALT 1606"
+      },
+      {
+        "section": "Card size",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Every text in the design × this (1 = sizes as set per block). A placed card's own Text size multiplies on top",
+        "keys": ""
+      },
+      {
+        "section": "Card size",
+        "label": "−",
+        "icon": "",
+        "tooltip": "Every text of the open design a step smaller (its Text size ×).",
+        "keys": "ALT 1502"
+      },
+      {
+        "section": "Card size",
+        "label": "+",
+        "icon": "",
+        "tooltip": "Every text of the open design a step bigger (its Text size ×).",
+        "keys": "ALT 1503"
+      },
+      {
+        "section": "Outline",
+        "label": "divider",
+        "icon": "",
+        "tooltip": "shown if {{step.text}}",
+        "keys": ""
+      },
+      {
+        "section": "Outline",
+        "label": "text · {{step.text}}",
+        "icon": "",
+        "tooltip": "shown if {{step.text}}",
+        "keys": ""
+      },
+      {
+        "section": "Outline",
+        "label": "progress",
+        "icon": "",
+        "tooltip": "shown if {{showProgress}}",
+        "keys": ""
+      },
+      {
+        "section": "Outline",
+        "label": "Block ▾",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a block inside the selected one",
+        "keys": "ALT 1592"
+      },
+      {
+        "section": "Outline",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
+        "tooltip": "Move up",
+        "keys": "ALT 1313"
+      },
+      {
+        "section": "Outline",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
+        "tooltip": "Move down",
+        "keys": "ALT 1314"
+      },
+      {
+        "section": "Outline",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Remove block",
+        "keys": "ALT 1315"
+      },
+      {
+        "section": "Block · box",
+        "label": "Column",
+        "icon": "",
+        "tooltip": "Children stacked top to bottom",
+        "keys": "ALT 1613"
+      },
+      {
+        "section": "Block · box",
+        "label": "Row",
+        "icon": "",
+        "tooltip": "Children side by side",
+        "keys": "ALT 1614"
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Space between the children (px)",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−",
+        "icon": "",
+        "tooltip": "A step less: Box gap (the field's −).",
+        "keys": "ALT 1615"
+      },
+      {
+        "section": "Block · box",
+        "label": "+",
+        "icon": "",
+        "tooltip": "A step more: Box gap (the field's +).",
+        "keys": "ALT 1616"
+      },
+      {
+        "section": "Block · box",
+        "label": "stretch",
+        "icon": "",
+        "tooltip": "How the children line up across the box",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "start",
+        "icon": "",
+        "tooltip": "How the children spread along the box",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "Theme: bg",
+        "icon": "",
+        "tooltip": "A theme colour, one of the design's colour values (each card sets its own), or your own",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "How opaque the block is (0..1)",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−",
+        "icon": "",
+        "tooltip": "A step less: Block opacity (the field's −).",
+        "keys": "ALT 1627"
+      },
+      {
+        "section": "Block · box",
+        "label": "+",
+        "icon": "",
+        "tooltip": "A step more: Block opacity (the field's +).",
+        "keys": "ALT 1628"
+      },
+      {
+        "section": "Block · box",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-link-off \"><path d=\"M9 15l3 -3m2 -2l1 -1\"></path><path d=\"M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464\"></path><path d=\"M3 3l18 18\"></path><path d=\"M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463\"></path></svg>",
+        "tooltip": "One value for all sides",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Top",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Right",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Bottom",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Left",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "All four sides",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-link \"><path d=\"M9 15l6 -6\"></path><path d=\"M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464\"></path><path d=\"M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463\"></path></svg>",
+        "tooltip": "Edit each side on its own",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Border width",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "$surface",
+        "icon": "",
+        "tooltip": "Not a plain colour — change it where it is set",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "Theme: surface",
+        "icon": "",
+        "tooltip": "A theme colour, one of the design's colour values (each card sets its own), or your own",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "Rounded corners (px)",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "−",
+        "icon": "",
+        "tooltip": "A step less: Block corner radius (the field's −).",
+        "keys": "ALT 1629"
+      },
+      {
+        "section": "Block · box",
+        "label": "+",
+        "icon": "",
+        "tooltip": "A step more: Block corner radius (the field's +).",
+        "keys": "ALT 1630"
+      },
+      {
+        "section": "Block · box",
+        "label": "Medium",
+        "icon": "",
+        "tooltip": "Drop shadow under the block",
+        "keys": ""
+      },
+      {
+        "section": "Block · box",
+        "label": "Auto",
+        "icon": "",
+        "tooltip": "As big as the content",
+        "keys": "ALT 1617"
+      },
+      {
+        "section": "Block · box",
+        "label": "Fill",
+        "icon": "",
+        "tooltip": "All the space the parent gives",
+        "keys": "ALT 1618"
+      },
+      {
+        "section": "Block · box",
+        "label": "px",
+        "icon": "",
+        "tooltip": "A fixed size in pixels",
+        "keys": "ALT 1619"
+      },
+      {
+        "section": "Block · box",
+        "label": "Always",
+        "icon": "",
+        "tooltip": "Hide this block when that toggle is off or that text is empty",
+        "keys": ""
+      },
+      {
+        "section": "Parameters",
+        "label": "",
+        "icon": "",
+        "tooltip": "Key — used as {{key}} in texts",
+        "keys": ""
+      },
+      {
+        "section": "Parameters",
+        "label": "",
+        "icon": "",
+        "tooltip": "Label shown in the value form",
+        "keys": ""
+      },
+      {
+        "section": "Parameters",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
+        "tooltip": "Up",
+        "keys": ""
+      },
+      {
+        "section": "Parameters",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
+        "tooltip": "Down",
+        "keys": ""
+      },
+      {
+        "section": "Parameters",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Remove",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#ffffff",
+        "icon": "",
+        "tooltip": "Theme colour $bg",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#e2e8f0",
+        "icon": "",
+        "tooltip": "Theme colour $surface",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#0f172a",
+        "icon": "",
+        "tooltip": "Theme colour $text",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#475569",
+        "icon": "",
+        "tooltip": "Theme colour $muted",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#0369a1",
+        "icon": "",
+        "tooltip": "Theme colour $accent",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#fbbf24",
+        "icon": "",
+        "tooltip": "Theme colour $warning",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#dc2626",
+        "icon": "",
+        "tooltip": "Theme colour $danger",
+        "keys": ""
+      },
+      {
+        "section": "Theme · Light (auto)",
+        "label": "#16a34a",
+        "icon": "",
+        "tooltip": "Theme colour $success",
+        "keys": ""
+      }
+    ],
+    "overlayPreview": [
+      {
+        "section": "",
+        "label": "Fit",
+        "icon": "",
+        "tooltip": "Zoom the card to fill the preview",
+        "keys": "ALT 1642"
+      },
+      {
+        "section": "",
+        "label": "720p",
+        "icon": "",
+        "tooltip": "Real size on a 720-pixel-high screen",
+        "keys": "ALT 1643"
+      },
+      {
+        "section": "",
+        "label": "1080p",
+        "icon": "",
+        "tooltip": "Real size on a 1080-pixel-high screen",
+        "keys": "ALT 1644"
+      },
+      {
+        "section": "",
+        "label": "1440p",
+        "icon": "",
+        "tooltip": "Real size on a 1440-pixel-high screen",
+        "keys": "ALT 1645"
+      },
+      {
+        "section": "",
+        "label": "Dark",
+        "icon": "",
+        "tooltip": "Preview on a dark background",
+        "keys": "ALT 1646"
+      },
+      {
+        "section": "",
+        "label": "Light",
+        "icon": "",
+        "tooltip": "Preview on a light background",
+        "keys": "ALT 1647"
+      },
+      {
+        "section": "",
+        "label": "Checker",
+        "icon": "",
+        "tooltip": "Preview on a chequered background (shows transparency)",
+        "keys": "ALT 1648"
+      },
+      {
+        "section": "",
+        "label": "Auto (Light now)",
+        "icon": "",
+        "tooltip": "The theme the preview shows — Auto is what overlays without a theme get: the app's light / dark theme",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Effect",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-player-play \"><path d=\"M7 4v16l13 -8l-13 -8\"></path></svg>",
+        "tooltip": "Replay the enter effect",
+        "keys": "ALT 1316"
+      },
+      {
+        "section": "Sample values",
+        "label": "Show progress",
+        "icon": "",
+        "tooltip": "Show progress",
+        "keys": ""
+      },
+      {
+        "section": "Sample step",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "What {{step.name}} shows in the preview",
+        "keys": ""
+      },
+      {
+        "section": "Sample step",
+        "label": "Torque the **bolts** to 80 Nm.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "What {{step.text}} shows in the preview",
+        "keys": ""
+      },
+      {
+        "section": "Sample step",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "What {{object.name}} shows in the preview",
+        "keys": ""
+      }
+    ],
+    "ribbonAnimation": [
+      {
+        "section": "Animation",
+        "label": "Animate",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-movie \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M8 4l0 16\"></path><path d=\"M16 4l0 16\"></path><path d=\"M4 8l4 0\"></path><path d=\"M4 16l4 0\"></path><path d=\"M4 12l16 0\"></path><path d=\"M16 8l4 0\"></path><path d=\"M16 16l4 0\"></path></svg>",
+        "tooltip": "Enter animation authoring; press again to leave — the scene is restored",
+        "keys": "ALT 901"
+      },
+      {
+        "section": "Animation",
+        "label": "Present",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-presentation \"><path d=\"M3 4l18 0\"></path><path d=\"M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10\"></path><path d=\"M12 16l0 4\"></path><path d=\"M9 20l6 0\"></path><path d=\"M8 12l3 -3l2 2l3 -3\"></path></svg>",
+        "tooltip": "Present the animation: the 3D view alone with the play bar — Close on the play bar comes back to these panels",
+        "keys": "ALT 1573"
+      },
+      {
+        "section": "Animation",
+        "label": "New",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-file-plus \"><path d=\"M14 3v4a1 1 0 0 0 1 1h4\"></path><path d=\"M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2\"></path><path d=\"M12 11l0 6\"></path><path d=\"M9 14l6 0\"></path></svg>",
+        "tooltip": "Start a new, empty animation",
+        "keys": "ALT 960"
+      },
+      {
+        "section": "Animation",
+        "label": "Open",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-open \"><path d=\"M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2\"></path></svg>",
+        "tooltip": "Open an animation file (*.tdanim.json)",
+        "keys": "ALT 925"
+      },
+      {
+        "section": "Animation",
+        "label": "Save*",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-device-floppy \"><path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"></path><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"></path><path d=\"M14 4l0 4l-6 0l0 -4\"></path></svg>",
+        "tooltip": "Download the animation (overlay styles included) — the * means it has unsaved changes",
+        "keys": "ALT 926"
+      },
+      {
+        "section": "Export",
+        "label": "Video",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-video \"><path d=\"M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4\"></path><path d=\"M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8\"></path></svg>",
+        "tooltip": "The scene as an .mp4, rendered frame by frame",
+        "keys": "ALT 1410"
+      },
+      {
+        "section": "Export",
+        "label": "Step stills",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-file-type-pdf \"><path d=\"M14 3v4a1 1 0 0 0 1 1h4\"></path><path d=\"M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4\"></path><path d=\"M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6\"></path><path d=\"M17 18h2\"></path><path d=\"M20 15h-3v6\"></path><path d=\"M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1\"></path></svg>",
+        "tooltip": "A PDF with the last frame of each step (everything in place), its name and text — work instructions",
+        "keys": "ALT 1494"
+      },
+      {
+        "section": "Export",
+        "label": "Brief for AI",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-sparkles \"><path d=\"M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6\"></path></svg>",
+        "tooltip": "Download the brief an AI (Claude Code) writes an animation file from: what to ask you, the format, patterns, your cards and a schema",
+        "keys": "ALT 1549"
+      },
+      {
+        "section": "Panels",
+        "label": "Timeline",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-timeline \"><path d=\"M4 16l6 -7l5 5l5 -6\"></path><path d=\"M14 14a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M9 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M3 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M19 8a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "Objects, keys, steps and overlays on a time axis — and the play and export controls · click to show / hide, drag to place it",
+        "keys": "ALT 692"
+      },
+      {
+        "section": "Panels",
+        "label": "Key",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-key \"><path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"></path><path d=\"M15 9h.01\"></path></svg>",
+        "tooltip": "What the picked key holds, or the next key at the time slider · click to show / hide, drag to place it",
+        "keys": "ALT 691"
+      },
+      {
+        "section": "Panels",
+        "label": "Set Color",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "The Set Color panel (its Save / Load and big rule list) · click to show / hide, drag to place it",
+        "keys": "CTRL+C"
+      },
+      {
+        "section": "Panels",
+        "label": "Overlay Editor",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layers-subtract \"><path d=\"M8 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8\"></path><path d=\"M16 16v2a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2h2\"></path></svg>",
+        "tooltip": "Design the 2D overlays (title and info cards, step cards, callouts) · click to show / hide, drag to place it",
+        "keys": "ALT 695"
+      },
+      {
+        "section": "Panels",
+        "label": "Overlay Preview",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board-split \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 12h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 9h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Live preview of the design open in the Overlay Editor · click to show / hide, drag to place it",
+        "keys": "ALT 696"
+      },
+      {
+        "section": "View",
+        "label": "Motion paths",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-route \"><path d=\"M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4\"></path><path d=\"M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5\"></path></svg>",
+        "tooltip": "Show the paths of the moving objects in the 3D view",
+        "keys": "ALT 956"
+      },
+      {
+        "section": "View",
+        "label": "Overlays",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-message-2 \"><path d=\"M8 9h8\"></path><path d=\"M8 13h6\"></path><path d=\"M9 18h-3a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-3l-3 3l-3 -3\"></path></svg>",
+        "tooltip": "Show the 2D overlays (step cards, callouts)",
+        "keys": "ALT 921"
+      },
+      {
+        "section": "View",
+        "label": "Camera keys",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera-rotate \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M11.245 15.904a3 3 0 0 0 3.755 -2.904m-2.25 -2.905a3 3 0 0 0 -3.75 2.905\"></path><path d=\"M14 13h2v2\"></path><path d=\"M10 13h-2v-2\"></path></svg>",
+        "tooltip": "On: the view follows the camera keys. Off: orbit freely, also when you play again (R or this brings the camera keys back)",
+        "keys": "ALT 1571"
+      },
+      {
+        "section": "Edit",
+        "label": "Undo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-back-up \"><path d=\"M9 14l-4 -4l4 -4\"></path><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"></path></svg>",
+        "tooltip": "Undo the last animation edit",
+        "keys": "CTRL+Z"
+      },
+      {
+        "section": "Edit",
+        "label": "Redo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-forward-up \"><path d=\"M15 14l4 -4l-4 -4\"></path><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"></path></svg>",
+        "tooltip": "Redo the last undone animation edit",
+        "keys": "CTRL+Y"
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.0.141"
 }

@@ -195,6 +195,8 @@ export class ClipGizmo {
     // handle as a scroll after a few pixels and cancels the pointer
     this.svg.style.cssText =
       'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;touch-action:none;';
+    // editing handles, not content: video frames leave them out
+    this.svg.dataset.uiChrome = '1';
     host.appendChild(this.svg);
     this.hit = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 2 : 1;
 

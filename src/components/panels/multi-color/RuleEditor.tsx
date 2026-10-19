@@ -75,7 +75,7 @@ export function RuleEditor({
       <Button
         size="sm"
         active={rule.enabled}
-        tooltip="Enable / disable this rule — disabled rules are skipped by Run"
+        tooltip="Enable / disable this rule — disabled rules are skipped"
         onClick={() => act.toggleRule(idx)}
       >
         {rule.enabled ? 'On' : 'Off'}
@@ -136,12 +136,13 @@ export function RuleEditor({
             max={1}
             step={0.05}
             precision={2}
+            tooltip="How opaque the matched items are: 1 = as they are, 0 = hidden"
             onChange={(v) => act.updateRule(idx, { opacity: v })}
           />
         </div>
         <Button
           active={rule.opacity === 0}
-          tooltip="Quick set: opacity 0 — matched items are hidden. This sets the hide flag rather than a 0 % override; move the rule off 0 and its items come back on the next run"
+          tooltip="Quick set: opacity 0 — matched items are hidden. This sets the hide flag rather than a 0 % override; move the rule off 0 and its items come back"
           onClick={() => act.updateRule(idx, { opacity: 0 })}
         >
           0

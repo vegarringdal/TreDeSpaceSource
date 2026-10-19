@@ -13,10 +13,13 @@ import { parseIsoDate, todayParts } from './dateMath';
 export type DateRange = Readonly<{ start: string | null; end: string | null }>;
 
 interface DatePickerBaseProps {
-  /** Earliest / latest pickable day (ISO `yyyy-mm-dd`, inclusive). */
+  /** Earliest pickable day (ISO `yyyy-mm-dd`, inclusive). */
   min?: string;
+  /** Latest pickable day (ISO `yyyy-mm-dd`, inclusive). */
   max?: string;
+  /** Shown while empty (default 'Pick a date…'). */
   placeholder?: string;
+  /** Grey out and block opening. */
   disabled?: boolean;
   className?: string;
   /** Styled tooltip (data-tooltip) on the field. */
@@ -26,6 +29,7 @@ interface DatePickerBaseProps {
 }
 
 export interface SingleDatePickerProps extends DatePickerBaseProps {
+  /** Single-day mode (the default). */
   range?: false;
   /** Selected day as ISO `yyyy-mm-dd`, or null when empty. */
   value: string | null;
@@ -37,7 +41,9 @@ export interface RangeDatePickerProps extends DatePickerBaseProps {
   /** Range mode: the first click picks the start, the second the end
    *  (auto-swapped when clicked backwards); hovering previews the span. */
   range: true;
+  /** The span as ISO days; either edge null while unset. */
   value: DateRange;
+  /** Receives the span after every click (start first, then both). */
   onChange: (value: DateRange) => void;
 }
 

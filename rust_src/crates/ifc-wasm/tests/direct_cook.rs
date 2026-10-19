@@ -80,6 +80,9 @@ fn direct_cook_matches_glb_cook() {
         }
         checked += 1;
     }
-    assert!(checked > 0, "no IFC sample produced geometry to compare");
+    assert!(
+        checked > 0,
+        "no IFC sample produced geometry to compare — run convertSamples/ifc/fetch-samples.sh"
+    );
     eprintln!("{checked} IFC sample(s) cooked identically both ways");
 }

@@ -3,10 +3,13 @@ import { DialogFrame } from './DialogFrame';
 import { ProgressBar } from './Spinner';
 
 export interface LoadingDialogCoreProps {
+  /** Title-bar text. */
   title: string;
+  /** What is happening (newlines kept). */
   label: string;
   /** 0..1 renders a determinate progress bar; null/undefined hides it. */
   progress?: number | null;
+  /** Stacking layer (default 2020 — above every other dialog). */
   z?: number;
 }
 

@@ -3,7 +3,9 @@ import { cn } from '../lib/cn';
 import { InfoButton } from './InfoButton';
 
 export interface CheckboxProps {
+  /** Ticked or not. */
   checked: boolean;
+  /** Receives the new state on toggle. */
   onChange: (checked: boolean) => void;
   /** Label after the box — the whole label toggles. */
   label?: ReactNode;
@@ -15,11 +17,13 @@ export interface CheckboxProps {
   /** Neither on nor off: some of what this box covers is checked. Purely
    *  visual — `checked` still decides what a click reports. */
   indeterminate?: boolean;
+  /** Grey out and block toggling. */
   disabled?: boolean;
   /** Styled tooltip (data-tooltip). */
   tooltip?: string;
   /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
   shortcut?: string;
+  /** Extra classes on the outer row (box + label + info icon). */
   className?: string;
 }
 

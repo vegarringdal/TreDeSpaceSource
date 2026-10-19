@@ -4,10 +4,16 @@ import {
   IconCube,
   IconDatabase,
   IconFileExport,
+  IconLayersSubtract,
   IconLayoutBoard,
+  IconLayoutBoardSplit,
+  IconLayoutCards,
   IconLayoutGrid,
   IconListDetails,
+  IconListNumbers,
+  IconMovie,
   IconPalette,
+  IconPlayerPlay,
   IconPresentation,
   type IconProps,
   IconReportAnalytics,
@@ -15,6 +21,7 @@ import {
   IconSql,
   IconTable,
   IconTerminal2,
+  IconTimeline,
 } from '@tabler/icons-react';
 import { type PanelDefinition, usePanelContext } from '@treDeSpaceUI/dockable';
 import { Ribbon, RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
@@ -43,6 +50,14 @@ const PANEL_ICON: Record<string, TablerIcon> = {
   sqlReports: IconReportAnalytics,
   sqlTable: IconTable,
   sqlDetail: IconListDetails,
+  animation: IconMovie,
+  animationTimeline: IconTimeline,
+  animationStoryboard: IconLayoutCards,
+  animationPlanner: IconListNumbers,
+  animationPlayer: IconPlayerPlay,
+  overlayEditor: IconLayersSubtract,
+  overlayPreview: IconLayoutBoardSplit,
+  multiColorAnimation: IconPalette,
 };
 
 /** The Panels ribbon: one toggle per panel (selected when visible — stays in

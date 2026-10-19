@@ -55,7 +55,7 @@ export function ColorSelectPopover({
   return (
     <div
       ref={popRef}
-      className="fixed z-[1000] w-52 border border-slate-700 bg-slate-900 p-2 text-slate-200 text-xs shadow-black/40 shadow-lg"
+      className="fixed z-[2500] w-52 border border-slate-700 bg-slate-900 p-2 text-slate-200 text-xs shadow-black/40 shadow-lg"
       style={{
         left: pos.left,
         top: pos.up ? undefined : pos.top + 4,

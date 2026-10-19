@@ -38,6 +38,7 @@ export const DEFAULT_PICKER_SWATCHES = [
 /** Minimal live-store contract for the default swatch grid (createStore
  *  instances satisfy it structurally). */
 export interface ColorSelectSwatchesStore {
+  /** Current state; `colors` is the swatch grid, in order. */
   get(): { colors: string[] };
   /** Returns the unsubscriber. */
   subscribe(cb: () => void): () => void;

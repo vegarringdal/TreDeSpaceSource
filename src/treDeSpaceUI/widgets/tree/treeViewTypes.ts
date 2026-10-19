@@ -5,12 +5,14 @@ export interface TreeViewRow {
   key: string;
   /** Indent level (0 = top). */
   depth: number;
+  /** The row's text (any node; truncated). */
   label: ReactNode;
   /** Icon between the twisty and the label (locked to 14×14 by the caller). */
   icon?: ReactNode;
   /** Render the expand/collapse twisty. A leaf keeps the twisty's width, so
    *  every level of the tree lines up. */
   expandable?: boolean;
+  /** Twisty state (drawn only when `expandable`). */
   expanded?: boolean;
   /** Fully selected — the row highlights. */
   selected?: boolean;
@@ -26,7 +28,9 @@ export interface TreeViewRow {
   muted?: boolean;
   /** Not clickable (a band that is pure chrome). */
   disabled?: boolean;
-  /** Right-aligned node after the label (a count, a badge). */
+  /** Right-aligned node after the label — a count, a badge, buttons (the row
+   *  is not a <button>). A click inside it still reaches `onRowClick`: stop
+   *  propagation in a button that must not select the row. */
   trailing?: ReactNode;
   /** Styled tooltip (data-tooltip) on the row. */
   tooltip?: string;

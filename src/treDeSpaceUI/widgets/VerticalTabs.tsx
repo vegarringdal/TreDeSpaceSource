@@ -1,22 +1,28 @@
 import { type ReactNode, useState } from 'react';
 
 export interface VerticalTab {
+  /** Tab id — what `value` / `onChange` use. */
   id: string;
   /** Omit for an icon-only tab — pair it with `tooltip`. */
   label?: string;
+  /** Leading icon (16×16); the strip becomes an icon rail when no tab has a label. */
   icon?: ReactNode;
   /** Styled tooltip (data-tooltip); supports "\n" for multiple lines. */
   tooltip?: string;
+  /** The tab's page — mounted only while the tab is active. */
   content: ReactNode;
 }
 
 export interface VerticalTabsProps {
+  /** Tabs in strip order; only the active one's `content` is mounted. */
   tabs: VerticalTab[];
   /** Controlled active tab — pair with onChange. */
   value?: string;
+  /** Uncontrolled initial tab (default: the first). */
   defaultValue?: string;
+  /** A tab was clicked. */
   onChange?: (id: string) => void;
-  /** Which side the strip sits on. */
+  /** Which side the strip sits on (default left). */
   side?: 'left' | 'right';
   className?: string;
 }
@@ -46,7 +52,7 @@ export function VerticalTabs({
     <div
       role="tablist"
       aria-orientation="vertical"
-      className={`flex ${iconOnly ? 'w-9' : 'w-24'} shrink-0 flex-col gap-0.5 bg-slate-900 p-1`}
+      className={`flex ${iconOnly ? 'w-9' : 'w-24'} min-h-0 shrink-0 flex-col gap-0.5 overflow-y-auto bg-slate-900 p-1`}
     >
       {tabs.map((t) => {
         const isActive = t.id === active;

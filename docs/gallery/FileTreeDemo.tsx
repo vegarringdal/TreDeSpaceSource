@@ -47,24 +47,31 @@ export function FileTreeDemo() {
   // keeps owning the per-folder state in between
   const [collapseAll, setCollapseAll] = useState(0);
   const [expandAll, setExpandAll] = useState(0);
+  const [last, setLast] = useState('');
   return (
     <Section
       title="FileTree"
-      note="A file-tree picker with desktop-file-manager selection: click, Ctrl+click to toggle, Shift+click for a range over the visible rows; clicking a folder (de)selects everything under it. Optional drag-and-drop moves and a right-click folder menu via the onMove/onAddFolder/… callbacks. A dir with variant: 'section' renders as a dimmed category band (grouping chrome, e.g. a store — here 'project-x' starts collapsed via defaultCollapsed); icon overrides the folder icon. collapseAllSignal / expandAllSignal are counters the parent bumps (a toolbar button, a hotkey) to fold or open every dir at once — the tree keeps owning the per-folder state in between."
+      note="A file-tree picker with desktop-file-manager selection: click, Ctrl+click to toggle, Shift+click for a range over the visible rows; clicking a folder (de)selects everything under it. Optional drag-and-drop moves (onMove, onMoveFolder) and a right-click folder menu — it needs onAddFolder; onRenameFolder / onDeleteFolder add entries to it. A dir with variant: 'section' renders as a dimmed category band (grouping chrome, e.g. a store — here 'project-x' starts collapsed via defaultCollapsed); icon overrides the folder icon. collapseAllSignal / expandAllSignal are counters the parent bumps (a toolbar button, a hotkey) to fold or open every dir at once — the tree keeps owning the per-folder state in between."
       props={['FileTreeProps', 'TreeDir', 'TreeFile', 'TreeNode']}
-      code={`function ModelPicker() {
+      code={`// moveFiles / addFolder / renameFolder / deleteFolder are yours
+function ModelPicker() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const tree: TreeDir = { kind: 'dir', name: '', path: '', children: [
-    { kind: 'dir', name: 'main', path: 'store:main', variant: 'section',
-      children: [
-        { kind: 'file', name: 'Huldra.glb', path: 'Huldra.glb', note: '48 MB' },
-      ] },
-  ] };
   const [collapseAll, setCollapseAll] = useState(0); // bump = collapse every dir
+  const tree: TreeDir = { kind: 'dir', name: '', path: '', children: [
+    { kind: 'dir', name: 'main', path: 'store:main', variant: 'section', children: [
+      { kind: 'dir', name: 'Topside', path: 'Topside', children: [
+        { kind: 'file', name: 'M110.model', path: 'Topside/M110.model', note: '12 MB' },
+      ] },
+      { kind: 'file', name: 'Huldra.glb', path: 'Huldra.glb', note: '48 MB' },
+    ] },
+  ] };
   return <>
     <Button onClick={() => setCollapseAll((n) => n + 1)}>Collapse all</Button>
     <FileTree root={tree} selected={selected} onSelect={setSelected}
-      defaultCollapsed={['store:project-x']} collapseAllSignal={collapseAll} />
+      defaultCollapsed={['Topside']} collapseAllSignal={collapseAll}
+      onMove={(paths, dir) => moveFiles(paths, dir)}   // '' = the root
+      onAddFolder={(parent) => addFolder(parent)}      // also turns the right-click menu on
+      onRenameFolder={renameFolder} onDeleteFolder={deleteFolder} />
   </>;
 }`}
     >
@@ -79,8 +86,14 @@ export function FileTreeDemo() {
         defaultCollapsed={['store:project-x']}
         collapseAllSignal={collapseAll}
         expandAllSignal={expandAll}
+        onMove={(p, d) => setLast(`move ${p.length} → ${d || '(root)'}`)}
+        onAddFolder={(d) => setLast(`new folder in ${d ?? '(root)'}`)}
+        onRenameFolder={(d) => setLast(`rename ${d}`)}
+        onDeleteFolder={(d) => setLast(`delete ${d}`)}
       />
-      <p className="m-0 mt-2 text-slate-500 text-xs">{selected.size} selected</p>
+      <p className="m-0 mt-2 text-slate-500 text-xs">
+        {selected.size} selected{last && ` · ${last}`}
+      </p>
     </Section>
   );
 }

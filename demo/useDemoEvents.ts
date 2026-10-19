@@ -35,6 +35,9 @@ export function useDemoEvents(
         cl.onViewpointsBookmark((e) =>
           line('out', `⚡ viewpoints.bookmark "${e.label}" — ${e.config.viewpoints.length} viewpoint(s) attached`),
         ),
+        cl.onAnimationBookmark((e) =>
+          line('out', `⚡ animation.bookmark "${e.label}" — "${String(e.doc.name ?? '')}" attached`),
+        ),
         // local lifecycle: windows this client relays for, and this client's own end
         cl.onRelayChanged((e) => line('out', `⚡ relay.changed ${e.state} (${e.origin})`)),
         cl.onClosed((e) => line('err', `⚡ client.closed — reason: ${e.reason}`)),
@@ -47,7 +50,7 @@ export function useDemoEvents(
       setListening(true);
       line(
         'ok',
-        '← listening for tree.select + instance.changed + theme.changed + viewpoints.bookmark + dialog.changed + hotkeys.changed + relay.changed + client.closed',
+        '← listening for tree.select + instance.changed + theme.changed + viewpoints.bookmark + animation.bookmark + dialog.changed + hotkeys.changed + relay.changed + client.closed',
       );
     },
     [line],

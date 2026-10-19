@@ -1,5 +1,7 @@
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useRef, useState } from 'react';
 import { usePointerDrag } from '../../lib/usePointerDrag';
+import { useWheel } from '../../lib/useWheel';
+import { parseTyped, stepField } from './numberStep';
 
 export type NumberInputControl = Readonly<{
   /** Non-null while the field is being typed in. */
@@ -42,12 +44,10 @@ export function useNumberInputControl(
   const [text, setText] = useState<string | null>(null); // non-null while editing
   const inputRef = useRef<HTMLInputElement>(null);
   const rollFrom = useRef(value);
-  const latest = useRef({ value, onChange, disabled });
-  latest.current = { value, onChange, disabled };
 
   const commitText = () => {
     if (text != null) {
-      const v = parseFloat(text.replace(',', '.'));
+      const v = parseTyped(text);
       if (!Number.isNaN(v)) {
         onChange(clamp(v));
       }
@@ -55,22 +55,24 @@ export function useNumberInputControl(
     setText(null);
   };
 
+  // ↑ / ↓, the wheel and − / + step from what the field shows (the typed
+  // number while editing, which then follows the step)
+  const bump = (dir: 1 | -1) => {
+    const next = stepField(text, value, dir * step, clamp, decimals);
+    if (next.text != null) {
+      setText(next.text);
+    }
+    onChange(next.value);
+  };
+
   // Wheel must be non-passive to stop the panel from scrolling instead.
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) {
+  useWheel(inputRef, (e) => {
+    if (disabled) {
       return;
     }
-    const onWheel = (e: WheelEvent) => {
-      if (latest.current.disabled) {
-        return;
-      }
-      e.preventDefault();
-      latest.current.onChange(clamp(latest.current.value + (e.deltaY < 0 ? step : -step)));
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [step, clamp]);
+    e.preventDefault();
+    bump(e.deltaY < 0 ? 1 : -1);
+  });
 
   const drag = usePointerDrag({
     threshold: ROLL_THRESHOLD_PX,
@@ -96,8 +98,6 @@ export function useNumberInputControl(
     rollFrom.current = value;
     drag.start(e);
   };
-
-  const bump = (dir: 1 | -1) => onChange(clamp(value + dir * step));
 
   return {
     text,

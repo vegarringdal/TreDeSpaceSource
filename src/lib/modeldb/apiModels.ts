@@ -14,6 +14,7 @@ import {
 } from '../model/pack';
 import { opfsFileFromRoot } from '../opfs/opfsSyncWrite';
 import { clipCulledSphere } from '../render/clipCull';
+import { resetAnimationState } from './apiAnimation';
 import { resetTransformUndo } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
 import { type DbModel, forgetModelTables, isEffectivelyHidden, models, type StateUpdate } from './dbState';
@@ -53,7 +54,7 @@ function worldBoundsOf(m: DbModel): Float32Array {
   const out = new Float32Array(m.itemCount * 6);
   const wb = new Float32Array(6);
   for (let i = 0; i < m.itemCount; i++) {
-    if (itemWorldBounds(m.itemBounds, m.tidx, i, wb)) {
+    if (itemWorldBounds(m.itemBounds, m.tidx, i, wb, true)) {
       out.set(wb, i * 6);
     } else {
       out[i * 6] = Infinity;
@@ -462,6 +463,7 @@ export const modelsApi = {
     resetColorUndo();
     resetTransformUndo();
     resetTransformPool();
+    resetAnimationState();
   },
 
   modelNames(): string[] {

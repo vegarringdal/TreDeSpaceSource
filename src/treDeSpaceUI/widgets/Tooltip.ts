@@ -14,7 +14,7 @@ import { formatSequence, hotkeysActions } from '../hotkeys';
 import { computeTooltipPlacement, type TooltipPlacement, type TooltipSide } from './tooltipPlacement';
 
 const SHOW_DELAY = 400;
-/** Above every other floating layer: popovers 1000, InfoButton 2000, Menu 3000. */
+/** Above every other floating layer: dialogs 2000–2020, popovers 2500, toasts 2600, InfoButton 2700, Menu 3000. */
 const Z_INDEX = '4000';
 const ARROW_BORDER = '1px solid #3a4250';
 const ARROW_POKE = '-4.5px'; // how far the rotated square sticks out of the edge
@@ -128,7 +128,12 @@ export function initTooltips(): () => void {
         footer = `${bodyText ? '\n\n' : ''}⌨  ${formatSequence(seq)}`;
       }
     }
-    body.textContent = bodyText.replace(/\\n/g, '\n') + footer || '';
+    const shown = bodyText.replace(/\\n/g, '\n') + footer;
+    if (!shown) {
+      // a shortcut id with no binding and no tooltip text: nothing to show
+      return;
+    }
+    body.textContent = shown;
     tip.style.opacity = '0';
     // Render first so the size is real, then position and fade in.
     requestAnimationFrame(() => {

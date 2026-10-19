@@ -27,8 +27,11 @@ export function MenuDemo() {
       title="Menu"
       note="The right-click menu, portaled to the body so panel scroll clipping can never cut it off. It opens at the press position and is then measured and nudged back inside the viewport — no size guesses. Entries take a tooltip, a hotkey id, disabled and danger — an entry's tooltip opens beside the menu, never over the entries below it; `{ separator: true }` rules a group off, and a falsy entry is skipped so a conditional item can be written inline."
       props={['MenuProps', 'MenuItem']}
-      code={`function RowMenu({ row }) {
-  const [anchor, setAnchor] = useState(null);
+      code={`type Row = { name: string; hasSelection: boolean };
+
+// copy / rename / copySelected / remove are yours
+function RowMenu({ row, canRename }: { row: Row; canRename: boolean }) {
+  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   return (
     <>
       <div onContextMenu={(e) => { e.preventDefault(); setAnchor({ x: e.clientX, y: e.clientY }); }}>
@@ -38,7 +41,10 @@ export function MenuDemo() {
         anchor={anchor}
         onClose={() => setAnchor(null)}
         items={[
-          { id: 'copy', label: 'Copy name', onSelect: () => copy(row.name) },
+          { id: 'copy', label: 'Copy name', icon: <IconCopy />, shortcut: 'rows.copyName', onSelect: () => copy(row.name) },
+          canRename && { id: 'rename', label: 'Rename…', onSelect: () => rename(row) },
+          { id: 'copySel', label: 'Copy selected', disabled: !row.hasSelection,
+            tooltip: 'Only the selected rows', onSelect: copySelected },
           { separator: true },
           { id: 'del', label: 'Remove', danger: true, onSelect: () => remove(row) },
         ]}

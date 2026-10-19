@@ -78,7 +78,7 @@ export function captureColorRuns(model: number): ColorUndoRecord {
   return { model, runs: Uint32Array.from(runs) };
 }
 
-function restoreColorRuns(rec: ColorUndoRecord) {
+export function restoreColorRuns(rec: ColorUndoRecord) {
   const m = models[rec.model];
   const runs = rec.runs;
   for (let r = 0; r < runs.length; r += 4) {
@@ -144,4 +144,25 @@ export function colorUndoDepth(): number {
 
 export function colorRedoDepth(): number {
   return colorRedo.length;
+}
+
+/** The colour undo / redo stacks as they are now (animation mode keeps
+ *  them aside: steps pushed while it owns the colours must not survive). */
+export function snapshotColorUndo(): {
+  undo: ColorUndoStep[];
+  redo: ColorUndoStep[];
+  undoBytes: number;
+  redoBytes: number;
+} {
+  return { undo: [...colorUndo], redo: [...colorRedo], undoBytes: colorUndoBytes, redoBytes: colorRedoBytes };
+}
+
+/** Put snapshotted stacks back (animation mode exit). */
+export function restoreColorUndo(snap: ReturnType<typeof snapshotColorUndo>): void {
+  colorUndo.length = 0;
+  colorUndo.push(...snap.undo);
+  colorRedo.length = 0;
+  colorRedo.push(...snap.redo);
+  colorUndoBytes = snap.undoBytes;
+  colorRedoBytes = snap.redoBytes;
 }

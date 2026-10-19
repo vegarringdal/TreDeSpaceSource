@@ -29,6 +29,26 @@ export function getRenderer(): Renderer | null {
   return renderer;
 }
 
+/** Claims a finished selection-gizmo drag before it is baked (animation
+ *  authoring: the drag becomes a key). Resolves true when it handled it. */
+let gizmoCommitInterceptor: ((matrix: Float32Array) => Promise<boolean>) | null = null;
+
+export function setGizmoCommitInterceptor(fn: ((matrix: Float32Array) => Promise<boolean>) | null): void {
+  gizmoCommitInterceptor = fn;
+}
+
+/** Re-read selection count / bounds / undo depths (after the animation band
+ *  moved the selected items). */
+/** Re-read only the selection bounds (the gizmo sits on them) — after the
+ *  animation moved selected items. */
+export async function refreshSelectionBounds(): Promise<void> {
+  selectionState.set({ bounds: await db.selectionBounds() });
+}
+
+export async function refreshSelection(): Promise<void> {
+  await refreshSelectionMeta(undefined);
+}
+
 // U/P tree navigation: a fresh pick anchors the deepest path; U walks up to the
 // parent, P walks back down toward the originally-picked item.
 let navAnchor: { model: number; path: number[] } | null = null;
@@ -146,7 +166,10 @@ function refreshHasTransparency() {
 
 /** Push worker-produced per-model item states to the GPU (also used by the
  *  residency manager after a variant swap recreates a model's state buffer). */
-export function applyStateUpdates(updates: StateUpdate[]) {
+/** Upload worker state results. `quiet`: an in-between frame of an
+ *  animation fade — drawn, but the hierarchy counts and residency (the
+ *  selection store's stateVersion) wait for markStatesChanged. */
+export function applyStateUpdates(updates: StateUpdate[], quiet = false) {
   if (!renderer) {
     return;
   }
@@ -154,9 +177,14 @@ export function applyStateUpdates(updates: StateUpdate[]) {
     renderer.writeItemStates(u);
   }
   refreshHasTransparency();
-  if (updates.length) {
-    selectionState.set((p) => ({ stateVersion: p.stateVersion + 1 }));
+  if (updates.length && !quiet) {
+    markStatesChanged();
   }
+}
+
+/** Item states changed: the hierarchy counts and residency re-read them. */
+export function markStatesChanged(): void {
+  selectionState.set((p) => ({ stateVersion: p.stateVersion + 1 }));
 }
 
 /** Upload a worker-produced bulk state result (snapshot import): per-model
@@ -363,15 +391,21 @@ export const viewerActions = {
 
   /** Digit+click: select the picked item's ancestor `level` steps below the
    *  model root (clamped to the path depth) and reveal it in the tree —
-   *  the tree expands only down to that node, not further. */
-  async selectAtLevel(model: number, item: number, level: number) {
+   *  the tree expands only down to that node, not further. `additive`
+   *  (digit+ctrl+click) toggles that node in / out of the selection, as
+   *  ctrl+click does for a single item. */
+  async selectAtLevel(model: number, item: number, level: number, additive = false) {
     const path = await db.pathForItem(model, item);
     if (path.length === 0) {
       return;
     }
     const idx = Math.min(level, path.length) - 1;
     emitTreeSelect(model, path[idx]); // host event (EVENTS.md) + SQL Detail
-    await viewerActions.selectSubtree(model, path[idx]);
+    if (additive) {
+      await viewerActions.toggleSubtree(model, path[idx]);
+    } else {
+      await viewerActions.selectSubtree(model, path[idx]);
+    }
     selectionState.set({ reveal: { model, path: path.slice(0, idx + 1) } });
   },
 
@@ -922,8 +956,14 @@ export const viewerActions = {
   },
 
   /** Drag end: bake the group matrix into committed slots (undoable), then
-   * drop the live preview in the same frame. */
+   * drop the live preview in the same frame. While an interceptor claims the
+   * drag (animation authoring folds it into a key instead) nothing is baked. */
   async bakeSelectionTransform(matrix: Float32Array) {
+    if (gizmoCommitInterceptor && (await gizmoCommitInterceptor(matrix))) {
+      renderer?.setSelectionTransform(null);
+      await refreshSelectionMeta(undefined);
+      return;
+    }
     const { updates, transforms } = await db.applyGroupTransform(matrix);
     if (updates.length > 0) {
       renderer?.writeTransforms(transforms);

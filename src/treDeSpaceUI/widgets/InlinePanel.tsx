@@ -2,11 +2,13 @@ import { type ReactNode, useState } from 'react';
 import { cn } from '../lib/cn';
 
 export interface InlinePanelProps {
+  /** Header text (uppercased unless `titleUppercase` is false). */
   title: ReactNode;
-  /** Uncontrolled initial state. */
+  /** Uncontrolled initial state (default true). */
   defaultOpen?: boolean;
   /** Controlled state — pair with onToggle. */
   open?: boolean;
+  /** The header was clicked: the state it asks for. */
   onToggle?: (open: boolean) => void;
   /** Extra controls rendered at the right end of the header. */
   actions?: ReactNode;
@@ -18,8 +20,10 @@ export interface InlinePanelProps {
    *  replacing the widget. Pass a node as `title` for full control. */
   titleClassName?: string;
   /** Tight header and body padding for stacks of many small sections (a
-   *  list of filter editors); pair with `h-5 w-5` icon buttons in `actions`. */
+   *  list of filter editors); pair with `size="sm"` icon-only Buttons in
+   *  `actions`. */
   dense?: boolean;
+  /** The body — stays mounted while closed (it animates shut). */
   children: ReactNode;
   className?: string;
 }

@@ -180,7 +180,10 @@ export function modelHasTransparency(m: DbModel): boolean {
 
 /** One model's interleaved GPU item states, plus whether the model has
  *  anything for the blend pass (modelHasTransparency at pack time). */
-export type StateUpdate = { model: number; states: Uint32Array<ArrayBuffer>; transparent: boolean };
+/** One model's item states for upload (3 words per item). `first` = the item
+ *  the array starts at — absent for the whole model, set for a changed range
+ *  (packStateRange). */
+export type StateUpdate = { model: number; states: Uint32Array<ArrayBuffer>; transparent: boolean; first?: number };
 
 function emptyHierarchy(): Hierarchy {
   return {

@@ -18,20 +18,24 @@ export function ClearButton({ onClick, className = '' }: { onClick: () => void; 
   );
 }
 
+/** The label props every field widget shares — laid out by {@link Labelled}. */
 export interface LabelledProps {
+  /** Caption; omit it and the field renders bare. */
   label?: ReactNode;
   /**
-   * Where the label sits relative to the field. `left` gives the LABEL a fixed
-   * column (`labelWidth`) and lets the field fill — stacked form fields line
-   * up. `split` is the settings-row inverse: the label takes the free space
-   * and the FIELD keeps a fixed width (`fieldWidth`).
+   * Where the label sits relative to the field (default `top`). `left` gives
+   * the LABEL a fixed column (`labelWidth`) and lets the field fill — stacked
+   * form fields line up. `split` is the settings-row inverse: the label takes
+   * the free space and the FIELD keeps a fixed width (`fieldWidth`).
    */
   labelPosition?: 'top' | 'left' | 'split';
-  /** Label column width in px for `left` — share one value across stacked fields so they align. */
+  /** Label column width in px for `left` (default 60) — share one value across stacked fields so they align. */
   labelWidth?: number;
   /** Field column width in px for `split` (default 112). */
   fieldWidth?: number;
+  /** Grey the field out and block input. */
   disabled?: boolean;
+  /** Extra classes on the outermost element: the labelled row (label included), or the wrapper of a bare field. */
   className?: string;
 }
 
@@ -48,7 +52,7 @@ export function pickerTriggerCls(open: boolean, disabled: boolean): string {
 /** Body-portaled popover container shared by the picker fields (matches the
  *  Select list's box). */
 export const pickerPopCls =
-  'fixed z-[1000] border border-slate-700 bg-slate-900 text-slate-200 text-xs shadow-black/40 shadow-lg';
+  'fixed z-[2500] border border-slate-700 bg-slate-900 text-slate-200 text-xs shadow-black/40 shadow-lg';
 
 const DEFAULT_FIELD_WIDTH = 112;
 

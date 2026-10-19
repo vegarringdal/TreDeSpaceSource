@@ -3,15 +3,22 @@ import { cn } from '../../lib/cn';
 import { ClearButton, fieldCls, Labelled, type LabelledProps } from '../fieldChrome';
 
 export interface TextInputProps extends LabelledProps {
+  /** The text. */
   value: string;
+  /** Receives the text on every keystroke. */
   onChange: (value: string) => void;
   /** Fires on Enter and blur — for commit-style handling on top of onChange. */
   onCommit?: (value: string) => void;
-  /** Runs before the field's own Enter handling — for Escape, arrows, Tab. */
+  /** Runs before the field's own Enter handling — for Escape, arrows, Tab;
+   *  call preventDefault() to skip the Enter commit. */
   onKeyDown?: (e: ReactKeyboardEvent<HTMLInputElement>) => void;
+  /** Dimmed text while empty. */
   placeholder?: string;
+  /** The native input type (default `text`). */
   type?: 'text' | 'password' | 'email' | 'url' | 'search';
+  /** Character limit (native maxLength). */
   maxLength?: number;
+  /** Browser spell-check (default false). */
   spellCheck?: boolean;
   /** Take focus on mount — for the single field of a dialog. */
   autoFocus?: boolean;
@@ -26,7 +33,7 @@ export interface TextInputProps extends LabelledProps {
   onClear?: () => void;
 }
 
-/** Single-line text field in the studio look, label on top or to the left. */
+/** Single-line text field in the studio look; label on top, to the left, or split (see LabelledProps). */
 export function TextInput({
   value,
   onChange,

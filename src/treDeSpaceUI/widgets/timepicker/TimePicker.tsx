@@ -17,7 +17,9 @@ export type TimeRange = Readonly<{ start: string | null; end: string | null }>;
 interface TimePickerBaseProps {
   /** Snap picked minutes to this step (default 1 = exact minute). */
   minuteStep?: number;
+  /** Shown while empty (default 'Pick a time…'). */
   placeholder?: string;
+  /** Grey out and block opening. */
   disabled?: boolean;
   className?: string;
   /** Styled tooltip (data-tooltip) on the field. */
@@ -27,6 +29,7 @@ interface TimePickerBaseProps {
 }
 
 export interface SingleTimePickerProps extends TimePickerBaseProps {
+  /** Single-time mode (the default). */
   range?: false;
   /** Selected time as 24-hour `"HH:MM"`, or null when empty. */
   value: string | null;
@@ -39,7 +42,9 @@ export interface RangeTimePickerProps extends TimePickerBaseProps {
    *  minute; the header digits re-edit any part. No ordering is enforced —
    *  an end before the start is an overnight range. */
   range: true;
+  /** The span as `"HH:MM"` edges; either edge null while unset. */
   value: TimeRange;
+  /** Receives the span after every pick. */
   onChange: (value: TimeRange) => void;
 }
 

@@ -2,7 +2,9 @@ import { type ReactNode, useId } from 'react';
 import { InfoButton } from './InfoButton';
 
 export interface RadioOption<T extends string = string> {
+  /** What onChange hands back for this option. */
   value: T;
+  /** Text after the radio — the whole label selects. */
   label: string;
   /** Small dimmed note after the label. */
   hint?: string;
@@ -14,10 +16,15 @@ export interface RadioOption<T extends string = string> {
 }
 
 export interface RadioGroupProps<T extends string = string> {
+  /** The selected option's value. */
   value: T;
+  /** The options, top to bottom. */
   options: readonly RadioOption<T>[];
+  /** Receives the picked option's value. */
   onChange: (value: T) => void;
+  /** Grey out and block every option. */
   disabled?: boolean;
+  /** Extra classes on the column. */
   className?: string;
 }
 

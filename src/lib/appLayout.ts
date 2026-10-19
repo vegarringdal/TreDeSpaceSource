@@ -14,6 +14,7 @@ const RIBBONS = [
   'ribbonExternal',
   'ribbonPanels',
   'ribbonPad',
+  'ribbonAnimation',
   'ribbonLayout',
 ];
 
@@ -35,7 +36,7 @@ export function workspace(activeRibbon: string, rightPanel: string | null, colla
   return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
 }
 
-/** The "Viewpoint" slot (F10): the presentation/authoring workspace —
+/** The "Viewpoint" slot (F11): the presentation/authoring workspace —
  *  Hierarchy | Viewpoint Viewer | viewport | (Viewpoints over Measurements) |
  *  (Set Color over Labels), every viewpoint editor visible at once. */
 export function viewpointWorkspace(activeRibbon: string): DockState {
@@ -47,7 +48,7 @@ export function viewpointWorkspace(activeRibbon: string): DockState {
   return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
 }
 
-/** The "SQL Editor" slot (F11): Hierarchy | SQL Reports | SQL Editor |
+/** The "SQL Editor" slot (F12): Hierarchy | SQL Reports | SQL Editor |
  *  (viewport over SQL Table over console) | SQL Detail. */
 export function sqlWorkspace(activeRibbon: string): DockState {
   const center = split(
@@ -69,7 +70,7 @@ export function sqlWorkspace(activeRibbon: string): DockState {
   return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
 }
 
-/** The "Assets" slot (F12): the asset-management workspace — Hierarchy |
+/** The "Assets" slot (ALT+F1): the asset-management workspace — Hierarchy |
  *  (Model Assets over SQL Assets) | (viewport over console) | Import Manager |
  *  Export. */
 export function assetsWorkspace(activeRibbon: string): DockState {
@@ -87,6 +88,31 @@ export function assetsWorkspace(activeRibbon: string): DockState {
     [14, 18, 38, 15, 15],
   );
   return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
+}
+
+/** The "Animate" workspace (DESIGN.md › Animation): Hierarchy |
+ *  viewport over the Timeline (+ Overlay Preview) | the Key panel, Overlay
+ *  Editor and Set Color. */
+export function animateWorkspace(activeRibbon: string): DockState {
+  const center = split('column', [
+    tabs(['viewport']),
+    tabs(['animationTimeline', 'overlayPreview'], {
+      id: 'bottom',
+      fixedSize: 300,
+    }),
+  ]);
+  const row = split(
+    'row',
+    [tabs(['hierarchy'], { id: 'left' }), center, tabs(['animation', 'overlayEditor', 'multiColor'], { id: 'right' })],
+    [16, 58, 26],
+  );
+  return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
+}
+
+/** The "Present" workspace: the viewport alone — the floating play bar
+ *  plays the animation. */
+export function presentWorkspace(activeRibbon: string): DockState {
+  return { root: split('column', [ribbonStrip(activeRibbon), tabs(['viewport'], { id: 'right' })]), windows: [] };
 }
 
 /** A bare workspace: the ribbon strip over just the viewport — no side panels

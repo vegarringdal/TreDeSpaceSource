@@ -2,8 +2,10 @@
 // the @treDeSpaceUI sources themselves, so the gallery's docs cannot drift.
 // Extracts every interface (and type alias) from the widgets folder plus the
 // dockable types, with per-member JSDoc. Non-exported base interfaces
-// (LabelledProps, BaseProps, BaseNode…) are inlined into their children so the
-// docs show the full prop surface a caller actually sees.
+// (BaseProps, BaseNode…) are inlined into their children so the docs show the
+// full prop surface a caller actually sees; the base's own `extends` carries
+// over. Exported bases such as LabelledProps stay an `extends` line — list
+// them in the gallery section's props too.
 //
 // Output: docs/generated/widgetData.json — imported and rendered by
 // docs/widgets.tsx. Lenient by design (an undocumented prop just renders
@@ -27,20 +29,48 @@ const EXTRA_FILES = [
 ];
 const OUT = resolve(root, 'docs/generated/widgetData.json');
 
-/** Flatten a JSDoc comment (string | NodeArray) to plain text. */
+/** Plain text of a `{@link X}` target (an identifier, a qualified name or a
+ *  JSDoc member name like `Client.method`). */
+function linkName(n) {
+  if (!n) {
+    return '';
+  }
+  return ts.isIdentifier(n) ? n.text : `${linkName(n.left)}.${n.right.text}`;
+}
+
+/** Flatten a JSDoc comment (string | NodeArray) to plain text; `{@link X}`
+ *  renders as its target name (the parts array carries the target
+ *  separately from the text). */
 function jsdocText(node) {
   const docs = ts.getJSDocCommentsAndTags?.(node) ?? [];
   for (const d of docs) {
     if (ts.isJSDoc(d) && d.comment) {
       return typeof d.comment === 'string'
         ? d.comment.trim()
-        : d.comment.map((c) => c.text ?? '').join('').trim();
+        : d.comment
+            .map((c) => `${linkName(c.name)}${c.text ?? ''}`)
+            .join('')
+            .trim();
     }
   }
   return '';
 }
 
 const isExported = (node) => node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+
+/** The `{ … }` of an object type alias — bare or wrapped in `Readonly<…>` —
+ *  so its members render as fields like an interface's; null otherwise. */
+function objectLiteral(type) {
+  if (ts.isTypeLiteralNode(type)) {
+    return type;
+  }
+  const arg = ts.isTypeReferenceNode(type) && type.typeArguments?.length === 1 ? type.typeArguments[0] : null;
+  const isReadonly = arg && ts.isIdentifier(type.typeName) && type.typeName.text === 'Readonly';
+  return isReadonly && ts.isTypeLiteralNode(arg) ? arg : null;
+}
+
+/** One member as the props card shows it: its source text and JSDoc. */
+const fieldOf = (mem, sf) => ({ text: mem.getText(sf).replace(/\s+/g, ' ').trim(), doc: jsdocText(mem) });
 
 export function generateWidgetDocs() {
   // Widgets live either flat or one-folder-per-multi-file-widget — walk both.
@@ -51,7 +81,8 @@ export function generateWidgetDocs() {
     ...EXTRA_FILES,
   ];
 
-  /** name → { doc, exported, extends, fields: [{ text, doc }] } */
+  /** name → { doc, exported, extends, alias?, fields: [{ text, doc }] } — an
+   *  object type alias lands here too, marked `alias`. */
   const interfaces = new Map();
   /** name → { doc, def } */
   const aliases = new Map();
@@ -64,13 +95,19 @@ export function generateWidgetDocs() {
           doc: jsdocText(node),
           exported: isExported(node),
           extends: node.heritageClauses?.flatMap((h) => h.types.map((t) => t.getText(sf))).join(', ') || null,
-          fields: node.members.map((mem) => ({
-            text: mem.getText(sf).replace(/\s+/g, ' ').trim(),
-            doc: jsdocText(mem),
-          })),
+          fields: node.members.map((mem) => fieldOf(mem, sf)),
         });
       }
-      if (ts.isTypeAliasDeclaration(node)) {
+      const literal = ts.isTypeAliasDeclaration(node) ? objectLiteral(node.type) : null;
+      if (literal) {
+        interfaces.set(node.name.getText(sf), {
+          doc: jsdocText(node),
+          exported: isExported(node),
+          extends: null,
+          alias: true,
+          fields: literal.members.map((mem) => fieldOf(mem, sf)),
+        });
+      } else if (ts.isTypeAliasDeclaration(node)) {
         aliases.set(node.name.getText(sf), {
           doc: jsdocText(node),
           def: node.type.getText(sf).replace(/\s+/g, ' ').trim(),
@@ -90,7 +127,7 @@ export function generateWidgetDocs() {
     const base = baseName ? interfaces.get(baseName) : undefined;
     if (base && !base.exported) {
       t.fields = [...t.fields, ...base.fields];
-      t.extends = null;
+      t.extends = base.extends;
     }
   }
 

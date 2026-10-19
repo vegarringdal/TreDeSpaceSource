@@ -11,10 +11,13 @@ export type PointerDragDelta = Readonly<{
 }>;
 
 export interface PointerDragOptions {
+  /** Every pointer move once the drag has started. */
   onMove: (d: PointerDragDelta, e: PointerEvent) => void;
-  /** Fired once the pointer first passes `threshold`. */
+  /** Fired once the pointer first passes `threshold` — never when it is 0
+   *  (the drag counts as started on the press). */
   onStart?: (d: PointerDragDelta) => void;
-  /** `moved` is false for a press that never passed the threshold — a click. */
+  /** `moved` is false for a press that never passed the threshold — a click.
+   *  Always true when `threshold` is 0. */
   onEnd?: (moved: boolean) => void;
   /** px of travel before the drag counts as a drag (default 0). */
   threshold?: number;
@@ -23,6 +26,7 @@ export interface PointerDragOptions {
 export type PointerDrag = Readonly<{
   /** Attach to onPointerDown of the grab handle. */
   start: (e: ReactPointerEvent<HTMLElement>) => void;
+  /** True between `start` and the release. */
   isDragging: () => boolean;
 }>;
 

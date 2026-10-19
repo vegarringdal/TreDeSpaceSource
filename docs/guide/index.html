@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TreDeSpace — User guide</title>
-  <meta name="description" content="The TreDeSpace viewer user guide: the twelve app layouts (F1–F12), their ribbons and panels, step by step with annotated screenshots." />
+  <meta name="description" content="The TreDeSpace viewer user guide: the app layouts (F1–F12 and ALT+F1), their ribbons and panels, step by step with annotated screenshots." />
   <link rel="stylesheet" href="../styles.css" />
   <link rel="stylesheet" href="./guide.css" />
 </head>
@@ -78,10 +78,10 @@
 
         <section id="layouts" class="g-sec">
           <p class="sec-kick">App layouts</p>
-          <h2>Twelve workspaces, one key each</h2>
+          <h2>A workspace for every task, one key each</h2>
           <p>
             An <b>app layout</b> sets up the whole screen for one kind of work: which ribbon tab is open and which
-            panels are shown, and where. Press <kbd>F1</kbd>–<kbd>F12</kbd> to switch. Switching only rearranges the
+            panels are shown, and where. Press <kbd>F1</kbd>–<kbd>F12</kbd> (and <kbd>ALT+F1</kbd> for Assets) to switch. Switching only rearranges the
             screen: your models, selection and colours stay as they are. Each card opens the guide for that layout.
           </p>
           <div class="layout-grid">
@@ -130,25 +130,32 @@
               <span class="layout-name"><kbd>F9</kbd> Pad</span>
               <span class="layout-desc">Big buttons and a joystick for tablets and touch screens.</span>
             </a>
-            <a class="layout-card" href="f10-viewpoint.html">
+            <a class="layout-card" href="f10-animation.html">
               <span class="layout-thumb" data-thumb="layout-f10"></span>
-              <span class="layout-name"><kbd>F10</kbd> Viewpoint</span>
+              <span class="layout-name"><kbd>F10</kbd> Animation</span>
+              <span class="layout-desc">Make objects from the model, key them on the Timeline, add steps and overlays, and present them.</span>
+            </a>
+            <a class="layout-card" href="f11-viewpoint.html">
+              <span class="layout-thumb" data-thumb="layout-f11"></span>
+              <span class="layout-name"><kbd>F11</kbd> Viewpoint</span>
               <span class="layout-desc">Create and present saved views with their own labels, colours and measurements.</span>
             </a>
-            <a class="layout-card" href="f11-sql-editor.html">
-              <span class="layout-thumb" data-thumb="layout-f11"></span>
-              <span class="layout-name"><kbd>F11</kbd> SQL Editor</span>
+            <a class="layout-card" href="f12-sql-editor.html">
+              <span class="layout-thumb" data-thumb="layout-f12"></span>
+              <span class="layout-name"><kbd>F12</kbd> SQL Editor</span>
               <span class="layout-desc">Query the model data with SQL and colour the results.</span>
             </a>
-            <a class="layout-card" href="f12-assets.html">
-              <span class="layout-thumb" data-thumb="layout-f12"></span>
-              <span class="layout-name"><kbd>F12</kbd> Assets</span>
+            <a class="layout-card" href="a01-assets.html">
+              <span class="layout-thumb" data-thumb="layout-a01"></span>
+              <span class="layout-name"><kbd>ALT+F1</kbd> Assets</span>
               <span class="layout-desc">Import, load, export and manage models and databases.</span>
             </a>
           </div>
           <p class="note">
-            <b>F1–F9</b> each open one ribbon tab, plus the panel that goes with it where there is one. <b>F10–F12</b> are bigger
-            workspaces built around a group of panels; they use the Home ribbon.
+            <b>F1–F9</b> each open one ribbon tab, plus the panel that goes with it where there is one. <b>F10</b> opens the
+            Animation ribbon with the animation panels around the 3D view. <b>F11</b>, <b>F12</b> and <b>ALT+F1</b> are bigger
+            workspaces built around a group of panels; they use the Home ribbon. Assets lives on <kbd>ALT+F1</kbd>, the first of
+            <a href="#app-layout-ribbon">your own layout slots</a>, so you can still save over it or reset it like any other.
           </p>
         </section>
 
@@ -161,7 +168,7 @@
           <figure class="shot" data-shot="layout-ribbon"></figure>
           <ol class="legend-list">
             <li><b>Preset layouts</b> (<kbd>F1</kbd>–<kbd>F12</kbd>) — click one to switch to it.</li>
-            <li><b>Your layouts</b> (<kbd>ALT+F1</kbd>–<kbd>ALT+F12</kbd>, Config01–12) — empty until you save into them.</li>
+            <li><b>Your layouts</b> (<kbd>ALT+F1</kbd>–<kbd>ALT+F12</kbd>) — <b>Assets</b> is ready on <kbd>ALT+F1</kbd> and <b>Present</b> (a big 3D view; the animation's play bar shows over it while an animation plays — the Animation ribbon's <b>Present</b> button starts one) on <kbd>ALT+F2</kbd>; Config03–12 are empty until you save into them.</li>
             <li><b>Save</b> — stores the current screen arrangement in the selected slot (the highlighted button).</li>
             <li><b>Linked Ribbon</b> — the ribbon tab that opens when the selected layout is applied.</li>
             <li><b>Ribbon Open / Ribbon Closed</b> — whether the ribbon is shown or folded away for that layout.</li>
@@ -170,9 +177,9 @@
           <h3 id="save-layout">Save your own layout</h3>
           <ol class="steps">
             <li>Arrange the screen the way you want: open panels from the <a href="f08-panels.html">Panel ribbon</a>, drag their tabs to where you want them and resize them.</li>
-            <li>Open the <b>App Layout</b> ribbon and click an empty slot, for example <b>Config01</b> <span class="mk">2</span>. It is now the selected slot.</li>
+            <li>Open the <b>App Layout</b> ribbon and click an empty slot, for example <b>Config03</b> <span class="mk">2</span>. It is now the selected slot.</li>
             <li>Choose the <b>Linked Ribbon</b> <span class="mk">4</span> that should open with it, and whether the ribbon starts open or closed <span class="mk">5</span>.</li>
-            <li>Press <b>Save</b> <span class="mk">3</span>. From now on <kbd>ALT+F1</kbd> brings this arrangement back.</li>
+            <li>Press <b>Save</b> <span class="mk">3</span>. From now on <kbd>ALT+F2</kbd> brings this arrangement back.</li>
           </ol>
           <p class="note">
             You can also save over a preset (select <b>F1</b>–<b>F12</b> and press Save). The original can always be

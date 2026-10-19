@@ -3,14 +3,17 @@ import type { ReactNode } from 'react';
 export type MenuItem = Readonly<{
   /** Stable identity of the entry. */
   id: string;
+  /** Entry text. */
   label: ReactNode;
+  /** Runs after the menu has closed (so it may open a dialog). */
   onSelect: () => void;
   /** Leading icon (locked to 14×14). */
   icon?: ReactNode;
-  /** Styled tooltip (data-tooltip). */
+  /** Styled tooltip (data-tooltip) — it opens beside the menu, never over the entries. */
   tooltip?: string;
-  /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
+  /** Hotkey id (data-shortcut) — the tooltip gets a combo footer (the row shows no combo). */
   shortcut?: string;
+  /** Greyed out; not clickable. */
   disabled?: boolean;
   /** Destructive entry — rendered in the danger tone. */
   danger?: boolean;

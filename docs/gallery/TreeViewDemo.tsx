@@ -1,9 +1,9 @@
-import { IconCube, IconFolder } from '@tabler/icons-react';
-import { Badge, TreeView, type TreeViewRow } from '@treDeSpaceUI/widgets';
+import { IconCube, IconEye, IconFolder } from '@tabler/icons-react';
+import { Badge, Button, TreeView, type TreeViewRow } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { Section } from './Section';
 
-type Node = { key: string; depth: number; name: string; kids?: boolean; items?: number };
+type Node = { key: string; depth: number; name: string; kids?: boolean; items?: number; hidden?: boolean };
 
 const NODES: readonly Node[] = [
   { key: 'plant', depth: 0, name: 'PLANT-A', kids: true },
@@ -12,7 +12,28 @@ const NODES: readonly Node[] = [
   { key: 'plant/z1/p2', depth: 2, name: 'PIPE-8822' },
   { key: 'plant/z2', depth: 1, name: 'ZONE-02', kids: true, items: 64 },
   { key: 'plant/z2/v1', depth: 2, name: 'VALVE-01' },
+  { key: 'plant/z2/v2', depth: 2, name: 'VALVE-02', hidden: true },
 ];
+
+/** A count badge, or — on a hidden row — a button that must not also select the row. */
+function trailingFor(n: Node) {
+  if (n.items != null) {
+    return <Badge>{n.items}</Badge>;
+  }
+  if (!n.hidden) {
+    return undefined;
+  }
+  return (
+    <Button
+      iconOnly
+      size="xs"
+      variant="ghost"
+      icon={<IconEye />}
+      tooltip="Show (demo)"
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
 
 /** Gallery section for TreeView. */
 export function TreeViewDemo() {
@@ -38,16 +59,18 @@ export function TreeViewDemo() {
     selected: selected === n.key,
     partial: n.key === 'plant/z2',
     partialTooltip: 'Some of the items below this row are selected',
-    trailing: n.items != null ? <Badge>{n.items}</Badge> : undefined,
+    muted: n.hidden,
+    trailing: trailingFor(n),
   }));
 
   return (
     <Section
       title="TreeView"
-      note="The app's tree list: indent, twisty, selection and partial-selection highlighting over a FLAT list of the rows that are visible right now — the tree draws, it never owns the model, so a lazily-loaded tree costs nothing until it is expanded. Give it a rowHeight and it virtualizes (only the rows in view are mounted); `rowProps` is the escape hatch for drag-and-drop. FileTree is this widget plus a file model."
-      props={['TreeViewProps', 'TreeViewRow']}
-      code={`function Hierarchy({ nodes }) {
-  const [open, setOpen] = useState(new Set());
+      note="The app's tree list: indent, twisty, selection and partial-selection highlighting over a FLAT list of the rows that are visible right now — the tree draws, it never owns the model, so a lazily-loaded tree costs nothing until it is expanded. Rows are focusable treeitems (Enter / Space click them), so `trailing` may hold buttons — stop propagation in one that must not select the row; `muted` dims hidden content, `band` + `disabled` draw grouping chrome. Give it a rowHeight and it virtualizes (only the rows in view are mounted); `rowProps` is the escape hatch for drag-and-drop. FileTree is this widget plus a file model."
+      props={['TreeViewProps', 'TreeViewRow', 'TreeRowExtras']}
+      code={`// nodes, visibleRows(), toggle(), select() and openMenu() are yours
+function Hierarchy() {
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const rows = visibleRows(nodes, open).map((n) => ({
     key: n.id, depth: n.depth, label: n.name,
     expandable: n.hasChildren, expanded: open.has(n.id),

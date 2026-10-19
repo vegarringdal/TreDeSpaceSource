@@ -4,7 +4,9 @@ import { cn } from '../lib/cn';
 export interface PropertyRow {
   /** Stable identity of the row. */
   key: string;
+  /** Left cell — the property name. */
   label: ReactNode;
+  /** Right cell — its value. */
   value: ReactNode;
   /** Styled tooltip on the label cell — for a truncated or renamed key. */
   tooltip?: string;
@@ -13,6 +15,7 @@ export interface PropertyRow {
 }
 
 export interface PropertyListProps {
+  /** The rows, top to bottom. */
   rows: readonly PropertyRow[];
   /**
    * `fixed` (default) gives the label a fixed column and lets the value fill —
@@ -20,7 +23,7 @@ export interface PropertyListProps {
    * natural width — a description with a key cap after it.
    */
   layout?: 'fixed' | 'fill';
-  /** Label column width in px when `layout` is 'fixed'. */
+  /** Label column width in px when `layout` is 'fixed' (default 128). */
   labelWidth?: number;
   /** Monospace, right-aligned values — for numeric read-outs. */
   numeric?: boolean;

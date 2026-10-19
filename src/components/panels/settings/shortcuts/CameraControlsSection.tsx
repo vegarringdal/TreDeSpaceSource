@@ -3,7 +3,7 @@ import { Collapsible, Kbd, PropertyList } from '@treDeSpaceUI/widgets';
 /** Fixed viewport/camera controls, shown read-only in the Shortcuts panel. */
 const CAMERA_CONTROLS = [
   { keys: 'W / A / S / D', desc: 'Move — fly: along view, walk: ground plane' },
-  { keys: 'E / Q', desc: 'Move up / down' },
+  { keys: 'Q / E', desc: 'Move up / down' },
   { keys: 'Shift', desc: 'Move faster (hold)' },
   { keys: '↑ ↓ ← →', desc: 'Pan the view' },
   { keys: 'LMB drag', desc: 'Orbit around the target' },

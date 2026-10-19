@@ -265,10 +265,11 @@ export class DockManager {
     return this.titleOverrides.get(panelId) ?? this.defs.get(panelId)?.title ?? panelId;
   }
 
-  /** Open (or focus) a panel. Docks into `targetNodeId`, else the first
-   *  unlocked tabs node. A `targetNodeId` of `'left'`/`'right'`/`'bottom'` is
-   *  recreated when that side column was pruned, so callers can force a side
-   *  regardless of the current layout. */
+  /** Open (or focus) a panel. Docks into `targetNodeId`, else its last
+   *  location, else its soft `home`, else a `dockableIn` node, else the first
+   *  unlocked tabs node. A `targetNodeId` (or `home`) of
+   *  `'left'`/`'right'`/`'bottom'` is recreated when that side column was
+   *  pruned, so callers can force a side regardless of the current layout. */
   openPanel(panelId: string, targetNodeId?: string) {
     if (!this.defs.has(panelId)) {
       throw new Error(`dockable: unknown panel "${panelId}"`);
@@ -298,9 +299,6 @@ export class DockManager {
     this.commit();
   }
 
-  /** Open `panelId` split on `zone` of the panel `siblingId` lives in (falls
-   *  back to openPanel when the sibling isn't docked or a remembered spot
-   *  exists). */
   /** Open `panelId` split off the node `siblingId` lives in, at `zone`. An
    *  open panel is focused where it is; a closed one goes back to its
    *  remembered location unless `force` — then it always lands beside the
@@ -328,7 +326,7 @@ export class DockManager {
   /** Close a panel. When its definition's `beforeClose` returns a promise the
    *  panel is hidden at once (tab and content) but stays mounted until the
    *  promise settles, then is detached — see `PanelDefinition.beforeClose`.
-   *  `silent` (`registerPanel` replacing an open def) skips the hook and
+   *  `silent` (what `unregisterPanel` and solo use) skips the hook and
    *  `onClose`, and ends any wait in progress right away. */
   closePanel(panelId: string, opts: { silent?: boolean } = {}) {
     if (!this.isOpen(panelId)) {
@@ -419,9 +417,10 @@ export class DockManager {
     }
   }
 
-  /** Restore the layout the manager was constructed with. */
-  /** Solo mode: close every unlocked panel except the main (central) one;
-   *  a second call restores the exact layout from before. */
+  /** Solo mode: close every unlocked panel outside the main (biggest) group;
+   *  a second call restores the exact layout from before. A layout swap, not
+   *  a close: no `beforeClose` / `onClose`, so a panel that cleans up on a
+   *  real close (drops its data, unregisters itself) is back as it was. */
   toggleSolo() {
     if (this.soloSnapshot) {
       this.loadLayout(this.soloSnapshot);
@@ -441,7 +440,7 @@ export class DockManager {
       if (keep.has(id) || (node && this.isNodeLocked(node))) {
         continue; // ribbons etc stay
       }
-      this.closePanel(id);
+      this.closePanel(id, { silent: true });
       closed++;
     }
     if (closed > 0) {
@@ -456,6 +455,7 @@ export class DockManager {
     return this.soloSnapshot != null;
   }
 
+  /** Restore the layout the manager was constructed with. */
   resetLayout() {
     this.loadLayout(L.cloneLayout(this.initialLayout));
   }
@@ -686,6 +686,14 @@ export class DockManager {
     for (const w of next.windows) {
       strip(w.node);
     }
+    // a saved layout may name panels the app no longer defines: they go
+    const unknown = (n: LayoutNode) => L.allPanels(n).filter((id) => !this.defs.has(id));
+    for (const id of unknown(next.root)) {
+      next.root = L.removePanel(next.root, id);
+    }
+    next.windows = next.windows
+      .map((w) => ({ ...w, node: unknown(w.node).reduce((n, id) => L.removePanel(n, id), w.node) }))
+      .filter((w) => L.allPanels(w.node).length > 0);
     next.root = L.normalizeLayout(next.root);
     for (const w of next.windows) {
       w.node = L.normalizeLayout(w.node);
@@ -2282,24 +2290,19 @@ export class DockManager {
 
   private dropPanel(drag: PanelDrag, e: PointerEvent) {
     const target = drag.target ?? { kind: 'float' as const };
-    // debug: every refused drop says why (temporary diagnostic)
-    const refuse = (why: string) => console.warn(`dock drop no-op: ${why}`, target);
     if (target.kind === 'none') {
-      refuse('target resolved to none');
       return;
     }
 
     if (target.kind === 'float' || !target.nodeId) {
       const def = this.defs.get(drag.panelId);
       if (def?.floatable === false) {
-        refuse('panel not floatable');
         return;
       }
       const sole = this.windows.find(
         (w) => L.allPanels(w.node).length === 1 && L.allPanels(w.node)[0] === drag.panelId,
       );
       if (sole) {
-        refuse('already its own window');
         return; // already its own window — drag the window, not the tab
       }
       const base = this.container?.getBoundingClientRect();
@@ -2318,7 +2321,6 @@ export class DockManager {
     // Re-tabbing a panel into the strip it already lives in, at the same spot.
     const tabbing = target.kind === 'tab' || (target.kind === 'dock' && target.zone === 'center');
     if (source?.id === nodeId && tabbing && target.tabIndex == null) {
-      refuse('re-tab into its own strip');
       return;
     }
 
@@ -2343,7 +2345,7 @@ export class DockManager {
       dockId = fallbackIds.find((id) => this.findNodeAnywhere(id)) ?? '';
     }
     if (!dockId) {
-      refuse(`target node ${nodeId} vanished after detach (no surviving descendant)`);
+      // the target vanished with the detach and nothing of it survived
       this.root = snapshot.root; // the target collapsed along with the source
       this.windows = snapshot.windows;
       return;

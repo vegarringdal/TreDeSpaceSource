@@ -12,8 +12,11 @@ export interface TreeViewProps {
    *  the tree draws, it does not own the model. Collapsed subtrees are simply
    *  absent, so a lazily-loaded tree costs nothing until it is expanded. */
   rows: readonly TreeViewRow[];
+  /** The twisty was clicked — flip `expanded` in your model (selection untouched). */
   onToggle?: (row: TreeViewRow) => void;
+  /** Row click, or Enter / Space on the focused row; the event carries the modifiers. */
   onRowClick?: (row: TreeViewRow, e: ReactMouseEvent) => void;
+  /** Right-click; the browser menu is suppressed only when this is given. */
   onRowContextMenu?: (row: TreeViewRow, e: ReactMouseEvent) => void;
   /** Fixed row height in px — turns on virtualization (only the rows in view
    *  are mounted). Omit for a short tree that can render whole. */
@@ -84,6 +87,7 @@ export function TreeView({
   return (
     <div
       ref={scroller}
+      role="tree"
       className={cn('overflow-y-auto', className)}
       onScroll={virtualized ? virtual.onScroll : undefined}
     >

@@ -4,7 +4,9 @@ import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
 
 export interface ModalProps {
+  /** z-index of the layer; stack dialogs by raising it (the library's floors are 2000–2020). */
   z: number;
+  /** What sits centred on the backdrop (DialogFrame draws the box). */
   children: ReactNode;
   /** Escape and a backdrop press close the modal. Without it the shell is
    *  purely visual and the caller owns dismissal (a blocking progress overlay). */
@@ -12,6 +14,7 @@ export interface ModalProps {
   /** Keep the backdrop inert and close on Escape only (default true closes on
    *  both) — for a dialog whose work would be lost by a stray click. */
   closeOnBackdrop?: boolean;
+  /** Key handler on the backdrop layer (keys pressed while focus is inside). */
   onKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
@@ -73,7 +76,9 @@ export function Modal({ z, children, onClose, closeOnBackdrop = true, onKeyDown 
 }
 
 export interface TitleBarProps {
+  /** Leading icon (16×16 by convention). */
   icon: ReactNode;
+  /** The title. */
   children: ReactNode;
   /** Renders a ✕ at the right end. */
   onClose?: () => void;

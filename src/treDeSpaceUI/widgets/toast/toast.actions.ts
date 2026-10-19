@@ -66,7 +66,7 @@ export const toast = {
   /** Errors stay until dismissed — the user must be able to read them. */
   error: (message: string, opts?: ToastOptions) => push('danger', message, { duration: 0, ...opts }),
   dismiss,
-  /** Pause the countdown (pointer over the stack) and resume it on leave. */
+  /** Pause one toast's countdown (the pointer is over it) and resume it on leave. */
   hold: (id: string) => clearTimer(id),
   resume: (id: string, duration: number) => arm(id, duration),
   clear: () => {

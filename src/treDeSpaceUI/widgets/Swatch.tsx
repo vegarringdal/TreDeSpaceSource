@@ -3,6 +3,7 @@ import { cn } from '../lib/cn';
 export interface SwatchProps {
   /** Any CSS colour — rendered as-is, never converted (display values only). */
   color: string;
+  /** Makes the chip a button; without it the chip is a static read-out (`shortcut` and `disabled` are then ignored). */
   onClick?: () => void;
   /** Ring the swatch as the current pick. */
   active?: boolean;
@@ -12,7 +13,9 @@ export interface SwatchProps {
   tooltip?: string;
   /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
   shortcut?: string;
+  /** Grey out and block the click. */
   disabled?: boolean;
+  /** Extra classes on the chip. */
   className?: string;
 }
 

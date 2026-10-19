@@ -32,6 +32,7 @@ export const VIEWER_SECTION_KEYS = {
   antialiasing: keys('fastAA', 'aaSamples', 'msaa4x', 'pixelRatio', 'useDevicePixelRatio', 'smartPixelRatio'),
   culling: keys(
     'fpsLimit',
+    'cullMoved',
     'freezeCull',
     'newMeshletCap',
     'protectDist',

@@ -1,5 +1,5 @@
-// One tonal scale shared by every feedback surface — Badge, InfoBox, Toast and
-// EmptyState — so "warning" looks the same wherever it appears.
+// One tonal scale shared by every feedback surface — Badge, InfoBox and the
+// toasts — so "warning" looks the same wherever it appears.
 
 /** Semantic colour of a feedback surface. `neutral` is the un-tinted default. */
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';

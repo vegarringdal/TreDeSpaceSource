@@ -292,6 +292,14 @@ const linkOf = (pkg) => {
   if (/^[\w.-]+\/[\w.-]+$/.test(url)) url = `https://github.com/${url}`;
   return url || null;
 };
+/** MPL packages link at their release tag (npm's default `v<version>` naming)
+ *  rather than the repo's moving default branch — that tag is the "where to
+ *  obtain the source" pointer for the exact code that ships (MPL-2.0 §3.2). */
+const npmSourceLink = (pkg, spdx) => {
+  const link = linkOf(pkg);
+  const isMpl = /\bMPL\b/i.test(spdx ?? '');
+  return isMpl && link?.startsWith('https://github.com/') ? `${link}/tree/v${pkg.version}` : link;
+};
 
 // ── npm: runtime-dependency closure (devDeps excluded) ──────────────────────
 function collectNpm() {
@@ -320,7 +328,7 @@ function collectNpm() {
     if (!text && spdx && FALLBACK[spdx.toUpperCase?.()]) {
       text = FALLBACK[spdx.toUpperCase()].replace('{holder}', holderOf(pkg));
     }
-    out.push({ name, version: pkg.version ?? '', license: spdx, link: linkOf(pkg), text, kind: 'npm' });
+    out.push({ name, version: pkg.version ?? '', license: spdx, link: npmSourceLink(pkg, spdx), text, kind: 'npm' });
     for (const dep of Object.keys(pkg.dependencies ?? {})) if (!seen.has(dep)) queue.push(dep);
   }
   return out;
@@ -410,22 +418,38 @@ function shippedCrateNames(cwd, pkg) {
   }
 }
 
-/** License text for a git-pinned crate, from its cargo git checkout
- *  (~/.cargo/git/checkouts/<repo>-<hash>/<shortrev>/ — the LICENSE usually
- *  lives at the workspace root, not inside the published member crate). */
-function gitCheckoutLicense(url, rev) {
+/** Candidate cargo git checkouts of a git-pinned crate's repo at its exact rev
+ *  (~/.cargo/git/checkouts/<repo>-<hash>/<shortrev>/). */
+function gitCheckoutDirs(url, rev) {
   const repo = url.replace(/\/$/, '').split('/').pop();
   const base = join(homedir(), '.cargo/git/checkouts');
-  let repos;
   try {
-    repos = readdirSync(base).filter((d) => d.startsWith(`${repo}-`));
+    return readdirSync(base)
+      .filter((d) => d.startsWith(`${repo}-`))
+      .map((r) => join(base, r, rev.slice(0, 7)));
   } catch {
-    return null;
+    return [];
   }
-  for (const r of repos) {
-    const dir = join(base, r, rev.slice(0, 7));
+}
+
+/** License text for a git-pinned crate, from its cargo git checkout — the
+ *  LICENSE usually lives at the workspace root, not inside the published
+ *  member crate. */
+function gitCheckoutLicense(url, rev) {
+  for (const dir of gitCheckoutDirs(url, rev)) {
     const text = licenseTextFrom(dir);
     if (text) return text;
+  }
+  return null;
+}
+
+/** SPDX id of a git-pinned crate. Workspace members declare
+ *  `license.workspace = true`, so the id lives in the checkout's root
+ *  Cargo.toml ([workspace.package]). */
+function gitCheckoutSpdx(url, rev) {
+  for (const dir of gitCheckoutDirs(url, rev)) {
+    const spdx = readText(join(dir, 'Cargo.toml'))?.match(/^license\s*=\s*"([^"]+)"/m)?.[1];
+    if (spdx) return spdx;
   }
   return null;
 }
@@ -461,7 +485,8 @@ const WASM_WORKSPACES = [
 // Vendored path crates that link INTO a shipped wasm but carry no registry
 // `source`, so the cargo-tree/lock walk above can't find their license — list
 // them explicitly, reading the LICENSE text straight from the in-tree copy.
-// (Includes any third-party code THEY bundle, e.g. meshopt's C++ library.)
+// (Includes any third-party code THEY bundle, e.g. meshopt's C++ library, and
+// third-party code PORTED into our own crates, e.g. rvmparser.)
 const VENDORED = [
   {
     // Rust FFI wrapper (Graham Wihlidal) bundling the C++ meshoptimizer library
@@ -483,6 +508,16 @@ const VENDORED = [
     license: 'SGI-B-2.0',
     link: 'https://github.com/larsbrubaker/tess2-rust',
     texts: [{ path: 'rust_src/crates/tess2-rust/LICENSE' }],
+  },
+  {
+    // C++ RVM parser (Christopher Dyken) that rvm-core is a port of — its
+    // tessellation especially — so its MIT notice travels with the port.
+    // Unversioned: the upstream has no releases. → rvm2glb wasm.
+    name: 'rvmparser',
+    version: '',
+    license: 'MIT',
+    link: 'https://github.com/cdyk/rvmparser',
+    texts: [{ path: 'rust_src/crates/rvm-core/LICENSE-rvmparser' }],
   },
 ];
 
@@ -539,7 +574,7 @@ function collectRust() {
     // prefer the resolved crate's real version (toml deps carry a semver req)
     const version = dir ? (dir.split('/').pop().slice(name.length + 1) ?? reqVersion) : reqVersion;
     const meta = dir ? readText(join(dir, 'Cargo.toml')) : null;
-    const spdx = meta?.match(/^license\s*=\s*"([^"]+)"/m)?.[1] ?? null;
+    const spdx = meta?.match(/^license\s*=\s*"([^"]+)"/m)?.[1] ?? (git ? gitCheckoutSpdx(git.url, git.rev) : null);
     const repo = meta?.match(/^repository\s*=\s*"([^"]+)"/m)?.[1] ?? null;
     let text = dir ? licenseTextFrom(dir) : null;
     // git-pinned crates often keep the LICENSE at the workspace root, which the
@@ -562,10 +597,34 @@ function collectRust() {
   return out;
 }
 
+/** The Rust standard library (core/alloc/std) links into every shipped wasm
+ *  but is no Cargo dependency, so cargo tree never lists it. Dual-licensed
+ *  MIT OR Apache-2.0 — attributed under MIT. The toolchain ships its license
+ *  only as HTML, so the text is the canonical MIT one; the version is that of
+ *  the installed rustc ('' when there is none). */
+function collectRustStd() {
+  let version = '';
+  try {
+    version = execSync('rustc --version', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split(' ')[1] ?? '';
+  } catch {
+    console.warn('  ⚠ rustc unavailable — rust-std listed without a version');
+  }
+  return {
+    name: 'rust-std',
+    version,
+    license: 'MIT',
+    link: 'https://github.com/rust-lang/rust',
+    text: FALLBACK.MIT.replace('{holder}', 'The Rust Project Developers'),
+    kind: 'rust',
+  };
+}
+
 const npm = collectNpm().sort((a, b) => a.name.localeCompare(b.name));
 // vendored path crates first so they win a name clash with any registry entry
 const rustByName = new Map();
-for (const p of [...collectVendored(), ...collectRust()]) if (!rustByName.has(p.name)) rustByName.set(p.name, p);
+for (const p of [...collectVendored(), collectRustStd(), ...collectRust()]) {
+  if (!rustByName.has(p.name)) rustByName.set(p.name, p);
+}
 const rust = [...rustByName.values()].sort((a, b) => a.name.localeCompare(b.name));
 const packages = [...npm, ...rust];
 

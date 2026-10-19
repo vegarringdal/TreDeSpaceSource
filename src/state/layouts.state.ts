@@ -6,7 +6,14 @@
 import type { DockState, LayoutNode, TabsNode } from '@treDeSpaceUI/dockable';
 import { createStore } from '@treDeSpaceUI/lib/createStore';
 import { settingsTabState } from '../components/panels/settings/settings.state';
-import { assetsWorkspace, sqlWorkspace, viewpointWorkspace, workspace } from '../lib/appLayout';
+import {
+  animateWorkspace,
+  assetsWorkspace,
+  presentWorkspace,
+  sqlWorkspace,
+  viewpointWorkspace,
+  workspace,
+} from '../lib/appLayout';
 import { storageKey } from '../lib/storageKeys';
 
 export interface LayoutSlot {
@@ -30,7 +37,8 @@ export interface LayoutSlot {
 
 /** Preset slots (F1-F12) — the first section of the App Layout ribbon. */
 export const LAYOUT_SLOTS = 12;
-/** User slots (ALT+F1-F12, Config01-12) — the second section, empty by default. */
+/** User slots (ALT+F1-F12, Config01-12) — the second section; ALT+F1 ships the
+ *  Assets preset, ALT+F2 the Present one, the rest are empty by default. */
 export const USER_LAYOUT_SLOTS = 12;
 export const TOTAL_LAYOUT_SLOTS = LAYOUT_SLOTS + USER_LAYOUT_SLOTS;
 
@@ -48,7 +56,7 @@ interface LayoutsState {
 
 const defaultSlots = (): LayoutSlot[] => {
   const slots: LayoutSlot[] = Array.from({ length: TOTAL_LAYOUT_SLOTS }, (_, i) => ({
-    // the presets below overwrite 1-12; 13-24 stay Config01-12 for the user
+    // the presets below overwrite 1-14; 15-24 stay Config03-12 for the user
     name:
       i < LAYOUT_SLOTS
         ? `layout${String(i + 1).padStart(3, '0')}`
@@ -93,13 +101,21 @@ const defaultSlots = (): LayoutSlot[] => {
     settingsTab: 'layouts',
   };
   slots[8] = { name: 'Pad', layout: workspace('ribbonPad', null, true), ribbon: 'ribbonPad' };
-  // F10: the viewpoint suite (Viewpoints + the three viewpoint editors right)
-  slots[9] = { name: 'Viewpoint', layout: viewpointWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
-  // F11: the SQL workspace (reports | editor | viewport+table+console | detail)
-  slots[10] = { name: 'SQL Editor', layout: sqlWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
-  // F12: the asset-management workspace
+  // F10: animation authoring (Animation ribbon, Timeline + Overlay Preview, Key + Overlay Editor + Set Color)
+  slots[9] = { name: 'Animation', layout: animateWorkspace('ribbonAnimation'), ribbon: 'ribbonAnimation' };
+  // F11: the viewpoint suite (Viewpoints + the three viewpoint editors right)
+  slots[10] = { name: 'Viewpoint', layout: viewpointWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
+  // F12: the SQL workspace (reports | editor | viewport+table+console | detail)
+  slots[11] = { name: 'SQL Editor', layout: sqlWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
+  // ALT+F1 (the first user slot): the asset-management workspace
   // (Model Assets over SQL Assets | viewport+console | Import Manager | Export)
-  slots[11] = { name: 'Assets', layout: assetsWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
+  slots[LAYOUT_SLOTS] = { name: 'Assets', layout: assetsWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
+  // ALT+F2: presenting an animation (the viewport with the Player beside it)
+  slots[LAYOUT_SLOTS + 1] = {
+    name: 'Present',
+    layout: presentWorkspace('ribbonAnimation'),
+    ribbon: 'ribbonAnimation',
+  };
   return slots;
 };
 
@@ -212,6 +228,36 @@ export const layoutsActions = {
     layoutsState.set((s) => ({
       slots: s.slots.map((slot, k) => (k === selected ? { ...slot, layout: snapshot, custom: true } : slot)),
     }));
+  },
+
+  /** The dock as it is now — panels, floating windows, the active ribbon
+   *  and whether it is collapsed — plus the selected slot, to come back to
+   *  with `restore` (null before the dock exists). */
+  snapshot(): { state: DockState; selected: number | null } | null {
+    return dock ? { state: dock.save(), selected: layoutsState.get().selected } : null;
+  },
+
+  /** Back to a `snapshot`. */
+  restore(snap: { state: DockState; selected: number | null }) {
+    if (!dock) {
+      return;
+    }
+    dock.load(JSON.parse(JSON.stringify(snap.state)) as DockState);
+    layoutsState.set({ selected: snap.selected });
+  },
+
+  /** Apply a fixed workspace preset (Animate / Present) without touching the
+   *  slots — the slot selection is cleared, so Save cannot overwrite one. */
+  applyWorkspace(state: DockState, ribbon: string | null, ribbonOpen = true) {
+    if (!dock) {
+      return;
+    }
+    layoutsState.set({ selected: null });
+    dock.load(JSON.parse(JSON.stringify(state)) as DockState);
+    if (ribbon) {
+      dock.openRibbon(ribbon);
+    }
+    dock.setRibbonOpen(ribbonOpen);
   },
 
   rename(i: number, name: string) {

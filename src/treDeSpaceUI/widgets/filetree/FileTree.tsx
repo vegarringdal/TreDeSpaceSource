@@ -15,16 +15,21 @@ import { useFileTreeSelection } from './useFileTreeSelection';
 export type { TreeDir, TreeFile, TreeNode } from './fileTreeModel';
 
 export interface FileTreeProps {
+  /** The root dir; only its children are drawn. */
   root: TreeDir;
+  /** Selected FILE paths (a folder row shows selected when every file under it is). */
   selected: Set<string>;
+  /** Next selection — click / Ctrl+click / Shift+click range; a folder row selects its subtree. */
   onSelect: (next: Set<string>) => void;
+  /** Enables dragging files (the selection, when a selected row is dragged) onto a folder; `dirPath` '' = root. */
   onMove?: (paths: string[], dirPath: string) => void;
+  /** Right-click → New folder (`null` = the root). Also what turns the right-click menu on. */
   onAddFolder?: (parentDirPath: string | null) => void;
-  /** Right-click a folder → Rename (dirPath is the row's path). */
+  /** Right-click a folder → Rename (dirPath is the row's path; needs `onAddFolder` for the menu). */
   onRenameFolder?: (dirPath: string) => void;
-  /** Right-click a folder → Delete (empty folders vanish; files get ungrouped). */
+  /** Right-click a folder → Delete (empty folders vanish; files get ungrouped; needs `onAddFolder`). */
   onDeleteFolder?: (dirPath: string) => void;
-  /** Drag a folder row onto another folder (or the root gap). */
+  /** Drag a folder row onto another folder (or the root gap — `targetDirPath` ''). */
   onMoveFolder?: (dirPath: string, targetDirPath: string) => void;
   /** Shown when the tree has no rows. */
   emptyText?: string;

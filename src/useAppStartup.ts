@@ -1,5 +1,6 @@
 import { type DockManager, definePanel } from '@treDeSpaceUI/dockable';
 import { useEffect } from 'react';
+import { registerAnimationDock } from './components/panels/animation/animationPanels';
 import { registerClipShapesOpener } from './components/panels/clip-shapes/clipShapesPanel';
 import { consoleActions } from './components/panels/console/console.actions';
 import { registerExportOpener } from './components/panels/export/exportPanel';
@@ -43,6 +44,7 @@ import {
 } from './components/panels/viewpoints/viewpointsPanel';
 import { viewportOnly } from './lib/appLayout';
 import { initMessageApi, markApiReady, registerKiosk, registerPanelControl } from './lib/messageApi';
+import { initAnimation } from './state/animation/animationStartup';
 import { externalAppsState, registerExternalAppOpener } from './state/externalApps.state';
 import { dialogIdFor } from './state/externalDialogIds';
 import { findTopTabs, layoutsActions, layoutsState, noteActiveRibbon, registerLayoutDock } from './state/layouts.state';
@@ -217,6 +219,14 @@ export function useAppStartup(manager: DockManager): void {
     registerMeasurementsViewpointOpener(() => manager.openPanel('measurementsViewpoint'));
     registerMultiColorViewpointOpener(() => manager.openPanel('multiColorViewpoint'));
     registerSoloToggle(() => manager.toggleSolo());
+    // animation tool: panel access for actions / hotkeys / the mini-player,
+    // the overlay library and the draft check
+    registerAnimationDock({
+      open: (id) => manager.openPanel(id),
+      isOpen: (id) => manager.isOpen(id),
+      subscribe: (fn) => manager.subscribe(fn),
+    });
+    initAnimation();
     let activeRibbon = findTopTabs(manager.saveLayout().root)?.activePanel;
     const unsubLayout = manager.subscribe(() => {
       try {
@@ -250,6 +260,7 @@ export function useAppStartup(manager: DockManager): void {
     return () => {
       unsubLayout();
       unsubSlots();
+      registerAnimationDock(null);
     };
   }, [manager]);
 }

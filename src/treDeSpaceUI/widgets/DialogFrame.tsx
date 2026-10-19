@@ -5,7 +5,9 @@ import { Modal, TitleBar } from './Modal';
 export interface DialogFrameProps {
   /** Title-bar icon (locked to 16×16 by the caller's choice of icon). */
   icon: ReactNode;
+  /** Title-bar text. */
   title: ReactNode;
+  /** The body. */
   children: ReactNode;
   /** Footer buttons, right-aligned above the bottom rule. */
   footer?: ReactNode;
@@ -20,10 +22,13 @@ export interface DialogFrameProps {
   onClose?: () => void;
   /** `alertdialog` for a message that interrupts (default `dialog`). */
   role?: 'dialog' | 'alertdialog';
+  /** Stacking layer (default 2000, the dialog floor). */
   z?: number;
-  /** Replaces the default body padding — for a dialog that composes its own
-   *  strips (a filter bar over a scrolling list). */
+  /** Replaces the default body padding and text style (`px-3 py-4 text-xs
+   *  leading-relaxed`) — for a dialog that composes its own strips (a filter
+   *  bar over a scrolling list). The flex column and scrolling stay. */
   bodyClassName?: string;
+  /** Extra classes on the dialog box. */
   className?: string;
 }
 

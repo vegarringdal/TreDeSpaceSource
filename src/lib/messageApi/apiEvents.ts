@@ -21,6 +21,11 @@ export const API_EVENTS = [
   'sql.table:progress',
   'custom.event',
   'custom.clients.changed',
+  'animation.stateChanged',
+  'animation.stepStarted',
+  'animation.stepEnded',
+  'animation.ended',
+  'animation.bookmark',
 ] as const;
 
 export type ApiEventType = (typeof API_EVENTS)[number];

@@ -7,15 +7,20 @@ import { SelectList } from './SelectList';
 import { useSelectDropdown } from './useSelectDropdown';
 
 export interface SelectOption<T extends string = string> {
+  /** What onChange hands back for this option. */
   value: T;
+  /** Text in the list and the trigger — what the search box matches. */
   label: string;
   /** Dimmed text after the label — a unit, a path, a shortcut. */
   hint?: string;
+  /** Shown dimmed; cannot be picked. */
   disabled?: boolean;
 }
 
 interface BaseProps<T extends string> extends LabelledProps {
+  /** The choices. With `loadOptions` the list shows its results instead; these still name already-picked values. */
   options?: readonly SelectOption<T>[];
+  /** Trigger text while nothing is picked (default "Select…"). */
   placeholder?: string;
   /** Show a filter box at the top of the list. Implied by loadOptions. */
   searchable?: boolean;
@@ -38,15 +43,20 @@ interface BaseProps<T extends string> extends LabelledProps {
 }
 
 export interface SingleSelectProps<T extends string = string> extends BaseProps<T> {
+  /** Omit (or false) for single mode: a pick closes the list. */
   multiple?: false;
+  /** The picked value, or null for none. */
   value: T | null;
   /** Receives null when the user clears the selection. */
   onChange: (value: T | null) => void;
 }
 
 export interface MultiSelectProps<T extends string = string> extends BaseProps<T> {
+  /** Multi mode: the list stays open with checkboxes; picks show as removable chips. */
   multiple: true;
+  /** The picked values, in the order they were picked. */
   value: readonly T[];
+  /** Receives the whole new selection ([] when cleared). */
   onChange: (value: T[]) => void;
 }
 
@@ -54,8 +64,8 @@ export type SelectProps<T extends string = string> = SingleSelectProps<T> | Mult
 
 /**
  * A dropdown in the dock's visual language. Single or multi select, optional
- * search and clear, full keyboard support (arrows / Enter / Escape /
- * type-to-filter).
+ * search and clear, full keyboard support (Enter / Space / ↓ open, arrows
+ * move, Enter picks, Escape closes; typing filters when searchable).
  * Multi-select keeps the list open and shows checkmarks; the trigger sums up.
  * Generic over the value union, so `onChange` hands back the caller's own
  * string-literal type instead of a bare string.

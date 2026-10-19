@@ -13,7 +13,9 @@ export interface RibbonNumberProps extends Omit<NumberInputProps, 'className'> {
    * it, so their inputs line up; widen it when your labels are longer.
    */
   labelWidth?: number;
+  /** Slot size (default 'medium' — the section packs it so too). */
   size?: RibbonSize;
+  /** Extra classes on the slot. */
   className?: string;
 }
 

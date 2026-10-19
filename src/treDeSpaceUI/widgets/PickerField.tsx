@@ -4,7 +4,8 @@ import { pickerPopCls, pickerTriggerCls } from './fieldChrome';
 import type { PopoverAnchor } from './usePopoverAnchor';
 
 // The trigger button and body-portaled popover shell shared by the picker
-// fields (DatePicker, TimePicker) — same chrome, same anchor behavior.
+// fields (DatePicker, TimePicker, DateTimePicker) — same chrome, same anchor
+// behavior.
 
 export interface PickerFieldProps {
   open: boolean;

@@ -123,6 +123,8 @@ export function attachMeasureAim({ host, canvas, camera, probe }: MeasureAimDeps
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.style.cssText =
     'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:7;display:none';
+  // a cursor, not content: video frames leave it out
+  svg.dataset.uiChrome = '1';
   host.appendChild(svg);
 
   const abort = new AbortController();

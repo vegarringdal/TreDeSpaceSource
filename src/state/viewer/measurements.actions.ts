@@ -154,6 +154,16 @@ export const measurementsActions = {
     measurementsState.set((s) => ({ items: s.items.filter((m) => m.id !== id) }));
   },
 
+  /** Replace the whole set as it is (ids kept) — the animation showing its
+   *  own measurements, or putting the user's back. */
+  replaceQuiet(items: Measurement[]) {
+    let nextId = 0;
+    for (const m of items) {
+      nextId = Math.max(nextId, m.id);
+    }
+    measurementsState.set({ items: items.map((m) => ({ ...m })), inProgress: [], nextId });
+  },
+
   clear() {
     measurementsState.set({ items: [], inProgress: [] });
   },

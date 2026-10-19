@@ -2,6 +2,7 @@ import { Button } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
 import { type Connection, useDemo } from '../DemoContext';
 import { IS_DIALOG, IS_POPUP } from '../hostEnv';
+import { AnimationSection } from '../sections/AnimationSection';
 import { AppSection } from '../sections/AppSection';
 import { ClipSection } from '../sections/ClipSection';
 import { ColorRulesSection } from '../sections/ColorRulesSection';
@@ -98,6 +99,7 @@ export function ControlsColumn() {
         <CustomEventsSection />
         <MeasurementsSection />
         <ViewpointsSection />
+        <AnimationSection />
         <AppSection />
         <HotkeysSection />
         <SettingsSection />

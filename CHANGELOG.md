@@ -4,6 +4,293 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.10.18** (>0.0.141):
+  Licensing: the third-party notices (Settings → About) now also credit
+  rvmparser (MIT, Christopher Dyken) — the C++ RVM parser the RVM converter
+  is a port of; its notice is kept in `rust_src/crates/rvm-core/LICENSE-rvmparser`
+  — and the Rust standard library compiled into every converter (listed
+  under MIT). The ifc-lite crates show their license (MPL-2.0) instead of
+  none, and Mediabunny (MPL-2.0) links its exact released source, the
+  v1.61.1 tag, instead of the repository's main branch.
+  The IFC sample files are no longer kept in git, since they are other
+  people's files: `convertSamples/ifc/fetch-samples.sh` downloads them from
+  their public sources, pinned to the same bytes (`--large` adds the big
+  stress models). The IFC converter tests and the a01 guide scene need them
+  fetched first.
+  The RVM, IFC and STEP converter crates now all declare MIT in their
+  Cargo.toml, matching the LICENSE file each family carries: the IFC crates
+  said MPL-2.0 (left over from before their MIT license was added) and the
+  RVM crates declared none.
+
+- **2026.10.18** (>0.0.141):
+  Host API: `animation.listScenes` lists the open animation's scenes (id,
+  name, duration, steps, objects) and which one is active, and
+  `animation.setScene` makes one active — with animation mode on or off;
+  `animation.stateChanged` now carries the active `scene` and goes out when
+  it changes (the user picking another scene too). The API demo's
+  Animation section lists the scenes and switches between them.
+  **Export video** exports all scenes, one after another, or one scene —
+  the whole of it, or a part from a Start to an End you type in seconds
+  (or take from the in / out range or the step at the time slider); the
+  dialog says how long the video will be, and the scene that was open
+  comes back afterwards.
+  Widget fixes found while checking the widget docs: **Solo** no longer
+  closes the panels it hides for real — it is a layout swap, so the SQL
+  Table keeps its result and a named SQL Detail panel is back when solo
+  ends. Ctrl+wheel over the Timeline zooms the timeline only, not the whole
+  page as well, and a wheel over its time ruler no longer scrolls the
+  panel. A number field's ↑ / ↓ and wheel step while you type in it
+  (leaving the field used to undo the step); a typed m:ss.s time no longer
+  rounds its value when focus merely passes through it. A parameter key that
+  clashes gets a clean numbered key ("a_b2", not "a b2"), and Add parameter
+  is off while there are no types. A control whose hotkey has no binding
+  and no tooltip text shows no empty tooltip bubble; a ribbon slot or number
+  field given no size packs as the medium size it draws at; the dock no
+  longer writes a console warning for every drop that changes nothing.
+  Widget library docs: every public prop now has its JSDoc — what it does
+  and its default — so the gallery's generated props tables are complete for
+  the inputs, the Timeline family, transport, dialogs, menus, trees, the dock
+  and the hotkey types. The tables render `{@link}` targets, keep a private
+  base's `extends` (Select's tables list the label props again) and show an
+  object type alias such as MenuItem field by field.
+  The widget guide (the library README) and the gallery match the code
+  again. The Timeline section explains collapsing (the widget hides
+  nothing; leave a collapsed row's children out), the drag phase and its
+  press-relative dt, empty-space clicks, the +/− keys and snapping; the
+  motion inputs, NumberInput's keys, Select's keyboard, the label props of
+  every field, the dock's open order, solo, close hooks and drop compass,
+  the hotkey grammar and engine, toasts and dialogs are described as they
+  work. Every gallery usage snippet is a complete component that compiles
+  (several used names they never declared), the demos no longer hand-roll
+  label rows, the CardFlow demo drops a card where it is released, the
+  Timeline demo's twisties collapse their rows, and DialogFrame and the
+  newer Menu, TreeView and FileTree options have demos. The
+  `@tredespace/ui` package ships the guide as GUIDE.md.
+  The Timeline's Export ▾ offers only the Brief for AI; the three item
+  lists for AI left the menu — their shortcuts (ALT 1550 / 1551 / 1552)
+  still make them, and the brief and the guide say so.
+  The Timeline scrolls along: drag the time slider — or a key, a bar or a
+  bar's edge — to the left or right edge and hold it there, and the view
+  pans (faster the further past) while what you drag rides on the edge, so
+  a key can go past what is on screen or past the end of the scene;
+  ← / → keep the time slider in view too.
+  The **Brief for AI** covers the whole animation now: how every Timeline
+  row plays (Scene, Steps, Camera, Clipping, Colour rules, Labels,
+  Measurements, Overlays, Objects), several scenes in one file — each starts
+  from the model as loaded, objects belong to their scene, overlays are
+  shared — with a two-scene example, how to write camera views (it said the
+  elevation was "above the horizon"; a negative one looks down, and the view
+  glides the short way round), clipping, labels and measurements, the exact
+  pivot rule, and what the app flags under Problems. Its JSON Schema
+  describes every field the file can hold, and there are patterns for a
+  camera move, cutting a model open and a measured clearance.
+  **Export video** streams the MP4 to disk as it is made instead of holding
+  the whole video in memory until the end — a long or large video no
+  longer risks the tab's memory. The file is still Fast Start (it starts
+  playing at once on the web) and is downloaded straight from the
+  browser's storage. The MP4 packing moved from mp4-muxer, which is
+  deprecated, to its successor Mediabunny (MPL-2.0) — third-party notices
+  regenerated.
+  Fly and walk: **Q moves the camera up and E down** (they were the other
+  way round); the camera controls list and the guide say so.
+  Animation tooltips: **Step stills** says what each page shows — the
+  step's last frame, everything in place; **Save\*** explains its `*`
+  (unsaved changes); the Export ▾ shortcut's text no longer lists the item
+  lists, which are shortcuts only.
+
+- **2026.10.17** (>0.0.141):
+  **Animation (F10)** — a new tool for assembly, maintenance and walkthrough
+  animations, working the way Navisworks Animator does, with Set Color,
+  viewpoints and overlay cards built in. Rigid only (move and rotate);
+  animation mode starts from the model as it was loaded and gives everything
+  back — colours, hidden items, clipping, moved items — when you leave it.
+
+  *Objects and keys.* Select items and press **+ Object** (or just pose them
+  and Key): the selection becomes an object with one row of keys on the
+  Timeline. An object works like a Navisworks set, and better: it holds the
+  nodes added **and** nodes left out ("this group minus a few"; the deeper one
+  wins, and a group follows the model when items are added under it). The Key
+  panel's **Items** list shows them as the tree spells them, with Add / Remove
+  selection that keep the lists short and a **Closest group** suggestion when
+  a group says the same more simply. Pose with the Timeline's Move / Rotate
+  gizmo or type the values, then press **Key** (`I`); moving the time slider
+  drops a pose not keyed, and **Auto-key** keys every drag. A key holds where
+  the object is (its offset from its place in the model), how it arrives
+  (Smooth, Linear or Hold), whole-turn spins, and instant visible / colour /
+  opacity changes. Each key has a **Pivot** and **Offset** right under
+  Rotate — as the object, the centre or a side of its box (bottom, top,
+  front, back, left, right: the object's own side, turned along with it) —
+  that its Move and Rotate are about and that it turns about on the way in,
+  so a door swings on its hinge. The rotate gizmo turns about that pivot;
+  dragging the pivot (Transform ribbon › Set pivot) sets the Offset, picking
+  a side starts it at zero, and the keys after it keep the same pivot;
+  changing them leaves the object where it is. **Slide in**, copy / paste of
+  keys at the time slider, dragging and box-selecting diamonds, and undo /
+  redo of every edit.
+  **+ Object ▾** makes many objects at once — one per child of each selected
+  node (a group becomes its parts) or one per selected node — and Ctrl- /
+  Shift-click on the object rows selects several, so one gizmo drag poses
+  them all and Key keys each.
+
+  *Timeline.* Everything while animating: Scene ▾ (scenes have names — New
+  scene… and Rename ask for one), + Object, the gizmo and pivot, Key, the
+  look tools (show / hide, the key colour, Colour ▾, and Rules ▾ with quick
+  colour rules for the selection or the whole model), Overlay ▾ (callout,
+  title card, caption, info card, step card, your own designs), Camera ▾
+  (the view, a saved viewpoint, an orbit), Clipping, the time box and
+  transport, loop and ping-pong, snap and zoom, Present and Export ▾. Rows:
+  Scene (click it for the scene's settings), Steps, Camera, Clipping, Colour
+  rules, Labels, Measurements, Overlays, and the object rows under a
+  foldable Objects row; hidden stretches
+  are hatched, the end is a dashed mark. The **Labels** and **Measurements**
+  rows key the label and measurement sets on screen (made with the normal
+  Label panel and measuring tools, each switched on or off in the Key panel)
+  from a time on; your own labels and measurements are put aside while
+  animating and come back after.
+
+  *Key panel.* What you picked: a key, or for an object row the next key
+  waiting at the time slider, with the object's items, pivot, path and Slide
+  in; a camera key's Position and Target; the Set Color rule editor for the
+  Colour rules row (a picked rules key is edited in place, otherwise the next
+  rules key is previewed until Key); a step; an overlay; or the scene with its
+  Problems list.
+
+  *Steps and overlays.* Steps are named spans with text and a card; playback
+  can pause at their end, and the transport and play bar jump step to step.
+  Overlays show for a while — hanging from an object or on screen (a Pin
+  puts it in that corner or edge, a little in from it) — with keyed positions
+  and labels kept on screen. The **Overlay Editor** and
+  **Overlay Preview** design cards from blocks and colour themes; a card's
+  text size and colours can be its own values; card size Auto or Fixed;
+  designs import and export as `.tdoverlay.json`. A card's theme is
+  **Auto** by default — Light in the app's light theme, Dark in the dark one —
+  or forced Dark or Light (step cards, the scene's step card, callouts, and
+  the editor's preview).
+
+  *Animation ribbon:* Animate, **Present** (the 3D view alone with the play
+  bar; its Close comes back to the panels, ribbon and mode you had), New /
+  Open / Save, Export (Video, Step stills, **Brief for AI**), a toggle per
+  animation panel, View (Motion paths, Overlays, Camera keys — follow the
+  camera keys or orbit freely; switched off it stays off when you play
+  again), Undo / Redo. The floating play bar has the
+  scene to play (a menu when there are several), the step, transport, a
+  scrubber, Camera keys and Close.
+
+  *Output.* **Video** (`.mp4`, 720p–1440p, 24–60 fps, Draft or Best, with the
+  cards; rendered frame by frame, and it waits in a hidden tab rather than
+  failing) — new dependency mp4-muxer (MIT), third-party notices regenerated.
+  **Step stills** as a PDF (one page per step). A **brief for AI** (Claude
+  Code) and item lists (selected nodes, children or every leaf, with the SQL
+  result's columns) to have an animation written for you;
+  `npm run anim:check <file>` checks one. Animations are `*.tdanim.json`
+  (version 2; files from the earlier unreleased build are refused), with an
+  autosaved draft offered after a crash and a shared library of card designs.
+
+  *Host API:* `animation.load / get / setMode / present / setBookmarkButton /
+  play / pause / continue / seek / listSteps / playStep / gotoStep /
+  returnCamera / getState` and the events `animation.stateChanged /
+  stepStarted / stepEnded / ended / bookmark` (EVENTS.md). `animationPresent`
+  loads a file and presents it in one call; the Bookmark button sits in its
+  own section of the Animation ribbon and hands the host the animation. The
+  API demo has an Animation section.
+
+  *Under the hood:* the transform pool grows to 32 768 slots with the top
+  16 384 a playback band, so stopping always restores the model exactly; a
+  worker animation module borrows and restores the animated items' slots and
+  visibility, and hands the VRAM budget a swept box for each moving object.
+  `npm run test:anim` runs 50 end-to-end scenarios headless; the core is unit
+  tested. The user guide has an F10 Animation page.
+
+  *Fixes from a full review.* Playback and keys: a key pressed twice without
+  moving is a real pause on a smooth path, also on a model far from the
+  origin (keys are folded in double precision); the smooth path comes to
+  rest before a Hold key instead of overshooting it; a key inserted into a
+  spin keeps the spin going, and one inserted before the first key keeps the
+  object hidden or coloured from the start as before; playing one step stops
+  at its end even when the scene loops, and a pausing step at the end of a
+  looping scene pauses; while playback waits at a step's end its card stays
+  up and the play bar names that step; clipping planes glide from a key's
+  own anchor; short overlays fade without popping; the time read-out no
+  longer shows "00:010.0"; a file's step card may say `theme: null` (Auto);
+  ◀ step before the first step stays put; the Problems list catches a
+  hidden object that only spins; swept boxes cover fast spins.
+  Authoring: pressing **I** to Key no longer also inverts the selection,
+  and **Ctrl+C** on the Timeline copies keys instead of closing Set Color;
+  right-clicking a row's name no longer jumps the time slider to 0 (the
+  row's menu acts at the time slider); a step is never added over the next
+  one (such a file would not open); auto-key on items that are no object
+  yet keys them where they were turned, not about the model's origin;
+  typing Move / Rotate or a new Time moves the objects selected together
+  and leaves objects posed apart alone; keying colour rules keeps a pose
+  not keyed yet; the next key's pivot and arrival stay with the object they
+  were chosen for; a gizmo drag keeps the current row; Key on several
+  objects is one undo step, and a slow Timeline drag is one too; changing
+  an object's pivot (or taking it from the gizmo, now a point of the object
+  where it stands) never moves it; a key picked in another row is a plain
+  pick; Remove selection never leaves an object with nothing in it; a
+  callout whose object was deleted is listed under Problems.
+  Player, files and host: the **unsaved animation** from a session that
+  ended without saving is offered again at the top of the Timeline
+  (Recover / Discard), and kept untouched until you choose; step stills and
+  a video's waits show the step's card; leaving the mode while it is still
+  starting really leaves; Return onto a single camera key glides instead of
+  jumping; a video or stills export keeps Camera keys switched off and
+  gives the selection back; Present remembers the right layout when the
+  host presents over a presentation, and the host's `setMode('off')` brings
+  it back; `animation.load` / `present` with a bad document change nothing;
+  `animation.play {}` plays the whole scene; `animation.stateChanged` goes
+  out on pause, stop, leaving the mode and the camera going free, and the
+  last change of a burst is never dropped; `animation.ended` means the end
+  of the scene.
+  Panels: K (or an export) with the Timeline open enters authoring, and
+  playback-only (a host, Present) shows a read-only Timeline that says so;
+  menu buttons (Overlay ▾, Export ▾, Scene ▾, Pivot ▾ and the Overlay
+  Editor's New ▾, Block ▾, Export ▾) get hotkeys of their own that open
+  the menu, and Pivot ▾ offers every side; the Overlay Editor's Preview
+  button shows and hides the preview like its hotkey; the Overlay Editor's
+  design fields, the preview's size and background, and an overlay's
+  anchor, position, offset and leader line get hotkeys; "Arrives" shows
+  its hotkeys; a callout whose overlay is missing can be removed from the
+  Key panel; retiming a picked key takes the time slider along; switching
+  an overlay to Object hangs it from the current object, to Point at what
+  the view looks at; the Key panel's Key rules keys the rules; tooltips
+  and texts match what the controls do now.
+  Documentation: the F10 guide page names every animation control and its
+  hotkey — the overlay, camera-key and clipping-key views, colour-rules
+  modes, the key's spin / visibility / opacity hotkeys, playback speed, the
+  video dialog, the Overlay Editor — and has reference tables for the
+  colour rules, camera key, overlay, Overlay Editor and Overlay Preview;
+  Present is the button (ALT+F2 is only the layout); the Brief for AI says
+  an item belongs to one object, ids must be unique, a changed design
+  needs a new `version`, and what `level`, `color: null` and `pingPong`
+  really do; the host API docs say what `load`, `present`, `play` and the
+  events now do.
+
+  Also in this release:
+  - App layouts: **F10** is Animation, Viewpoint moves to **F11**, SQL Editor
+    to **F12**, Assets is a preset on **ALT+F1** and Present on **ALT+F2**;
+    the guide pages follow (`f11-viewpoint`, `f12-sql-editor`, `a01-assets`).
+  - Panel ribbon: Export and Import Manager, and Key and Overlay Preview,
+    swap places so the ribbon takes less room.
+  - Settings → Rendering → Culling: **Occlusion-cull moved items**
+    (`render.cullMoved`, off by default) keeps the back-face and occlusion
+    tests for moved and animated items. Unverified on hardware.
+  - Fix: **digit + Ctrl + click** in the 3D view adds the item's node at that
+    tree level to the selection, or takes it out (Ctrl was ignored).
+  - Fix: dropdowns and colour pickers opened inside a dialog appeared behind
+    it.
+  - Fix: screenshots (and video frames) drew muted labels, and every leader
+    line in the panel's colour instead of the label's own.
+  - `@tredespace/ui`: new widgets TransportControls, SplitButton, ChapterList,
+    TimeInput, EasingSelect, RotationInput, Timeline, TimeRuler, Breadcrumbs,
+    CardFlow, BoxSidesInput, BorderInput, IconSelect, ImagePicker,
+    TemplateTextInput and ParamListEditor (gallery tabs and README sections);
+    Button `size="lg"`; ColorSelect `compact`; hotkeys `trigger: 'tap'`;
+    `useElementWidth`; `store.useSelect(selector)`; TreeView rows are
+    focusable tree items; a VerticalTabs strip scrolls when its tabs do not
+    fit; popovers sit above dialogs; a saved dock layout naming a panel that
+    no longer exists loads without it.
+
 - **2026.10.02** (>0.0.140):
   User guide start page: the shortcut legend names the two kinds — simultaneous
   keys (`+`) and consecutive keys (space).

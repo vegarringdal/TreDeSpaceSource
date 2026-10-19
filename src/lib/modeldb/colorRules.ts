@@ -85,19 +85,22 @@ export interface ColorRuleSpec {
  * and hidden — the same slate as Alt+R / "Clear all"), `append` layers
  * on top, `hide` starts from an all-hidden override-free slate and the
  * rules UNHIDE (and color) exactly what they match. The whole run is ONE
- * step on the state undo stack. Returns per-rule match counts. */
+ * step on the state undo stack (unless `opts.undo` is false — animation
+ * looks, which own their capture/restore). Returns per-rule match counts. */
 export function applyColorRules(
   rules: ColorRuleSpec[],
   mode: 'reset' | 'append' | 'hide',
   traceOn = false,
+  opts: { undo?: boolean } = {},
 ): { updates: StateUpdate[]; counts: number[]; trace?: { label: string; ms: number }[] } {
   // ONE undo step for the entire run — reset + every rule, across models.
   // Each touched model's full band is captured ONCE, before its first
   // mutation (however many rules later touch it).
   const undoStep: ColorUndoRecord[] = [];
   const captured = new Set<number>();
+  const withUndo = opts.undo !== false;
   const captureOnce = (idx: number) => {
-    if (!captured.has(idx)) {
+    if (withUndo && !captured.has(idx)) {
       captured.add(idx);
       undoStep.push(captureColorRuns(idx));
     }
@@ -773,7 +776,9 @@ export function applyColorRules(
     T.rows.push({ label: 'worker: state writes', ms: acc.write });
     T.last = performance.now();
   }
-  pushColorUndo(undoStep);
+  if (withUndo) {
+    pushColorUndo(undoStep);
+  }
   const updates = Array.from(touched, (idx) => packStates(models[idx], idx));
   T?.mark('packStates');
   return Comlink.transfer({ updates, counts, ...(T ? { trace: T.rows } : {}) }, updateBuffers(updates));

@@ -10,7 +10,7 @@ export function RibbonDemo() {
   return (
     <Section
       title="Ribbon"
-      note="The top toolbar system: Ribbon → titled RibbonSections → items that declare a size (big = 1 per column, medium = 2, mini = 3) and pack into columns in order. RibbonNumber embeds a NumberInput; RibbonSlot is the escape hatch for any content. Give the bar a fixed height (the app uses 124 px)."
+      note="The top toolbar system: Ribbon → titled RibbonSections → items that declare a size (big = 1 per column, medium = 2, mini = 3) and pack into columns in order. RibbonNumber embeds a NumberInput; RibbonSlot is the escape hatch for any content (both default to medium, and pack as such). Give the bar a fixed height (the app's ribbon node is 124 px including its 22 px tab strip)."
       props={['RibbonButtonProps', 'RibbonNumberProps', 'RibbonSize']}
       code={`function Toolbar() {
   const [tool, setTool] = useState('measure');

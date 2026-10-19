@@ -82,6 +82,17 @@ export async function specsForRules(rules: ColorRule[]): Promise<ColorRuleSpec[]
   return specs;
 }
 
+/** Who may take the Set Color panel's Run instead of colouring the scene
+ *  (animation authoring shows the rules for keying); true = handled. */
+let runInterceptor: ((rules: { mode: ColorRulesMode; rules: ColorRule[] }) => boolean) | null = null;
+
+/** Install (or clear) the Run interceptor of the global Set Color panel. */
+export function setColorRulesRunInterceptor(
+  fn: ((rules: { mode: ColorRulesMode; rules: ColorRule[] }) => boolean) | null,
+): void {
+  runInterceptor = fn;
+}
+
 /** Build a Set Color action set bound to a specific store — the global panel
  *  uses the persisted multiColorState; the "(viewpoint)" panel binds the same
  *  editor to the active viewpoint's own rules. */
@@ -225,6 +236,9 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       const { rules, mode, running } = store.get();
       const active = rules.filter((r) => r.enabled);
       if (running || active.length === 0) {
+        return;
+      }
+      if (store === multiColorState && runInterceptor?.({ mode, rules: structuredClone(rules) })) {
         return;
       }
       store.set({ running: true });

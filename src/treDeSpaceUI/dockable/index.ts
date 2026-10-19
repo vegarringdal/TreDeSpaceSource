@@ -12,7 +12,8 @@ export {
   split,
   tabs,
 } from './layout';
-// React is optional: import from 'dockable/react' only where you need it.
+// The React bindings (DockView, definePanel, the hooks) are re-exported here;
+// DockManager itself is framework-free.
 export {
   DockView,
   definePanel,

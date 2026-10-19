@@ -14,9 +14,11 @@ export {
 } from './colorSelectSwatches';
 
 export interface ColorSelectProps extends LabelledProps {
+  /** The colour as #rrggbb. Any other CSS colour still paints the swatch, but the picker opens at black. */
   value: string;
+  /** Receives the picked colour as lowercase #rrggbb. */
   onChange: (color: string) => void;
-  /** Quick-pick row at the bottom of the popover. */
+  /** Quick-pick swatches (8 per row) at the bottom of the popover — replaces the default / store grid. */
   swatches?: string[];
   /** Styled tooltip (data-tooltip). */
   tooltip?: string;
@@ -24,6 +26,9 @@ export interface ColorSelectProps extends LabelledProps {
   shortcut?: string;
   /** Fill the parent height exactly (ribbon slots) instead of the h-6 floor. */
   flush?: boolean;
+  /** Swatch only, no hex text — a small trigger for toolbars (put the colour
+   *  in the tooltip if it matters). */
+  compact?: boolean;
 }
 
 /**
@@ -40,6 +45,7 @@ export function ColorSelect({
   disabled = false,
   className = '',
   flush = false,
+  compact = false,
   ...labelled
 }: ColorSelectProps) {
   // default swatch grid comes from the injected store, if any (in this app:
@@ -90,7 +96,7 @@ export function ColorSelect({
           onClick={() => setOpen((o) => !o)}
         >
           <span className="h-3.5 w-6 shrink-0 border border-black/40" style={{ background: value }} />
-          <span className="flex-1 truncate font-mono">{value}</span>
+          {!compact && <span className="flex-1 truncate font-mono">{value}</span>}
           <svg
             viewBox="0 0 8 8"
             className={cn('h-2 w-2 shrink-0 fill-slate-500 transition-transform', open && 'rotate-180')}

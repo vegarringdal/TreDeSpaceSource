@@ -1,13 +1,19 @@
 import { ClearButton, fieldCls, Labelled, type LabelledProps } from '../fieldChrome';
 
 export interface TextAreaProps extends LabelledProps {
+  /** The text. */
   value: string;
+  /** Receives the text on every keystroke. */
   onChange: (value: string) => void;
   /** Fires on blur — for commit-style handling on top of onChange. */
   onCommit?: (value: string) => void;
+  /** Dimmed text while empty. */
   placeholder?: string;
+  /** Visible rows (default 3). */
   rows?: number;
+  /** Character limit (native maxLength). */
   maxLength?: number;
+  /** Browser spell-check (default false). */
   spellCheck?: boolean;
   /** Allow the user to resize vertically (default true). */
   resizable?: boolean;
@@ -23,7 +29,7 @@ export interface TextAreaProps extends LabelledProps {
   onClear?: () => void;
 }
 
-/** Multi-line text field in the studio look, label on top or to the left. */
+/** Multi-line text field in the studio look; label on top, to the left, or split (see LabelledProps). */
 export function TextArea({
   value,
   onChange,
