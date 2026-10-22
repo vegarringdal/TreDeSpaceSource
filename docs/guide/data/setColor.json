@@ -2,96 +2,101 @@
   "shots": {
     "setcolor-overview": {
       "w": 420,
-      "h": 569,
+      "h": 599,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 18,
           "y": 65,
-          "w": 249.125,
+          "w": 246.859375,
           "h": 24
         },
         {
           "n": 2,
-          "x": 273.125,
+          "x": 270.859375,
           "y": 65,
-          "w": 62.953125,
+          "w": 64.125,
           "h": 24
         },
         {
           "n": 3,
-          "x": 342.078125,
+          "x": 340.984375,
           "y": 65,
-          "w": 59.921875,
+          "w": 61.015625,
           "h": 24
         },
         {
           "n": 4,
           "x": 18,
           "y": 97,
-          "w": 65.78125,
+          "w": 67.46875,
           "h": 24
         },
         {
           "n": 5,
-          "x": 89.78125,
+          "x": 91.46875,
           "y": 97,
-          "w": 66.1875,
+          "w": 66.796875,
           "h": 24
         },
         {
           "n": 6,
-          "x": 161.96875,
+          "x": 164.265625,
           "y": 97,
-          "w": 91.3125,
+          "w": 95.265625,
           "h": 24
         },
         {
           "n": 7,
-          "x": 259.28125,
+          "x": 265.53125,
           "y": 97,
-          "w": 86.53125,
+          "w": 75.03125,
           "h": 24
         },
         {
           "n": 8,
           "x": 18,
-          "y": 173,
-          "w": 197.796875,
-          "h": 16
+          "y": 127,
+          "w": 89.359375,
+          "h": 24
         },
         {
           "n": 9,
           "x": 18,
-          "y": 367,
+          "y": 203,
+          "w": 189.046875,
+          "h": 16
+        },
+        {
+          "n": 10,
+          "x": 18,
+          "y": 397,
           "w": 384,
           "h": 118
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-open": {
-      "w": 783,
+      "w": 792,
       "h": 111,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 678.671875,
+          "x": 687.203125,
           "y": 7,
           "w": 96,
           "h": 22
         },
         {
           "n": 2,
-          "x": 488.0625,
+          "x": 500.546875,
           "y": 34,
-          "w": 132.5625,
+          "w": 96.859375,
           "h": 21.328125
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-ghost-rules": {
       "w": 410,
@@ -100,27 +105,26 @@
       "marks": [
         {
           "n": 1,
-          "x": 214.796875,
+          "x": 206.046875,
           "y": 11,
-          "w": 79.28125,
+          "w": 87.3125,
           "h": 16
         },
         {
           "n": 2,
-          "x": 320.078125,
+          "x": 319.359375,
           "y": 81,
           "w": 20,
           "h": 20
         },
         {
           "n": 3,
-          "x": 364.078125,
+          "x": 363.359375,
           "y": 9,
-          "w": 32.921875,
+          "w": 33.640625,
           "h": 20
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-one-color": {
       "w": 414,
@@ -148,8 +152,7 @@
           "w": 156,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-one-level": {
       "w": 412,
@@ -179,33 +182,31 @@
           "h": 24,
           "at": "tr"
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-one-run": {
       "w": 414,
-      "h": 169,
+      "h": 199,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 339.078125,
+          "x": 337.984375,
           "y": 39,
-          "w": 59.921875,
+          "w": 61.015625,
           "h": 24
         },
         {
           "n": 2,
-          "x": 220.828125,
-          "y": 147,
-          "w": 75.25,
+          "x": 215.6875,
+          "y": 177,
+          "w": 79.671875,
           "h": 16
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-hide-mode": {
-      "w": 266,
+      "w": 263,
       "h": 137,
       "gpu": false,
       "marks": [
@@ -213,26 +214,24 @@
           "n": 1,
           "x": 13,
           "y": 97,
-          "w": 239.125,
+          "w": 236.859375,
           "h": 28
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-pick-tree": {
-      "w": 290,
-      "h": 324,
+      "w": 218,
+      "h": 321,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 11,
-          "y": 228,
-          "w": 269.203125,
-          "h": 22
+          "x": 83,
+          "y": 231,
+          "w": 125.4375,
+          "h": 16
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-pick-row": {
       "w": 396,
@@ -253,8 +252,7 @@
           "w": 312,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-multi": {
       "w": 414,
@@ -283,12 +281,11 @@
           "w": 156,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-combine": {
       "w": 414,
-      "h": 588,
+      "h": 574,
       "gpu": false,
       "marks": [
         {
@@ -314,13 +311,12 @@
         },
         {
           "n": 4,
-          "x": 229.53125,
+          "x": 223.3125,
           "y": 13,
-          "w": 66.546875,
+          "w": 72.046875,
           "h": 16
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "setcolor-ghost-viewport": {
       "w": 713,
@@ -357,7 +353,7 @@
         "section": "Common",
         "label": "Run mode",
         "icon": "",
-        "tooltip": "Reset model \u2014 clears every existing color, opacity and hidden override before the rules run (like Alt+R).\n\nAppend only \u2014 layers the rules on top of what is already colored.\n\nHide model \u2014 hides EVERYTHING first; the rules unhide and color only what they match.",
+        "tooltip": "Reset model — clears every existing color, opacity and hidden override before the rules run (like Alt+R).\n\nAppend only — layers the rules on top of what is already colored.\n\nHide model — hides EVERYTHING first; the rules unhide and color only what they match.",
         "keys": ""
       },
       {
@@ -394,6 +390,13 @@
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
         "tooltip": "Delete every rule (the run mode is kept)",
         "keys": "ALT 1028"
+      },
+      {
+        "section": "Common",
+        "label": "Select",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-select-all \"><path d=\"M8 9a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1l0 -6\"></path><path d=\"M12 20v.01\"></path><path d=\"M16 20v.01\"></path><path d=\"M8 20v.01\"></path><path d=\"M4 20v.01\"></path><path d=\"M4 16v.01\"></path><path d=\"M4 12v.01\"></path><path d=\"M4 8v.01\"></path><path d=\"M4 4v.01\"></path><path d=\"M8 4v.01\"></path><path d=\"M12 4v.01\"></path><path d=\"M16 4v.01\"></path><path d=\"M20 4v.01\"></path><path d=\"M20 8v.01\"></path><path d=\"M20 12v.01\"></path><path d=\"M20 16v.01\"></path><path d=\"M20 20v.01\"></path></svg>",
+        "tooltip": "Select every item the enabled rules match — the rules as a search: nothing is coloured and the run mode is ignored",
+        "keys": "ALT 1063"
       },
       {
         "section": "Common",
@@ -441,7 +444,7 @@
         "section": "Each rule",
         "label": "On / Off",
         "icon": "",
-        "tooltip": "Enable / disable this rule \u2014 disabled rules are skipped by Run",
+        "tooltip": "Enable / disable this rule — disabled rules are skipped",
         "keys": ""
       },
       {
@@ -467,30 +470,37 @@
       },
       {
         "section": "Each rule",
+        "label": "−+",
+        "icon": "",
+        "tooltip": "How opaque the matched items are: 1 = as they are, 0 = hidden",
+        "keys": ""
+      },
+      {
+        "section": "Each rule",
         "label": "Opacity 0",
         "icon": "",
-        "tooltip": "Quick set: opacity 0 \u2014 matched items are hidden. This sets the hide flag rather than a 0 % override; move the rule off 0 and its items come back on the next run",
+        "tooltip": "Quick set: opacity 0 — matched items are hidden. This sets the hide flag rather than a 0 % override; move the rule off 0 and its items come back",
         "keys": ""
       },
       {
         "section": "Each rule",
         "label": "Opacity 1",
         "icon": "",
-        "tooltip": "Quick set: opacity 1 \u2014 fully opaque (default)",
+        "tooltip": "Quick set: opacity 1 — fully opaque (default)",
         "keys": ""
       },
       {
         "section": "Each rule",
         "label": "Store",
         "icon": "",
-        "tooltip": "Scope this rule to models loaded from one store \u2014 All stores matches every loaded model",
+        "tooltip": "Scope this rule to models loaded from one store — All stores matches every loaded model",
         "keys": ""
       },
       {
         "section": "Each rule",
         "label": "Filter operation",
         "icon": "",
-        "tooltip": "Append adds this row's matches to the rule's result; Remove subtracts them from the rows above; Keep keeps only what the rows above (in this rule) found that this row matches too \u2014 e.g. Append a folder, then Keep contains HVAC",
+        "tooltip": "Append adds this row's matches to the rule's result; Remove subtracts them from the rows above; Keep keeps only what the rows above (in this rule) found that this row matches too — e.g. Append a folder, then Keep contains HVAC",
         "keys": ""
       },
       {
@@ -504,14 +514,14 @@
         "section": "Each rule",
         "label": "Move filter row up",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-up \"><path d=\"M12 5l0 14\"></path><path d=\"M18 11l-6 -6\"></path><path d=\"M6 11l6 -6\"></path></svg>",
-        "tooltip": "Move this filter row up (rows run top to bottom \u2014 Keep / Remove act on the rows above)",
+        "tooltip": "Move this filter row up (rows run top to bottom — Keep / Remove act on the rows above)",
         "keys": ""
       },
       {
         "section": "Each rule",
         "label": "Move filter row down",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-down \"><path d=\"M12 5l0 14\"></path><path d=\"M18 13l-6 6\"></path><path d=\"M6 13l6 6\"></path></svg>",
-        "tooltip": "Move this filter row down (rows run top to bottom \u2014 Keep / Remove act on the rows above)",
+        "tooltip": "Move this filter row down (rows run top to bottom — Keep / Remove act on the rows above)",
         "keys": ""
       },
       {
@@ -525,7 +535,7 @@
         "section": "Each rule",
         "label": "Insert selected name",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
-        "tooltip": "Insert the LAST selected name \u2014 whatever is the current selection root: the row you clicked in the tree, the item you picked in the viewport, or where U / P walked to. Replaces this row's text; in Multi mode it is appended as a new line instead",
+        "tooltip": "Insert the LAST selected name — whatever is the current selection root: the row you clicked in the tree, the item you picked in the viewport, or where U / P walked to. Replaces this row's text; in Multi mode it is appended as a new line instead",
         "keys": ""
       },
       {
@@ -539,7 +549,7 @@
         "section": "Each rule",
         "label": "Hierarchy level",
         "icon": "",
-        "tooltip": "The filter is applied to the NAMES at this hierarchy level (counted like the tree, import folders included) \u2014 each match includes its whole subtree. Lvl 1 tests the import folder name, so a hit takes everything under the folder. All lvl = match at any level, the import folder names included",
+        "tooltip": "The filter is applied to the NAMES at this hierarchy level (counted like the tree, import folders included) — each match includes its whole subtree. Lvl 1 tests the import folder name, so a hit takes everything under the folder. All lvl = match at any level, the import folder names included",
         "keys": ""
       },
       {
@@ -554,14 +564,14 @@
         "keys": "",
         "section": "Each rule",
         "label": "Rule name",
-        "tooltip": "Free text shown in the rule header \u2014 use it to say what the rule is for."
+        "tooltip": "Free text shown in the rule header — use it to say what the rule is for."
       },
       {
         "icon": "",
         "keys": "",
         "section": "Each rule",
         "label": "Opacity",
-        "tooltip": "0\u20131. 1 leaves the opacity alone; lower values make the matched items see-through."
+        "tooltip": "0–1. 1 leaves the opacity alone; lower values make the matched items see-through."
       },
       {
         "icon": "",
@@ -579,5 +589,5 @@
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.0.142"
 }

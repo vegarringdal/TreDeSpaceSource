@@ -1,6 +1,7 @@
 import * as Comlink from 'comlink';
 import { type PackedNames, packedName } from '../color/packedNames';
 import { aabbInsideShape, aabbIntersectsShape, type SelectShape, type SelectShapeMode } from '../math/shapeBounds';
+import { type ColorRuleSpec, matchColorRuleItems } from './colorRules';
 // Selection domain: subtree/group/item selection, inversion, counts, and the
 // transform-aware world bounds of the current selection.
 import { IS_SELECTED, models, NO_PARENT, type StateUpdate } from './dbState';
@@ -273,6 +274,32 @@ export const selectionApi = {
       existing.states = interleaveStates(m);
     } else {
       updates.push(packStates(m, model));
+    }
+    return transferUpdates(updates);
+  },
+
+  /** Replace the selection with every item the Set Color rules match — the
+   *  panel's Select: the rules act as a search, nothing is coloured. Hidden
+   *  items are selected too, like every other name-based select. */
+  selectByColorRules(rules: ColorRuleSpec[]): StateUpdate[] {
+    const marks = matchColorRuleItems(rules);
+    const updates = selectionApi.clearSelection();
+    for (const [mi, mark] of marks) {
+      const m = models[mi];
+      const sel: number[] = [];
+      for (let i = 0; i < mark.length; i++) {
+        if (mark[i]) {
+          m.states[i * 2] |= IS_SELECTED;
+          sel.push(i);
+        }
+      }
+      m.selected = Uint32Array.from(sel);
+      const existing = updates.find((u) => u.model === mi);
+      if (existing) {
+        existing.states = interleaveStates(m);
+      } else {
+        updates.push(packStates(m, mi));
+      }
     }
     return transferUpdates(updates);
   },

@@ -263,6 +263,30 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       }
     },
 
+    /** Select every item the enabled rules match — the rules as a search:
+     *  nothing is coloured and the run mode plays no part. */
+    async select() {
+      const { rules, running } = store.get();
+      if (running || !rules.some((r) => r.enabled)) {
+        return;
+      }
+      store.set({ running: true });
+      dialogs.loading('Selecting what the rules match…', 'Set Color');
+      try {
+        const count = await viewerActions.selectByColorRules(await specsForRules(rules));
+        consoleActions.log(
+          count ? 'info' : 'warn',
+          `Set Color → selected ${count} item${count === 1 ? '' : 's'} the enabled rules match`,
+        );
+      } catch (e) {
+        consoleActions.log('error', `Set Color select failed: ${e}`);
+        dialogs.error(`Selecting by the color rules failed: ${e}`, 'Set Color');
+      } finally {
+        dialogs.hideLoading();
+        store.set({ running: false });
+      }
+    },
+
     /** Download the whole rule set (mode + rules) as a JSON file. */
     saveToFile() {
       const { mode, rules } = store.get();

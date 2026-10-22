@@ -200,6 +200,11 @@ export interface ViewerState {
   gpuTimings: boolean;
   /** verbose performance tracing to the Console (Stats tab) — dev diagnostic */
   trace: boolean;
+  // hierarchy
+  /** Hierarchy tree: what sits below the zones (model level 3 and deeper)
+   *  in the model file's own order instead of A–Z. Folders, sites and zones
+   *  stay A–Z. */
+  treeModelOrder: boolean;
 }
 
 export const initialViewerState: ViewerState = {
@@ -304,6 +309,7 @@ export const initialViewerState: ViewerState = {
   statsBackdrop: true,
   gpuTimings: false,
   trace: false,
+  treeModelOrder: false,
 };
 
 // persist the viewer/render settings so edits survive a refresh. Transient

@@ -226,8 +226,20 @@ own. Key facts, kept here so the port history isn't lost:
   per-domain undo/redo.
 - **Coloring**: quick swatches + Color Panel (manual color, color opacity),
   opacity overrides, per-domain undo/redo.
+- **Set Color Select** (2026-10-20, both Set Color panels): runs the
+  enabled rules through the same matcher as Run (`matchColorRuleItems` in
+  `colorRules.ts`; Run and Select share `compileRows` / `appendRowHits` /
+  `itemSetMatch`) and selects the hits instead of writing overrides.
+  *Generate* (rebuild a rule set from a hand-made look) was built beside it
+  and REMOVED on 2026-10-21 by the director's call — rules match by name, so
+  the result was odd (long sibling lists, duplicate names, a pipe branch's own
+  tubes unreachable) and not worth keeping. The State snapshot is the way to
+  keep a hand-made look; don't re-propose Generate.
 - **Hierarchy**: worker-built tree, name search (plain contains / equals via
   the worker's `db.search`), reveal-on-select, U/P navigation, collapse-all.
+  Children are A–Z; the *Model order* toggle (`viewerState.treeModelOrder`,
+  2026-10-21) keeps the model file's order from model level 3 down (below
+  site / zone — `MODEL_ORDER_FROM_LEVEL`, passed to `treeApi.children`).
 - **Scene Labels** (`LabelOverlay.ts`, `labels/` panel): world-anchored,
   draggable DOM text labels with leader lines (same projection path as the
   measurement overlay). Native has this only as backlog (its 8.3 labels item);

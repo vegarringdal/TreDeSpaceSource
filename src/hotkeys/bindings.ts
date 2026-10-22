@@ -2331,6 +2331,14 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => multiColor.collapseAll(),
   },
   {
+    id: 'multiColor.select',
+    category: 'Color',
+    label: 'Set Color: select matches',
+    defaultKeys: 'ALT 1063',
+    description: 'Select every item the enabled Set Color rules match (nothing is coloured)',
+    run: () => void multiColor.select(),
+  },
+  {
     id: 'camera.focusClick',
     category: 'Camera',
     label: 'Focus last click',
@@ -3429,6 +3437,14 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT 801',
     description: 'Collapse every node in the hierarchy tree',
     run: () => collapseHierarchy(),
+  },
+  {
+    id: 'hierarchy.modelOrder',
+    category: 'Hierarchy',
+    label: 'Model order',
+    defaultKeys: 'ALT 804',
+    description: 'Toggle the hierarchy between A–Z and the model file’s own order below the zones',
+    run: () => viewerActions.update({ treeModelOrder: !viewerState.get().treeModelOrder }),
   },
   {
     id: 'hierarchy.itemEdgesOff',

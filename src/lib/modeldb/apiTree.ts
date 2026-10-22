@@ -2,7 +2,7 @@
 // fullname resolvers over the global index, and root→leaf path helpers.
 import { type DbModel, models, NO_PARENT, type TreeNode } from './dbState';
 import { ensureGlobalIndex, hitEntry, hitModel, liveHits } from './globalNameIndex';
-import { ensureNames, entryName, itemForId, itemsUnder, stateAggregates } from './hierarchyIndex';
+import { ensureNames, entryDepths, entryName, itemForId, itemsUnder, stateAggregates } from './hierarchyIndex';
 import { transforms } from './transformPool';
 
 /** Label-anchor snap: if `c` lies inside NO item's AABB (a bent run whose
@@ -132,13 +132,19 @@ export const treeApi = {
     return Array.from(m.roots, (e) => treeApi.node(model, e));
   },
 
-  children(model: number, entry: number): TreeNode[] {
+  /** An entry's children, A–Z — or, when they sit at model level
+   *  `fileOrderFromLevel` or deeper (1 = a root entry), in the model file's
+   *  own order (the Hierarchy's "Model order" toggle). */
+  children(model: number, entry: number, fileOrderFromLevel?: number): TreeNode[] {
     const m = models[model];
     const out: TreeNode[] = [];
     for (let c = m.childStart[entry]; c < m.childStart[entry + 1]; c++) {
       out.push(treeApi.node(model, m.childList[c]));
     }
-    out.sort((a, b) => a.name.localeCompare(b.name));
+    const childLevel = entryDepths(m)[entry] + 1;
+    if (fileOrderFromLevel === undefined || childLevel < fileOrderFromLevel) {
+      out.sort((a, b) => a.name.localeCompare(b.name));
+    }
     return out;
   },
 

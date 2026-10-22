@@ -1,6 +1,11 @@
 import type { TreeNode } from '../../../lib/modeldb/modeldbWorker';
 import { db } from '../../../state/viewer/db';
 import { groupSelKey, selectionState } from '../../../state/viewer/selection.state';
+import { viewerState } from '../../../state/viewer/viewer.state';
+
+/** "Model order" starts below the zones: model level 1 = site, 2 = zone, so
+ *  level 3 and deeper keep the file's order; sites and zones stay A–Z. */
+export const MODEL_ORDER_FROM_LEVEL = 3;
 
 export interface Row {
   model: number; // -1 = a folder-group row (or a store band, see `store`)
@@ -78,6 +83,18 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
   const activeSet = new Set(actives);
   const activeGroupSet = new Set(activeGroups);
   const out: Row[] = [];
+  const fileOrderFromLevel = viewerState.get().treeModelOrder ? MODEL_ORDER_FROM_LEVEL : undefined;
+  /** An entry's children, fetched once and cached (cleared when the order
+   *  toggle flips). */
+  const kidsOf = async (model: number, entry: number): Promise<TreeNode[]> => {
+    const k = keyOf(model, entry);
+    let kids = caches.children.get(k);
+    if (!kids) {
+      kids = await db.children(model, entry, fileOrderFromLevel);
+      caches.children.set(k, kids);
+    }
+    return kids;
+  };
 
   const walk = async (model: number, nodes: TreeNode[], depth: number, underActive: boolean) => {
     for (const n of nodes) {
@@ -94,13 +111,7 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         hidden: hiddenOf(n),
       });
       if (n.hasChildren && exp.has(keyOf(model, n.entry))) {
-        const k = keyOf(model, n.entry);
-        let kids = caches.children.get(k);
-        if (!kids) {
-          kids = await db.children(model, n.entry);
-          caches.children.set(k, kids);
-        }
-        await walk(model, kids, depth + 1, isActive);
+        await walk(model, await kidsOf(model, n.entry), depth + 1, isActive);
       }
     }
   };
@@ -186,13 +197,7 @@ export async function buildRows(caches: HierarchyCaches, exp: Set<string>): Prom
         hidden: hiddenOf(r.node),
       });
       if (exp.has(keyOf(r.model, r.node.entry))) {
-        const k = keyOf(r.model, r.node.entry);
-        let kids = caches.children.get(k);
-        if (!kids) {
-          kids = await db.children(r.model, r.node.entry);
-          caches.children.set(k, kids);
-        }
-        await walk(r.model, kids, depth + 1, rootActive);
+        await walk(r.model, await kidsOf(r.model, r.node.entry), depth + 1, rootActive);
       }
     }
   };

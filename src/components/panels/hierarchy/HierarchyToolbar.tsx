@@ -4,11 +4,13 @@ import {
   IconFocus2,
   IconFocusCentered,
   IconFoldUp,
+  IconListNumbers,
   IconPlaneTilt,
 } from '@tabler/icons-react';
 import { Button } from '@treDeSpaceUI/widgets';
 import { selectionState } from '../../../state/viewer/selection.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
+import { viewerState } from '../../../state/viewer/viewer.state';
 
 /** The camera/tree action strip at the top of the hierarchy list. */
 export function HierarchyToolbar({
@@ -19,6 +21,7 @@ export function HierarchyToolbar({
   onCollapseAll: () => void;
 }) {
   const sel = selectionState.use();
+  const treeModelOrder = viewerState.useSelect((s) => s.treeModelOrder);
 
   return (
     <div className="mb-1 flex shrink-0 items-center gap-1 border-slate-800 border-b pb-1">
@@ -66,6 +69,16 @@ export function HierarchyToolbar({
         shortcut="hierarchy.collapseAll"
         disabled={expandedCount === 0}
         onClick={onCollapseAll}
+      />
+      <Button
+        iconOnly
+        icon={<IconListNumbers />}
+        active={treeModelOrder}
+        tooltip={
+          'Model order\n(on: what sits below the zones is listed in the order the model file has it; off: A–Z. Folders, sites and zones always stay A–Z)'
+        }
+        shortcut="hierarchy.modelOrder"
+        onClick={() => viewerActions.update({ treeModelOrder: !treeModelOrder })}
       />
     </div>
   );

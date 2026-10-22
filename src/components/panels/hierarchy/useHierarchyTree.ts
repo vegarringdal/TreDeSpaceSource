@@ -3,6 +3,7 @@ import type { TreeNode } from '../../../lib/modeldb/modeldbWorker';
 import { storesState, TEMP_STORE } from '../../../state/stores/stores.state';
 import { db } from '../../../state/viewer/db';
 import { selectionState } from '../../../state/viewer/selection.state';
+import { viewerState } from '../../../state/viewer/viewer.state';
 import { registerHierarchyCollapse } from './hierarchy.actions';
 import { buildRows, groupKey, type HierarchyCaches, keyOf, ROW_H, type Row, rowKey } from './hierarchyModel';
 
@@ -38,6 +39,8 @@ export function useHierarchyTree(): HierarchyTree {
     storeOrder: [],
   });
   const { stores } = storesState.use();
+  const treeModelOrder = viewerState.useSelect((s) => s.treeModelOrder);
+  const orderRef = useRef(treeModelOrder);
   const listRef = useRef<HTMLDivElement | null>(null);
   const pendingScroll = useRef(false);
 
@@ -114,6 +117,17 @@ export function useHierarchyTree(): HierarchyTree {
       alive = false;
     };
   }, [rebuild, sel.modelsVersion, stores]);
+
+  // the "Model order" toggle: refetch every open node's children in the new
+  // order, keeping what is expanded (skips the mount — the load above builds)
+  useEffect(() => {
+    if (orderRef.current === treeModelOrder) {
+      return;
+    }
+    orderRef.current = treeModelOrder;
+    caches.current.children.clear();
+    void rebuild(expandedRef.current);
+  }, [rebuild, treeModelOrder]);
 
   // viewport pick -> expand the path to the item and mark it for scroll.
   // MUST run before the actives effect so its rebuild sees the expanded path

@@ -791,6 +791,16 @@ export const viewerActions = {
     return selectionState.get().count;
   },
 
+  /** Replace the selection with every item the Set Color rules match (the
+   *  panel's Select — nothing is coloured). Resolves to the new count. */
+  async selectByColorRules(rules: ColorRuleSpec[]): Promise<number> {
+    applyStateUpdates(await db.selectByColorRules(rules));
+    viewerState.set({ suppressTintOnOverride: false });
+    selectionState.set({ activeGroup: null, activeGroups: [], actives: [], reveal: null });
+    await refreshSelectionMeta(null);
+    return selectionState.get().count;
+  },
+
   /** Opacity overrides (state undo domain, like coloring). */
   async setOpacity(pct: number) {
     applyStateUpdates(await db.setOpacityOnSelection(pct));

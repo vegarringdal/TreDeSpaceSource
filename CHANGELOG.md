@@ -4,6 +4,40 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.10.21** (>0.0.142):
+  Hierarchy: a **Model order** toggle in the toolbar (ALT 804). When it is on,
+  everything below the zones (model level 3 and deeper) is listed in the
+  order the model file has it instead of A–Z. Folders, sites and zones stay
+  A–Z, because a folder's models load in no fixed order. Off is the default.
+  The setting is kept across reloads and tabs, and flipping it keeps the open
+  branches open. User guide: the F1 Hierarchy legend and screenshots include
+  it.
+  Set Color: **Generate** is removed again, together with its hotkey (ALT 1064),
+  guide section and screenshot. Rebuilding rules by name from a hand-made look
+  gave odd results: long lists, and parts it could not reach. To keep a
+  hand-made look, save a State snapshot. **Select** stays.
+
+- **2026.10.20** (>0.0.142):
+  Set Color and Set Color (viewpoint) get two buttons left of Reset all.
+  **Select** (ALT 1063) selects every item the enabled rules match, using the
+  rules as a search: nothing is coloured and the run mode plays no part.
+  **Generate** (ALT 1064) replaces the rules with a set rebuilt from the
+  colours, opacity and hiding set by hand, so manual work can become an
+  editable rule set or a viewpoint's rules. It switches to Hide model and writes
+  a "Visible sites" rule (every site with something visible, Default look),
+  then a "Hidden" rule, then one rule per colour / opacity. The opacity is the
+  one you see, so a colour set with a quick opacity keeps it. Each rule lists
+  the highest tree entries that share one look. A name is only used when it
+  can match nothing else. Items no name reaches on their own are reported, with
+  a pointer to the State snapshot as the exact way to keep a hand-made look.
+  These are a name used twice, or a pipe branch's own tubes once one of its
+  components is recoloured. It asks
+  before replacing rules that are not the untouched default, and shows a
+  loading dialog while it works. The Select / Generate row wraps in a narrow
+  panel. User guide: new Set Color sections for both, a viewpoint note, and
+  fresh Set Color screenshots. The tree screenshot no longer depends on the
+  order the sample models load.
+
 - **2026.10.18** (>0.0.141):
   Licensing: the third-party notices (Settings → About) now also credit
   rvmparser (MIT, Christopher Dyken) — the C++ RVM parser the RVM converter

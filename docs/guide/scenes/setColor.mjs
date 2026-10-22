@@ -26,9 +26,10 @@ async function setColorOverview(ctx) {
       { n: 4, el: { ...SC, tooltip: 'Save the rule set' } },
       { n: 5, el: { ...SC, tooltip: 'Load a rule set' } },
       { n: 6, el: { ...SC, tooltip: 'Delete every rule' } },
-      { n: 7, el: { ...SC, tooltip: 'Unhide all + reset' } },
-      { n: 8, el: { ...SC, text: '#1 Ghost everything' } },
-      { n: 9, el: { ...SC, section: '#2', css: 'div.rounded.border' } },
+      { n: 7, el: { ...SC, tooltip: 'Select every item the enabled rules match' } },
+      { n: 8, el: { ...SC, tooltip: 'Unhide all + reset' } },
+      { n: 9, el: { ...SC, text: '#1 Ghost everything' } },
+      { n: 10, el: { ...SC, section: '#2', css: 'div.rounded.border' } },
     ],
   });
   await fitView(ctx);
@@ -105,7 +106,16 @@ async function setColorPickName(ctx) {
   await ctx.call(VIEWER, 'viewerActions', 'select', '/HA-SAFE-DETECTOR');
   await ctx.sleep(800);
   await ctx.shot('setcolor-pick-tree', {
-    crop: { union: [{ css: '.dock-tab[data-tab="hierarchy"]' }, { panel: 'hierarchy', text: '/HA-TELE' }], pad: 8 },
+    // the marked row is in the union too: the sample load order (and so where
+    // /HA-TELE lands in the tree) is not fixed
+    crop: {
+      union: [
+        { css: '.dock-tab[data-tab="hierarchy"]' },
+        { panel: 'hierarchy', text: '/HA-TELE' },
+        { panel: 'hierarchy', text: '/HA-SAFE-DETECTOR' },
+      ],
+      pad: 8,
+    },
     marks: [{ n: 1, el: { panel: 'hierarchy', text: '/HA-SAFE-DETECTOR' } }],
   });
   await ctx.click({ ...SC, tooltip: 'Insert the LAST selected name' });

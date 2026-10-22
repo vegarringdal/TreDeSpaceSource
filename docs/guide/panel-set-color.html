@@ -70,6 +70,7 @@
             <li><b>Save</b> — downloads the whole rule set (mode and rules) as a <code class="inline">.json</code> file.</li>
             <li><b>Load</b> — replaces the rules with a saved file.</li>
             <li><b>Delete all</b> — removes every rule. The run mode is kept.</li>
+            <li><b>Select</b> — selects everything the rules that are <b>On</b> find. Nothing is coloured (see <a href="#set-color-select">Select what the rules find</a>).</li>
             <li><b>Reset all</b> — puts the model back to normal: every colour and opacity change is undone and hidden items come back. Your rules are kept.</li>
             <li><b>A rule, folded.</b> Click its title to open it. The header shows how many items the last run changed, and has buttons to insert a rule above, move it up or down, and switch it On / Off.</li>
             <li><b>A filter row</b> — decides which names the rule picks up. A rule can have several.</li>
@@ -235,6 +236,17 @@
             A rule's <b>Store</b> limits it to models loaded from one store. Use this when two stores have
             parts with the same names.
           </p>
+
+          <h3 id="set-color-select">Select what the rules find</h3>
+          <p>
+            Press <b>Select</b> (<kbd>ALT 1063</kbd>) to select everything the rules that are <b>On</b> find,
+            instead of colouring it. The rules work as a search: use it to check a filter before you run it,
+            or to work on the result with the selection tools.
+          </p>
+          <ul class="plain">
+            <li>The run mode, the colours and the opacity of the rules play no part.</li>
+            <li>The new selection replaces the old one. Hidden items that the rules find are selected too.</li>
+          </ul>
 
           <h3 id="set-color-ref">Reference: every control</h3>
           <div class="ref-table" data-ref="multiColor"></div>

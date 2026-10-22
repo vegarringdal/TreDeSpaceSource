@@ -76,11 +76,10 @@
           "w": 64,
           "h": 68
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f01-canvas": {
-      "w": 368,
+      "w": 371,
       "h": 103,
       "gpu": false,
       "marks": [
@@ -95,129 +94,126 @@
           "n": 2,
           "x": 78,
           "y": 6,
-          "w": 78.515625,
+          "w": 81.171875,
           "h": 68
         },
         {
           "n": 3,
-          "x": 158.515625,
+          "x": 161.171875,
           "y": 6,
           "w": 64,
           "h": 68
         },
         {
           "n": 4,
-          "x": 224.515625,
+          "x": 227.171875,
           "y": 6,
           "w": 64,
           "h": 68
         },
         {
           "n": 5,
-          "x": 290.515625,
+          "x": 293.171875,
           "y": 6,
           "w": 64,
           "h": 68
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f01-drawmode": {
-      "w": 293,
+      "w": 302,
       "h": 103,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 12.515625,
+          "x": 12.171875,
           "y": 6,
           "w": 64,
           "h": 68
         },
         {
           "n": 2,
-          "x": 78.515625,
+          "x": 78.171875,
           "y": 6,
-          "w": 85.328125,
+          "w": 87.75,
           "h": 21.328125
         },
         {
           "n": 3,
-          "x": 78.515625,
+          "x": 78.171875,
           "y": 29.328125,
-          "w": 85.328125,
+          "w": 87.75,
           "h": 21.328125
         },
         {
           "n": 4,
-          "x": 78.515625,
+          "x": 78.171875,
           "y": 52.65625,
-          "w": 85.328125,
+          "w": 87.75,
           "h": 21.328125
         },
         {
           "n": 5,
-          "x": 165.84375,
+          "x": 167.921875,
           "y": 6,
-          "w": 114.671875,
+          "w": 120.53125,
           "h": 21.328125
         },
         {
           "n": 6,
-          "x": 165.84375,
+          "x": 167.921875,
           "y": 29.328125,
-          "w": 114.671875,
+          "w": 120.53125,
           "h": 21.328125
         },
         {
           "n": 7,
-          "x": 165.84375,
+          "x": 167.921875,
           "y": 52.65625,
-          "w": 114.671875,
+          "w": 120.53125,
           "h": 21.328125
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f01-quickclear": {
-      "w": 144,
+      "w": 149,
       "h": 103,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 12.515625,
+          "x": 12.453125,
           "y": 6,
-          "w": 119.96875,
+          "w": 124.390625,
           "h": 33
         },
         {
           "n": 2,
-          "x": 12.515625,
+          "x": 12.453125,
           "y": 41,
-          "w": 119.96875,
+          "w": 124.390625,
           "h": 33
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f01-hierarchy": {
       "w": 290,
-      "h": 250,
+      "h": 247,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 8,
           "y": 31,
-          "w": 216.234375,
+          "w": 214.140625,
           "h": 24
         },
         {
           "n": 2,
-          "x": 228.234375,
+          "x": 226.140625,
           "y": 31,
-          "w": 24.015625,
+          "w": 24,
           "h": 24,
           "at": "tr"
         },
@@ -265,20 +261,26 @@
           "w": 24,
           "h": 24,
           "at": "bl"
+        },
+        {
+          "n": 9,
+          "x": 176,
+          "y": 59,
+          "w": 24,
+          "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f01-search": {
       "w": 290,
-      "h": 339,
+      "h": 336,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 8,
           "y": 31,
-          "w": 216.234375,
+          "w": 214.140625,
           "h": 24
         },
         {
@@ -288,15 +290,13 @@
           "w": 269.203125,
           "h": 85
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f01-hierarchy-menu": {
-      "w": 354,
-      "h": 223,
+      "w": 258,
+      "h": 220,
       "gpu": false,
-      "marks": [],
-      "fromGpu": true
+      "marks": []
     },
     "f01-console": {
       "w": 834,
@@ -307,7 +307,7 @@
           "n": 1,
           "x": 11.203125,
           "y": 34.125,
-          "w": 63.6875,
+          "w": 64.46875,
           "h": 23.75
         },
         {
@@ -325,8 +325,7 @@
           "h": 24,
           "at": "tr"
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f01-task-sketch-viewport": {
       "w": 822,
@@ -363,7 +362,7 @@
         "section": "Assets",
         "label": "Wipe All",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash-x \"><path d=\"M4 7h16\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path><path d=\"M10 12l4 4m0 -4l-4 4\"></path></svg>",
-        "tooltip": "Wipe ALL locally saved data \u2014 settings, layout, hotkeys, viewpoints, rules AND every imported asset \u2014 then reload",
+        "tooltip": "Wipe ALL locally saved data — settings, layout, hotkeys, viewpoints, rules AND every imported asset — then reload",
         "keys": "ALT 1144"
       },
       {
@@ -405,7 +404,7 @@
         "section": "Draw Mode",
         "label": "Sketch",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-pencil \"><path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"></path><path d=\"M13.5 6.5l4 4\"></path></svg>",
-        "tooltip": "Sketch mode: white background with black edge lines only (labels/measurements stay visible; screenshots capture the sketch look). Transparent items are not included \u2014 they produce no edges.",
+        "tooltip": "Sketch mode: white background with black edge lines only (labels/measurements stay visible; screenshots capture the sketch look). Transparent items are not included — they produce no edges.",
         "keys": "ALT 1146"
       },
       {
@@ -454,14 +453,14 @@
         "section": "Quick Clear",
         "label": "Label",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
-        "tooltip": "Delete the scene's labels \u2014 a live viewpoint's labels are muted instead, never deleted",
+        "tooltip": "Delete the scene's labels — a live viewpoint's labels are muted instead, never deleted",
         "keys": "ALT 1141"
       },
       {
         "section": "Quick Clear",
         "label": "Measurement",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
-        "tooltip": "Delete the scene's measurements \u2014 a live viewpoint's measurements are muted instead, never deleted",
+        "tooltip": "Delete the scene's measurements — a live viewpoint's measurements are muted instead, never deleted",
         "keys": "ALT 1227"
       }
     ],
@@ -470,14 +469,14 @@
         "section": "Hierarchy",
         "label": "Contains (*)",
         "icon": "",
-        "tooltip": "Contains \u2014 any part of the name matches",
+        "tooltip": "Contains — any part of the name matches",
         "keys": ""
       },
       {
         "section": "Hierarchy",
         "label": "Equals (=)",
         "icon": "",
-        "tooltip": "Equals \u2014 whole-string match",
+        "tooltip": "Equals — whole-string match",
         "keys": ""
       },
       {
@@ -524,6 +523,13 @@
       },
       {
         "section": "Hierarchy",
+        "label": "Model order",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list-numbers \"><path d=\"M11 6h9\"></path><path d=\"M11 12h9\"></path><path d=\"M12 18h8\"></path><path d=\"M4 16a2 2 0 1 1 4 0c0 .591 -.5 1 -1 1.5l-3 2.5h4\"></path><path d=\"M6 10v-6l-2 2\"></path></svg>",
+        "tooltip": "Model order\n(on: what sits below the zones is listed in the order the model file has it; off: A–Z. Folders, sites and zones always stay A–Z)",
+        "keys": "ALT 804"
+      },
+      {
+        "section": "Hierarchy",
         "label": "Dotted eye",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-dotted \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12h.01\"></path><path d=\"M3 12h.01\"></path><path d=\"M5 15h.01\"></path><path d=\"M5 9h.01\"></path><path d=\"M19 15h.01\"></path><path d=\"M12 18h.01\"></path><path d=\"M12 6h.01\"></path><path d=\"M8 17h.01\"></path><path d=\"M8 7h.01\"></path><path d=\"M16 17h.01\"></path><path d=\"M16 7h.01\"></path><path d=\"M19 9h.01\"></path></svg>",
         "tooltip": "Some items below are hidden (hide, or opacity 0)",
@@ -533,7 +539,7 @@
         "section": "Hierarchy",
         "label": "Blue bar on a row",
         "icon": "",
-        "tooltip": "Partly selected: some of the items below this row are selected (not all). The row highlights fully once everything beneath it is selected \u2014 no need to expand to see where the selection is",
+        "tooltip": "Partly selected: some of the items below this row are selected (not all). The row highlights fully once everything beneath it is selected — no need to expand to see where the selection is",
         "keys": ""
       },
       {
@@ -547,7 +553,7 @@
         "icon": "",
         "keys": "",
         "section": "",
-        "label": "Search items\u2026",
+        "label": "Search items…",
         "tooltip": "Type at least two letters of a name. Up to ten matches are listed, highest level first; click one to select it."
       }
     ],
@@ -577,17 +583,17 @@
         "section": "Console",
         "label": "Download",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
-        "tooltip": "Download the whole console as a .txt \u2014 every level, whatever the filter \u2014 to send with a bug report",
+        "tooltip": "Download the whole console as a .txt — every level, whatever the filter — to send with a bug report",
         "keys": "ALT 1401"
       },
       {
         "section": "Console",
         "label": "Clear",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
-        "tooltip": "Clear the console \u2014 the startup lines (welcome, version, GPU checks) stay",
+        "tooltip": "Clear the console — the startup lines (welcome, version, GPU checks) stay",
         "keys": "ALT 1222"
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.0.142"
 }

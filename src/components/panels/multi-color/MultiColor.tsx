@@ -1,11 +1,11 @@
-import { IconDownload, IconEraser, IconPlayerPlay, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react';
+import { IconPlayerPlay, IconPlus } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { Button, Collapsible, readFileText, Select, useFilePicker } from '@treDeSpaceUI/widgets';
+import { Button, Collapsible, Select } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
-import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { COLOR_RULES_MODE_OPTIONS, COLOR_RULES_MODE_TOOLTIP } from './colorRulesModes';
 import { MultiColorCtx, MultiColorProvider } from './multiColorContext';
 import { RuleEditor } from './RuleEditor';
+import { RuleSetActions } from './RuleSetActions';
 import { RulesListHeader } from './RulesListHeader';
 
 export { MultiColorProvider };
@@ -16,7 +16,6 @@ export function MultiColor() {
   useMinSize(280, 260);
   const { store, act } = useContext(MultiColorCtx);
   const s = store.use();
-  const picker = useFilePicker('.json', (f) => readFileText(f, act.loadFromText));
 
   return (
     <PanelBody className="panel-body flex h-full min-h-0 flex-col gap-1.5 p-2">
@@ -28,7 +27,8 @@ export function MultiColor() {
               Rules run top to bottom. Filters find items by name; <b>Default</b> colour / opacity 1 restore the
               original mesh look. Mode <b>Reset model</b> clears every color, opacity and hidden override before running
               (like Alt+R); <b>Append only</b> layers on top; <b>Hide model</b> hides everything first — the rules
-              unhide and colour only what they match. Save/Load stores the rule set as JSON.
+              unhide and colour only what they match. Save/Load stores the rule set as JSON. <b>Select</b> selects what
+              the rules match.
             </>
           }
         >
@@ -62,42 +62,7 @@ export function MultiColor() {
               Run
             </Button>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Button
-              icon={<IconDownload size={14} />}
-              tooltip="Save the rule set (mode + rules) to a JSON file"
-              shortcut="multiColor.save"
-              onClick={act.saveToFile}
-            >
-              Save
-            </Button>
-            <Button
-              icon={<IconUpload size={14} />}
-              tooltip="Load a rule set from a JSON file (replaces the current rules)"
-              shortcut="multiColor.load"
-              onClick={picker.open}
-            >
-              Load
-            </Button>
-            <Button
-              icon={<IconTrash size={14} />}
-              disabled={s.rules.length === 0}
-              tooltip="Delete every rule (the run mode is kept)"
-              shortcut="multiColor.clear"
-              onClick={act.clearRules}
-            >
-              Delete all
-            </Button>
-            <Button
-              icon={<IconEraser size={14} />}
-              tooltip="Unhide all + reset every color and opacity override on the model (the rules are kept)"
-              shortcut="selection.clearOverrides"
-              onClick={() => void viewerActions.clearAllOverrides()}
-            >
-              Reset all
-            </Button>
-            {picker.element}
-          </div>
+          <RuleSetActions />
         </Collapsible>
       </div>
       <RulesListHeader />

@@ -84,6 +84,7 @@ async function captureHierarchy(ctx) {
       { n: 6, el: { ...HI, tooltip: 'Focus selection' }, at: 'bl' },
       { n: 7, el: { ...HI, tooltip: 'Fit visible' } },
       { n: 8, el: { ...HI, tooltip: 'Collapse the whole tree' }, at: 'bl' },
+      { n: 9, el: { ...HI, tooltip: 'Model order' } },
     ],
   });
 
@@ -142,6 +143,7 @@ async function harvestAll(ctx) {
       'Focus selection': 'Focus selection',
       'Fit visible': 'Fit visible',
       'Collapse the whole tree': 'Collapse all',
+      'Model order': 'Model order',
       'Partly selected': 'Blue bar on a row',
       'Hidden (hide': 'Crossed-out eye',
       'Some items below are hidden': 'Dotted eye',
