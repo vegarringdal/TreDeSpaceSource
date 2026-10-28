@@ -1,5 +1,5 @@
 // Guide scene: F12 SQL Editor (f12-sql-editor.html) — the SQL workspace and its
-// four panels: Sql Report (SQL Reports), SQL Editor, SQL Table, SQL Detail.
+// four panels: SQL Report (SQL Reports), SQL Editor, SQL Table, SQL Detail.
 //
 // There is no sample database in the repo, so one is BUILT here at scene time:
 // the tag names are read from the loaded Huldra models (the model DB worker),
@@ -23,7 +23,7 @@ const DETAIL = '/src/components/panels/sql-detail/sqlDetailPanel.ts';
 const DB_FILE = 'huldra-tags.db';
 const DB_PATH = `sql_assets/main/${DB_FILE}`;
 const SPEAKER = '/SX-HA86-011A';
-/** Width of the Sql Report panel for the report-editor pictures. */
+/** Width of the SQL Report panel for the report-editor pictures. */
 const REPORT_W = 440;
 
 /** The top-level systems the sample tags are taken from, with their discipline. */
@@ -383,7 +383,7 @@ async function scrollTo(ctx, spec) {
 }
 
 /** The report editor is tall and wide: shown with the Hierarchy closed so the
- *  Sql Report panel gets its width; the layout is re-applied afterwards. */
+ *  SQL Report panel gets its width; the layout is re-applied afterwards. */
 async function captureReportEditor(ctx) {
   await ctx.close('hierarchy');
   await widenRight(ctx, 'sqlReports', REPORT_W);

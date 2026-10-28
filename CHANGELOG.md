@@ -4,6 +4,10 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.10.27** (>0.0.143):
+  The SQL Report panel's title and its ribbon toggle now read "SQL Report"
+  (was "Sql Report"), matching the other SQL panels; the user guide follows.
+
 - **2026.10.21** (>0.0.142):
   Hierarchy: a **Model order** toggle in the toolbar (ALT 804). When it is on,
   everything below the zones (model level 3 and deeper) is listed in the

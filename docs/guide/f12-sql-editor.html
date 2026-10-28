@@ -46,7 +46,7 @@
             Press <kbd>F12</kbd> (or pick <b>SQL Editor</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
             ribbon) to switch to the SQL workspace. It is built for working with a <b>database</b> that describes the
             items in your model — for example a tag register with status, area and documents for every tag. Most
-            people only use the <b>Sql Report</b> panel: pick a saved report, press a button, and look at the
+            people only use the <b>SQL Report</b> panel: pick a saved report, press a button, and look at the
             result. The <b>SQL Editor</b> is for writing and testing new reports.
           </p>
           <figure class="shot" data-shot="f12-layout">
@@ -55,7 +55,7 @@
           <ol class="legend-list">
             <li><b>Home ribbon</b> — the same ribbon as in <a href="f01-home.html">F1 Home</a>. Its <b>SQL</b> button (<kbd>ALT 631</kbd>) opens <b>SQL Assets</b>, where databases are imported.</li>
             <li><b>Hierarchy</b> — the model tree. Clicking an item here selects it, and the SQL Detail panel shows its data.</li>
-            <li><b>Sql Report</b> (SQL Reports) — the saved reports of a store. <a href="#reports">Described below.</a></li>
+            <li><b>SQL Report</b> (SQL Reports) — the saved reports of a store. <a href="#reports">Described below.</a></li>
             <li><b>SQL Editor</b> — write and test your own SQL. <a href="#editor">Described below.</a></li>
             <li><b>3D view</b> — shows the colouring and selection made from SQL results. Click an item to see its data in SQL Detail.</li>
             <li><b>SQL Table</b> — the result of a report as a table. <a href="#table">Described below.</a></li>
@@ -117,7 +117,7 @@
           <ol class="steps">
             <li>On the Home ribbon, press <b>SQL</b> (<kbd>ALT 631</kbd>). The <b>SQL Assets</b> panel opens.</li>
             <li>Choose the store under <b>Import to</b> (the store your models are in), then press <b>Import Database</b> and pick the file. The database is copied into the browser's own storage, so it is there next time you open the app.</li>
-            <li>Back in F12, choose that store in the <b>Store</b> list at the top of the <b>Sql Report</b> panel. Its reports are listed below it.</li>
+            <li>Back in F12, choose that store in the <b>Store</b> list at the top of the <b>SQL Report</b> panel. Its reports are listed below it.</li>
           </ol>
           <p>
             The <a href="a01-assets.html">ALT+F1 Assets page</a> describes SQL Assets in full (deleting and replacing
@@ -126,7 +126,7 @@
 
           <h3 id="task-table">Run a report and look at the result</h3>
           <ol class="steps">
-            <li>In <b>Sql Report</b>, pick the <b>Store</b>, then click a report's name to open it.</li>
+            <li>In <b>SQL Report</b>, pick the <b>Store</b>, then click a report's name to open it.</li>
             <li>Fill in its filters, if it has any. Here the <b>Discipline</b> list <span class="mk">2</span> already has <b>Telecom</b> picked.
               <figure class="shot" data-shot="f12-report-run"></figure>
             </li>
@@ -186,10 +186,10 @@
           <h3 id="task-save">Save your query as a report</h3>
           <ol class="steps">
             <li>Give it a <b>Name</b> and a <b>Description</b> in the SQL Editor, and tick the <b>Types</b> it should offer.</li>
-            <li>Press <b>Save Local</b> (<kbd>ALT 660</kbd>). The report is added to the store of the <b>Main db</b>, and the Sql Report panel switches to that store so you can see it. Without a name you are asked for one; without a Main db the button is greyed out.</li>
+            <li>Press <b>Save Local</b> (<kbd>ALT 660</kbd>). The report is added to the store of the <b>Main db</b>, and the SQL Report panel switches to that store so you can see it. Without a name you are asked for one; without a Main db the button is greyed out.</li>
           </ol>
           <p>
-            To change an existing report, use its pencil button in Sql Report (see <a href="#reports-edit">Edit a
+            To change an existing report, use its pencil button in SQL Report (see <a href="#reports-edit">Edit a
             report</a>). To work on it in the bigger editor, press <b>Set editor</b> there; <b>Save Local</b> then
             saves a <i>new</i> report and leaves the original as it was.
           </p>
@@ -205,9 +205,9 @@
 
         <section id="reports" class="g-sec">
           <p class="sec-kick">Panel</p>
-          <h2>Sql Report (SQL Reports)</h2>
+          <h2>SQL Report (SQL Reports)</h2>
           <p>
-            The saved reports of one store. Its tab reads <b>Sql Report</b>; open it on its own from the Panels
+            The saved reports of one store. Its tab reads <b>SQL Report</b>; open it on its own from the Panels
             ribbon (<kbd>ALT 679</kbd>).
           </p>
           <figure class="shot" data-shot="f12-reports-list"></figure>
@@ -466,9 +466,9 @@ JOIN punch.items p ON p.tag = t.tag;</pre>
         <section id="reference" class="g-sec">
           <p class="sec-kick">Reference</p>
           <h2>Every control</h2>
-          <h3 id="ref-reports">Sql Report — running reports</h3>
+          <h3 id="ref-reports">SQL Report — running reports</h3>
           <div class="ref-table" data-ref="sqlReports"></div>
-          <h3 id="ref-reports-editor">Sql Report — the report editor</h3>
+          <h3 id="ref-reports-editor">SQL Report — the report editor</h3>
           <div class="ref-table" data-ref="sqlReportsEditor"></div>
           <h3 id="ref-editor">SQL Editor</h3>
           <div class="ref-table" data-ref="sqlEditor"></div>

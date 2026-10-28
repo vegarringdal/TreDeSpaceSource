@@ -69,7 +69,7 @@ export const panels: PanelDefinition[] = [
   // opened on demand — not part of the default layout
   definePanel({ id: 'sqlAssets', title: 'SQL Assets', home: 'left', component: SqlAssets }),
   definePanel({ id: 'sqlEditor', title: 'SQL Editor', home: 'bottom', component: SqlEditor }),
-  definePanel({ id: 'sqlReports', title: 'Sql Report', home: 'left', component: SqlReports }),
+  definePanel({ id: 'sqlReports', title: 'SQL Report', home: 'left', component: SqlReports }),
   // onClose (a real close, not a layout swap) drops the result unless the
   // panel's Keep toggle is on — see sqlTablePanel.ts
   definePanel({

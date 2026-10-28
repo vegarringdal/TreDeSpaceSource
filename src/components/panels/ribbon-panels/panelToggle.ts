@@ -24,7 +24,7 @@ export const PANEL_TOGGLES: readonly PanelToggle[] = [
   { id: 'modelAssets', title: 'Model Assets', keys: 'ALT 676' },
   { id: 'sqlAssets', title: 'SQL Assets', keys: 'ALT 677' },
   { id: 'sqlEditor', title: 'SQL Editor', keys: 'ALT 678' },
-  { id: 'sqlReports', title: 'Sql Report', keys: 'ALT 679' },
+  { id: 'sqlReports', title: 'SQL Report', keys: 'ALT 679' },
   { id: 'sqlTable', title: 'SQL Table', keys: 'ALT 680' },
   { id: 'sqlDetail', title: 'SQL Detail', keys: 'ALT 681' },
   { id: 'multiColor', title: 'Set Color', keys: 'CTRL+C' },
