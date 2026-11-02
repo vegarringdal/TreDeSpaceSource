@@ -4,6 +4,21 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.02** (>0.0.145):
+  Container images: the Dockerfile and nginx config are back, so the image
+  workflow works again; an earlier cleanup had deleted them, and every run
+  failed. The image builds in a node stage and is served by rootless nginx
+  on port 8080. The old `SPA_INJECT` runtime-config script is gone, because
+  the app no longer reads it. `/docs/events` and the other doc pages now open
+  without `.html`. `.containerignore` is now `.dockerignore`, because Docker
+  never read the old name. There are two manual workflows. "Container Prod
+  image" publishes `tredespace-prod:<package.json version>` from `main` only
+  and refuses to overwrite a tag. "Container Dev image" publishes
+  `tredespace-dev:DEVBUILD-<run number>` from `dev` only and keeps the last 5
+  builds. A dev image shows its `DEVBUILD-<n>` in About and
+  `/build.version`; the version comes from an `APP_VERSION` build variable,
+  so `package.json` is not touched.
+
 - **2026.11.02** (>0.0.144):
   Set Color: the Common section and the "Rules" label are gone. **Run**,
   **Select** and **+ Rule** sit on one row at the top (Expand all / Collapse

@@ -1,5 +1,0 @@
-node_modules
-dist
-vulkan_reference
-rust_src/target
-.git

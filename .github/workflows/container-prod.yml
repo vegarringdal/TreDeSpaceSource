@@ -1,4 +1,4 @@
-name: Docker image
+name: Container Prod image
 
 on:
   workflow_dispatch:
@@ -7,10 +7,19 @@ permissions:
   contents: read
   packages: write
 
+env:
+  IMAGE: ghcr.io/vegarringdal/tredespace-prod
+
 jobs:
   image:
     runs-on: ubuntu-latest
     steps:
+      - name: Only main may publish
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::prod images are built from main only (got ${{ github.ref_name }})"
+          exit 1
+
       - uses: actions/checkout@v4
 
       - name: Read version
@@ -26,7 +35,7 @@ jobs:
       - name: Refuse to overwrite an existing tag
         run: |
           V=${{ steps.ver.outputs.version }}
-          if docker manifest inspect "ghcr.io/vegarringdal/tredespace:$V" >/dev/null 2>&1; then
+          if docker manifest inspect "$IMAGE:$V" >/dev/null 2>&1; then
             echo "::error::$V already published"
             exit 1
           fi
@@ -35,7 +44,8 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/vegarringdal/tredespace:${{ steps.ver.outputs.version }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          tags: ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
 
       - name: Summary
-        run: echo "Pushed ghcr.io/vegarringdal/tredespace:${{ steps.ver.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Pushed $IMAGE:${{ steps.ver.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"

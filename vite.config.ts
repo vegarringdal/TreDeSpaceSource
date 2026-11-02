@@ -10,6 +10,12 @@ import { type ApiDocsData, applyApiNamespaces, writeApiDocs } from './scripts/ge
 import { writeWidgetDocs } from './scripts/gen-widget-docs.mjs';
 import { packUi } from './scripts/pack-ui.mjs';
 
+/** The version the app shows (About, Console banner, /build.version, legal
+ *  banner). The APP_VERSION env var overrides package.json for non-release
+ *  builds — the dev container sets DEVBUILD-<run number>. It is not semver, so
+ *  the @tredespace/ui tarball (npm pack) keeps package.json's version. */
+const APP_VERSION = process.env.APP_VERSION || pkg.version;
+
 // Third-party license attribution (Settings → About → "Show third-party
 // notices") is generated into src/generated/third-party-notices.json by
 // scripts/gen-third-party-notices.mjs — run `npm run gen:notices` after a
@@ -35,7 +41,7 @@ function buildVersion(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'build.version',
-        source: `VERSION: ${pkg.version}\nBUILD_TIME: ${new Date().toISOString()}\n`,
+        source: `VERSION: ${APP_VERSION}\nBUILD_TIME: ${new Date().toISOString()}\n`,
       });
     },
   };
@@ -96,7 +102,7 @@ function sampleAssets(assets: { name: string; type: string; gzip?: boolean }[]):
 }
 
 const LEGAL_BANNER = `/*!
- * TreDeSpace Web Viewer v${pkg.version}
+ * TreDeSpace Web Viewer v${APP_VERSION}
  * Copyright (c) ${new Date().getFullYear()} Vegar Ringdal. All rights reserved.
  *
  * Use of the hosted application is permitted as-is. Redistribution of this
@@ -200,8 +206,8 @@ function uiPackage(): Plugin {
 export default defineConfig({
   base: './',
   define: {
-    // package.json version, baked in at build/dev time (Console banner)
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    // baked in at build/dev time (About, Console banner)
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   // keep in sync with "paths" in tsconfig.json
   resolve: { alias: { '@treDeSpaceUI': resolve(import.meta.dirname, 'src/treDeSpaceUI') } },

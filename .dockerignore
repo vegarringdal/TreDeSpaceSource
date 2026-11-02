@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+target
+rust_src/target
+temp_ref
+docs/generated
+.pack
+chrome
+convertSamples/ifc/*.ifc
