@@ -171,7 +171,7 @@
           <ol class="steps">
             <li>In the <b>SQL Editor</b>, choose the database under <b>Main db</b>.</li>
             <li>Type the SQL, for example <code class="inline">SELECT discipline, status, count(*) AS tags FROM tags GROUP BY discipline, status</code>.</li>
-            <li>Press <b>Run</b> (<kbd>Ctrl</kbd> + <kbd>Enter</kbd> in the SQL box). The rows are written to the <b>Console</b>, and the line at the bottom of the editor says how long it took and how many rows came back.</li>
+            <li>Press <b>Run</b>. The rows are written to the <b>Console</b>, and the line at the bottom of the editor says how long it took and how many rows came back.</li>
             <li>Press <b>As Table</b> to see the same result in the <b>SQL Table</b>.
               <figure class="shot" data-shot="f12-editor-table"></figure>
             </li>
@@ -293,7 +293,7 @@
             <li><b>Save Local</b> (<kbd>ALT 660</kbd>) — saves the draft as a new report in the Main db's store. Greyed out until a Main db is picked.</li>
             <li><b>Main db</b> — the database to query, from any store. <b>Assets</b> next to it opens SQL Assets.</li>
             <li><b>Types</b> — which of the buttons below are enabled: the colour buttons need COLORING, As Table needs TABLE, As Detail needs DETAIL.</li>
-            <li><b>The SQL box</b> — <kbd>Ctrl</kbd> + <kbd>Enter</kbd> runs, <kbd>Tab</kbd> / <kbd>Shift</kbd> + <kbd>Tab</kbd> indent. <b>Highlight part of the text</b> and every button runs only that part — handy when the box holds several queries.</li>
+            <li><b>The SQL box</b> — <kbd>Tab</kbd> / <kbd>Shift</kbd> + <kbd>Tab</kbd> indent. <b>Highlight part of the text</b> and every button runs only that part — handy when the box holds several queries.</li>
             <li><b>Run</b> (<kbd>ALT 635</kbd>) — runs every statement. The result rows are written to the <b>Console</b>.</li>
             <li><b>Shared / Exclusive</b> (<kbd>ALT 636</kbd>) — <b>Shared</b> (the normal setting) only reads, and several tabs can read at once. <b>Exclusive</b> also allows changing the database (<code class="inline">INSERT</code>, <code class="inline">UPDATE</code>, <code class="inline">CREATE TABLE</code> …), one tab at a time. Reports always run Shared.</li>
             <li><b>Kill</b> (<kbd>END</kbd> while a query runs) — stops a query that takes too long.</li>

@@ -279,14 +279,14 @@
         "section": "Hidden Items",
         "label": "Unhide Sel+Off.",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"></path></svg>",
-        "tooltip": "Unhide everything within the selection's bounds grown by the Clipping Box ribbon's Fit Sel offset \u2014 no clipping box needed",
+        "tooltip": "Unhide everything within the selection's bounds grown by the Clipping Box ribbon's Fit Sel offset — no clipping box needed",
         "keys": "ALT 506"
       },
       {
         "section": "Hidden Items",
         "label": "Unhide Each+Off.",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"></path></svg>",
-        "tooltip": "Unhide everything within the Fit Sel offset of EACH selected item individually (max 200 selected) \u2014 for scattered selections where one big box would cover too much",
+        "tooltip": "Unhide everything within the Fit Sel offset of EACH selected item individually (max 200 selected) — for scattered selections where one big box would cover too much",
         "keys": "ALT 507"
       },
       {
@@ -305,7 +305,7 @@
       },
       {
         "icon": "",
-        "keys": "ALT 210 \u2026",
+        "keys": "ALT 210 …",
         "section": "Quick Coloring",
         "label": "Colour swatches",
         "tooltip": "Colour the selection with that swatch. Change the swatches in the Color Panel."
@@ -333,7 +333,7 @@
       },
       {
         "section": "Opacity Override",
-        "label": "Opacity \u2212",
+        "label": "Opacity −",
         "icon": "",
         "tooltip": "Decrease the opacity-override value",
         "keys": "ALT 253"
@@ -410,5 +410,5 @@
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.0.144"
 }

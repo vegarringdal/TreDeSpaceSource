@@ -61,19 +61,19 @@
 
           <h3 id="set-color-tour">A tour of the panel</h3>
           <figure class="shot" data-shot="setcolor-overview">
-            <figcaption>A rule set with three rules after a run. Rule #2 is open; #1 and #3 are folded.</figcaption>
+            <figcaption>A rule set with three rules after a run. Rule #2 is open; #1 and #3 are folded. The rule-set buttons sit in a bar at the bottom.</figcaption>
           </figure>
           <ol class="legend-list">
-            <li><b>Run mode</b> — what happens to the model before the rules run (see <a href="#set-color-modes">Run modes</a>).</li>
-            <li><b>+ Rule</b> — adds an empty rule at the bottom of the list.</li>
             <li><b>Run</b> — applies every rule that is switched <b>On</b>, from top to bottom.</li>
+            <li><b>Select</b> — selects everything the rules that are <b>On</b> find. Nothing is coloured (see <a href="#set-color-select">Select what the rules find</a>).</li>
+            <li><b>+ Rule</b> — adds an empty rule at the bottom of the list.</li>
+            <li><b>Run mode</b> — what happens to the model before the rules run (see <a href="#set-color-modes">Run modes</a>).</li>
+            <li><b>A rule, folded.</b> Click its title to open it. The header shows how many items the last run changed, and has buttons to insert a rule above, move it up or down, and switch it On / Off.</li>
+            <li><b>A filter row</b> — decides which names the rule picks up. A rule can have several.</li>
             <li><b>Save</b> — downloads the whole rule set (mode and rules) as a <code class="inline">.json</code> file.</li>
             <li><b>Load</b> — replaces the rules with a saved file.</li>
             <li><b>Delete all</b> — removes every rule. The run mode is kept.</li>
-            <li><b>Select</b> — selects everything the rules that are <b>On</b> find. Nothing is coloured (see <a href="#set-color-select">Select what the rules find</a>).</li>
             <li><b>Reset all</b> — puts the model back to normal: every colour and opacity change is undone and hidden items come back. Your rules are kept.</li>
-            <li><b>A rule, folded.</b> Click its title to open it. The header shows how many items the last run changed, and has buttons to insert a rule above, move it up or down, and switch it On / Off.</li>
-            <li><b>A filter row</b> — decides which names the rule picks up. A rule can have several.</li>
           </ol>
 
           <div class="concept">
@@ -92,8 +92,8 @@
           <ol class="steps">
             <li>
               Open the panel. It starts with one empty rule, <b>#1 Rule</b>. Give the rule a name
-              <span class="mk">1</span>. Click <b>Custom</b> <span class="mk">2</span>, then click the colour
-              <span class="mk">3</span> to pick a different one.
+              <span class="mk">1</span>. Click <b>Custom</b> <span class="mk">2</span>. The colour starts as white;
+              click it <span class="mk">3</span> and pick orange.
               <figure class="shot" data-shot="setcolor-one-color"></figure>
             </li>
             <li>
@@ -155,7 +155,7 @@
               <figure class="shot" data-shot="setcolor-hide-mode"></figure>
               <figure class="shot" data-shot="setcolor-hide-viewport"></figure>
             </li>
-            <li>To see the whole model again, press <b>Reset all</b>.</li>
+            <li>To see the whole model again, press <b>Reset all</b> at the bottom of the panel.</li>
           </ol>
           <p class="note">
             A rule with opacity <b>0</b> hides its items. This works in every mode, for example to remove
@@ -228,7 +228,7 @@
 
           <h3 id="set-color-save">Save and reuse a rule set</h3>
           <ol class="steps">
-            <li>Press <b>Save</b> (<kbd>ALT 1024</kbd>). The browser downloads <code class="inline">set-color-rules.json</code>.</li>
+            <li>Press <b>Save</b> at the bottom of the panel (<kbd>ALT 1024</kbd>). The browser downloads <code class="inline">set-color-rules.json</code>.</li>
             <li>Later, or on another computer, open Set Color and press <b>Load</b> (<kbd>ALT 1025</kbd>) to pick the file. It replaces the current rules.</li>
             <li>Press <b>Run</b>.</li>
           </ol>

@@ -20,7 +20,7 @@ const COLOR_OPTIONS = [
 ] as const;
 
 /** First custom colour a rule gets when switched off Default. */
-const DEFAULT_RULE_COLOR = '#ff8800';
+const DEFAULT_RULE_COLOR = '#ffffff';
 
 /** One color rule: a collapsible section with insert-before / move / enable /
  *  delete in its header, then name, color + opacity, store and filter rows. */

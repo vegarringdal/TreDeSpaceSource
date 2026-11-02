@@ -1949,7 +1949,7 @@ export const HOTKEYS: HotkeyDef[] = [
     category: 'SQL',
     label: 'SQL: run script',
     defaultKeys: 'ALT 635',
-    description: "Run the SQL Editor's script (same as Ctrl+Enter in the editor)",
+    description: "Run the SQL Editor's script",
     run: () => callSqlRun(),
   },
   {

@@ -2,78 +2,78 @@
   "shots": {
     "setcolor-overview": {
       "w": 420,
-      "h": 599,
+      "h": 758,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 18,
-          "y": 65,
-          "w": 246.859375,
-          "h": 24
-        },
-        {
-          "n": 2,
-          "x": 270.859375,
-          "y": 65,
-          "w": 64.125,
-          "h": 24
-        },
-        {
-          "n": 3,
-          "x": 340.984375,
-          "y": 65,
+          "x": 9,
+          "y": 32,
           "w": 61.015625,
           "h": 24
         },
         {
-          "n": 4,
-          "x": 18,
-          "y": 97,
-          "w": 67.46875,
-          "h": 24
-        },
-        {
-          "n": 5,
-          "x": 91.46875,
-          "y": 97,
-          "w": 66.796875,
-          "h": 24
-        },
-        {
-          "n": 6,
-          "x": 164.265625,
-          "y": 97,
-          "w": 95.265625,
-          "h": 24
-        },
-        {
-          "n": 7,
-          "x": 265.53125,
-          "y": 97,
+          "n": 2,
+          "x": 76.015625,
+          "y": 32,
           "w": 75.03125,
           "h": 24
         },
         {
-          "n": 8,
-          "x": 18,
-          "y": 127,
-          "w": 89.359375,
+          "n": 3,
+          "x": 157.046875,
+          "y": 32,
+          "w": 64.125,
           "h": 24
         },
         {
-          "n": 9,
+          "n": 4,
+          "x": 9,
+          "y": 60,
+          "w": 402,
+          "h": 24
+        },
+        {
+          "n": 5,
           "x": 18,
-          "y": 203,
+          "y": 105,
           "w": 189.046875,
           "h": 16
         },
         {
-          "n": 10,
+          "n": 6,
           "x": 18,
-          "y": 397,
+          "y": 299,
           "w": 384,
           "h": 118
+        },
+        {
+          "n": 7,
+          "x": 38.546875,
+          "y": 723,
+          "w": 67.46875,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 114.015625,
+          "y": 723,
+          "w": 66.796875,
+          "h": 24
+        },
+        {
+          "n": 9,
+          "x": 188.8125,
+          "y": 723,
+          "w": 95.265625,
+          "h": 24
+        },
+        {
+          "n": 10,
+          "x": 292.078125,
+          "y": 723,
+          "w": 89.359375,
+          "h": 24
         }
       ]
     },
@@ -91,7 +91,7 @@
         },
         {
           "n": 2,
-          "x": 500.546875,
+          "x": 504.96875,
           "y": 34,
           "w": 96.859375,
           "h": 21.328125
@@ -186,27 +186,27 @@
     },
     "setcolor-one-run": {
       "w": 414,
-      "h": 199,
+      "h": 101,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 337.984375,
-          "y": 39,
+          "x": 6,
+          "y": 6,
           "w": 61.015625,
           "h": 24
         },
         {
           "n": 2,
           "x": 215.6875,
-          "y": 177,
+          "y": 79,
           "w": 79.671875,
           "h": 16
         }
       ]
     },
     "setcolor-hide-mode": {
-      "w": 263,
+      "w": 418,
       "h": 137,
       "gpu": false,
       "marks": [
@@ -214,7 +214,7 @@
           "n": 1,
           "x": 13,
           "y": 97,
-          "w": 236.859375,
+          "w": 392,
           "h": 28
         }
       ]
@@ -285,7 +285,7 @@
     },
     "setcolor-combine": {
       "w": 414,
-      "h": 574,
+      "h": 588,
       "gpu": false,
       "marks": [
         {
@@ -350,60 +350,25 @@
   "reference": {
     "multiColor": [
       {
-        "section": "Common",
-        "label": "Run mode",
-        "icon": "",
-        "tooltip": "Reset model — clears every existing color, opacity and hidden override before the rules run (like Alt+R).\n\nAppend only — layers the rules on top of what is already colored.\n\nHide model — hides EVERYTHING first; the rules unhide and color only what they match.",
-        "keys": ""
-      },
-      {
-        "section": "Common",
-        "label": "Rule",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
-        "tooltip": "Add a new rule to the end of the sequence",
-        "keys": "ALT 1022"
-      },
-      {
-        "section": "Common",
+        "section": "Rules list",
         "label": "Run",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-player-play \"><path d=\"M7 4v16l13 -8l-13 -8\"></path></svg>",
         "tooltip": "Run all enabled rules in order",
         "keys": "ALT 1021"
       },
       {
-        "section": "Common",
-        "label": "Save",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
-        "tooltip": "Save the rule set (mode + rules) to a JSON file",
-        "keys": "ALT 1024"
-      },
-      {
-        "section": "Common",
-        "label": "Load",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
-        "tooltip": "Load a rule set from a JSON file (replaces the current rules)",
-        "keys": "ALT 1025"
-      },
-      {
-        "section": "Common",
-        "label": "Delete all",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
-        "tooltip": "Delete every rule (the run mode is kept)",
-        "keys": "ALT 1028"
-      },
-      {
-        "section": "Common",
+        "section": "Rules list",
         "label": "Select",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-select-all \"><path d=\"M8 9a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1l0 -6\"></path><path d=\"M12 20v.01\"></path><path d=\"M16 20v.01\"></path><path d=\"M8 20v.01\"></path><path d=\"M4 20v.01\"></path><path d=\"M4 16v.01\"></path><path d=\"M4 12v.01\"></path><path d=\"M4 8v.01\"></path><path d=\"M4 4v.01\"></path><path d=\"M8 4v.01\"></path><path d=\"M12 4v.01\"></path><path d=\"M16 4v.01\"></path><path d=\"M20 4v.01\"></path><path d=\"M20 8v.01\"></path><path d=\"M20 12v.01\"></path><path d=\"M20 16v.01\"></path><path d=\"M20 20v.01\"></path></svg>",
         "tooltip": "Select every item the enabled rules match — the rules as a search: nothing is coloured and the run mode is ignored",
         "keys": "ALT 1063"
       },
       {
-        "section": "Common",
-        "label": "Reset all",
-        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
-        "tooltip": "Unhide all + reset every color and opacity override on the model (the rules are kept)",
-        "keys": "ALT+R"
+        "section": "Rules list",
+        "label": "Rule",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plus \"><path d=\"M12 5l0 14\"></path><path d=\"M5 12l14 0\"></path></svg>",
+        "tooltip": "Add a new rule to the end of the sequence",
+        "keys": "ALT 1022"
       },
       {
         "section": "Rules list",
@@ -418,6 +383,13 @@
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevrons-up \"><path d=\"M7 11l5 -5l5 5\"></path><path d=\"M7 17l5 -5l5 5\"></path></svg>",
         "tooltip": "Collapse all rules",
         "keys": "ALT 1062"
+      },
+      {
+        "section": "Rules list",
+        "label": "Run mode",
+        "icon": "",
+        "tooltip": "Reset model — clears every existing color, opacity and hidden override before the rules run (like Alt+R).\n\nAppend only — layers the rules on top of what is already colored.\n\nHide model — hides EVERYTHING first; the rules unhide and color only what they match.",
+        "keys": ""
       },
       {
         "section": "Each rule",
@@ -586,8 +558,36 @@
         "section": "Each rule",
         "label": "Comment",
         "tooltip": "A note for this filter row; it does not affect the result."
+      },
+      {
+        "section": "Rules list",
+        "label": "Save",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Save the rule set (mode + rules) to a JSON file",
+        "keys": "ALT 1024"
+      },
+      {
+        "section": "Rules list",
+        "label": "Load",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Load a rule set from a JSON file (replaces the current rules)",
+        "keys": "ALT 1025"
+      },
+      {
+        "section": "Rules list",
+        "label": "Delete all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete every rule (the run mode is kept)",
+        "keys": "ALT 1028"
+      },
+      {
+        "section": "Rules list",
+        "label": "Reset all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eraser \"><path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"></path><path d=\"M18 13.3l-6.3 -6.3\"></path></svg>",
+        "tooltip": "Unhide all + reset every color and opacity override on the model (the rules are kept)",
+        "keys": "ALT+R"
       }
     ]
   },
-  "appVersion": "0.0.142"
+  "appVersion": "0.0.144"
 }

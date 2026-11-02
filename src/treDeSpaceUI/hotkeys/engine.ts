@@ -666,8 +666,9 @@ export class HotkeyEngine {
 }
 
 /** Capture a sequence for the panel's Record button. Resolves on idle-pause or
- *  Enter, rejects on Escape. Commits a chord (E+R) as one step when its keys
- *  are fully released; sequential taps become separate steps. */
+ *  a bare Enter, rejects on Escape. Commits a chord (E+R) as one step when its
+ *  keys are fully released; sequential taps become separate steps. Enter with
+ *  a key still held (CTRL+ENTER) joins the chord instead of finishing. */
 export function recordSequence(opts?: { idleMs?: number }): Promise<Sequence> {
   const idleMs = opts?.idleMs ?? 900;
   // Suspend the live engine so the keys being recorded don't fire their actions.
@@ -726,7 +727,7 @@ export function recordSequence(opts?: { idleMs?: number }): Promise<Sequence> {
         cleanup();
         return reject(new Error('cancelled'));
       }
-      if (e.code === 'Enter' && (seq.length || pending)) {
+      if (e.code === 'Enter' && heldCodes.size === 0 && (seq.length || pending)) {
         return finish();
       }
       if (e.repeat) {

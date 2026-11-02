@@ -89,7 +89,7 @@ export function SqlQueryPanel({ dbs, mainDb, onMainDbChange }: SqlQueryPanelProp
     <>
       <Hint>Run SQL against the picked main db (results to the log):</Hint>
       <Select value={mainDb} onChange={onMainDbChange} options={dbOptions} placeholder="sql.list to populate…" />
-      <SqlCodeEditor value={sql} onChange={setSql} onRun={handleRun} className="h-24" resizable />
+      <SqlCodeEditor value={sql} onChange={setSql} className="h-24" resizable />
       <Row>
         <Select value={lockmode} onChange={handleLockChange} options={LOCK_OPTIONS} className="min-w-40" />
         <Button onClick={handleRun}>sql.query</Button>

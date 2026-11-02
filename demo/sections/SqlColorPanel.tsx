@@ -73,7 +73,7 @@ export function SqlColorPanel({ mainDb }: SqlColorPanelProps) {
         SQL worker and hands them to the model DB as flat buffers. The query needs a <code>fullname</code> column;{' '}
         <code>fullname_color</code> is optional (yellow when missing).
       </Hint>
-      <SqlCodeEditor value={sql} onChange={setSql} onRun={handleColor} className="h-20" resizable />
+      <SqlCodeEditor value={sql} onChange={setSql} className="h-20" resizable />
       <Row>
         <Select value={mode} onChange={handleModeChange} options={COLOR_MODE_OPTIONS} className="min-w-56" />
         <Button onClick={handleColor}>sql.color</Button>

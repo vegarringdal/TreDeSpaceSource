@@ -1,8 +1,5 @@
-import { IconPlayerPlay, IconPlus } from '@tabler/icons-react';
 import { PanelBody, useMinSize } from '@treDeSpaceUI/dockable';
-import { Button, Collapsible, Select } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
-import { COLOR_RULES_MODE_OPTIONS, COLOR_RULES_MODE_TOOLTIP } from './colorRulesModes';
 import { MultiColorCtx, MultiColorProvider } from './multiColorContext';
 import { RuleEditor } from './RuleEditor';
 import { RuleSetActions } from './RuleSetActions';
@@ -14,60 +11,14 @@ export { MultiColorProvider };
  *  model in order — bulk coloring driven by names / pasted tag lists. */
 export function MultiColor() {
   useMinSize(280, 260);
-  const { store, act } = useContext(MultiColorCtx);
+  const { store } = useContext(MultiColorCtx);
   const s = store.use();
 
   return (
     <PanelBody className="panel-body flex h-full min-h-0 flex-col gap-1.5 p-2">
-      <div className="shrink-0">
-        <Collapsible
-          title="Common"
-          info={
-            <>
-              Rules run top to bottom. Filters find items by name; <b>Default</b> colour / opacity 1 restore the
-              original mesh look. Mode <b>Reset model</b> clears every color, opacity and hidden override before running
-              (like Alt+R); <b>Append only</b> layers on top; <b>Hide model</b> hides everything first — the rules
-              unhide and colour only what they match. Save/Load stores the rule set as JSON. <b>Select</b> selects what
-              the rules match.
-            </>
-          }
-        >
-          <div className="flex items-center gap-1.5">
-            <Select
-              className="min-w-0 flex-1"
-              tooltip={COLOR_RULES_MODE_TOOLTIP}
-              options={COLOR_RULES_MODE_OPTIONS}
-              value={s.mode}
-              onChange={(mode) => {
-                if (mode) {
-                  act.setMode(mode);
-                }
-              }}
-            />
-            <Button
-              icon={<IconPlus size={14} />}
-              tooltip="Add a new rule to the end of the sequence"
-              shortcut="multiColor.addRule"
-              onClick={act.addRule}
-            >
-              Rule
-            </Button>
-            <Button
-              icon={<IconPlayerPlay size={14} />}
-              disabled={s.running || s.rules.every((r) => !r.enabled)}
-              tooltip="Run all enabled rules in order"
-              shortcut="multiColor.run"
-              onClick={() => void act.run()}
-            >
-              Run
-            </Button>
-          </div>
-          <RuleSetActions />
-        </Collapsible>
-      </div>
       <RulesListHeader />
 
-      {/* only the RULES scroll — Common above stays visible however many rules */}
+      {/* only the RULES scroll — the header and the footer stay visible however many rules */}
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
         {s.rules.map((rule, i) => (
           <RuleEditor
@@ -81,6 +32,7 @@ export function MultiColor() {
           />
         ))}
       </div>
+      <RuleSetActions />
     </PanelBody>
   );
 }

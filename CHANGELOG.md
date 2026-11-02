@@ -4,6 +4,25 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.02** (>0.0.144):
+  Set Color: the Common section and the "Rules" label are gone. **Run**,
+  **Select** and **+ Rule** sit on one row at the top (Expand all / Collapse
+  all on the right), with the run mode under them and a wider gap before the
+  first rule. Save, Load, Delete all and Reset all moved to a bar at the
+  bottom of the panel, like the Settings panel's, so the rules get the space.
+  The user guide's panel tour and screenshots follow the new layout.
+  Set Color: switching a rule to **Custom** colour now starts at white instead
+  of orange when the rule has no colour yet.
+  Shortcuts: recording CTRL+ENTER (or any modifier + Enter) works. The
+  recorder took any Enter as "done", so holding Ctrl and pressing Enter saved
+  just CTRL; now only a bare Enter finishes the recording.
+  SQL Editor: the hidden Ctrl+Enter "run script" in the SQL box is removed, so
+  CTRL+ENTER is free to bind like any other shortcut (Run and ALT 635 still
+  run the script). The SQL box no longer types a new line on Ctrl/Cmd+Enter
+  either. The Run tooltip, the shortcut text and the user guide no longer
+  mention it. `@tredespace/ui`: `SqlCodeEditor` drops its `onRun` prop
+  (breaking for consumers that used it).
+
 - **2026.10.27** (>0.0.143):
   The SQL Report panel's title and its ribbon toggle now read "SQL Report"
   (was "Sql Report"), matching the other SQL panels; the user guide follows.

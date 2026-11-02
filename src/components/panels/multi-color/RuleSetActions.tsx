@@ -1,20 +1,19 @@
-import { IconDownload, IconEraser, IconSelectAll, IconTrash, IconUpload } from '@tabler/icons-react';
+import { IconDownload, IconEraser, IconTrash, IconUpload } from '@tabler/icons-react';
 import { Button, readFileText, useFilePicker } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { MultiColorCtx } from './multiColorContext';
 
-/** The rule-set row of Set Color's Common section: Save / Load / Delete all,
- *  Select (the rules as a search), Reset all. Wraps onto a second line in a
- *  narrow panel. */
+/** Set Color's footer: Save / Load / Delete all, Reset all — at the bottom
+ *  like the Settings panel's, out of the way of the rules. Wraps onto a
+ *  second line in a narrow panel. */
 export function RuleSetActions() {
   const { store, act } = useContext(MultiColorCtx);
   const s = store.use();
   const picker = useFilePicker('.json', (f) => readFileText(f, act.loadFromText));
-  const hasEnabledRule = s.rules.some((r) => r.enabled);
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex shrink-0 flex-wrap justify-center gap-2 border-slate-800 border-t pt-1.5 pb-0.5">
       <Button
         icon={<IconDownload size={14} />}
         tooltip="Save the rule set (mode + rules) to a JSON file"
@@ -39,15 +38,6 @@ export function RuleSetActions() {
         onClick={act.clearRules}
       >
         Delete all
-      </Button>
-      <Button
-        icon={<IconSelectAll size={14} />}
-        disabled={s.running || !hasEnabledRule}
-        tooltip="Select every item the enabled rules match — the rules as a search: nothing is coloured and the run mode is ignored"
-        shortcut="multiColor.select"
-        onClick={() => void act.select()}
-      >
-        Select
       </Button>
       <Button
         icon={<IconEraser size={14} />}

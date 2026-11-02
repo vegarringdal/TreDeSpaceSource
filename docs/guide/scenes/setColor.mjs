@@ -20,16 +20,16 @@ async function setColorOverview(ctx) {
   await ctx.shot('setcolor-overview', {
     crop: { ...SC, fit: true },
     marks: [
-      { n: 1, el: { ...SC, tooltip: 'Reset model — clears' } },
-      { n: 2, el: { ...SC, tooltip: 'Add a new rule' } },
-      { n: 3, el: { ...SC, tooltip: 'Run all enabled rules' } },
-      { n: 4, el: { ...SC, tooltip: 'Save the rule set' } },
-      { n: 5, el: { ...SC, tooltip: 'Load a rule set' } },
-      { n: 6, el: { ...SC, tooltip: 'Delete every rule' } },
-      { n: 7, el: { ...SC, tooltip: 'Select every item the enabled rules match' } },
-      { n: 8, el: { ...SC, tooltip: 'Unhide all + reset' } },
-      { n: 9, el: { ...SC, text: '#1 Ghost everything' } },
-      { n: 10, el: { ...SC, section: '#2', css: 'div.rounded.border' } },
+      { n: 1, el: { ...SC, tooltip: 'Run all enabled rules' } },
+      { n: 2, el: { ...SC, tooltip: 'Select every item the enabled rules match' } },
+      { n: 3, el: { ...SC, tooltip: 'Add a new rule' } },
+      { n: 4, el: { ...SC, tooltip: 'Reset model — clears' } },
+      { n: 5, el: { ...SC, text: '#1 Ghost everything' } },
+      { n: 6, el: { ...SC, section: '#2', css: 'div.rounded.border' } },
+      { n: 7, el: { ...SC, tooltip: 'Save the rule set' } },
+      { n: 8, el: { ...SC, tooltip: 'Load a rule set' } },
+      { n: 9, el: { ...SC, tooltip: 'Delete every rule' } },
+      { n: 10, el: { ...SC, tooltip: 'Unhide all + reset' } },
     ],
   });
   await fitView(ctx);
@@ -52,6 +52,7 @@ async function setColorOneSystem(ctx) {
   await setRules(ctx, 'reset', [rule('', [{ value: '' }])]);
   await ctx.type({ ...RULE1, css: 'input[placeholder="Rule Name"]' }, 'Piping');
   await ctx.click({ ...RULE1, text: 'Custom' });
+  await ctx.call(MC, 'multiColorActions', 'updateRule', 0, { color: '#ff8800' });
   await ctx.shot('setcolor-one-color', {
     crop: { el: RULE1 },
     marks: [
@@ -75,7 +76,13 @@ async function setColorOneSystem(ctx) {
   await ctx.click({ ...SC, tooltip: 'Run all enabled rules' });
   await ctx.sleep(500);
   await ctx.shot('setcolor-one-run', {
-    crop: { union: [{ ...SC, section: 'Common' }, { ...SC, text: '#1 Piping' }] },
+    crop: {
+      union: [
+        { ...SC, tooltip: 'Run all enabled rules' },
+        { ...SC, tooltip: 'Collapse all rules' },
+        { ...SC, text: '#1 Piping' },
+      ],
+    },
     marks: [
       { n: 1, el: { ...SC, tooltip: 'Run all enabled rules' } },
       { n: 2, el: { ...SC, re: '^\\d+ matched$' } },

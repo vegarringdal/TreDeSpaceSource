@@ -972,19 +972,19 @@ A lightweight SQL editor with syntax highlighting and the usual editor keys:
 **Tab / Shift+Tab** indent and outdent every line a multi-line selection
 touches; with a caret or a selection inside one line, Tab inserts two spaces
 (replacing that selection) and Shift+Tab removes one indent from the line.
-**Enter** keeps the current line's indentation, **Ctrl/Cmd+Enter** fires
-`onRun`. Edits go through the browser's insert command, so **Ctrl+Z** undoes
-them like typing.
+**Enter** keeps the current line's indentation. **Ctrl/Cmd+Enter** is left
+alone, so a hotkey binding can claim it (give it `allowInInput` to fire while
+the editor has focus). Edits go through the browser's insert command, so
+**Ctrl+Z** undoes them like typing.
 
 ```tsx
-<SqlCodeEditor value={sql} onChange={setSql} onRun={run} resizable className="h-32" />
+<SqlCodeEditor value={sql} onChange={setSql} resizable className="h-32" />
 ```
 
 ```ts
 type SqlCodeEditorProps = {
   value: string;
   onChange: (v: string) => void;
-  onRun?: () => void;                              // Ctrl/Cmd+Enter inside the editor
   onSelect?: (start: number, end: number) => void; // caret selection — run only highlighted text
   resizable?: boolean;                             // drag handle; set start height via className
   className?: string;
@@ -2096,7 +2096,8 @@ formatCombo(combo)            // one step → display
 isValidKeys(str)              // does it parse?
 validateBindings(defs)        // boot/test check: parse+round-trip+exact-duplicate report
 recordSequence({ idleMs? })   // capture keys for a "Record" button (idleMs default 900):
-                              //   resolves on idle-pause or Enter, rejects on Escape;
+                              //   resolves on idle-pause or a bare Enter (Enter with a
+                              //   key held, e.g. CTRL+ENTER, is recorded), rejects on Escape;
                               //   suspends the live engine while recording
 suspendHotkeys() / resumeHotkeys() // manual engine suspension (nested-safe)
 isFunctionKeySequence(seq)    // every step F1–F12 (any modifiers) — the allowInInput default

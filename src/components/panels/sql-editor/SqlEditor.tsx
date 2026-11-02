@@ -50,7 +50,6 @@ export function SqlEditor() {
         className="h-48 min-h-16 shrink-0"
         value={draft.sql}
         onChange={act.setSql}
-        onRun={() => void act.run()}
         onSelect={act.setSelection}
       />
 

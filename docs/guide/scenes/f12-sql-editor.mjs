@@ -606,7 +606,7 @@ async function harvestPanels(ctx) {
     skip: ['Enable the TABLE', 'Enable the DETAIL'],
     extra: [
       { section: '', label: 'Name / Description', tooltip: 'The name and text a report saved from here gets', first: true },
-      { section: '', label: 'SQL box', tooltip: 'The SQL. Ctrl+Enter runs; Tab / Shift+Tab indent. Highlight part of it to run only that part.' },
+      { section: '', label: 'SQL box', tooltip: 'The SQL. Tab / Shift+Tab indent. Highlight part of it to run only that part.' },
     ],
   });
   await ctx.harvest('sqlTable', {
