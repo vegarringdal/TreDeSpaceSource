@@ -180,7 +180,7 @@ async function importRvms(ctx) {
   await ctx.shot('a01-progress', { crop: { el: { css: '[role="dialog"]' }, pad: 10 } });
   await waitImportIdle(ctx);
 
-  // a quick look at one more file without keeping it — lands in the TEMP section
+  // a quick look at one more file without keeping it — lands in the temp section
   await ctx.eval(
     async (n) => {
       const { assetsActions } = await import('/src/state/assets/assets.actions.ts');

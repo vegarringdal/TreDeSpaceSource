@@ -5,6 +5,10 @@ lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
 - **2026.11.05** (>0.0.145):
+  Store names in the Model Assets, SQL Assets and Hierarchy trees now show
+  as they are, not in capitals, so they match the dropdowns. The tree
+  widget's section band (`@tredespace/ui`) no longer uppercases its label;
+  the guide text follows.
   Container images can now be pushed to any registry, not just ghcr.io, so a
   fork can publish to Docker Hub or Azure Container Registry. Set the
   `CONTAINER_IMAGE_PREFIX` variable and the `CONTAINER_REGISTRY_USERNAME` /

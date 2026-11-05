@@ -53,7 +53,7 @@ export function TreeRow({ row, style, extras, onToggle, onRowClick, onRowContext
         className={cn(
           'min-w-0 truncate',
           row.muted && 'text-slate-500 italic',
-          row.band && 'text-[10px] uppercase tracking-wider',
+          row.band && 'text-[10px] tracking-wider',
         )}
       >
         {row.label}
