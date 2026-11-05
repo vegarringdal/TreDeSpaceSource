@@ -1,6 +1,6 @@
-# TreDeSpace web viewer — static SPA served by rootless nginx. Published to
-# ghcr.io by .github/workflows/container-prod.yml (tredespace-prod, from main)
-# and container-dev.yml (tredespace-dev, from dev); both are manual runs.
+# TreDeSpace web viewer — static SPA served by rootless nginx. Published by
+# the "Container Prod image" (from main) and "Container Dev image" (from dev)
+# workflows, to ghcr.io unless configured otherwise — README › Container images.
 #
 # Local test:
 #   docker build -t tredespace-test . && docker run --rm -p 8080:8080 tredespace-test
@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# optional version override (dev images: DEVBUILD-<run>); unset = package.json
+# the version the app shows — the workflows pass the image tag; unset = package.json
 ARG APP_VERSION
 RUN npm run build
 

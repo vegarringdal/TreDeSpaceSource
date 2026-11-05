@@ -32,6 +32,58 @@ So for first stable version in 2026, it will be "26.1.0", next will be "26.2.0"
 After branch is merged, I will create a docker build (hosted at github) & update tredespace.
 
 
+## Container images
+
+The app ships as a static container. A node stage runs `npm run build`, then
+rootless nginx serves `dist/` on port 8080. Unknown paths fall back to the app,
+and doc pages also open without `.html` (`/docs/events`).
+
+```bash
+docker build -t tredespace .
+docker run --rm -p 8080:8080 tredespace     # → http://localhost:8080
+```
+
+Two manual GitHub workflows (Actions → *Run workflow*) build and push it. Both
+call the shared `.github/workflows/container-image.yml`.
+
+| Workflow | Runs from | Image | Tag |
+|---|---|---|---|
+| Container Prod image | `main` only | `<prefix>/tredespace-prod` | `package.json` version; an existing tag is never overwritten |
+| Container Dev image | `dev` only | `<prefix>/tredespace-dev` | `DEVBUILD-<run number>`; only the newest 5 are kept (ghcr.io only) |
+
+The tag is also the version the app shows (About, `/build.version`). It is
+passed in as the `APP_VERSION` build argument; `package.json` is not changed.
+
+### Pushing to another registry (forks)
+
+With nothing set, the images go to `ghcr.io/<repo owner>` using the
+workflow's own `GITHUB_TOKEN`, so a fork works as-is once Actions are enabled
+on it. To push somewhere else, add these under the repo's *Settings → Secrets
+and variables → Actions*:
+
+| Name | Kind | Value |
+|---|---|---|
+| `CONTAINER_IMAGE_PREFIX` | variable | Registry host + namespace, lowercase. The image name is appended. |
+| `CONTAINER_REGISTRY_USERNAME` | secret | Registry user name |
+| `CONTAINER_REGISTRY_PASSWORD` | secret | Password or access token |
+
+- **Docker Hub:** prefix `docker.io/<user>`. The username is the Docker Hub
+  user, and the password is a personal access token with Read & Write.
+- **Azure Container Registry:** prefix `<registry>.azurecr.io`, optionally with
+  `/<namespace>`. Use the user name and password of an ACR token with push
+  rights, or a service principal's app id and secret.
+- **ghcr.io under another owner** (e.g. an organization): prefix
+  `ghcr.io/<owner>`, with a personal access token that has `write:packages`.
+  Add `delete:packages` if the dev cleanup should run there too.
+
+The dev cleanup (keep 5) only runs on ghcr.io. On other registries every dev
+tag stays, unless you use that registry's own retention (e.g. `acr purge` on
+Azure). On ghcr.io, if the server pulls without logging in, check the
+package's visibility after the first push. If the dev cleanup fails with a
+permission error, give this repo the *Admin* role under the package's
+*Manage Actions access*.
+
+
 
 ## Three parts, three licenses
 

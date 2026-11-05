@@ -1,0 +1,119 @@
+name: Container image (shared)
+
+# Called by container-prod.yml and container-dev.yml. The registry comes from
+# the CONTAINER_IMAGE_PREFIX variable (default ghcr.io/<repo owner>) and the
+# CONTAINER_REGISTRY_USERNAME / _PASSWORD secrets (default GITHUB_TOKEN, which
+# only works for ghcr.io) — see README › Container images.
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: The only branch this image may be published from
+        type: string
+        required: true
+      image:
+        description: Image name under the prefix (tredespace-prod / tredespace-dev)
+        type: string
+        required: true
+      prefix:
+        description: Registry + namespace, e.g. docker.io/someuser; empty = ghcr.io/<repo owner>
+        type: string
+        default: ''
+      dev-build:
+        description: Tag DEVBUILD-<run number> (re-tagging allowed) instead of the package.json version (never overwritten)
+        type: boolean
+        default: false
+      keep:
+        description: ghcr.io only — delete all but the newest N versions after the push (0 = keep all)
+        type: number
+        default: 0
+    secrets:
+      CONTAINER_REGISTRY_USERNAME:
+        required: false
+      CONTAINER_REGISTRY_PASSWORD:
+        required: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only ${{ inputs.branch }} may publish
+        if: github.ref != format('refs/heads/{0}', inputs.branch)
+        run: |
+          echo "::error::${{ inputs.image }} is built from ${{ inputs.branch }} only (got ${{ github.ref_name }})"
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      # run_number counts up per run of the calling workflow and is never
+      # reused; a re-run of the same run keeps it and replaces that tag
+      - name: Resolve image and version
+        id: meta
+        env:
+          PREFIX: ${{ inputs.prefix }}
+          OWNER: ${{ github.repository_owner }}
+          NAME: ${{ inputs.image }}
+          DEV_BUILD: ${{ inputs.dev-build }}
+          RUN: ${{ github.run_number }}
+        run: |
+          PREFIX=${PREFIX:-ghcr.io/${OWNER,,}}
+          PREFIX=${PREFIX%/}
+          IMAGE=$PREFIX/$NAME
+          if [ "$DEV_BUILD" = true ]; then
+            VERSION=DEVBUILD-$RUN
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          REST=${IMAGE#*/}
+          {
+            echo "registry=${PREFIX%%/*}"
+            echo "image=$IMAGE"
+            echo "version=$VERSION"
+            echo "owner=${REST%%/*}"
+            echo "package=${REST#*/}"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.meta.outputs.registry }}
+          username: ${{ secrets.CONTAINER_REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      - name: Refuse to overwrite an existing tag
+        if: ${{ !inputs.dev-build }}
+        env:
+          REF: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+        run: |
+          if docker manifest inspect "$REF" >/dev/null 2>&1; then
+            echo "::error::$REF already published"
+            exit 1
+          fi
+
+      # APP_VERSION is the version the app shows (About, /build.version);
+      # package.json is not touched. No provenance attestation, so each build
+      # is exactly one registry version and the cleanup below counts builds.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          provenance: false
+          build-args: APP_VERSION=${{ steps.meta.outputs.version }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+
+      # needs the repo to have the Admin role under the package's
+      # "Manage Actions access"; other registries use their own retention
+      - name: Keep the newest ${{ inputs.keep }} versions
+        if: inputs.keep > 0 && steps.meta.outputs.registry == 'ghcr.io'
+        uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ steps.meta.outputs.owner }}
+          package-name: ${{ steps.meta.outputs.package }}
+          package-type: container
+          min-versions-to-keep: ${{ inputs.keep }}
+
+      - name: Summary
+        env:
+          REF: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+        run: echo "Pushed $REF" >> "$GITHUB_STEP_SUMMARY"

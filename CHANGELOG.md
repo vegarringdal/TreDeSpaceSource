@@ -4,6 +4,16 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.05** (>0.0.145):
+  Container images can now be pushed to any registry, not just ghcr.io, so a
+  fork can publish to Docker Hub or Azure Container Registry. Set the
+  `CONTAINER_IMAGE_PREFIX` variable and the `CONTAINER_REGISTRY_USERNAME` /
+  `_PASSWORD` secrets; with none set the images go to `ghcr.io/<repo owner>`,
+  and the hardcoded owner is gone. The prod and dev workflows now share one
+  workflow. The keep-5 dev cleanup only runs on ghcr.io. The image build also
+  skips `rust_src`, `convertSamples`, `tests` and `plans` (about 49 MB the
+  build never reads), and the README has a Container images section.
+
 - **2026.11.02** (>0.0.145):
   Container images: the Dockerfile and nginx config are back, so the image
   workflow works again; an earlier cleanup had deleted them, and every run
