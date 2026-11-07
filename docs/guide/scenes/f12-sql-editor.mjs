@@ -435,7 +435,7 @@ async function captureEditor(ctx) {
     types: ['COLORING', 'TABLE', 'DETAIL'],
     filters: [],
   });
-  await ctx.click({ ...ED, text: 'Run' });
+  await ctx.click({ ...ED, text: 'Execute' });
   await ctx.sleep(600);
   await ctx.shot('f12-editor', {
     crop: { panel: 'sqlEditor', fit: true },
@@ -445,10 +445,10 @@ async function captureEditor(ctx) {
       { n: 3, el: { ...ED, tooltip: 'The database opened directly' } },
       { n: 4, el: { ...ED, tooltip: 'Enable the COLORING output' } },
       { n: 5, el: { ...ED, css: 'div.resize-y' } },
-      { n: 6, el: { ...ED, text: 'Run' } },
-      { n: 7, el: { ...ED, text: 'Shared' } },
+      { n: 6, el: { ...ED, text: 'Execute' } },
+      { n: 7, el: { ...ED, text: 'Shared Lock Mode' } },
       { n: 8, el: { ...ED, text: 'Kill' } },
-      { n: 9, el: { ...ED, text: 'Color White' } },
+      { n: 9, el: { ...ED, text: 'As White' } },
       { n: 10, el: { ...ED, text: 'As Table' } },
       { n: 11, el: { ...ED, text: 'Add filter' } },
       { n: 12, el: { ...ED, re: '^Will lock:' } },

@@ -29,6 +29,7 @@ import {
   removeDetailBinding,
 } from './components/panels/sql-detail/sqlDetailPanel';
 import {
+  openSqlEditorPanel,
   registerSqlEditorOpener,
   registerSqlEditorViewportOpener,
 } from './components/panels/sql-editor/sqlEditorPanel';
@@ -113,8 +114,15 @@ export function useAppStartup(manager: DockManager): void {
     if (new URLSearchParams(location.search).get('kiosk') === '1') {
       setKiosk(true);
     }
-    // Panels ribbon hotkeys: show / hide a built-in panel by id
-    registerPanelToggler((id) => manager.togglePanel(id));
+    // Panels ribbon (button + hotkey): show / hide a panel by id. The SQL
+    // Editor opens through its opener — beside the Hierarchy — not its home.
+    registerPanelToggler((id) => {
+      if (id === 'sqlEditor' && !manager.isOpen(id)) {
+        openSqlEditorPanel();
+        return;
+      }
+      manager.togglePanel(id);
+    });
     // ui.showPanel / ui.hidePanel: toggle a dock panel by id (e.g. 'hierarchy')
     registerPanelControl({
       has: (id) => !!manager.getPanel(id),
@@ -175,7 +183,8 @@ export function useAppStartup(manager: DockManager): void {
     registerClipShapesOpener(() => manager.openPanel('clipShapes'));
     registerModelAssetsOpener(() => manager.openPanelBeside('modelAssets', 'hierarchy', 'right'));
     registerSqlAssetsOpener(() => manager.openPanelBeside('sqlAssets', 'hierarchy', 'right'));
-    registerSqlEditorOpener(() => manager.openPanel('sqlEditor'));
+    // right of the Hierarchy; with the Hierarchy closed, its left-column home
+    registerSqlEditorOpener(() => manager.openPanelBeside('sqlEditor', 'hierarchy', 'right'));
     // the host API's placement: a fresh split right of the viewport, every time
     registerSqlEditorViewportOpener(() => manager.openPanelBeside('sqlEditor', 'viewport', 'right', { force: true }));
     registerSqlReportsOpener(() => manager.openPanelBeside('sqlReports', 'hierarchy', 'right'));

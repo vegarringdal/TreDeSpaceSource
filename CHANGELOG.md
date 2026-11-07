@@ -4,6 +4,26 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.07** (>0.0.146):
+  SQL Assets: the buttons under Import to are stacked in pairs, one row
+  each: Import Database / Delete Selected, then Collapse all / Expand all,
+  then Select all / Deselect all, with the selection count on its own line
+  below. Before, the count and the four smaller buttons shared one crowded
+  row. The guide's legend follows the new order.
+  SQL Editor: the colour buttons are renamed **As White**, **As
+  Transparent**, **As Hidden** and **Use Set Color**. Color Selection is now
+  **As Selection**, next to As Table and As Detail. The shortcuts keep their
+  keys; their names in the Shortcuts list and the user guide follow.
+  SQL Editor: **Run** is now **Execute** and is only as wide as its label
+  (it used to fill the row). The lock button names the mode in full:
+  **Shared Lock Mode** or **Exclusive Lock Mode**. Same shortcuts (ALT 635,
+  ALT 636); the Shortcuts list and the guide follow.
+  SQL Editor: opening it from the Panels ribbon (button or ALT 678) puts it
+  right of the Hierarchy, or in the left column when the Hierarchy is closed.
+  It used to open at the bottom. Open in SQL Editor on a report and the
+  open-editor shortcut place it the same way. The host API's `sql.editor`
+  still opens it right of the viewport.
+
 - **2026.11.05** (>0.0.145):
   Store names in the Model Assets, SQL Assets and Hierarchy trees now show
   as they are, not in capitals, so they match the dropdowns. The tree

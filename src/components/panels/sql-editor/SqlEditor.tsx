@@ -22,8 +22,8 @@ import { registerSqlRun } from './sqlEditorPanel';
  *  and a host reads it through `sql.editor.get`. The main database is picked
  *  here; any other file has to be brought in with
  *  `ATTACH DATABASE 'sql_assets/<store>/<file>'`, and those literals are what
- *  decides which files get Web-Locked before the query runs. Run's results go
- *  to the Console panel. */
+ *  decides which files get Web-Locked before the query runs. Execute's
+ *  results go to the Console panel. */
 export function SqlEditor() {
   useMinSize(320, 240);
   const { draft, filtersCollapsed } = sqlEditorState.use();

@@ -27,7 +27,7 @@ import { type PanelDefinition, usePanelContext } from '@treDeSpaceUI/dockable';
 import { Ribbon, RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { type ForwardRefExoticComponent, type RefAttributes, useSyncExternalStore } from 'react';
 import { isExternalPanelId } from '../ribbon-external/externalPanels';
-import { hasPanelToggle, panelToggleHotkeyId } from './panelToggle';
+import { hasPanelToggle, panelToggleHotkeyId, togglePanelById } from './panelToggle';
 
 const isRibbon = (dockableIn?: string | string[]) =>
   dockableIn === 'top' || (Array.isArray(dockableIn) && dockableIn.includes('top'));
@@ -97,11 +97,12 @@ export function RibbonPanels() {
         shortcut={hasPanelToggle(d.id) ? panelToggleHotkeyId(d.id) : undefined}
         tooltip={`Click to enable / disable · drag to place the ${title} panel where you want it`}
         // drag it out like a tab; a plain click still toggles (the drag
-        // guard skips the click that follows a real drag)
+        // guard skips the click that follows a real drag) — through the same
+        // toggler as the hotkey, so both open a panel in the same place
         onPointerDown={(e) => manager.dragPanelFrom(e.nativeEvent, d.id)}
         onClick={() => {
           if (!manager.consumeDragClick()) {
-            manager.togglePanel(d.id);
+            togglePanelById(d.id);
           }
         }}
       />

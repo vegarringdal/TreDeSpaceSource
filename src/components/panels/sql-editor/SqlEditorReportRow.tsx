@@ -4,9 +4,9 @@ import { sqlEditorState } from '../../../state/sqlAssets/sqlEditor.state';
 import type { ReportType } from '../../../state/sqlReports/sqlReports.state';
 
 /** Route the current SQL through the report consumers (like a saved report):
- *  the four coloring modes plus Color Selection on one row, then SQL Table and
- *  the SQL Detail binding on the next. Each button is enabled only while its
- *  output type is checked in the draft's Types. */
+ *  As White / As Transparent / As Hidden / Use Set Color on one row, then SQL
+ *  Table, the SQL Detail binding and As Selection on the next. Each button is
+ *  enabled only while its output type is checked in the draft's Types. */
 export function SqlEditorReportRow() {
   const { running, draft } = sqlEditorState.use();
   const can = (t: ReportType): boolean => !running && draft.types.includes(t);
@@ -20,15 +20,15 @@ export function SqlEditorReportRow() {
           tooltip="Everything white + the result colored (needs a fullname column; fullname_color optional, defaults yellow)"
           onClick={() => void act.colorWhite()}
         >
-          Color White
+          As White
         </Button>
         <Button
           disabled={!can('COLORING')}
           shortcut="sql.editor.colorTransparent"
-          tooltip="Like Color White, but the base coat is white at 10% opacity — the rest of the model stays faintly visible behind the colored result"
+          tooltip="Like As White, but the base coat is white at 10% opacity — the rest of the model stays faintly visible behind the colored result"
           onClick={() => void act.colorTransparent()}
         >
-          Color Transparent
+          As Transparent
         </Button>
         <Button
           disabled={!can('COLORING')}
@@ -36,7 +36,7 @@ export function SqlEditorReportRow() {
           tooltip="Isolate the result: the returned rows colored (fullname_color, defaults yellow), everything else faded to opacity 0 (Reset model in Set Color recovers)"
           onClick={() => void act.colorHidden()}
         >
-          Color Hidden
+          As Hidden
         </Button>
         <Button
           disabled={!can('COLORING')}
@@ -44,22 +44,14 @@ export function SqlEditorReportRow() {
           tooltip="Run your current Set Color rules + the result appended as one extra Multi rule (fullname_color optional, defaults yellow). Nothing is saved to the Set Color panel."
           onClick={() => void act.colorSet()}
         >
-          Color Set
-        </Button>
-        <Button
-          disabled={!can('COLORING')}
-          shortcut="sql.editor.colorSelection"
-          tooltip="Select the result in the viewer: every returned fullname becomes the selection (replaces the current one; colors untouched, fullname_color ignored)"
-          onClick={() => void act.colorSelection()}
-        >
-          Color Selection
+          Use Set Color
         </Button>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
         <Button
           disabled={!can('TABLE')}
           shortcut="sql.editor.asTable"
-          tooltip="Run and show the result in the SQL Table panel. TREE_VIEW_ARGS is seeded from the last selection — tree click, viewport pick or U / P (like Run and the color buttons), so a detail-style query can be checked here with the values it will really see"
+          tooltip="Run and show the result in the SQL Table panel. TREE_VIEW_ARGS is seeded from the last selection — tree click, viewport pick or U / P (like Execute and the color buttons), so a detail-style query can be checked here with the values it will really see"
           onClick={() => void act.asTable()}
         >
           As Table
@@ -71,6 +63,14 @@ export function SqlEditorReportRow() {
           onClick={(e) => act.asDetail(e.altKey)}
         >
           As Detail
+        </Button>
+        <Button
+          disabled={!can('COLORING')}
+          shortcut="sql.editor.colorSelection"
+          tooltip="Select the result in the viewer: every returned fullname becomes the selection (replaces the current one; colors untouched, fullname_color ignored)"
+          onClick={() => void act.colorSelection()}
+        >
+          As Selection
         </Button>
       </div>
     </>

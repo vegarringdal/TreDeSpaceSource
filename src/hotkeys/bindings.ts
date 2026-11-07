@@ -1739,7 +1739,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'sql.editor.colorWhite',
     category: 'SQL',
-    label: 'SQL Editor: color white',
+    label: 'SQL Editor: as white',
     defaultKeys: 'ALT 644',
     description: 'Paint every returned fullname white',
     run: () => void sqlEditorActions.colorWhite(),
@@ -1748,7 +1748,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'sql.editor.colorHidden',
     category: 'SQL',
-    label: 'SQL Editor: color hidden',
+    label: 'SQL Editor: as hidden',
     defaultKeys: 'ALT 645',
     description: 'Hide every returned fullname',
     run: () => void sqlEditorActions.colorHidden(),
@@ -1757,7 +1757,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'sql.editor.colorTransparent',
     category: 'SQL',
-    label: 'SQL editor: color transparent',
+    label: 'SQL Editor: as transparent',
     defaultKeys: 'ALT 1220',
     description: 'Run the editor SQL and color the result over a white base at 10% opacity',
     run: () => void sqlEditorActions.colorTransparent(),
@@ -1766,7 +1766,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'sql.editor.colorSet',
     category: 'SQL',
-    label: 'SQL Editor: color set',
+    label: 'SQL Editor: use set color',
     defaultKeys: 'ALT 646',
     description: 'Append a per-row Multi rule to Set Color and run it',
     run: () => void sqlEditorActions.colorSet(),
@@ -1775,7 +1775,7 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'sql.editor.colorSelection',
     category: 'SQL',
-    label: 'SQL Editor: color selection',
+    label: 'SQL Editor: as selection',
     defaultKeys: 'ALT 1291',
     description: 'Run the editor SQL and select every returned fullname in the viewer',
     run: () => void sqlEditorActions.colorSelection(),
@@ -1947,9 +1947,9 @@ export const HOTKEYS: HotkeyDef[] = [
   {
     id: 'sql.run',
     category: 'SQL',
-    label: 'SQL: run script',
+    label: 'SQL: execute script',
     defaultKeys: 'ALT 635',
-    description: "Run the SQL Editor's script",
+    description: "Execute the SQL Editor's script",
     run: () => callSqlRun(),
   },
   {

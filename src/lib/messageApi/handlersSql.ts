@@ -432,9 +432,9 @@ export const sqlHandlers: Record<string, ApiHandler> = {
     return { statements: out, ms: result.execTime };
   },
 
-  // Colour the model FROM a query — the editor's Color White / Hidden / Set
-  // buttons over the API. The result never leaves the viewer: the host gets
-  // the row count.
+  // Colour the model FROM a query — the editor's As White / As Hidden / Use
+  // Set Color buttons over the API. The result never leaves the viewer: the
+  // host gets the row count.
   'sql.color': async ({ p }) => {
     const mode = parseColorMode(p.mode);
     const { packed, opts, ms } = await packedFor(p, 'api color', 'sql.color:progress');

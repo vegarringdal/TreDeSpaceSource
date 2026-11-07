@@ -443,8 +443,8 @@ async function captureSqlAssets(ctx) {
       { n: 2, el: { ...SQ, tooltip: 'Which store' } },
       { n: 3, el: { ...SQ, text: 'Import Database' } },
       { n: 4, el: { ...SQ, text: 'Delete Selected' } },
-      { n: 5, el: { ...SQ, text: 'Select all' } },
-      { n: 6, el: { ...SQ, text: 'Collapse all' } },
+      { n: 5, el: { ...SQ, text: 'Collapse all' } },
+      { n: 6, el: { ...SQ, text: 'Select all' } },
       { n: 7, el: { ...SQ, text: 'plant-data.db' } },
     ],
   });

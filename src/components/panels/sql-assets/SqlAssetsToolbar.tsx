@@ -9,8 +9,9 @@ import { registerSqlImport } from './sqlAssetsPanel';
 
 const DB_ACCEPT = '.db,.sqlite,.sqlite3,.db3,.sqlite-db';
 
-/** The unified SQL Assets toolbar: import destination + import/delete over
- *  the one global selection, plus select all/none. */
+/** The unified SQL Assets toolbar: import destination, then one row each for
+ *  import/delete (over the one global selection), collapse/expand all and
+ *  select all/none, then the selection count. */
 export function SqlAssetsToolbar() {
   const { dbs, selected, busy } = sqlAssetsState.use();
   const { stores } = storesState.use();
@@ -69,25 +70,9 @@ export function SqlAssetsToolbar() {
         </Button>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <span className="flex-1 text-slate-400 text-xs">Selected: {selCount}</span>
         <Button
-          className="h-auto min-h-6 py-1 leading-tight"
-          disabled={dbs.length === 0 || selCount === dbs.length}
-          onClick={() => act.setSelection(dbs.map((d) => d.path))}
-          tooltip="Select every database in every store"
-        >
-          Select all
-        </Button>
-        <Button
-          className="h-auto min-h-6 py-1 leading-tight"
-          disabled={selCount === 0}
-          onClick={() => act.setSelection([])}
-          tooltip="Clear the selection"
-        >
-          Deselect all
-        </Button>
-        <Button
-          className="h-auto min-h-6 py-1 leading-tight"
+          wrap
+          grow
           disabled={dbs.length === 0}
           shortcut="sql.collapseAll"
           onClick={() => act.collapseTree()}
@@ -96,7 +81,8 @@ export function SqlAssetsToolbar() {
           Collapse all
         </Button>
         <Button
-          className="h-auto min-h-6 py-1 leading-tight"
+          wrap
+          grow
           disabled={dbs.length === 0}
           shortcut="sql.expandAll"
           onClick={() => act.expandTree()}
@@ -105,6 +91,21 @@ export function SqlAssetsToolbar() {
           Expand all
         </Button>
       </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          wrap
+          grow
+          disabled={dbs.length === 0 || selCount === dbs.length}
+          onClick={() => act.setSelection(dbs.map((d) => d.path))}
+          tooltip="Select every database in every store"
+        >
+          Select all
+        </Button>
+        <Button wrap grow disabled={selCount === 0} onClick={() => act.setSelection([])} tooltip="Clear the selection">
+          Deselect all
+        </Button>
+      </div>
+      <span className="shrink-0 text-slate-400 text-xs">Selected: {selCount}</span>
     </>
   );
 }

@@ -3,8 +3,9 @@ import { Button } from '@treDeSpaceUI/widgets';
 import { sqlEditorActions as act } from '../../../state/sqlAssets/sqlEditor.actions';
 import { sqlEditorState } from '../../../state/sqlAssets/sqlEditor.state';
 
-/** The Run / lockmode / Kill row — executes the script or terminates the
- *  SQLite worker (which also releases its file locks). */
+/** The Execute / lock mode / Kill row — executes the script or terminates
+ *  the SQLite worker (which also releases its file locks). Each button takes
+ *  only the width its label needs. */
 export function SqlEditorRunRow() {
   const { lockmode, running } = sqlEditorState.use();
 
@@ -12,13 +13,12 @@ export function SqlEditorRunRow() {
     <div className="flex shrink-0 items-center gap-2">
       <Button
         icon={<IconPlayerPlay size={14} />}
-        className="flex-1"
         disabled={running}
         shortcut="sql.run"
-        tooltip="Run the script — results go to the Console panel. FILTER_ARGS is seeded from the filters below"
+        tooltip="Execute the script — results go to the Console panel. FILTER_ARGS is seeded from the filters below"
         onClick={() => void act.run()}
       >
-        Run
+        Execute
       </Button>
       <Button
         active={lockmode === 'exclusive'}
@@ -26,7 +26,7 @@ export function SqlEditorRunRow() {
         tooltip="Exclusive = writes allowed, one tab at a time. Shared = read-only, several readers at once."
         onClick={act.toggleLockmode}
       >
-        {lockmode === 'exclusive' ? 'Exclusive' : 'Shared'}
+        {lockmode === 'exclusive' ? 'Exclusive Lock Mode' : 'Shared Lock Mode'}
       </Button>
       <Button
         icon={<IconPlayerStop size={14} />}

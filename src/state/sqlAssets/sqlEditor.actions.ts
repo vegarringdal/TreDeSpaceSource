@@ -334,7 +334,7 @@ export const sqlEditorActions = {
   },
 
   /** Opacity-0 base coat + the result colored (default yellow): isolates the
-   *  returned rows, like Color White but hiding the rest instead of whitening. */
+   *  returned rows, like As White but hiding the rest instead of whitening. */
   async colorHidden() {
     const rows = await sqlReportsActions.runColoring(editorReport());
     if (rows) {
@@ -342,7 +342,7 @@ export const sqlEditorActions = {
     }
   },
 
-  /** White base at 10% + the result colored: like Color White, but the rest of
+  /** White base at 10% + the result colored: like As White, but the rest of
    *  the model stays faintly visible instead of going flat white. */
   async colorTransparent() {
     const rows = await sqlReportsActions.runColoring(editorReport());

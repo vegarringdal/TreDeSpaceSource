@@ -119,7 +119,7 @@ export function treeViewArgsStatements(fullnames: string[]): Statement[] {
 
 /** DROP/CREATE TEMP TABLE FILTER_ARGS(k, v) + one insert per filter value —
  *  TEMP so a read-only db is fine. Shared by report runs and the SQL Editor's
- *  raw Run, so a query reads its filters the same way either way. `search` is
+ *  raw Execute, so a query reads its filters the same way either way. `search` is
  *  for a DROPDOWN's own option query: that filter's key carries the live
  *  search term (one row) instead of its selection, refreshed on every
  *  keystroke, so a `dropdownSql` can read its term from FILTER_ARGS as well
