@@ -3,7 +3,7 @@ name = "step-core"
 description = "STEP (ISO 10303-21) parsing, tessellation and GLB export — the platform-agnostic library"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license.workspace = true
 authors = ["Vegar Ringdal <vegar.ringdal@postboxen.no>"]
 
 [lib]

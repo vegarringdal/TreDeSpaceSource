@@ -4,10 +4,11 @@ import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-
 import { downloadText } from '../../lib/download';
 import { projectToScreen } from '../../lib/math/project';
 import { quatAxes } from '../../lib/math/quat';
+import { readLabelsFile } from './annotationInput';
 import { clipShapesState } from './clipShapes.state';
 import { db } from './db';
 import { LABEL_UNDO_MAX, type LabelsState, labelsState, MAX_LABELS, type SceneLabel } from './labels.state';
-import { DEFAULT_SPHERE_MARKER, readSphereMarker } from './sphereMarker';
+import { DEFAULT_SPHERE_MARKER } from './sphereMarker';
 import { loadedIndicesForStore } from './storeScope';
 import { getRenderer } from './viewer.actions';
 
@@ -613,30 +614,12 @@ export const labelsActions = {
     );
   },
 
-  /** Load a label set, replacing the current one. Returns the count loaded. */
+  /** Load a label set, replacing the current one. Returns the count loaded.
+   *  The file is untrusted (labels are shared): every label and style field is
+   *  validated, unknown keys are dropped. Throws only on malformed JSON. */
   importJson(text: string): number {
-    const data = JSON.parse(text) as {
-      items?: SceneLabel[];
-      muted?: boolean;
-      style?: Partial<Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'leaderColor' | 'sphere'>>;
-    };
-    const items = (data.items ?? []).filter(
-      (l) => l && typeof l.text === 'string' && Array.isArray(l.anchor) && l.anchor.length === 3,
-    );
-    for (const l of items) {
-      l.offset = Array.isArray(l.offset) && l.offset.length === 2 ? l.offset : [0, 0];
-      l.fullname = l.fullname ?? null;
-      l.bg = l.bg ?? labelsState.get().bg;
-      l.opacity = l.opacity ?? 1;
-      l.textColor = l.textColor ?? labelsState.get().textColor;
-      l.sphere = readSphereMarker(l.sphere);
-    }
-    const style = data.style ?? {};
-    labelsState.set({
-      muted: data.muted ?? false,
-      ...style,
-      ...(style.sphere !== undefined ? { sphere: readSphereMarker(style.sphere) } : {}),
-    });
+    const { items, muted, style } = readLabelsFile(JSON.parse(text), labelsState.get());
+    labelsState.set({ muted, ...style });
     // setAll re-bases ids and snapshots for undo
     this.setAll(items.slice(0, MAX_LABELS));
     return Math.min(items.length, MAX_LABELS);

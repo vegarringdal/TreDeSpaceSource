@@ -5,7 +5,7 @@
     "Vegar Ringdal"
   ],
   "version": "0.1.0",
-  "license": "UNLICENSED",
+  "license": "LicenseRef-TreDeSpace",
   "files": [
     "cooker_wasm_bg.wasm",
     "cooker_wasm.js",

@@ -130,6 +130,39 @@ function legalBanner(): Plugin {
   };
 }
 
+/** Script policy for the viewer page: only the app's own bundles (plus the
+ *  wasm the meshopt decoder compiles on the main thread) may run, so an
+ *  injected inline `<script>` or `on*=` handler is inert. Network, frames,
+ *  images and styles stay open on purpose: URL imports and external apps reach
+ *  arbitrary origins, and React / lit-html set inline styles. Workers carry
+ *  their own (header-delivered) policy, so the meta tag does not touch them. */
+const VIEWER_CSP = "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'self'";
+
+/** Add VIEWER_CSP to the viewer's index.html as a meta tag. Build-only: the
+ *  dev server's React refresh preamble is an inline script. The demo and docs
+ *  pages are separate hosts and keep their own rules. */
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'content-security-policy',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (ctx.path !== '/index.html') {
+          return html;
+        }
+        return [
+          {
+            tag: 'meta',
+            attrs: { 'http-equiv': 'Content-Security-Policy', content: VIEWER_CSP },
+            injectTo: 'head-prepend',
+          },
+        ];
+      },
+    },
+  };
+}
+
 /** Docs generation for /docs/: (1) derive the API command reference from
  *  api/tredespace-client.ts into docs/generated/apiData.json so the docs can't
  *  drift from the SDK — runs for dev AND build; (2) on build, copy the SDK
@@ -219,6 +252,7 @@ export default defineConfig({
     tailwindcss(),
     buildVersion(),
     legalBanner(),
+    contentSecurityPolicy(),
     basicSsl(),
     apiDocs(),
     uiPackage(),

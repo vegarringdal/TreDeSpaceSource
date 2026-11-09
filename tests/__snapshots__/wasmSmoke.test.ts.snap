@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`committed wasm: IFC > cooks the import path to the same bytes as the cooker cooking its GLB 1`] = `
+{
+  "Wasm_smoke": "14b6fb629faa240539448ca45fc08884",
+}
+`;
+
+exports[`committed wasm: RVM > cooks the import path to the same bytes as the cooker cooking its GLB 1`] = `
+{
+  "_HA-PIPE": "53b80f5a7ec8dbd23c4cb39385a37f29",
+  "_HA-PIPE.coarse": "6f1a7660d189208a039fdf9241c37c7c",
+}
+`;
+
+exports[`committed wasm: STEP > cooks the session path (the import path) to the same bytes as the in-RAM path and the cooker 1`] = `
+{
+  "colored": "41447c49a61e5611c9048a71f7876e31",
+}
+`;
+
+exports[`committed wasm: cooker > rebuilds a parseable coarse variant from a cooked .tdp (the .tdp import path) 1`] = `
+{
+  "coarsened": "2033793e5c4568a4974f5e506c0c1a72",
+}
+`;

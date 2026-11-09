@@ -3,7 +3,7 @@ name = "step-wasm"
 description = "WebAssembly shell for step2glb: STEP bytes → GLB bytes, in the browser"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license.workspace = true
 authors = ["Vegar Ringdal <vegar.ringdal@postboxen.no>"]
 
 [lib]

@@ -1,0 +1,9 @@
+# One compiler for CI and local builds: CI runs the workspace tests with it and
+# the committed wasm in src/lib/*/wasm/ is built with it. rustup installs it
+# (with the wasm target) on first use inside rust_src/. Bump deliberately, then
+# rebuild the wasm and re-run tests/wasmSmoke.test.ts.
+[toolchain]
+channel = "1.96.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

@@ -2,6 +2,7 @@
 // mirroring the native `MeasurementSet` + `Ui::measure_*` methods.
 import { downloadText } from '../../lib/download';
 import type { V3 } from '../../lib/math/quat';
+import { readMeasurementsFile } from './annotationInput';
 import {
   autoFinishAt,
   awaitsOk,
@@ -16,7 +17,7 @@ import {
   perpProject,
   type SnapConfig,
 } from './measurements.state';
-import { readSphereMarker, type SphereMarker } from './sphereMarker';
+import type { SphereMarker } from './sphereMarker';
 
 const KIND_LABEL: Record<MeasureToolKind, string> = {
   point: 'Point',
@@ -338,37 +339,17 @@ export const measurementsActions = {
     );
   },
 
-  /** Load a measurement set, replacing the current one. Returns the count. */
+  /** Load a measurement set, replacing the current one. Returns the count.
+   *  The file is untrusted (measurements are shared): kinds, points, flags,
+   *  precision and colour are validated, unusable measurements dropped.
+   *  Throws only on malformed JSON. */
   importJson(text: string): number {
-    const data = JSON.parse(text) as {
-      items?: Measurement[];
-      muted?: boolean;
-      precision?: number;
-      lineColor?: string;
-    };
-    const items = (data.items ?? []).filter((m) => m && Array.isArray(m.points) && typeof m.kind === 'string');
+    const { items, muted, precision, lineColor } = readMeasurementsFile(JSON.parse(text));
     let nextId = 0;
     for (const m of items) {
-      m.visible = m.visible ?? true;
-      m.showLabel = m.showLabel ?? true;
-      m.showPerp = m.showPerp ?? false;
-      m.axisLegs = m.axisLegs ?? [false, false, false];
-      m.axisLabels = m.axisLabels ?? [false, false, false];
-      m.legsInLabel = m.legsInLabel ?? false;
-      m.slopeInLabel = m.slopeInLabel ?? false;
-      m.flipAngle = m.flipAngle ?? false;
-      m.label = m.label ?? '';
-      m.sphere = readSphereMarker(m.sphere);
-      nextId = Math.max(nextId, m.id ?? 0);
+      nextId = Math.max(nextId, m.id);
     }
-    measurementsState.set({
-      items,
-      muted: data.muted ?? false,
-      precision: data.precision ?? 3,
-      lineColor: data.lineColor ?? '#000000',
-      inProgress: [],
-      nextId,
-    });
+    measurementsState.set({ items, muted, precision, lineColor, inProgress: [], nextId });
     return items.length;
   },
 };

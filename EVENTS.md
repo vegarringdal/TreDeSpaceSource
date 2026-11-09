@@ -932,8 +932,12 @@ response: { config: { version: 1, viewpoints: [ /* full viewpoint records */ ] }
 ### viewpoints.set
 REPLACE the current viewpoint set from a config blob — from `viewpoints.get`,
 a `viewpoints.bookmark` event, or a saved viewpoints JSON file (same shape,
-same tolerant parsing: missing fields get defaults, ids are regenerated). An
-active viewpoint's scene mute is undone first, exactly like the panel's Load.
+same tolerant parsing: missing fields get defaults, ids are regenerated). Each
+viewpoint's labels and measurements are validated like a file load: a colour
+that is not a hex code or CSS name, or a non-numeric offset, falls back to its
+default, and a label without a finite anchor or a measurement with an unknown
+kind or a non-finite point is dropped. An active viewpoint's scene mute is
+undone first, exactly like the panel's Load.
 `showViewer: true` then docks the Viewpoint Viewer panel on the RIGHT (the
 side column is recreated if pruned) and makes it active — load-and-present in
 one call.

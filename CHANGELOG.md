@@ -4,6 +4,46 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.09** (>0.0.147):
+  Security: a shared labels, measurements or viewpoints file, or a viewpoint
+  config sent to `viewpoints.set` / `viewpoints.setUrl`, could run script in
+  the viewer. A colour or offset written as markup reached the overlays' SVG
+  unchanged. The overlays no longer turn those values into markup: label
+  leader lines are drawn with lit-html, and the measurement colour must be a
+  hex colour before it is drawn. Every import now also reads labels and
+  measurements field by field: colours must be hex codes or CSS names,
+  coordinates finite numbers and kinds known ones, and a labels file's style
+  block can only set the five style fields. A bad entry is dropped or falls
+  back to its default instead of failing the load.
+  Security: the built viewer page now carries a Content-Security-Policy that
+  only runs the app's own scripts and WebAssembly, so injected inline script
+  and event handlers are blocked. The dev server is unchanged.
+  `measurements.set` / `measurements.add` no longer reset the Measurements
+  panel's line colour to black, and a measurement id that repeats (in an
+  imported file, or after `measurements.add`) is renumbered so every
+  measurement keeps its own.
+  Licensing: the RVM, IFC and STEP converters are now part of the viewer and
+  under the TreDeSpace License, like the cooker. Their crates no longer
+  declare MIT, and the MIT license files the three converter families carried
+  are gone. Every crate of ours in `rust_src/` now declares
+  `LicenseRef-TreDeSpace` (the cooker said `UNLICENSED`, which reads as "no
+  rights granted"), and so does each prebuilt wasm package under `src/lib/`.
+  One of those still said MPL-2.0 and one said nothing. The README's license
+  overview now covers `rust_src/`. The vendored meshopt and tess2-rust forks,
+  the ifc-lite kernel and the rvmparser notice keep their own licenses, so
+  the third-party notices are unchanged.
+  CI now covers the Rust side. A new job runs the workspace's tests (242 of
+  them, including the golden cook and the byte-parity checks) on a compiler
+  pinned in `rust_src/rust-toolchain.toml`, with the IFC samples fetched and
+  cached. `npm test` gains a smoke test of the committed wasm: each
+  converter's import path must cook to the same bytes as the standalone
+  cooker cooking that converter's GLB, the app's reader must parse every
+  output, and the cooked bytes are pinned. Before this, nothing in CI loaded
+  the shipped wasm at all, so a broken or mismatched rebuild would have
+  passed. The IFC check uses a small box model written for it
+  (`tests/fixtures/box.ifc`), since the third-party IFC samples stay out of
+  git.
+
 - **2026.11.07** (>0.0.146):
   SQL Assets: the buttons under Import to are stacked in pairs, one row
   each: Import Database / Delete Selected, then Collapse all / Expand all,

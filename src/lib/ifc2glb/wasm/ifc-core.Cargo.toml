@@ -2,7 +2,7 @@
 name = "ifc-core"
 version = "0.1.0"
 edition = "2024"
-license = "MIT"
+license.workspace = true
 description = "IFC → GLB conversion engine (filesystem-free)."
 
 [lib]

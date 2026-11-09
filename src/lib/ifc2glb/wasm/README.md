@@ -29,4 +29,6 @@ cp crates/ifc-core/Cargo.toml ../src/lib/ifc2glb/wasm/ifc-core.Cargo.toml
 cp crates/ifc-wasm/Cargo.toml ../src/lib/ifc2glb/wasm/ifc-wasm.Cargo.toml
 ```
 
-Then regenerate notices: `npm run gen:notices`.
+Then regenerate notices: `npm run gen:notices`, and run
+`npx vitest run tests/wasmSmoke.test.ts` — it checks the new binary against the
+other committed ones. Add `-u` only when the cooked bytes changed on purpose.

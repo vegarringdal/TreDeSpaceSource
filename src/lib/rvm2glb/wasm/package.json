@@ -3,6 +3,7 @@
   "type": "module",
   "description": "WebAssembly shell for rvm2glb: RVM → GLB in the browser (Worker + OPFS)",
   "version": "0.2.0",
+  "license": "LicenseRef-TreDeSpace",
   "files": [
     "rvm_wasm_bg.wasm",
     "rvm_wasm.js",

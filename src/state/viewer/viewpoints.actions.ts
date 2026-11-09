@@ -18,11 +18,12 @@ import { framingDistanceFromPoint } from '../../lib/math/frameFromPoint';
 // handlers, which import this module: going through it would be a cycle
 import { emitApiEvent } from '../../lib/messageApi/transport';
 import { firstLine } from '../../lib/richText';
+import { readLabels, readMeasurements } from './annotationInput';
 import { clipShapesActions } from './clipShapes.actions';
 import { clipShapesState } from './clipShapes.state';
 import { db } from './db';
 import { labelsActions } from './labels.actions';
-import { labelsState, type SceneLabel } from './labels.state';
+import { labelsState, MAX_LABELS, type SceneLabel } from './labels.state';
 import { type Measurement, measurementsState } from './measurements.state';
 import { selectionState } from './selection.state';
 import { getRenderer, viewerActions } from './viewer.actions';
@@ -562,10 +563,13 @@ export const viewpointsActions = {
     if (s.liveSide === 'viewpoint') {
       viewpointsActions.unmuteSceneNow();
     }
+    // labels + measurements are untrusted (a shared file, a host's stored
+    // bookmark): read field by field, like the Labels/Measurements file loads
+    const { bg, textColor } = labelsState.get();
     const list: Viewpoint[] = data.viewpoints.map((v, i) => ({
       id: uid() + i,
-      name: v.name ?? `Viewpoint ${i + 1}`,
-      description: v.description ?? '',
+      name: typeof v.name === 'string' ? v.name : `Viewpoint ${i + 1}`,
+      description: typeof v.description === 'string' ? v.description : '',
       camera: {
         target: v.camera?.target ?? [0, 0, 0],
         azimuth: v.camera?.azimuth ?? 0.6,
@@ -584,8 +588,8 @@ export const viewpointsActions = {
       },
       clipPlanes: v.clipPlanes,
       clipShapes: Array.isArray(v.clipShapes) ? v.clipShapes : [],
-      labels: Array.isArray(v.labels) ? v.labels : [],
-      measurements: Array.isArray(v.measurements) ? v.measurements : [],
+      labels: readLabels(v.labels, { bg, textColor }).slice(0, MAX_LABELS),
+      measurements: readMeasurements(v.measurements),
       colorRules: {
         mode: v.colorRules?.mode === 'append' || v.colorRules?.mode === 'hide' ? v.colorRules.mode : 'reset',
         // untouched default copies from older files collapse to "no rules"

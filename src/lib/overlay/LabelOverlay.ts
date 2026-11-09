@@ -1,6 +1,8 @@
 // Scene-label overlay: world-anchored draggable text labels on top of the
 // viewport (same projection pattern as MeasureOverlay). Labels are DOM nodes
-// (selectable/draggable); leader lines live in one SVG underneath them.
+// (selectable/draggable); leader lines live in one SVG underneath them, drawn
+// with lit-html so a label's colour or offset can never become markup.
+import { render, svg, type TemplateResult } from 'lit-html';
 import { labelsActions } from '../../state/viewer/labels.actions';
 import { labelsState, type SceneLabel } from '../../state/viewer/labels.state';
 import { projectToScreen } from '../math/project';
@@ -53,7 +55,7 @@ export class LabelOverlay {
       this.builtVersion = s.version;
       this.rebuild(s.items, s.richText, s.leaderColor);
     }
-    let lines = '';
+    const lines: TemplateResult[] = [];
     for (const l of s.items) {
       const node = this.nodes.get(l.id);
       if (!node) {
@@ -75,12 +77,13 @@ export class LabelOverlay {
       node.style.top = `${y}px`;
       if (l.offset[0] !== 0 || l.offset[1] !== 0) {
         const c = l.leaderColor ?? s.leaderColor;
-        lines += `<line x1="${at[0]}" y1="${at[1]}" x2="${x}" y2="${y}" stroke="${c}" stroke-width="1.5"/><circle cx="${at[0]}" cy="${at[1]}" r="2.5" fill="${c}"/>`;
+        lines.push(
+          svg`<line x1=${at[0]} y1=${at[1]} x2=${x} y2=${y} stroke=${c} stroke-width="1.5"></line><circle cx=${at[0]} cy=${at[1]} r="2.5" fill=${c}></circle>`,
+        );
       }
     }
-    if (this.svg.innerHTML !== lines) {
-      this.svg.innerHTML = lines;
-    }
+    // lit diffs against the last frame: unchanged attributes are not touched
+    render(lines, this.svg);
   }
 
   private rebuild(items: SceneLabel[], rich: boolean, leaderColor: string) {

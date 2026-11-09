@@ -1187,6 +1187,37 @@ every embedded external-app frame.
   `DecompressionStream`) and the license PDF raw; a dev middleware serves both
   from `/samples` at their root URLs.
 
+## Untrusted input & CSP (2026-11-09)
+
+The viewer origin holds the user's models and SQL databases, and same-origin
+messages are API-trusted, so script running there is a full compromise. Files
+users share (labels, measurements, viewpoints) and host payloads that replay
+stored configs (a bookmark sent to `viewpoints.set`) are untrusted input.
+
+- **Overlays never build markup from data.** Label leader lines render through
+  lit-html attribute bindings; the measurement overlay is string-built SVG, so
+  its one data-driven attribute (the line colour) must pass `colorToHex` at the
+  draw site, and all text goes through `escapeHtml` (which escapes quotes too).
+  A new overlay uses lit-html or `createElementNS`, not `innerHTML` with
+  interpolated values.
+- **Imports read field by field.** `src/state/viewer/annotationInput.ts` is the
+  one reader for labels and measurements from files and viewpoint configs:
+  hex colours, finite coordinates, known kinds, whitelisted style keys; bad
+  entries are dropped or defaulted, never passed through. Pure (vitest-tested,
+  `tests/annotationInput.test.ts`). The host API's own validators stay strict
+  (they fail the command with a path) and are a separate, earlier gate.
+- **CSP, build only.** `vite.config.ts` `contentSecurityPolicy()` adds
+  `script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'self'`
+  as a meta tag on the viewer's `index.html`, which makes injected inline
+  scripts and `on*=` handlers inert. Deliberately NOT restricted: connect /
+  frame / img / style sources (URL imports and external apps reach arbitrary
+  origins; React and lit-html set inline styles). Not in dev, since the React
+  refresh preamble is an inline script; not on the demo and docs pages. Workers
+  are unaffected (a meta policy does not reach them); `'wasm-unsafe-eval'` is
+  for the meshopt decoder on the main thread. Verified on a production build
+  (boot, RVM URL import + load, labels / measurements / viewpoints over the
+  API): no violations from the app itself.
+
 ## Startup
 
 - Console banner (pinned): app name, author, copyright. Console keeps the

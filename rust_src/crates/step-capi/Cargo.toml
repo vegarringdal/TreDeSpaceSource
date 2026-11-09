@@ -3,7 +3,7 @@ name = "step-capi"
 description = "C ABI for step2glb: STEP bytes → GLB bytes, for embedding in other languages"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license.workspace = true
 authors = ["Vegar Ringdal <vegar.ringdal@postboxen.no>"]
 
 # distinct from core's lib name (`step2glb`) to avoid an output-file collision;

@@ -22,15 +22,19 @@ import {
   tip,
   valueLabel,
 } from '../../state/viewer/measurements.state';
+import { colorToHex } from '../color/hexColor';
 import { projectToScreen } from '../math/project';
 import type { V3 } from '../math/quat';
 import type { Renderer } from '../render/renderer';
+import { escapeHtml } from '../richText';
 
 // Hover snap glyphs keep this fixed colour; measurement geometry follows the
 // user-set colour (measurementsState.lineColor).
 const LINE_COL = '#ffd25a';
 const PT_COL = '#ffffff';
 const PERP_COL = '#aa6e3c';
+// measurement geometry when the set colour is not a usable hex colour
+const DEFAULT_LINE_COL = '#000000';
 // staircase LINES: saturated (they sit on the model, over a white halo)
 const AXIS_COLS = ['#e03131', '#237032', '#1c7ed6'];
 // staircase label TEXT: bright variants — readable on the dark label box
@@ -50,7 +54,6 @@ const normV = (a: V3): V3 => {
   const l = Math.hypot(a[0], a[1], a[2]) || 1;
   return [a[0] / l, a[1] / l, a[2] / l];
 };
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const BOLD_SPAN = /(\*\*[^*]+\*\*)/;
 const isBold = (seg: string) => /^\*\*[^*]+\*\*$/.test(seg);
@@ -61,7 +64,7 @@ function richTspans(line: string): string {
   return line
     .split(BOLD_SPAN)
     .filter((seg) => seg.length > 0)
-    .map((seg) => (isBold(seg) ? `<tspan font-weight="bold">${esc(seg.slice(2, -2))}</tspan>` : esc(seg)))
+    .map((seg) => (isBold(seg) ? `<tspan font-weight="bold">${escapeHtml(seg.slice(2, -2))}</tspan>` : escapeHtml(seg)))
     .join('');
 }
 
@@ -83,9 +86,12 @@ export class MeasureOverlay {
   private host: HTMLElement;
   private renderer: Renderer;
   private lastHtml = '';
-  // per-frame from measurementsState.lineColor (black by default)
-  private col = '#000000';
-  private fill = withAlpha('#000000', 0.14);
+  // per-frame from measurementsState.lineColor (black by default). The raw
+  // value is kept apart from the drawn one: the overlay is string-built SVG,
+  // so only a canonical hex colour may ever reach a stroke/fill attribute.
+  private rawCol = DEFAULT_LINE_COL;
+  private col = DEFAULT_LINE_COL;
+  private fill = withAlpha(DEFAULT_LINE_COL, 0.14);
 
   constructor(host: HTMLElement, renderer: Renderer) {
     this.host = host;
@@ -108,9 +114,10 @@ export class MeasureOverlay {
   /** Re-render the overlay (called once per frame from the viewport tick). */
   update() {
     const s = measurementsState.get();
-    if (s.lineColor !== this.col) {
-      this.col = s.lineColor;
-      this.fill = withAlpha(s.lineColor, 0.14);
+    if (s.lineColor !== this.rawCol) {
+      this.rawCol = s.lineColor;
+      this.col = colorToHex(s.lineColor) ?? DEFAULT_LINE_COL;
+      this.fill = withAlpha(this.col, 0.14);
     }
     let out = '';
 

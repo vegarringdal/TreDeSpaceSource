@@ -29,4 +29,6 @@ cp crates/rvm-core/Cargo.toml ../src/lib/rvm2glb/wasm/rvm-core.Cargo.toml
 cp crates/rvm-wasm/Cargo.toml ../src/lib/rvm2glb/wasm/rvm-wasm.Cargo.toml
 ```
 
-Then regenerate notices: `npm run gen:notices`.
+Then regenerate notices: `npm run gen:notices`, and run
+`npx vitest run tests/wasmSmoke.test.ts` — it checks the new binary against the
+other committed ones. Add `-u` only when the cooked bytes changed on purpose.

@@ -3,6 +3,11 @@
 # ships with the web viewer; the converters used to be separate workspaces
 # under converters/ and were folded in here (crate names keep their format
 # prefix: rvm2glb-*, ifc2glb-*, step2glb-*).
+#
+# Licensing: every crate of ours is part of the viewer and inherits the
+# TreDeSpace License (the repo-root LICENSE) via `license.workspace = true`.
+# The vendored forks (crates/meshopt, crates/tess2-rust) and the git-pinned
+# ifc-lite kernel keep their own licenses — never point them at this one.
 [workspace]
 resolver = "2"
 members = ["crates/*"]
@@ -13,7 +18,9 @@ exclude = ["crates/tess2-rust"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "UNLICENSED"
+# SPDX custom id for the repo-root LICENSE (Elastic License 2.0 + terms).
+# Not `license-file`: wasm-pack would copy that path relative to its out-dir.
+license = "LicenseRef-TreDeSpace"
 authors = ["Vegar Ringdal"]
 
 [workspace.dependencies]

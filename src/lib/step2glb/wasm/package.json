@@ -6,7 +6,7 @@
   ],
   "description": "WebAssembly shell for step2glb: STEP bytes → GLB bytes, in the browser",
   "version": "0.1.0",
-  "license": "MIT",
+  "license": "LicenseRef-TreDeSpace",
   "files": [
     "step_wasm_bg.wasm",
     "step_wasm.js",

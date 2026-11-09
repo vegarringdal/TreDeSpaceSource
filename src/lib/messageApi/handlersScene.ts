@@ -2,6 +2,7 @@
 // measurements. See EVENTS.md for the payload contracts.
 
 import { openViewpointViewerPanelRight } from '../../components/panels/viewpoints/viewpointsPanel';
+import { MEASURE_KINDS } from '../../state/viewer/annotationInput';
 import { db } from '../../state/viewer/db';
 import { labelsActions } from '../../state/viewer/labels.actions';
 import { labelsState, MAX_LABELS, type SceneLabel } from '../../state/viewer/labels.state';
@@ -125,7 +126,6 @@ const setOrAddLabels: ApiHandler = async ({ type, p }) => {
   return { added: items.length, missed: [...new Set([...plain.notFound, ...snapped.notFound])] };
 };
 
-const MEASURE_KINDS = ['point', 'line', 'path', 'area', 'diameter', 'angle', 'face'] as const;
 /** Per-axis flag triples (`axisLegs` / `axisLabels`). */
 const NO_AXES: [boolean, boolean, boolean] = [false, false, false];
 
@@ -152,9 +152,9 @@ function readMeasurePoint(v: unknown, what: string) {
   };
 }
 
-/** One `measurements.set` / `.add` entry, fully validated. `importJson`
- *  backfills defaults but only ever checked `kind` and that `points` is an
- *  array — a point of `['x']` reached the overlay geometry as NaN. */
+/** One `measurements.set` / `.add` entry, fully validated. Strict on
+ *  purpose: a bad entry fails the command with its path, where `importJson`
+ *  (which re-reads the result) would silently drop it. */
 function readMeasurement(x: Record<string, unknown>, i: number) {
   const what = `measurements[${i}]`;
   const points = Array.isArray(x.points) ? x.points : null;
@@ -222,9 +222,15 @@ const setOrAddMeasurements: ApiHandler = ({ type, p }) => {
   const cur = measurementsState.get();
   const base = type === 'measurements.set' ? [] : cur.items;
   const mapped = inputs.map(readMeasurement);
-  // importJson replaces + backfills every optional field
+  // importJson replaces + backfills every optional field; the panel's line
+  // colour rides along (importJson reads a missing one as black)
   const n = measurementsActions.importJson(
-    JSON.stringify({ items: [...base, ...mapped], muted: cur.muted, precision: cur.precision }),
+    JSON.stringify({
+      items: [...base, ...mapped],
+      muted: cur.muted,
+      precision: cur.precision,
+      lineColor: cur.lineColor,
+    }),
   );
   return { added: Math.max(0, n - base.length) };
 };

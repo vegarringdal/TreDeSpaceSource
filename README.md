@@ -87,11 +87,16 @@ permission error, give this repo the *Admin* role under the package's
 
 ## Three parts, three licenses
 
-- **The viewer** (`src/`, the app itself) — **TreDeSpace License**: Elastic
+- **The viewer** (`src/`, the app itself, and `rust_src/`, the Rust cooker
+  and the RVM / IFC / STEP converters with their CLIs, C APIs and the prebuilt
+  wasm under `src/lib/`) — **TreDeSpace License**: Elastic
   License 2.0 plus attribution and public-improvement terms. Use, modify and
   redistribute it, but no hosted/managed service for third parties, the About
   dialog's attribution stays, and source improvements you actually use must be
-  published and offered back upstream as a pull request.
+  published and offered back upstream as a pull request. The crates declare
+  it as `LicenseRef-TreDeSpace`. The vendored forks `rust_src/crates/meshopt`
+  and `rust_src/crates/tess2-rust` keep their own licenses, like every other
+  third-party dependency.
 - **The host SDK** ([`api/tredespace-client.ts`](api/tredespace-client.ts)) —
   **MIT**. A single copy-paste file host pages use to drive an embedded viewer
   over postMessage; not bundled into the app.
@@ -164,17 +169,30 @@ in-tree converters (`rust_src/crates/{rvm,ifc,step}-*`) ship as prebuilt wasm in
 `src/lib/<unit>/wasm/` (cooker, rvm2glb, ifc2glb, step2glb), so you don't need
 Rust for normal
 dev. To rebuild them you need the Rust toolchain plus `wasm-pack`, and a
-wasm-capable clang for the bundled C++ meshoptimizer:
+wasm-capable clang for the bundled C++ meshoptimizer. The compiler is pinned in
+`rust_src/rust-toolchain.toml`; rustup installs that version (wasm target
+included) the first time you run cargo inside `rust_src/`:
 
 ```bash
 # rustup: https://rustup.rs
-rustup target add wasm32-unknown-unknown
 cargo install wasm-pack
 sudo apt install -y clang llvm        # Fedora: sudo dnf install clang llvm
 # e.g. the cooker (run from rust_src/):
 CC=clang AR=llvm-ar wasm-pack build crates/cooker-wasm \
   --target web --release --out-dir ../../../src/lib/cooker/wasm
 ```
+
+Tests for both sides, and CI runs both:
+
+- `cd rust_src && cargo test --workspace`: the Rust tests. The IFC ones need
+  `convertSamples/ifc/fetch-samples.sh` run once first.
+- `npm test` includes `tests/wasmSmoke.test.ts`, which loads the COMMITTED wasm
+  and checks that each converter's import path cooks to the same bytes as the
+  standalone cooker, and that the app's reader parses every output. It also
+  pins the cooked bytes. After a rebuild that changes the cooked output on
+  purpose, update them with `npx vitest run tests/wasmSmoke.test.ts -u`. If the
+  test fails after a rebuild you didn't expect to change anything, the modules
+  were built from different sources.
 
 See [DESIGN.md](DESIGN.md) for the cooker/converter internals.
 

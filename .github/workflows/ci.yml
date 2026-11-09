@@ -30,6 +30,33 @@ jobs:
       - run: npm run build
       - run: git diff --exit-code
 
+  # The Rust workspace (cooker + RVM/IFC/STEP converters). Runs alongside
+  # `check`; the committed wasm itself is covered there by wasmSmoke.test.ts.
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust_src
+    steps:
+      - uses: actions/checkout@v4
+      # the toolchain pinned in rust_src/rust-toolchain.toml
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust_src
+      # third-party IFC models git doesn't carry; the script pins their bytes,
+      # so the download is cached on its hash
+      - uses: actions/cache@v4
+        with:
+          path: convertSamples/ifc/*.ifc
+          key: ifc-samples-${{ hashFiles('convertSamples/ifc/fetch-samples.sh') }}
+      - name: Fetch IFC samples
+        # the script reports a failed download but still exits 0
+        run: |
+          ../convertSamples/ifc/fetch-samples.sh | tee "$RUNNER_TEMP/fetch.log"
+          ! grep -q FAILED "$RUNNER_TEMP/fetch.log"
+      - run: cargo test --workspace --locked
+
   version-gate:
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest

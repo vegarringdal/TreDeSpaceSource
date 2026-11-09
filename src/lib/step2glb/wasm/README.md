@@ -33,4 +33,6 @@ cp crates/step-core/Cargo.toml ../src/lib/step2glb/wasm/step-core.Cargo.toml
 cp crates/step-wasm/Cargo.toml ../src/lib/step2glb/wasm/step-wasm.Cargo.toml
 ```
 
-Then regenerate notices: `npm run gen:notices`.
+Then regenerate notices: `npm run gen:notices`, and run
+`npx vitest run tests/wasmSmoke.test.ts` — it checks the new binary against the
+other committed ones. Add `-u` only when the cooked bytes changed on purpose.
