@@ -13,7 +13,7 @@ export interface TablePayload {
   columns: string[];
   rows: unknown[][];
   truncated: boolean;
-  /** Re-run at the 250k cap (TABLE reports); null when there's nothing more. */
+  /** Re-run at the 450k cap (TABLE reports); null when there's nothing more. */
   reload: (() => void) | null;
 }
 
@@ -72,8 +72,9 @@ export function handleSqlTableClose(): void {
   }
 }
 
-/** Grid-local abilities (export, copy, select-all, load-all) that hotkeys
- *  reach through this slot: TableGrid registers on mount, clears on unmount. */
+/** Grid-local abilities (export, copy, select-all, load-all, the side menu and
+ *  its With selection buttons) that hotkeys reach through this slot:
+ *  TableGrid registers on mount, clears on unmount. */
 export interface TableActions {
   exportAll: () => void;
   exportSelected: () => void;
@@ -82,6 +83,12 @@ export interface TableActions {
   toggleSelectAll: () => void;
   loadAll: () => void;
   toggleClearOnClose: () => void;
+  toggleSideMenu: () => void;
+  asSelection: () => void;
+  asWhite: () => void;
+  asHidden: () => void;
+  asTransparent: () => void;
+  addSetColor: () => void;
 }
 
 let tableActions: TableActions | null = null;

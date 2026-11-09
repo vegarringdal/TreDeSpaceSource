@@ -7,6 +7,11 @@ import type { ReportFilter, ReportType } from '../../state/sqlReports/sqlReports
 import { splitSqlStatements, stripSqlComments } from './sqlAttach';
 import type { Statement } from './types';
 
+/** TABLE rows a report shows before "Load all". */
+const TABLE_PREVIEW_ROWS = 50;
+/** TABLE rows a "Load all" run keeps at most. */
+const TABLE_LOAD_ALL_ROWS = 450_000;
+
 /** FILTER_ARGS rows for one filter: INPUT → one (k,v); DROPDOWN → one per
  *  selected id, capped at ONE for a single-select dropdown (a draft set over
  *  the host API can carry more ids than its picker would ever allow). */
@@ -70,14 +75,14 @@ function wrapForType(sql: string, o: BuildOpts): string {
   if (o.type === 'DETAIL') {
     return `SELECT * FROM (${sql}) LIMIT 1`;
   }
-  return `SELECT * FROM (${sql}) LIMIT ${o.loadAll ? 250000 : 50}`; // TABLE
+  return `SELECT * FROM (${sql}) LIMIT ${o.loadAll ? TABLE_LOAD_ALL_ROWS : TABLE_PREVIEW_ROWS}`; // TABLE
 }
 
 export interface BuildOpts {
   filters: ReportFilter[];
   sql: string;
   type: ReportType;
-  /** TABLE only: lift the 50-row cap to 250k. */
+  /** TABLE only: lift the 50-row cap to 450k. */
   loadAll?: boolean;
   /** COLORING: false when the column probe found no `fullname_color` column, so
    *  the wrap is `SELECT fullname` and JS defaults every row to yellow. */

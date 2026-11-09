@@ -112,6 +112,12 @@ export function makeMultiColorActions(store: Store<MultiColorState>) {
       store.set((s) => ({ rules: [...s.rules, emptyRule()] }));
     },
 
+    /** Append a ready-made rule at the end (the SQL Table's Add Set Color).
+     *  Nothing runs — the rule waits in the panel like one typed there. */
+    appendRule(rule: ColorRule) {
+      store.set((s) => ({ rules: [...s.rules, rule] }));
+    },
+
     /** Insert a fresh rule directly BEFORE rule i. */
     insertRuleBefore(i: number) {
       store.set((s) => ({

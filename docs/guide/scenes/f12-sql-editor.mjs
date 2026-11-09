@@ -490,6 +490,18 @@ async function captureTable(ctx) {
   await ctx.shot('f12-table-menu', { crop: { el: { css: '[role="menu"]' } } });
   await ctx.page.keyboard.press('Escape');
   await ctx.sleep(300);
+  // the side menu stays open, so the harvest below lists its buttons
+  await ctx.click({ ...TB, tooltip: 'Side menu' });
+  await ctx.sleep(300);
+  await ctx.shot('f12-table-side', {
+    crop: { panel: 'sqlTable' },
+    marks: [
+      { n: 1, el: { ...TB, tooltip: 'Side menu' } },
+      { n: 2, el: { ...TB, text: 'As Selection' } },
+      { n: 3, el: { ...TB, text: 'As White' } },
+      { n: 4, el: { ...TB, text: 'Add Set Color' } },
+    ],
+  });
 }
 
 async function captureDetail(ctx) {
@@ -610,7 +622,7 @@ async function harvestPanels(ctx) {
     ],
   });
   await ctx.harvest('sqlTable', {
-    rename: { 'Select every row shown': 'Select all (corner box)' },
+    rename: { 'Select every row shown': 'Select all (corner box)', 'Side menu': 'Side menu (☰)' },
     extra: [
       { section: '', label: 'Column title', tooltip: 'Click to sort A→Z, again Z→A, a third time unsorted. Drag the edge to resize.' },
       { section: '', label: 'filter…', tooltip: 'Show only rows whose value in this column contains the text (all filled columns must match)' },

@@ -155,7 +155,8 @@
           </ol>
           <p class="note">
             Clicking rows in the <b>SQL Table</b> does not select anything in the model — it only marks rows for
-            copying and export. To select the items of a result, use <b>Selection</b> (or <b>As Selection</b> in the SQL Editor).
+            copying, export and the side menu. To select the items of a result, use <b>Selection</b> (or <b>As Selection</b> in the SQL Editor);
+            to select only the marked rows, use <b>As Selection</b> in the SQL Table's <a href="#table-side">side menu</a>.
           </p>
 
           <h3 id="task-detail">See the data of the item you click</h3>
@@ -327,7 +328,7 @@
           <figure class="shot" data-shot="f12-table"></figure>
           <ol class="legend-list">
             <li><b>Row count</b> — “21 of 50 rows” while column filters hide some. With rows marked, a badge shows how many.</li>
-            <li><b>Load all</b> (<kbd>ALT 653</kbd>) — a report shows its first <b>50 rows</b> only. Load all runs it again for up to 250,000 rows. The button is only there when the result was cut off.</li>
+            <li><b>Load all</b> (<kbd>ALT 653</kbd>) — a report shows its first <b>50 rows</b> only. Load all runs it again for up to 450,000 rows. The button is only there when the result was cut off.</li>
             <li><b>Clear on close / Keep</b> (<kbd>ALT 662</kbd>) — whether closing the panel throws the result away (the default, to free memory) or keeps it for when you open the panel again. Switching layout never throws it away.</li>
             <li><b>Column title</b> — click to sort A→Z, again for Z→A, a third time to unsort. Drag the edge of a title to change the column width.</li>
             <li><b>filter…</b> — shows only rows whose value in that column <i>contains</i> the text (capitals do not matter). Filters in several columns must all match.</li>
@@ -341,6 +342,25 @@
             <li><b>Copy to clipboard (all)</b> (<kbd>ALT 656</kbd>) / <b>(selected rows)</b> (<kbd>ALT 657</kbd>) — tab-separated with a header row, ready to paste into a spreadsheet.</li>
           </ul>
           <p>Both take the rows <i>as shown</i>: column filters and sorting are applied. The “selected rows” entries are greyed out until rows are marked.</p>
+
+          <h3 id="table-side">Side menu — with the marked rows</h3>
+          <p>
+            The <b>☰</b> button left of the title opens a side menu. It pushes the table to the right; press ☰ again to close it.
+            Its buttons work on the <b>marked rows</b>, using their <b>fullname</b> column — the colour comes from a
+            <b>fullname_color</b> column when the result has one, else yellow.
+          </p>
+          <figure class="shot" data-shot="f12-table-side"></figure>
+          <ol class="legend-list">
+            <li><b>☰ Side menu</b> (<kbd>ALT 663</kbd>) — shows or hides the side menu.</li>
+            <li><b>As Selection</b> (<kbd>ALT 664</kbd>) — the marked rows become the selection in the model. Colours are not changed. The Console says how many names were found and how many are not in the model.</li>
+            <li><b>As White</b> (<kbd>ALT 665</kbd>), <b>As Hidden</b> (<kbd>ALT 666</kbd>), <b>As Transparent</b> (<kbd>ALT 667</kbd>) — the marked rows in colour, and the rest of the model white, hidden or faintly visible. The same colouring as the SQL Editor's buttons.</li>
+            <li><b>Add Set Color</b> (<kbd>ALT 668</kbd>) — adds the marked rows to the <b>Set Color</b> panel as one new rule, after the rules already there. Nothing changes in the model until you press <b>Run</b> in Set Color.</li>
+          </ol>
+          <p>
+            Like “selected rows” in the right-click menu, the buttons take the marked rows <i>as shown</i> — a marked row
+            hidden by a column filter is left out. They are greyed out until rows are marked, or when the result has no
+            fullname column; the line under them says which.
+          </p>
         </section>
 
         <section id="detail" class="g-sec">

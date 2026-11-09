@@ -1005,7 +1005,7 @@
         "section": "",
         "label": "Load all",
         "icon": "",
-        "tooltip": "Re-run this report without the 50-row cap (max 250,000)",
+        "tooltip": "Re-run this report without the 50-row cap (max 450,000)",
         "keys": "ALT 653"
       },
       {

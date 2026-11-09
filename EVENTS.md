@@ -1285,7 +1285,7 @@ response: { rows: 1204, matched: 1198, missed: 6, ms: 210 }
 ### sql.table
 Run a query and show it in the viewer's **SQL Table** panel. The rows land in
 the panel, not in the response — you get the columns and how many rows landed.
-`loadAll: true` lifts the 50-row preview cap to 250k, `name` titles the panel,
+`loadAll: true` lifts the 50-row preview cap to 450k, `name` titles the panel,
 `show: false` fills it without opening it.
 
 ```js

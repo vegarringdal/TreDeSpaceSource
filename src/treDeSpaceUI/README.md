@@ -307,6 +307,7 @@ type TextAreaProps = LabelledProps & {
   rows?: number;                       // default 3
   maxLength?: number;
   spellCheck?: boolean;                // default false
+  readOnly?: boolean;                  // scroll/select/copy only; ✕ still clears (clearable={false} to stop that)
   resizable?: boolean;                 // user vertical resize (default true)
   minHeight?: number;                  // px floor, also while resizing
   tooltip?: string;

@@ -3196,7 +3196,7 @@ export class TredespaceClient {
   }
 
   /** Run a query and show it in the viewer's SQL Table panel (`loadAll` lifts
-   *  the 50-row preview cap to 250k). The rows land in the panel, not in the
+   *  the 50-row preview cap to 450k). The rows land in the panel, not in the
    *  response — you get the column names and the row count. `show: false`
    *  fills the panel without opening it. */
   sqlTable(

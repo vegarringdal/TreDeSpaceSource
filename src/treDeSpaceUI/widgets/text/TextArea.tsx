@@ -15,6 +15,10 @@ export interface TextAreaProps extends LabelledProps {
   maxLength?: number;
   /** Browser spell-check (default false). */
   spellCheck?: boolean;
+  /** Native read-only: the text scrolls, selects and copies but cannot be
+   *  typed in. The ✕ clear still works (through onChange / onClear) — add
+   *  `clearable={false}` for a field that cannot change at all. */
+  readOnly?: boolean;
   /** Allow the user to resize vertically (default true). */
   resizable?: boolean;
   /** Lower bound for the field height in px — also the floor while resizing. */
@@ -38,6 +42,7 @@ export function TextArea({
   rows = 3,
   maxLength,
   spellCheck = false,
+  readOnly = false,
   resizable = true,
   minHeight,
   tooltip,
@@ -58,6 +63,7 @@ export function TextArea({
           rows={rows}
           maxLength={maxLength}
           spellCheck={spellCheck}
+          readOnly={readOnly}
           disabled={disabled}
           style={minHeight != null ? { minHeight } : undefined}
           className={`${fieldCls} block leading-relaxed ${showClear ? 'pr-6' : ''} ${resizable ? 'resize-y' : 'resize-none'}`}

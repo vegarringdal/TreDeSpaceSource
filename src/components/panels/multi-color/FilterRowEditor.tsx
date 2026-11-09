@@ -1,6 +1,7 @@
 import { IconArrowDown, IconArrowUp, IconPlus, IconRowInsertTop, IconTrash } from '@tabler/icons-react';
-import { Button, Select, type SelectOption, TextArea, TextInput } from '@treDeSpaceUI/widgets';
+import { Button, Select, type SelectOption, TextInput } from '@treDeSpaceUI/widgets';
 import { useContext } from 'react';
+import { FilterValueField } from './FilterValueField';
 import type { FilterRow } from './multiColor.state';
 import { MultiColorCtx } from './multiColorContext';
 
@@ -23,14 +24,6 @@ const MATCH_OPTIONS: readonly SelectOption<FilterRow['mode']>[] = [
   { value: 'wildcard', label: 'Wildcard' },
   { value: 'multi', label: 'Multi' },
 ];
-
-const VALUE_PLACEHOLDERS: Record<Exclude<FilterRow['mode'], 'multi'>, string> = {
-  contains: 'Text the name must contain; blank = everything',
-  single: 'Name — equals; *x* contains, x* starts with, *x ends with; blank = everything',
-  starts: 'Text the name must start with; blank = everything',
-  ends: 'Text the name must end with; blank = everything',
-  wildcard: 'Name with * wildcards anywhere — /85*pump*01; blank = everything',
-};
 
 /** One filter row of a color rule: the op dropdown with insert-before / move /
  *  delete on its right, then insert-selected-name + match mode + level, then
@@ -119,32 +112,7 @@ export function FilterRowEditor({
           onChange={(v) => act.updateFilter(ruleIdx, idx, { level: Number(v ?? '') || 0 })}
         />
       </div>
-      {/* labels mirror the rule's Color / Opacity / Store rows (the widget
-          label's grey goes dark in the light theme, this one stays dim) */}
-      {row.mode === 'multi' ? (
-        <div className="flex items-start gap-1.5">
-          <span className="w-14 shrink-0 pt-1.5 text-neutral-400 text-xs">Value</span>
-          <TextArea
-            className="min-w-0 flex-1"
-            value={row.value}
-            rows={4}
-            placeholder={
-              'Paste names — one per line (equals, case-insensitive). A trailing color sets that line’s color: name #ff0000, name yellow, or name,red'
-            }
-            onChange={(v) => act.updateFilter(ruleIdx, idx, { value: v })}
-          />
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5">
-          <span className="w-14 shrink-0 text-neutral-400 text-xs">Value</span>
-          <TextInput
-            className="min-w-0 flex-1"
-            value={row.value}
-            placeholder={VALUE_PLACEHOLDERS[row.mode]}
-            onChange={(v) => act.updateFilter(ruleIdx, idx, { value: v })}
-          />
-        </div>
-      )}
+      <FilterValueField ruleIdx={ruleIdx} idx={idx} row={row} />
       <div className="flex items-center gap-1.5">
         <span className="w-14 shrink-0 text-neutral-400 text-xs">Comment</span>
         <TextInput

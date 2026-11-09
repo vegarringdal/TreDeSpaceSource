@@ -4,6 +4,27 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.09** (>0.0.148):
+  SQL Table: "Load all" now keeps up to 450,000 rows instead of 250,000 (the
+  in-app button and the `sql.table` host command alike).
+  SQL Table: a ☰ button before the title opens a side menu that pushes the
+  grid right. Its "With selection" buttons act on the marked rows as shown:
+  As Selection selects their fullnames in the viewer; As White, As Hidden and
+  As Transparent colour them the way the SQL Editor's buttons do
+  (`fullname_color` when the result has it, else yellow); Add Set Color adds
+  them to the Set Color panel as one new Multi rule without running it. The
+  buttons are greyed out until rows are marked or when the result has no
+  fullname column. Each has a hotkey (ALT 663–668).
+  Set Color: a filter value longer than 1,000 lines (an Add Set Color list
+  or a big paste can hold hundreds of thousands) shows only its first 1,000
+  lines, read-only, with a note under the box and a tooltip giving the full
+  count — the whole list in one text box cost megabytes of DOM and made the
+  panel lag. A paste that would cross the limit goes straight to the rule
+  and never enters the box (a 450,000-line paste took over 5 s to settle
+  before). The rule still runs on every line, and the box's ✕ still clears
+  the whole list back to an empty, editable field. The UI library's
+  `TextArea` gained the `readOnly` prop this uses.
+
 - **2026.11.09** (>0.0.147):
   Security: a shared labels, measurements or viewpoints file, or a viewpoint
   config sent to `viewpoints.set` / `viewpoints.setUrl`, could run script in
