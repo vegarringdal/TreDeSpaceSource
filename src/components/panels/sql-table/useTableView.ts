@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { type CellMatcher, compileCellFilter } from './cellFilter';
 
 export type Sort = { col: number; dir: 'asc' | 'desc' } | null;
 
@@ -29,8 +30,8 @@ function compare(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b));
 }
 
-/** Click-header sort + per-column contains filters (AND across filled
- *  columns) expressed as a view over ORIGINAL row indices, plus stable React
+/** Click-header sort + per-column filters (equals, `*` / `%` wildcards — see
+ *  cellFilter; AND across filled columns) expressed as a view over ORIGINAL row indices, plus stable React
  *  keys per column (names can repeat). Resets when a new result arrives. */
 export function useTableView(columns: string[], rows: unknown[][]): TableView {
   const [sort, setSort] = useState<Sort>(null);
@@ -53,24 +54,18 @@ export function useTableView(columns: string[], rows: unknown[][]): TableView {
     });
   }, [columns]);
 
-  // original indices → contains-filter (AND across filled columns) → sort
+  // original indices → column filters (AND across filled columns) → sort
   const viewIdx = useMemo(() => {
     let idx = rows.map((_, i) => i);
-    const active: [string, number][] = [];
+    const active: [CellMatcher, number][] = [];
     filters.forEach((f, c) => {
-      const t = f.trim().toLowerCase();
-      if (t) {
-        active.push([t, c]);
+      const match = compileCellFilter(f);
+      if (match) {
+        active.push([match, c]);
       }
     });
     if (active.length) {
-      idx = idx.filter((ri) =>
-        active.every(([t, c]) =>
-          String(rows[ri][c] ?? '')
-            .toLowerCase()
-            .includes(t),
-        ),
-      );
+      idx = idx.filter((ri) => active.every(([match, c]) => match(rows[ri][c])));
     }
     if (sort) {
       const { col, dir } = sort;

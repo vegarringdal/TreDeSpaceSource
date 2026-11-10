@@ -4,6 +4,14 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.10** (>0.0.149):
+  SQL Table: the column filters now match the WHOLE value (still ignoring
+  capitals) instead of any part of it, so a filter picks exact rows. `*` or
+  `%` matches any text anywhere in the filter — `PIPE*` starts with,
+  `*PIPE` ends with, `*PIPE*` gives the old contains. The filter boxes say
+  "equals (* = any)" and explain it in their tooltip. Several wildcards chain
+  in order: `*PIPE*100*` has PIPE with 100 somewhere after it.
+
 - **2026.11.09** (>0.0.148):
   SQL Table: "Load all" now keeps up to 450,000 rows instead of 250,000 (the
   in-app button and the `sql.table` host command alike).

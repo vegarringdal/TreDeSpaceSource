@@ -1033,8 +1033,8 @@
         "icon": "",
         "keys": "",
         "section": "",
-        "label": "filter\u2026",
-        "tooltip": "Show only rows whose value in this column contains the text (all filled columns must match)"
+        "label": "Column filter",
+        "tooltip": "Show only rows whose whole value in this column equals the text. * or % matches any text: PIPE* starts with, *PIPE* contains (all filled columns must match)"
       },
       {
         "icon": "",

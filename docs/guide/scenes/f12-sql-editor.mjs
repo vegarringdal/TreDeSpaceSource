@@ -463,7 +463,7 @@ async function captureEditor(ctx) {
 async function captureTable(ctx) {
   await ctx.call(REPORTS, 'sqlReportsActions', 'runTable', BY_DISCIPLINE);
   await ctx.sleep(400);
-  await ctx.type({ ...TB, css: 'input[placeholder="filter…"]', nth: 1 }, 'SX-');
+  await ctx.type({ ...TB, css: 'input[placeholder^="equals"]', nth: 1 }, '*SX-*');
   await ctx.click({ ...TB, css: 'button[title="tag"]' });
   await ctx.click({ ...TB, css: 'button[title^="Click to select"]', nth: 1 });
   await ctx.page.keyboard.down('Shift');
@@ -476,7 +476,7 @@ async function captureTable(ctx) {
       { n: 2, el: { ...TB, text: 'Load all' } },
       { n: 3, el: { ...TB, text: 'Clear on close' } },
       { n: 4, el: { ...TB, css: 'button[title="tag"]' } },
-      { n: 5, el: { ...TB, css: 'input[placeholder="filter…"]', nth: 1 } },
+      { n: 5, el: { ...TB, css: 'input[placeholder^="equals"]', nth: 1 } },
       { n: 6, el: { ...TB, css: 'button[title^="Click to select"]', nth: 0 }, at: 'bl' },
       { n: 7, el: { ...TB, tooltip: 'Select every row shown' }, at: 'tr' },
     ],
@@ -623,9 +623,11 @@ async function harvestPanels(ctx) {
   });
   await ctx.harvest('sqlTable', {
     rename: { 'Select every row shown': 'Select all (corner box)', 'Side menu': 'Side menu (☰)' },
+    // the filter inputs carry a tooltip now; the hand-written row below keeps its place after Column title
+    skip: ['Show only rows whose WHOLE value'],
     extra: [
       { section: '', label: 'Column title', tooltip: 'Click to sort A→Z, again Z→A, a third time unsorted. Drag the edge to resize.' },
-      { section: '', label: 'filter…', tooltip: 'Show only rows whose value in this column contains the text (all filled columns must match)' },
+      { section: '', label: 'Column filter', tooltip: 'Show only rows whose whole value in this column equals the text. * or % matches any text: PIPE* starts with, *PIPE* contains (all filled columns must match)' },
       { section: '', label: 'Row number', tooltip: 'Click to select a row — Ctrl adds or removes one, Shift selects a range' },
       { section: '', label: 'Export to Excel (all)', tooltip: 'Right-click menu: every row as shown to an .xlsx file', keys: 'ALT 654' },
       { section: '', label: 'Export to Excel (selected rows)', tooltip: 'Right-click menu: only the selected rows', keys: 'ALT 655' },

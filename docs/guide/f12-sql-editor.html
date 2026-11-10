@@ -331,7 +331,9 @@
             <li><b>Load all</b> (<kbd>ALT 653</kbd>) — a report shows its first <b>50 rows</b> only. Load all runs it again for up to 450,000 rows. The button is only there when the result was cut off.</li>
             <li><b>Clear on close / Keep</b> (<kbd>ALT 662</kbd>) — whether closing the panel throws the result away (the default, to free memory) or keeps it for when you open the panel again. Switching layout never throws it away.</li>
             <li><b>Column title</b> — click to sort A→Z, again for Z→A, a third time to unsort. Drag the edge of a title to change the column width.</li>
-            <li><b>filter…</b> — shows only rows whose value in that column <i>contains</i> the text (capitals do not matter). Filters in several columns must all match.</li>
+            <li><b>Column filter</b> (<i>equals (* = any)</i>) — shows only rows whose <i>whole</i> value in that column is the text (capitals do not matter).
+              Use <code class="inline">*</code> or <code class="inline">%</code> for “any text”: <code class="inline">PIPE*</code> starts with,
+              <code class="inline">*PIPE</code> ends with, <code class="inline">*PIPE*</code> contains, and <code class="inline">*PIPE*100*</code> has PIPE with 100 somewhere after it. Filters in several columns must all match.</li>
             <li><b>Row number</b> — click to mark a row, <kbd>Ctrl</kbd> + click to add or remove one, <kbd>Shift</kbd> + click for a range.</li>
             <li><b>Corner box</b> (<kbd>ALT 652</kbd>) — marks every row shown, or unmarks them all.</li>
           </ol>

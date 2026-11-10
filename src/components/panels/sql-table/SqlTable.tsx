@@ -5,8 +5,9 @@ import { getTablePayload, subscribeTablePayload } from './sqlTablePanel';
 import { TableGrid } from './TableGrid';
 
 /** SQL Table: the result of a TABLE report. Virtualized (only visible rows
- *  mounted, so 450k rows stay smooth), click-header sort, per-column contains
- *  filters (AND across columns), drag-to-resize columns, and a row-number
+ *  mounted, so 450k rows stay smooth), click-header sort, per-column equals
+ *  filters with `*` / `%` wildcards (AND across columns), drag-to-resize
+ *  columns, and a row-number
  *  gutter with click/Shift/Ctrl row selection. Fed through setTablePayload. */
 export function SqlTable() {
   useMinSize(320, 200);

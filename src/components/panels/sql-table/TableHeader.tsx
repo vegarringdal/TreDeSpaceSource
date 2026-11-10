@@ -4,6 +4,10 @@ import { ROW_H, type TableLayout } from './useTableLayout';
 import type { TableSelection } from './useTableSelection';
 import type { TableView } from './useTableView';
 
+const FILTER_PLACEHOLDER = 'equals (* = any)';
+const FILTER_TOOLTIP =
+  'Show only rows whose WHOLE value in this column equals the text (capitals do not matter). * or % matches any text: PIPE* starts with, *PIPE ends with, *PIPE* contains, *PIPE*100* has PIPE and later 100. Filters in several columns must all match.';
+
 type TableHeaderProps = Readonly<{
   columns: string[];
   view: TableView;
@@ -13,7 +17,7 @@ type TableHeaderProps = Readonly<{
 
 /** The grid's sticky header: a select-all corner above the row numbers,
  *  sortable column titles with drag-to-resize grips, plus the per-column
- *  contains-filter row beneath. */
+ *  filter row beneath (equals, `*` / `%` wildcards). */
 export function TableHeader({ columns, view, layout, selection }: TableHeaderProps) {
   const { colKeys, sort, filters, toggleSort, setFilter } = view;
   const { widths, gutterW, startResize } = layout;
@@ -65,7 +69,8 @@ export function TableHeader({ columns, view, layout, selection }: TableHeaderPro
           <div key={colKeys[i]} className="border-slate-800 border-r" style={{ width: widths[i] }}>
             <input
               value={filters[i]}
-              placeholder="filter…"
+              placeholder={FILTER_PLACEHOLDER}
+              data-tooltip={FILTER_TOOLTIP}
               spellCheck={false}
               className="h-full w-full bg-slate-950/60 px-1.5 text-[11px] text-slate-200 outline-none placeholder:text-slate-500 focus:bg-slate-950"
               onChange={(e) => setFilter(i, e.target.value)}
