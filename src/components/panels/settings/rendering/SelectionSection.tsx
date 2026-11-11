@@ -124,6 +124,13 @@ export function SelectionSection() {
           value={v.outlineHiddenColor}
           onChange={(x) => act.update({ outlineHiddenColor: x })}
         />
+        <Checkbox
+          label="Hidden edge only when still"
+          checked={v.outlineHiddenWhenStill}
+          shortcut="render.outline.hiddenWhenStill"
+          tooltip="Show the hidden part of the outline (behind other geometry) only once the camera stops. Moving is cheaper on big selections, since the parts of the selection hidden behind other things are then not drawn into the outline."
+          onChange={(x) => act.update({ outlineHiddenWhenStill: x })}
+        />
       </SettingsSection>
     </>
   );

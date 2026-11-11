@@ -162,8 +162,12 @@ own. Key facts, kept here so the port history isn't lost:
   second instance degenerates outside the split blend pass), and the
   residency counts include it. The outline mask does not replay the scene
   lists at all: a per-model compute filter (`outlineListWgsl`) emits only the
-  outlined items' visible meshlets into a fourth draw slot, and the mask
-  draws that — a full replay with a per-fragment discard cost a large slice
+  outlined items' in-view meshlets into a fourth draw slot, and the mask
+  draws that. In view means drawn OR occluded: cull pass 2 marks a meshlet
+  that passes frustum + cone but fails the HZB (or the new-meshlet budget)
+  `vis = 2` (drawn = 1), pass 1 replays only 1, and the list takes both —
+  otherwise the hidden outline of a selection behind other geometry broke
+  wherever the HZB culled a meshlet (2026-11-11). A full replay with a per-fragment discard cost a large slice
   of the scene pass on every frame with a selection. Cost: `N + 2T` vertex work instead of
   `2N`; +28 B per meshlet (`MESHLET_RECORD_BYTES` 116 → 144) and ~8 KB per
   model. Not done: cross-model interleaving (draws are per model, so glass of

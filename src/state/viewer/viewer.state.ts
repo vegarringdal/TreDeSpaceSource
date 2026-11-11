@@ -129,6 +129,7 @@ export interface ViewerState {
   selectionStyle: 'tint' | 'outline' | 'both';
   outlineStrength: number; // edge intensity 0-10
   outlineGlow: number; // 0-1 wide soft glow
+  outlineHiddenWhenStill: boolean; // hidden (occluded) outline part only while the camera is still
   outlineThickness: number; // blur radius 1-4 px
   outlinePulse: number; // pulse period seconds, 0 = off
   outlineVisibleColor: string; // hex
@@ -275,6 +276,7 @@ export const initialViewerState: ViewerState = {
   selectionStyle: 'tint',
   outlineStrength: 3,
   outlineGlow: 0,
+  outlineHiddenWhenStill: true,
   outlineThickness: 1,
   outlinePulse: 0,
   outlineVisibleColor: '#ffffff',

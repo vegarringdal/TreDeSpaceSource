@@ -831,6 +831,14 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => viewerState.set((s) => ({ outlineHover: !s.outlineHover })),
   },
   {
+    id: 'render.outline.hiddenWhenStill',
+    category: 'View',
+    label: 'Outline: hidden edge only when still',
+    defaultKeys: 'ALT 1140',
+    description: 'Toggle: show the hidden part of the outline only once the camera stops (cheaper orbiting)',
+    run: () => viewerState.set((s) => ({ outlineHiddenWhenStill: !s.outlineHiddenWhenStill })),
+  },
+  {
     id: 'render.outline.styleTint',
     category: 'View',
     label: 'Selection style: tint',
@@ -3365,6 +3373,14 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT 1060',
     description: 'More translucent label spheres',
     run: () => labelsActions.bumpSphereOpacity(-1),
+  },
+  {
+    id: 'labels.dragLock',
+    category: 'Labels',
+    label: 'Labels: lock drag',
+    defaultKeys: 'ALT 1066',
+    description: 'Lock / unlock dragging labels in the viewport',
+    run: () => labelsActions.toggleDragLock(),
   },
   {
     id: 'labels.fontSize.inc',

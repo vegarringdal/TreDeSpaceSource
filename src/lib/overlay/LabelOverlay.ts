@@ -54,7 +54,7 @@ export class LabelOverlay {
     }
     if (s.version !== this.builtVersion) {
       this.builtVersion = s.version;
-      this.rebuild(s.items, s.richText, s.leaderColor);
+      this.rebuild(s.items, s.richText, s.leaderColor, s.dragLocked);
     }
     const lines: TemplateResult[] = [];
     for (const l of s.items) {
@@ -87,7 +87,7 @@ export class LabelOverlay {
     render(lines, this.svg);
   }
 
-  private rebuild(items: SceneLabel[], rich: boolean, leaderColor: string) {
+  private rebuild(items: SceneLabel[], rich: boolean, leaderColor: string, dragLocked: boolean) {
     const seen = new Set<number>();
     for (const l of items) {
       seen.add(l.id);
@@ -114,6 +114,7 @@ export class LabelOverlay {
       // unselected border matches the leader-line colour (selection = black dash)
       node.style.border = l.selected ? '1.5px dashed #000000' : `1px solid ${l.leaderColor ?? leaderColor}`;
       node.style.whiteSpace = rich ? 'normal' : 'pre';
+      node.style.cursor = dragLocked ? 'pointer' : 'grab';
     }
     for (const [id, node] of this.nodes) {
       if (!seen.has(id)) {
@@ -139,8 +140,9 @@ export class LabelOverlay {
         labelsActions.startReposition(id);
         return;
       }
-      const l = labelsState.get().items.find((x) => x.id === id);
-      if (!l) {
+      const { items, dragLocked } = labelsState.get();
+      const l = items.find((x) => x.id === id);
+      if (!l || dragLocked) {
         return;
       }
       const pre: [number, number] = [l.offset[0], l.offset[1]];

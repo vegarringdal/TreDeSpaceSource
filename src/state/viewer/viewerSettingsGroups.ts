@@ -63,6 +63,7 @@ export const VIEWER_SECTION_KEYS = {
     'outlinePulse',
     'outlineVisibleColor',
     'outlineHiddenColor',
+    'outlineHiddenWhenStill',
   ),
   transparency: keys('transparencyBlend', 'transparencyBackdrop', 'backdropFadePct'),
   darkColors: keys('darkLift', 'darkLiftPct'),

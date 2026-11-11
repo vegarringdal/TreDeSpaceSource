@@ -515,6 +515,7 @@ export const viewport: PanelDefinition = {
       o.outlinePulse = s.outlinePulse;
       o.outlineVisibleColor = hexRgb(s.outlineVisibleColor);
       o.outlineHiddenColor = hexRgb(s.outlineHiddenColor);
+      o.outlineHiddenWhenStill = s.outlineHiddenWhenStill;
       o.outlineSelectionActive = selectionState.get().count > 0;
       // camera navigation (walk/fly + speeds) from the nav settings store
       const nav = navState.get();

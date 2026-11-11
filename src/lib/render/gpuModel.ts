@@ -6,7 +6,8 @@ import { SORT_COUNT_WORD } from './shaders/cull';
 /** A model's cull-produced draw lists: pass 1 (visible last frame), pass 2
  *  (newly visible), the sorted transparent list the blend pass draws
  *  back-to-front (DESIGN.md "Sorted blend pass") and the outline list — the
- *  outlined items' visible meshlets, built by the outline pass for its mask. */
+ *  outlined items' in-view (drawn or occluded) meshlets, built by the outline
+ *  pass for its mask. */
 export type DrawList = 1 | 2 | 3 | 4;
 export const TRANSPARENT_LIST: DrawList = 3;
 export const OUTLINE_LIST: DrawList = 4;

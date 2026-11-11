@@ -216,6 +216,12 @@ export const labelsActions = {
     }));
   },
 
+  /** Lock / unlock dragging labels in the viewport. Version bump: the overlay
+   *  swaps the grab cursor on rebuild. */
+  toggleDragLock() {
+    labelsState.set((s) => ({ dragLocked: !s.dragLocked, version: s.version + 1 }));
+  },
+
   /** A label was clicked in the viewport: ask the list to scroll to its row.
    *  Not an undo step and no overlay rebuild (version untouched). */
   reveal(id: number) {

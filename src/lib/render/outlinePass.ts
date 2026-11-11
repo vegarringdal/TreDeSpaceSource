@@ -6,8 +6,9 @@
 // only when something is outlined.
 //
 // The draw list is what keeps the mask cheap: a per-model compute filter
-// (outlineListWgsl) emits only the outlined items' visible meshlets into the
-// model's outline record slot, and the mask replays that list alone. Replaying
+// (outlineListWgsl) emits only the outlined items' in-view meshlets — drawn or
+// occluded, so the hidden outline is whole — into the model's outline record
+// slot, and the mask replays that list alone. Replaying
 // the whole scene and discarding per fragment cost a large slice of the scene
 // pass on every frame with anything selected.
 //
@@ -56,6 +57,16 @@ export interface OutlineListBuffers {
  *  drawIndirect args block (the MDI count is its first word). */
 const LIST_ARGS_BYTES = 16;
 
+/** Outline list `use_vis` modes (outlineListWgsl): every meshlet (no-cull
+ *  full draw), only the drawn ones, or every in-view one (drawn or occluded). */
+const LIST_ALL = 0;
+const LIST_DRAWN = 1;
+const LIST_IN_VIEW = 2;
+
+/** Hidden colour while hidden-when-still holds the hidden part back: the
+ *  composite is additive, so black adds nothing. */
+const NO_HIDDEN_COLOR: readonly [number, number, number] = [0, 0, 0];
+
 export class OutlinePass {
   private listPipeline!: GPUComputePipeline; // MDI records
   private listVpPipeline!: GPUComputePipeline; // vertex-pull list
@@ -78,6 +89,9 @@ export class OutlinePass {
   // changes (hover id) or the renderer skipped the outline for a frame
   private histValid = false;
   private histHoverId = 0;
+  // whether the history holds the hidden (occluded) part — hidden-when-still
+  // leaves it out while the camera moves
+  private histHidden = false;
   private glowA: GPUTexture | null = null;
   private glowB: GPUTexture | null = null;
   private blurH!: GPUBuffer; // BlurParams per direction/scale
@@ -253,11 +267,20 @@ export class OutlinePass {
    *  is never blended into a later one. */
   dropHistory() {
     this.histValid = false;
+    this.histHidden = false;
+  }
+
+  /** The last encoded outline includes the hidden part (the renderer keeps
+   *  rendering until it does after hidden-when-still releases it). */
+  get showsHidden(): boolean {
+    return this.histValid && this.histHidden;
   }
 
   /** Encode the whole outline chain onto the finished frame.
    *  `accumIdx` is the scene's TAA sample index (0 = restart) and `hold` the
-   *  renderer's converged-hold path: the history is then re-composited as is. */
+   *  renderer's converged-hold path: the history is then re-composited as is.
+   *  `showHidden` false (hidden-when-still, camera moving) leaves the occluded
+   *  meshlets out of the mask and zeroes the hidden colour. */
   encode(
     enc: GPUCommandEncoder,
     dev: GPUDevice,
@@ -273,6 +296,7 @@ export class OutlinePass {
     hoverId: number,
     accumIdx: number,
     hold: boolean,
+    showHidden: boolean,
     timings: GpuTimings,
   ) {
     // lazy canvas-sized targets: mask depth + edge/blur ping-pong (+ half-res glow)
@@ -302,10 +326,11 @@ export class OutlinePass {
     // restart the average when the scene's did, when the outlined set changed
     // under a converged scene (hover) or when the history is stale; a hold
     // frame with a valid history only re-composites the last blurred result
-    const restart = !this.histValid || accumIdx === 0 || hoverId !== this.histHoverId;
+    const restart = !this.histValid || accumIdx === 0 || hoverId !== this.histHoverId || showHidden !== this.histHidden;
     const weight = restart ? 1 : 1 / (accumIdx + 1);
     this.histValid = true;
     this.histHoverId = hoverId;
+    this.histHidden = showHidden;
 
     // pulse: the three.js oscillation, applied CPU-side to the strength
     const pulse =
@@ -318,7 +343,7 @@ export class OutlinePass {
       new Float32Array([
         ...opt.outlineVisibleColor,
         opt.outlineStrength * pulse,
-        ...opt.outlineHiddenColor,
+        ...(showHidden ? opt.outlineHiddenColor : NO_HIDDEN_COLOR),
         opt.outlineGlow,
       ]),
     );
@@ -378,13 +403,12 @@ export class OutlinePass {
     // the no-cull full draw keeps no visibility words: the list takes every
     // meshlet of an outlined item, and the mask draws it through the
     // vertex-pull path like the full draw itself
+    // with visibility words, the list takes the in-view meshlets — or only
+    // the drawn ones while hidden-when-still holds the hidden part back
     const listVis = cullMode !== 'full';
     const maskMode = cullMode === 'full' ? 'vp' : cullMode;
-    dev.queue.writeBuffer(
-      this.listParamsBuf,
-      0,
-      new Uint32Array([hoverId, includeSelected ? 1 : 0, listVis ? 1 : 0, 0]),
-    );
+    const useVis = listVis ? (showHidden ? LIST_IN_VIEW : LIST_DRAWN) : LIST_ALL;
+    dev.queue.writeBuffer(this.listParamsBuf, 0, new Uint32Array([hoverId, includeSelected ? 1 : 0, useVis, 0]));
 
     // blur params: thickness-radius full-res pair + fixed-wide half-res glow pair
     const thickness = Math.max(1, Math.min(4, opt.outlineThickness));

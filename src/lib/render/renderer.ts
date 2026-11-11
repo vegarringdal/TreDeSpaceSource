@@ -115,6 +115,10 @@ const SETTLE_ZERO_READS = 2;
  *  FRAMES, and a frame on a weak GPU is worth ten on a fast one — the same
  *  setting then costs a fast machine half a second and a slow one several. */
 const SETTLE_CEILING_MS = 500;
+/** Hidden-edge-only-when-still: how long the camera must rest before the
+ *  hidden outline part comes back. A frame without a camera change mid-drag
+ *  (input slower than the display) must not flash it in. */
+const OUTLINE_HIDDEN_STILL_MS = 150;
 
 /** Snap raycast result words: 16 for the hit (measureSnap.ts SnapHit) plus 16
  *  read diagnostics for the measure trace (shaders/snap.ts header). */
@@ -570,6 +574,9 @@ export class Renderer {
     outlinePulse: 0, // pulse period in seconds, 0 = off (three.js pulsePeriod)
     outlineVisibleColor: [1, 1, 1] satisfies [number, number, number],
     outlineHiddenColor: [0.098, 0.039, 0.02] satisfies [number, number, number], // #190a05
+    // draw the hidden (occluded) outline part only while the camera is still:
+    // a moving frame then draws no occluded meshlets into the outline mask
+    outlineHiddenWhenStill: true,
     outlineSelectionActive: false, // viewport hint: any items currently selected
   };
   private nextItemBase = 1; // 0 = background in the id buffer
@@ -1605,7 +1612,7 @@ export class Renderer {
     const meshletCullBuf = mkBuf(cull, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
     // visibility starts at 0: the first frame's pass 2 discovers the model
     // against the HZB the OTHER models built (pass 2 tests every meshlet and
-    // draws those with vis == 0), so a swapped-in zone costs at most the
+    // draws those pass 1 did not, vis != 1), so a swapped-in zone costs at most the
     // meshlets other geometry does not hide — a seed of 1 made pass 1 draw
     // every in-frustum meshlet of the zone first. Same picture either way.
     const visBuf = dev.createBuffer({
@@ -1625,7 +1632,7 @@ export class Renderer {
     // sorted transparent list (DESIGN.md "Sorted blend pass"): the record
     // stride covers both MDI records and the doubled vertex-pull entries
     const recordBufT = mkRecords();
-    // outline mask list (outlinePass.ts): the outlined items' visible meshlets
+    // outline mask list (outlinePass.ts): the outlined items' in-view meshlets
     const recordBufO = mkRecords();
     const candBuf = dev.createBuffer({
       label: 'modelCandBuf',
@@ -2845,7 +2852,7 @@ export class Renderer {
       // the hold path instead so they never reset TAA/AO accumulation
       `${opt.outlineHover};${opt.outlineSelection};${opt.selectionTint};${opt.outlineStrength};` +
       `${opt.outlineGlow};${opt.outlineThickness};${opt.outlinePulse};${opt.outlineSelectionActive};` +
-      `${opt.outlineVisibleColor.join(',')};${opt.outlineHiddenColor.join(',')};` +
+      `${opt.outlineVisibleColor.join(',')};${opt.outlineHiddenColor.join(',')};${opt.outlineHiddenWhenStill};` +
       // view cube hover/position/palette must break the idle skip or the
       // overlay freezes once TAA converges (hover highlight, handle drags,
       // Settings colour changes)
@@ -2856,7 +2863,14 @@ export class Renderer {
     const effHover = opt.outlineHover ? this.hoverItemId : 0;
     const outlineOn =
       this.models.length > 0 && (effHover !== 0 || (opt.outlineSelection && opt.outlineSelectionActive));
-    const outlineWork = (opt.outlineHover && effHover !== this.drawnHoverId) || (outlineOn && opt.outlinePulse > 0);
+    // hidden-when-still: the hidden part waits until the camera has rested;
+    // keep rendering until the outline shows it, even once the scene itself
+    // would go idle
+    const outlineHidden = !opt.outlineHiddenWhenStill || performance.now() - this.lastMoveT >= OUTLINE_HIDDEN_STILL_MS;
+    const outlineWork =
+      (opt.outlineHover && effHover !== this.drawnHoverId) ||
+      (outlineOn && opt.outlinePulse > 0) ||
+      (outlineOn && !this.outline.showsHidden);
 
     // Idle / TAA accumulation. While the scene is unchanged, TAA keeps
     // rendering jittered frames into the running average until converged;
@@ -3440,6 +3454,7 @@ export class Renderer {
         effHover,
         this.accumIdx,
         hold,
+        outlineHidden,
         this.timings,
       );
     } else {

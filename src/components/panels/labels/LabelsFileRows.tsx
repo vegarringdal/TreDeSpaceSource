@@ -4,6 +4,8 @@ import {
   IconArrowsMaximize,
   IconArrowsMinimize,
   IconDownload,
+  IconLock,
+  IconLockOpen,
   IconUpload,
 } from '@tabler/icons-react';
 import { Button, readFileText, SegmentedControl, useFilePicker } from '@treDeSpaceUI/widgets';
@@ -18,7 +20,7 @@ const EXPLODE_SHAPES = [
   { value: 'box', label: 'Box', tooltip: 'Explode the labels onto a rectangle around the anchors' },
 ] as const;
 
-/** Labels → Common, rows 3-4: explode/implode with layout shape, JSON
+/** Labels → Common, rows 3-4: explode/implode with layout shape, drag lock, JSON
  *  save/load (owns the file picker + the labels.load hotkey hook-up), undo/redo. */
 export function LabelsFileRows() {
   const s = labelsState.use();
@@ -61,6 +63,15 @@ export function LabelsFileRows() {
           Implode
         </Button>
         <SegmentedControl options={EXPLODE_SHAPES} value={s.explodeShape} onChange={act.setExplodeShape} />
+        <Button
+          icon={s.dragLocked ? <IconLock size={14} /> : <IconLockOpen size={14} />}
+          active={s.dragLocked}
+          tooltip="Lock the labels in place: dragging them in the viewport does nothing while on. Ctrl+click still selects and Alt+click still moves the anchor"
+          shortcut="labels.dragLock"
+          onClick={() => act.toggleDragLock()}
+        >
+          Lock drag
+        </Button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <Button

@@ -4,6 +4,22 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.11** (>0.0.151):
+  Labels → Common: new Lock drag toggle (ALT 1066). While on, labels can't
+  be dragged in the 3D view; Ctrl+click still selects and Alt+click still
+  moves the anchor.
+  Selection outline: the hidden part (the outline drawn through geometry in
+  front of the selection) no longer has gaps. Parts of the selection that the
+  occlusion culling skipped because something hid them were left out of the
+  outline, so small pieces like instrument stems vanished and pipe outlines
+  stopped short. The cull now remembers "in view but hidden" separately from
+  "drawn", and the outline takes both; what the scene draws is unchanged.
+  Settings → Rendering → Outline: new "Hidden edge only when still" (ALT
+  1140, on by default). While the camera moves, the hidden part of the
+  outline is left out and not drawn at all, so orbiting a big selection costs
+  no more than before the fix above; it appears once the camera has rested
+  for 150 ms. Turn it off to keep the hidden edge while moving.
+
 - **2026.11.11** (>0.0.150):
   Labels → Import tags: a fullname now gets at most one label. Pasted rows
   are made distinct first (ignoring capitals), and a tag that already has a

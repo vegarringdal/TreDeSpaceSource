@@ -657,6 +657,9 @@ export interface RenderingSettings {
   outlineVisibleColor: string;
   /** the occluded part of the silhouette */
   outlineHiddenColor: string;
+  /** draw the occluded part only while the camera is still (cheaper orbiting
+   *  on big selections) */
+  outlineHiddenWhenStill: boolean;
   /** true = unsorted blend pass, false = alpha hash (converges under TAA) */
   transparencyBlend: boolean;
   /** blend variant: transparent items render solid as a backdrop behind everything opaque */

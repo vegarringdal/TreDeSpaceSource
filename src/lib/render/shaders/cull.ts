@@ -81,6 +81,12 @@ fn load_meshlet(i: u32) -> MeshletCull {
   return m;
 }
 @group(0) @binding(3) var<storage, read_write> vis: array<u32>;
+// vis words: 0 = out of view / hidden / clipped, VIS_DRAWN = drawn (pass 1
+// replays it next frame), VIS_IN_VIEW = in view but not drawn — behind the HZB
+// or turned away by the new-meshlet budget. Pass 1 replays only VIS_DRAWN; the
+// outline list takes both, so a selection behind other geometry outlines whole.
+const VIS_DRAWN = 1u;
+const VIS_IN_VIEW = 2u;
 // meshlet_info words (item id at word 7) + per-item [flags, color, tidx]:
 // hidden items are culled here so they cost nothing downstream.
 // IMPORTANT: both cull passes evaluate this identically (two-pass rule).
@@ -349,7 +355,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   STAMP
   let i = gid.x;
   if (i >= arrayLength(&meshlets) / MESHLET_WORDS) { return; }
-  if (vis[i] == 0u) { return; }
+  if (vis[i] != VIS_DRAWN) { return; }
   if (item_hidden(i)) { return; }
   var m = load_meshlet(i);
   // committed / animated item transform: move the bounding sphere (and, when
@@ -495,13 +501,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // at the CURRENT transforms, so occluders sit where they are now (only the
   // occluder set is a frame stale, which errs visible). The live gizmo drag
   // and non-rigid (scaled) slots keep the old skip.
-  let visible = frustum_cone_visible(m, moved) && (moved || occlusion_visible(m));
-  var drawn = vis[i] == 1u; // already drawn in pass 1, never charged again
+  let in_view = frustum_cone_visible(m, moved);
+  let visible = in_view && (moved || occlusion_visible(m));
+  var drawn = vis[i] == VIS_DRAWN; // already drawn in pass 1, never charged again
   if (visible && !drawn) { drawn = emit_new(m, i); }
   // a meshlet the budget turned away stays "not yet drawn", so the next frame
   // retests it against a HZB that now holds what DID get drawn — most of the
   // backlog is genuinely occluded by then instead of arriving all at once
-  vis[i] = select(0u, 1u, visible && drawn);
+  vis[i] = select(select(0u, VIS_IN_VIEW, in_view), VIS_DRAWN, visible && drawn);
 }
 `;
 
@@ -515,8 +522,10 @@ export function cullWgsl(pass2: boolean, vp: boolean): string {
 
 /** Outline draw list (outlinePass.ts): one thread per meshlet, emits the
  *  meshlets of outlined items — selected (include_selected) and/or the
- *  hovered item — that the cull left visible (use_vis; off under the no-cull
- *  full draw, which has no visibility words). Same record format as the
+ *  hovered item — that the cull found in view (use_vis 2: drawn OR hidden
+ *  behind other geometry, so the hidden outline covers the occluded part too),
+ *  only the drawn ones (use_vis 1: hidden-when-still while the camera moves),
+ *  or all of them (use_vis 0: the no-cull full draw has no visibility words). Same record format as the
  *  cull's emit, so the outline mask replays it through the scene pipelines.
  *  Before this list the mask replayed the WHOLE scene and discarded per
  *  fragment, costing a large slice of the scene pass on every frame. */
@@ -547,7 +556,7 @@ struct ModelUniOutline {
 struct OutlineListParams {
   hover_id: u32, // global item id, 0 = none
   include_selected: u32,
-  use_vis: u32, // 1 = only meshlets the cull left visible
+  use_vis: u32, // 0 = every meshlet, 1 = drawn only (vis 1), 2 = in view (vis 1 or 2)
   pad: u32,
 };
 @group(1) @binding(0) var<uniform> olp: OutlineListParams;
@@ -562,7 +571,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   STAMP
   let i = gid.x;
   if (i >= arrayLength(&meshlets) / MESHLET_WORDS) { return; }
-  if (olp.use_vis == 1u && vis[i] == 0u) { return; }
+  if (olp.use_vis == 1u && vis[i] != 1u) { return; }
+  if (olp.use_vis == 2u && vis[i] == 0u) { return; }
   let local = info_words[i * 8u + 7u];
   let sel = olp.include_selected == 1u && (item_states[local].flags & 4u) != 0u;
   let hov = olp.hover_id != 0u && local + model_uni.info.x == olp.hover_id;
