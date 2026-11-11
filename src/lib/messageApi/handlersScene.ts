@@ -114,6 +114,8 @@ const setOrAddLabels: ApiHandler = async ({ type, p }) => {
       bg: colorOpt(l.bg, `${what}.bg`, s.bg),
       opacity: numOpt(l.opacity, `${what}.opacity`, s.opacity, { min: 0, max: 1 }),
       textColor: colorOpt(l.textColor, `${what}.textColor`, s.textColor),
+      // not a payload field yet: host labels take the panel's text size
+      fontSize: s.fontSize,
       // null = follow the panel's leader colour (also the label's border)
       leaderColor: colorOpt(l.leaderColor, `${what}.leaderColor`, null),
       // explicit marker (or `true` for the panel default); omitted = the panel style

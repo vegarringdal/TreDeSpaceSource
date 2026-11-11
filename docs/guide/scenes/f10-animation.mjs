@@ -247,7 +247,7 @@ async function captureOverlayEditor(ctx) {
   await ctx.open('animationTimeline');
 }
 
-/** Present (ALT+F2): the 3D view with the floating play bar, paused in the
+/** Present (CTRL+F2): the 3D view with the floating play bar, paused in the
  *  second step. */
 async function capturePlayBar(ctx) {
   await ctx.harvest('ribbonAnimation');

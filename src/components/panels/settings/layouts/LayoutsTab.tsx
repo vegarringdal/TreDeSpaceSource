@@ -4,7 +4,7 @@ import { layoutSlotKeyLabel, layoutsActions, layoutsState, TOTAL_LAYOUT_SLOTS } 
 import { dialogs } from '../../../dialogs/dialogs.actions';
 
 /** Settings → Layouts tab: names + resets for the 24 layout slots (F1-F12
- *  presets, ALT+F1-F12 user slots). */
+ *  presets, CTRL+F1-F12 user slots). */
 export function LayoutsTab() {
   const layoutSlots = layoutsState.use().slots;
 
@@ -13,8 +13,8 @@ export function LayoutsTab() {
       title="Layout slot names"
       info={
         <>
-          Names for the {TOTAL_LAYOUT_SLOTS} layout slots in the <b>Layout</b> ribbon (shortcuts F1–F12, then ALT+F1–F12
-          for the Config slots). Select a slot there and press Save to store the current panel layout in it.
+          Names for the {TOTAL_LAYOUT_SLOTS} layout slots in the <b>Layout</b> ribbon (shortcuts F1–F12, then
+          CTRL+F1–F12 for the Config slots). Select a slot there and press Save to store the current panel layout in it.
         </>
       }
     >

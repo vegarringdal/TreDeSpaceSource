@@ -5,6 +5,7 @@
 
 import { projectToScreen } from '../../lib/math/project';
 import { rasterizeSvgOverlay } from '../../lib/overlay/svgCapture';
+import { LABEL_FONT_PX, LABEL_LINE_HEIGHT } from './labelFont';
 import { labelsState, type SceneLabel } from './labels.state';
 import { getRenderer } from './viewer.actions';
 
@@ -58,8 +59,6 @@ function drawLabels(ctx: CanvasRenderingContext2D, sx: number, sy: number) {
     ctx.arc(a[0] * sx, a[1] * sy, 2.5 * sx, 0, 2 * Math.PI);
     ctx.fill();
   }
-  const fontPx = 12 * sx;
-  const lineH = 15 * sx;
   const padX = 6 * sx;
   const padY = 2 * sx;
   for (const l of shown) {
@@ -67,6 +66,8 @@ function drawLabels(ctx: CanvasRenderingContext2D, sx: number, sy: number) {
     if (!a) {
       continue;
     }
+    const fontPx = (l.fontSize ?? LABEL_FONT_PX) * sx;
+    const lineH = fontPx * LABEL_LINE_HEIGHT;
     const lines = (s.richText ? l.text.split('\n') : [l.text]).map(boldSegments);
     let maxW = 0;
     for (const segs of lines) {

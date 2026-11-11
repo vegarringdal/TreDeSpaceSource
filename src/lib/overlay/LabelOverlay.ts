@@ -3,6 +3,7 @@
 // (selectable/draggable); leader lines live in one SVG underneath them, drawn
 // with lit-html so a label's colour or offset can never become markup.
 import { render, svg, type TemplateResult } from 'lit-html';
+import { LABEL_FONT_PX } from '../../state/viewer/labelFont';
 import { labelsActions } from '../../state/viewer/labels.actions';
 import { labelsState, type SceneLabel } from '../../state/viewer/labels.state';
 import { projectToScreen } from '../math/project';
@@ -97,7 +98,10 @@ export class LabelOverlay {
           'position:absolute;transform:translate(-50%,-50%);pointer-events:auto;cursor:grab;' +
           // touch-action:none so a touch-drag moves the label instead of the
           // browser hijacking it to pan/zoom the page (no pointermove otherwise)
-          'touch-action:none;padding:2px 6px;font:12px sans-serif;white-space:pre;user-select:none;max-width:280px;';
+          'touch-action:none;padding:2px 6px;font-family:sans-serif;white-space:pre;user-select:none;' +
+          // as wide as its text: an absolute box near the right edge would
+          // otherwise shrink to the space left and cut the text off
+          'width:max-content;';
         this.wireEvents(node, l.id);
         this.root.appendChild(node);
         this.nodes.set(l.id, node);
@@ -105,6 +109,7 @@ export class LabelOverlay {
       node.innerHTML = labelHtml(l, rich);
       node.style.background = l.bg;
       node.style.color = l.textColor;
+      node.style.fontSize = `${l.fontSize ?? LABEL_FONT_PX}px`;
       node.style.opacity = String(l.opacity);
       // unselected border matches the leader-line colour (selection = black dash)
       node.style.border = l.selected ? '1.5px dashed #000000' : `1px solid ${l.leaderColor ?? leaderColor}`;
@@ -122,6 +127,8 @@ export class LabelOverlay {
     node.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       e.preventDefault();
+      // every click (drag, ctrl+select, alt+move) finds the row in the list
+      labelsActions.reveal(id);
       if (e.ctrlKey) {
         labelsActions.toggleSelect(id);
         return;

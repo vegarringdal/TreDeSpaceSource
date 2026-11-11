@@ -1,5 +1,5 @@
 // Named dock-layout slots (App Layout ribbon): 12 preset snapshot slots on
-// F1-F12 plus 12 user slots (Config01-12) on ALT+F1-F12, each optionally linked
+// F1-F12 plus 12 user slots (Config01-12) on CTRL+F1-F12, each optionally linked
 // to a ribbon tab that gets focused when the slot applies.
 // The DockManager itself lives in React (App.tsx registers accessors here).
 
@@ -9,6 +9,7 @@ import { settingsTabState } from '../components/panels/settings/settings.state';
 import {
   animateWorkspace,
   assetsWorkspace,
+  HOME_RIGHT_PANELS,
   presentWorkspace,
   sqlWorkspace,
   viewpointWorkspace,
@@ -37,15 +38,15 @@ export interface LayoutSlot {
 
 /** Preset slots (F1-F12) — the first section of the App Layout ribbon. */
 export const LAYOUT_SLOTS = 12;
-/** User slots (ALT+F1-F12, Config01-12) — the second section; ALT+F1 ships the
- *  Assets preset, ALT+F2 the Present one, the rest are empty by default. */
+/** User slots (CTRL+F1-F12, Config01-12) — the second section; CTRL+F1 ships
+ *  the Assets preset, CTRL+F2 the Present one, the rest are empty by default. */
 export const USER_LAYOUT_SLOTS = 12;
 export const TOTAL_LAYOUT_SLOTS = LAYOUT_SLOTS + USER_LAYOUT_SLOTS;
 
 /** The key a slot index answers to, as shown next to its name: F1-F12, then
- *  ALT+F1-F12 for the user slots. */
+ *  CTRL+F1-F12 for the user slots. */
 export function layoutSlotKeyLabel(i: number): string {
-  return i < LAYOUT_SLOTS ? `F${i + 1}` : `ALT+F${i - LAYOUT_SLOTS + 1}`;
+  return i < LAYOUT_SLOTS ? `F${i + 1}` : `CTRL+F${i - LAYOUT_SLOTS + 1}`;
 }
 
 interface LayoutsState {
@@ -66,7 +67,7 @@ const defaultSlots = (): LayoutSlot[] => {
   }));
   // Slots 1–4: the base workspace, each linked to a ribbon and tuned for that
   // task (right panel swapped/closed). The rest stay empty for the user.
-  slots[0] = { name: 'Home', layout: workspace('ribbonHome', 'settings'), ribbon: 'ribbonHome' };
+  slots[0] = { name: 'Home', layout: workspace('ribbonHome', HOME_RIGHT_PANELS), ribbon: 'ribbonHome' };
   // slots 2–4 minimize the console (last arg) — task-focused workspaces
   slots[1] = {
     name: 'Clip Plane',
@@ -107,10 +108,10 @@ const defaultSlots = (): LayoutSlot[] => {
   slots[10] = { name: 'Viewpoint', layout: viewpointWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
   // F12: the SQL workspace (reports | editor | viewport+table+console | detail)
   slots[11] = { name: 'SQL Editor', layout: sqlWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
-  // ALT+F1 (the first user slot): the asset-management workspace
+  // CTRL+F1 (the first user slot): the asset-management workspace
   // (Model Assets over SQL Assets | viewport+console | Import Manager | Export)
   slots[LAYOUT_SLOTS] = { name: 'Assets', layout: assetsWorkspace('ribbonHome'), ribbon: 'ribbonHome' };
-  // ALT+F2: presenting an animation (the viewport with the Player beside it)
+  // CTRL+F2: presenting an animation (the viewport with the Player beside it)
   slots[LAYOUT_SLOTS + 1] = {
     name: 'Present',
     layout: presentWorkspace('ribbonAnimation'),

@@ -1,5 +1,5 @@
 // Guide scene: the start page (index.html) — one full-screen picture per app
-// layout (F1-F12 and the ALT+F1 Assets preset), the App Layout ribbon and
+// layout (F1-F12 and the CTRL+F1 Assets preset), the App Layout ribbon and
 // Settings → Layouts.
 import { layout, PANEL_W, SAMPLES } from './_lib.mjs';
 
@@ -45,11 +45,11 @@ async function captureLayoutRibbon(ctx) {
         keys: 'F1 … F12',
       },
       {
-        section: 'Configured App Layout (ALT + F1-F12)',
+        section: 'Configured App Layout (CTRL+F1-F12)',
         label: 'Your layouts (Assets, Present, Config03–12)',
         tooltip:
-          'ALT+F1 holds the Assets workspace; the others are empty until you save into them. Click one to switch to it, or to choose it as the target for Save.',
-        keys: 'ALT+F1 … ALT+F12',
+          'CTRL+F1 holds the Assets workspace; the others are empty until you save into them. Click one to switch to it, or to choose it as the target for Save.',
+        keys: 'CTRL+F1 … CTRL+F12',
       },
     ],
   });

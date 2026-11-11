@@ -1995,7 +1995,7 @@ have `not-found`, before anything changes), make `scene` the active scene
 when given, enter playback and switch to the Present workspace — the 3D view
 alone with the floating play bar (step title, previous / next step, play /
 pause). `play: true` starts it at once; `ribbon: false` collapses the
-ribbon. The workspace is the built-in preset, not the user's ALT+F2 slot.
+ribbon. The workspace is the built-in preset, not the user's CTRL+F2 slot.
 Presenting again while presenting keeps what the first one replaced. Leave
 with `animation.setMode` `off` — the user's panels and ribbon come back, as
 with the play bar's Close. `loaded` is the load report, or null without

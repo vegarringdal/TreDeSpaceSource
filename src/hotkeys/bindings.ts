@@ -614,7 +614,7 @@ export const HOTKEYS: HotkeyDef[] = [
     id: 'view.soloPanels',
     category: 'View',
     label: 'Solo main panel',
-    defaultKeys: 'ALT 626',
+    defaultKeys: 'ALT+F11',
     description: 'Close every panel except the main one (click again to restore)',
     run: () => toggleSoloPanels(),
   },
@@ -1170,12 +1170,13 @@ export const HOTKEYS: HotkeyDef[] = [
     description: `Select layout slot ${i + 1} and apply its saved panel layout (App Layout ribbon)`,
     run: () => layoutsActions.activate(i),
   })),
-  // User layout slots: ALT+F1-F12 select + apply slots 13-24 (Config01-12)
+  // User layout slots: CTRL+F1-F12 select + apply slots 13-24 (Config01-12).
+  // Not ALT: ALT+F4 closes the window before the page ever sees it.
   ...Array.from({ length: 12 }, (_, i) => ({
     id: `layout.slot${13 + i}`,
     category: 'Layout',
     label: `Layout slot ${13 + i} (Config${String(i + 1).padStart(2, '0')})`,
-    defaultKeys: `ALT+F${i + 1}`,
+    defaultKeys: `CTRL+F${i + 1}`,
     description: `Select user layout slot ${13 + i} and apply its saved panel layout (App Layout ribbon)`,
     run: () => layoutsActions.activate(12 + i),
   })),
@@ -3364,6 +3365,22 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT 1060',
     description: 'More translucent label spheres',
     run: () => labelsActions.bumpSphereOpacity(-1),
+  },
+  {
+    id: 'labels.fontSize.inc',
+    category: 'Labels',
+    label: 'Labels text size +',
+    defaultKeys: 'ALT 1064',
+    description: 'Bigger text on the selected / next labels',
+    run: () => labelsActions.bumpFontSize(1),
+  },
+  {
+    id: 'labels.fontSize.dec',
+    category: 'Labels',
+    label: 'Labels text size −',
+    defaultKeys: 'ALT 1065',
+    description: 'Smaller text on the selected / next labels',
+    run: () => labelsActions.bumpFontSize(-1),
   },
   {
     id: 'labels.sphereSize.dec',

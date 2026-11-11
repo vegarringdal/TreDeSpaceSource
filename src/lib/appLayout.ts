@@ -21,17 +21,27 @@ const RIBBONS = [
 const ribbonStrip = (activeRibbon: string): LayoutNode =>
   tabs(RIBBONS, { id: 'top', fixedSize: 124, locked: true, collapsible: true, activePanel: activeRibbon });
 
+/** Home (F1, and the first-load layout): Settings in front, with Set Color
+ *  and Label loaded as tabs behind it. */
+export const HOME_RIGHT_PANELS: readonly string[] = ['settings', 'multiColor', 'labels'];
+
 /**
  * A full workspace snapshot: the ribbon strip over `hierarchy | viewport+console`
- * plus an optional right-hand panel. `rightPanel` = null closes the right region
- * (two columns); `collapseConsole` minimizes the bottom console to its tab strip.
- * Used both as the base layout and for the named Layout slots.
+ * plus an optional right-hand tab group. `rightPanels` = one panel id or several
+ * (tabs, the first one shown); null closes the right region (two columns);
+ * `collapseConsole` minimizes the bottom console to its tab strip. Used both as
+ * the base layout and for the named Layout slots.
  */
-export function workspace(activeRibbon: string, rightPanel: string | null, collapseConsole = false): DockState {
+export function workspace(
+  activeRibbon: string,
+  rightPanels: string | readonly string[] | null,
+  collapseConsole = false,
+): DockState {
   const consoleTabs = tabs(['console'], { id: 'bottom', fixedSize: 170, collapsed: collapseConsole || undefined });
   const center = split('column', [tabs(['viewport']), consoleTabs]);
-  const row = rightPanel
-    ? split('row', [tabs(['hierarchy'], { id: 'left' }), center, tabs([rightPanel], { id: 'right' })], [20, 58, 22])
+  const right = typeof rightPanels === 'string' ? [rightPanels] : rightPanels;
+  const row = right
+    ? split('row', [tabs(['hierarchy'], { id: 'left' }), center, tabs([...right], { id: 'right' })], [20, 58, 22])
     : split('row', [tabs(['hierarchy'], { id: 'left' }), center], [22, 78]);
   return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
 }
@@ -70,7 +80,7 @@ export function sqlWorkspace(activeRibbon: string): DockState {
   return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
 }
 
-/** The "Assets" slot (ALT+F1): the asset-management workspace — Hierarchy |
+/** The "Assets" slot (CTRL+F1): the asset-management workspace — Hierarchy |
  *  (Model Assets over SQL Assets) | (viewport over console) | Import Manager |
  *  Export. */
 export function assetsWorkspace(activeRibbon: string): DockState {
@@ -122,4 +132,4 @@ export function viewportOnly(activeRibbon: string): DockState {
 }
 
 /** First-load layout + what "Reset panel layout" restores (Home ribbon + Settings). */
-export const defaultLayout: LayoutNode = workspace('ribbonHome', 'settings').root;
+export const defaultLayout: LayoutNode = workspace('ribbonHome', HOME_RIGHT_PANELS).root;

@@ -4,6 +4,37 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.11** (>0.0.150):
+  Labels → Import tags: a fullname now gets at most one label. Pasted rows
+  are made distinct first (ignoring capitals), and a tag that already has a
+  label is skipped even when its anchor differs (e.g. imported again with
+  Snap anchor toggled). The same tag in two loaded stores now labels only the
+  first copy — pick the Store to choose which.
+  Labels → Style: new Text size (6–72 px, with +/− hotkeys) for the selected
+  or next labels; it is saved with label files and viewpoints and used in
+  screenshots and video frames. Older labels keep 12 px.
+  Labels: a label box is now always as wide as its text — long text was cut
+  off at 280 px, or wherever the box met the right edge of the view.
+  Labels → Style: picking a Leader line colour works again (it changed
+  nothing before, so the lines stayed black), and Save… downloads the labels
+  file again — both buttons failed on the same mistake.
+  Labels list: each label shows its anchor's X, Y and Z (3 decimals, in
+  metres) under the linked fullname, each value in its own third of the row.
+  The list fills the rest of the Label panel and scrolls on its own, so
+  Common, Style and Import tags stay in view above a long list.
+  Clicking a label in the 3D view scrolls the Labels list to its row and
+  flashes it, so the row is easy to find (also when the panel opens later).
+  Solo main panel: the default shortcut is now ALT+F11 (was ALT 626).
+  A shortcut you rebound yourself is kept.
+  App Layout: the user layout slots (Assets, Present, Config03–12) move from
+  ALT+F1–F12 to CTRL+F1–F12 — ALT+F4 closes the window before the app sees
+  it, so slot 4 could never work. Shortcuts you rebound yourself are kept.
+  F1 Home: Set Color and Label now open as tabs behind Settings on the right
+  (Settings stays in front). The first-load layout matches it.
+  Color Panel: quick color 12 defaults to #706c68 (was pink #ec4899). A
+  palette you edited before keeps its saved colour there; Reset on row 12
+  gives the new default.
+
 - **2026.11.10** (>0.0.149):
   SQL Table: the column filters now match the WHOLE value (still ignoring
   capitals) instead of any part of it, so a filter picks exact rows. `*` or

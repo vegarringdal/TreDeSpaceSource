@@ -1,4 +1,5 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import { LABEL_FONT_PX } from './labelFont';
 import type { SphereMarker } from './sphereMarker';
 
 /** A world-anchored text label. `offset` is the screen-px displacement from
@@ -17,6 +18,8 @@ export interface SceneLabel {
   bg: string;
   opacity: number;
   textColor: string;
+  /** text size in CSS px; absent = LABEL_FONT_PX (older files, animation labels) */
+  fontSize?: number;
   /** leader line + border colour for THIS label; null/absent = the panel's */
   leaderColor?: string | null;
   /** 3D wireframe sphere at the anchor, depth tested — null/absent = none */
@@ -34,6 +37,9 @@ export interface LabelsState {
   placing: boolean;
   /** armed: the next viewport click moves THIS label's anchor, then disarms */
   repositionId: number | null;
+  /** the label last clicked in the viewport — the list scrolls its row into
+   *  view; `seq` makes a repeat click on the same label a new request */
+  reveal: { id: number; seq: number } | null;
   /** enable multiline + **bold** editing (default simple single-line) */
   richText: boolean;
   /** tag import: when the subtree's box center lies in empty air (bent pipe
@@ -49,6 +55,8 @@ export interface LabelsState {
   bg: string;
   opacity: number;
   textColor: string;
+  /** text size (CSS px) for new labels / the selection */
+  fontSize: number;
   /** sphere marker for new labels / the selection; null = none */
   sphere: SphereMarker | null;
   /** leader line + border colour for new labels / the selection */
@@ -70,6 +78,7 @@ export const labelsState = createStore<LabelsState>({
   muted: false,
   placing: false,
   repositionId: null,
+  reveal: null,
   richText: false,
   snapToItem: false,
   importStore: '',
@@ -77,6 +86,7 @@ export const labelsState = createStore<LabelsState>({
   bg: '#ffffff',
   opacity: 1,
   textColor: '#14161a',
+  fontSize: LABEL_FONT_PX,
   sphere: null,
   leaderColor: '#000000',
   explodeShape: 'circle',

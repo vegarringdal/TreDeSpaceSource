@@ -16,6 +16,7 @@ const STYLE: LabelStyle = {
   bg: '#ffffff',
   opacity: 1,
   textColor: '#14161a',
+  fontSize: 12,
   leaderColor: '#000000',
   sphere: null,
 };
@@ -61,10 +62,31 @@ describe('readLabel', () => {
     expect(l?.selected).toBe(false);
   });
 
+  it('reads the text size: absent = 12 px, clamped to whole px in range', () => {
+    expect(readLabel(label({}), DEFAULTS)?.fontSize).toBe(12);
+    expect(readLabel(label({ fontSize: '20px' }), DEFAULTS)?.fontSize).toBe(12);
+    expect(readLabel(label({ fontSize: 17.6 }), DEFAULTS)?.fontSize).toBe(18);
+    expect(readLabel(label({ fontSize: 1 }), DEFAULTS)?.fontSize).toBe(6);
+    expect(readLabel(label({ fontSize: 1e9 }), DEFAULTS)?.fontSize).toBe(72);
+  });
+
   it('only keeps keys a label has', () => {
     const l = readLabel(label({ onclick: 'x', style: 'position:fixed' }), DEFAULTS);
     expect(l && Object.keys(l).sort()).toEqual(
-      ['anchor', 'bg', 'fullname', 'id', 'leaderColor', 'offset', 'opacity', 'selected', 'sphere', 'text', 'textColor'].sort(),
+      [
+        'anchor',
+        'bg',
+        'fontSize',
+        'fullname',
+        'id',
+        'leaderColor',
+        'offset',
+        'opacity',
+        'selected',
+        'sphere',
+        'text',
+        'textColor',
+      ].sort(),
     );
   });
 });
@@ -88,7 +110,7 @@ describe('readLabelsFile', () => {
     const saved = {
       items: [label({ offset: [5, 6], leaderColor: '#112233', sphere: { size: 1, color: '#ff0000', solid: true, opacity: 0.5 } })],
       muted: true,
-      style: { bg: '#eeeeee', opacity: 0.8, textColor: '#000000', leaderColor: '#ff8800', sphere: null },
+      style: { bg: '#eeeeee', opacity: 0.8, textColor: '#000000', fontSize: 18, leaderColor: '#ff8800', sphere: null },
     };
     const file = readLabelsFile(saved, STYLE);
     expect(file.muted).toBe(true);

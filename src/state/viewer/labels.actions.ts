@@ -7,6 +7,7 @@ import { quatAxes } from '../../lib/math/quat';
 import { readLabelsFile } from './annotationInput';
 import { clipShapesState } from './clipShapes.state';
 import { db } from './db';
+import { clampLabelFontSize } from './labelFont';
 import { LABEL_UNDO_MAX, type LabelsState, labelsState, MAX_LABELS, type SceneLabel } from './labels.state';
 import { DEFAULT_SPHERE_MARKER } from './sphereMarker';
 import { loadedIndicesForStore } from './storeScope';
@@ -67,6 +68,26 @@ export function activeClipVolumes(): ((p: P3) => boolean)[] {
     }
   }
   return out;
+}
+
+/** Identity of a label's tag link — fullnames resolve case-insensitively. */
+const fullnameKey = (name: string): string => name.toLowerCase();
+
+/** Pasted tag rows → distinct names (case-insensitive, first spelling kept).
+ *  Blank rows and the "Not found:" header of a previous run are dropped. */
+function distinctTagRows(text: string): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const row of text.split(/\r?\n/)) {
+    const name = row.trim();
+    const key = fullnameKey(name);
+    if (!name || key.startsWith('not found:') || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    names.push(name);
+  }
+  return names;
 }
 
 // snapshot undo (own domain like coloring/transforms — never global)
@@ -168,6 +189,7 @@ export const labelsActions = {
         bg: s.bg,
         opacity: s.opacity,
         textColor: s.textColor,
+        fontSize: s.fontSize,
         sphere: s.sphere,
       },
     ]);
@@ -192,6 +214,12 @@ export const labelsActions = {
       items: s.items.map((l) => (l.id === id ? { ...l, fullname: fullname || null } : l)),
       version: s.version + 1,
     }));
+  },
+
+  /** A label was clicked in the viewport: ask the list to scroll to its row.
+   *  Not an undo step and no overlay rebuild (version untouched). */
+  reveal(id: number) {
+    labelsState.set((s) => ({ reveal: { id, seq: (s.reveal?.seq ?? 0) + 1 } }));
   },
 
   /** Arm anchor reposition for one label (click in the viewport to move it). */
@@ -305,10 +333,10 @@ export const labelsActions = {
     labelsState.set({ undoDepth: undoStack.length, redoDepth: 0 });
   },
 
-  /** Apply the panel style (bg / opacity / text colour / leader colour /
-   *  sphere marker) to the selected labels, and remember it for the next
-   *  ones. */
-  setStyle(patch: Partial<Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'leaderColor' | 'sphere'>>) {
+  /** Apply the panel style (bg / opacity / text colour / text size / leader
+   *  colour / sphere marker) to the selected labels, and remember it for the
+   *  next ones. */
+  setStyle(patch: Partial<Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'fontSize' | 'leaderColor' | 'sphere'>>) {
     labelsState.set(patch);
     const items = labelsState.get().items;
     if (items.some((l) => l.selected)) {
@@ -317,34 +345,39 @@ export const labelsActions = {
     }
   },
 
+  /** Step the text size by `delta` px (drives the number-input +/- hotkeys). */
+  bumpFontSize(delta: number) {
+    labelsActions.setStyle({ fontSize: clampLabelFontSize(labelsState.get().fontSize + delta) });
+  },
+
   /** Sphere marker on/off for the selection / next labels (hotkey). */
   toggleSphereStyle() {
     const s = labelsState.get();
-    this.setStyle({ sphere: s.sphere ? null : { ...DEFAULT_SPHERE_MARKER } });
+    labelsActions.setStyle({ sphere: s.sphere ? null : { ...DEFAULT_SPHERE_MARKER } });
   },
 
   /** Step the sphere marker radius (drives the number-input +/- hotkeys). */
   bumpSphereSize(delta: number) {
     const cur = labelsState.get().sphere ?? DEFAULT_SPHERE_MARKER;
-    this.setStyle({ sphere: { ...cur, size: Math.max(0.01, +(cur.size + delta * 0.05).toFixed(3)) } });
+    labelsActions.setStyle({ sphere: { ...cur, size: Math.max(0.01, +(cur.size + delta * 0.05).toFixed(3)) } });
   },
 
   /** Filled sphere (shaded, with opacity) instead of a wireframe. */
   toggleSphereSolid() {
     const cur = labelsState.get().sphere ?? DEFAULT_SPHERE_MARKER;
-    this.setStyle({ sphere: { ...cur, solid: !cur.solid } });
+    labelsActions.setStyle({ sphere: { ...cur, solid: !cur.solid } });
   },
 
   /** Step the solid sphere's fill opacity (hotkeys); 1 = opaque. */
   bumpSphereOpacity(delta: number) {
     const cur = labelsState.get().sphere ?? DEFAULT_SPHERE_MARKER;
-    this.setStyle({
+    labelsActions.setStyle({
       sphere: { ...cur, opacity: Math.min(1, Math.max(0.05, +(cur.opacity + delta * 0.05).toFixed(3))) },
     });
   },
 
   setLeaderColor(leaderColor: string) {
-    this.setStyle({ leaderColor });
+    labelsActions.setStyle({ leaderColor });
     // version bump: label BORDERS follow the leader colour and only restyle
     // on rebuild (leader lines themselves redraw every frame)
     labelsState.set((s) => ({ version: s.version + 1 }));
@@ -545,13 +578,11 @@ export const labelsActions = {
   },
 
   /** Tag import. Returns the not-found names (the panel writes them back into
-   *  the paste box). replace = drop all existing labels first; duplicates (by
-   *  fullname) are silently skipped. */
+   *  the paste box). replace = drop all existing labels first. A fullname gets
+   *  at most ONE label: pasted rows are made distinct first, and a tag that
+   *  already has a label (or resolves twice) is silently skipped. */
   async importTags(text: string, mode: 'append' | 'replace'): Promise<string[]> {
-    const names = text
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0 && !l.toLowerCase().startsWith('not found:'));
+    const names = distinctTagRows(text);
     if (names.length === 0) {
       return [];
     }
@@ -560,12 +591,15 @@ export const labelsActions = {
     const { found, notFound } = await db.findLabelAnchors(names, snapToItem, onlyModels);
     const s = labelsState.get();
     const base = mode === 'replace' ? [] : s.items;
-    // duplicates key on fullname AND anchor: the same tag resolved in two
-    // plants is two distinct labels, re-importing the same plant's tag is not
-    const labelKey = (name: string, anchor: readonly number[]): string =>
-      `${name}\0${anchor.map((v) => v.toFixed(2)).join(',')}`;
-    const existing = new Set(base.filter((l) => l.fullname != null).map((l) => labelKey(l.fullname!, l.anchor)));
-    const fresh = found.filter((f) => !existing.has(labelKey(f.name, f.center)));
+    const taken = new Set(base.flatMap((l) => (l.fullname == null ? [] : [fullnameKey(l.fullname)])));
+    const fresh = found.filter((f) => {
+      const key = fullnameKey(f.name);
+      if (taken.has(key)) {
+        return false;
+      }
+      taken.add(key);
+      return true;
+    });
     const room = MAX_LABELS - base.length;
     if (fresh.length > room) {
       dialogs.error(`Label limit is ${MAX_LABELS} — only the first ${room} new tags were added.`, 'Labels');
@@ -585,6 +619,7 @@ export const labelsActions = {
         bg: s.bg,
         opacity: s.opacity,
         textColor: s.textColor,
+        fontSize: s.fontSize,
         sphere: s.sphere,
       })),
     ]);
@@ -597,7 +632,7 @@ export const labelsActions = {
 
   /** Save all labels (+ the shared style) to a downloaded JSON file. */
   downloadJson() {
-    downloadText('labels.json', this.exportJson());
+    downloadText('labels.json', labelsActions.exportJson());
   },
 
   /** Serialize the label set for sharing/backup. */
@@ -607,7 +642,14 @@ export const labelsActions = {
       {
         items: s.items,
         muted: s.muted,
-        style: { bg: s.bg, opacity: s.opacity, textColor: s.textColor, leaderColor: s.leaderColor, sphere: s.sphere },
+        style: {
+          bg: s.bg,
+          opacity: s.opacity,
+          textColor: s.textColor,
+          fontSize: s.fontSize,
+          leaderColor: s.leaderColor,
+          sphere: s.sphere,
+        },
       },
       (_k, v) => (typeof v === 'number' ? +v.toFixed(6) : v),
       2,
@@ -621,7 +663,7 @@ export const labelsActions = {
     const { items, muted, style } = readLabelsFile(JSON.parse(text), labelsState.get());
     labelsState.set({ muted, ...style });
     // setAll re-bases ids and snapshots for undo
-    this.setAll(items.slice(0, MAX_LABELS));
+    labelsActions.setAll(items.slice(0, MAX_LABELS));
     return Math.min(items.length, MAX_LABELS);
   },
 };

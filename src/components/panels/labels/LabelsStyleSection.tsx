@@ -1,4 +1,5 @@
 import { Checkbox, Collapsible, ColorSelect, NumberInput } from '@treDeSpaceUI/widgets';
+import { LABEL_FONT_MAX, LABEL_FONT_MIN } from '../../../state/viewer/labelFont';
 import { labelsActions as act } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
 import { DEFAULT_SPHERE_MARKER } from '../../../state/viewer/sphereMarker';
@@ -31,6 +32,21 @@ export function LabelsStyleSection() {
         onChange={(c) => act.setStyle({ textColor: c })}
       />
       <NumberInput
+        label="Text size"
+        labelPosition="split"
+        fieldWidth={FIELD_W}
+        value={s.fontSize}
+        min={LABEL_FONT_MIN}
+        max={LABEL_FONT_MAX}
+        step={1}
+        precision={0}
+        unit="px"
+        tooltip="Size of the label text — the box grows to fit it"
+        decShortcut="labels.fontSize.dec"
+        incShortcut="labels.fontSize.inc"
+        onChange={(x) => act.setStyle({ fontSize: x })}
+      />
+      <NumberInput
         label="Opacity"
         labelPosition="split"
         fieldWidth={FIELD_W}
@@ -46,7 +62,7 @@ export function LabelsStyleSection() {
         labelPosition="split"
         fieldWidth={FIELD_W}
         value={s.leaderColor}
-        onChange={act.setLeaderColor}
+        onChange={(c) => act.setLeaderColor(c)}
       />
       <Checkbox
         label="3D sphere at the anchor"

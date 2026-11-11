@@ -1,5 +1,5 @@
 // App Layout ribbon: 12 preset dock-layout slots (F1-F12) and 12 user slots
-// (Config01-12, ALT+F1-F12). Click a slot to select it and apply its saved
+// (Config01-12, CTRL+F1-F12). Click a slot to select it and apply its saved
 // layout (+ linked ribbon); Save stores the current layout into the selected
 // slot. Names are edited in Settings → Layouts.
 import { IconDeviceFloppy, IconLayoutDashboard } from '@tabler/icons-react';
@@ -53,8 +53,8 @@ export function RibbonLayout() {
       <RibbonSection title="Configured App Layouts (Shortcut F1-F12)">
         {s.slots.slice(0, LAYOUT_SLOTS).map(slotButton)}
       </RibbonSection>
-      {/* the 12 user slots (ALT+F1-F12) — ALT+F1 / ALT+F2 ship the Assets and Present presets, the rest are empty until saved into */}
-      <RibbonSection title="Configured App Layout (ALT+F1-F12)">
+      {/* the 12 user slots (CTRL+F1-F12) — CTRL+F1 / CTRL+F2 ship the Assets and Present presets, the rest are empty until saved into */}
+      <RibbonSection title="Configured App Layout (CTRL+F1-F12)">
         {s.slots.slice(LAYOUT_SLOTS).map((slot, i) => slotButton(slot, LAYOUT_SLOTS + i))}
       </RibbonSection>
 

@@ -13,7 +13,7 @@ export const DEFAULT_QUICK_COLORS = [
   '#ffffff',
   '#0ea5e9',
   '#84cc16',
-  '#ec4899',
+  '#706c68',
   '#78716c',
   '#facc15',
   '#6366f1',

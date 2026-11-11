@@ -1,4 +1,4 @@
-// Guide scene: ALT+F1 Assets (a01-assets.html) — the asset workspace: Model
+// Guide scene: CTRL+F1 Assets (a01-assets.html) — the asset workspace: Model
 // Assets, SQL Assets, Import Manager and Export. The RVM import is driven
 // through the real panel (files handed to its hidden file input, the way the
 // picker would), so the pictures show the panel mid- and post-import.

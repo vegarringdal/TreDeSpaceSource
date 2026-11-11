@@ -25,7 +25,7 @@ export function Labels() {
   }
 
   return (
-    <PanelBody className="panel-body flex flex-col gap-1.5 overflow-y-auto p-2">
+    <PanelBody className="panel-body flex h-full min-h-0 flex-col gap-1.5 overflow-y-auto p-2">
       {s.muted && (
         <InfoBox>
           Labels are muted — they are hidden in the viewport but still here. Press Show all to bring them back.

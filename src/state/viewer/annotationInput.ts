@@ -10,6 +10,7 @@
 // Pure on purpose (types + pure helpers only) so vitest can import it.
 import { colorToHex } from '../../lib/color/hexColor';
 import type { V3 } from '../../lib/math/quat';
+import { LABEL_FONT_PX, readLabelFontSize } from './labelFont';
 import type { LabelsState, SceneLabel } from './labels.state';
 import type { Measurement, MeasurePoint, MeasureToolKind } from './measurements.state';
 import { readSphereMarker } from './sphereMarker';
@@ -19,7 +20,7 @@ import { readSphereMarker } from './sphereMarker';
 // -----------------------------------------------------------------------------
 
 /** The panel-wide label style a labels file carries next to its items. */
-export type LabelStyle = Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'leaderColor' | 'sphere'>;
+export type LabelStyle = Pick<LabelsState, 'bg' | 'opacity' | 'textColor' | 'fontSize' | 'leaderColor' | 'sphere'>;
 
 /** Per-label fallbacks for fields a file leaves out or gets wrong. */
 export type LabelDefaults = Readonly<Pick<LabelsState, 'bg' | 'textColor'>>;
@@ -161,6 +162,8 @@ export function readLabel(raw: unknown, defaults: LabelDefaults): SceneLabel | n
     bg: readColor(raw.bg, defaults.bg),
     opacity: readUnit(raw.opacity, 1),
     textColor: readColor(raw.textColor, defaults.textColor),
+    // absent = the size every label had before the setting existed
+    fontSize: readLabelFontSize(raw.fontSize, LABEL_FONT_PX),
     // null = follow the panel's leader colour
     leaderColor: readColor(raw.leaderColor, null),
     sphere: readSphereMarker(raw.sphere),
@@ -176,7 +179,7 @@ export function readLabels(raw: unknown, defaults: LabelDefaults): SceneLabel[] 
   return raw.map((l) => readLabel(l, defaults)).filter((l): l is SceneLabel => l !== null);
 }
 
-/** A labels file's `style` block: only the five style keys, each validated,
+/** A labels file's `style` block: only the six style keys, each validated,
  *  each falling back to `current` when absent or invalid. */
 export function readLabelStyle(raw: unknown, current: LabelStyle): LabelStyle {
   const style = isRecord(raw) ? raw : {};
@@ -184,6 +187,7 @@ export function readLabelStyle(raw: unknown, current: LabelStyle): LabelStyle {
     bg: readColor(style.bg, current.bg),
     opacity: readUnit(style.opacity, current.opacity),
     textColor: readColor(style.textColor, current.textColor),
+    fontSize: readLabelFontSize(style.fontSize, current.fontSize),
     leaderColor: readColor(style.leaderColor, current.leaderColor),
     sphere: style.sphere === undefined ? current.sphere : readSphereMarker(style.sphere),
   };

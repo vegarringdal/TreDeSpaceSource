@@ -537,7 +537,7 @@ freely, ALT 1571 —, Edit — Undo / Redo, and the host's **Bookmark**
 section when a host sets one, D73), the Timeline at the bottom, the Key
 panel with Overlay Editor and Set Color on the right. **Present** (the
 button) puts playback in the Present workspace: the 3D view alone with the
-floating play bar (D74); ALT+F2 is only that layout slot — it does not
+floating play bar (D74); CTRL+F2 is only that layout slot — it does not
 start the mode. Panels: Key (ALT 691), Timeline (692), Overlay Editor
 (695), Overlay Preview (696). Hotkeys: the Animation category — kept
 commands keep their ALT 9xx / 13xx / 14xx codes, new ones run from ALT 1505
@@ -989,7 +989,7 @@ its number and name, its text below.
 - **Host presenting and bookmarks** (D73): `animation.present` is one call
   from a file to a running presentation — load the doc (optional), the
   scene, playback, the built-in Present workspace (`presentWorkspace`, not
-  the user's ALT+F2 slot; `ribbon: false` collapses the ribbon), `play`.
+  the user's CTRL+F2 slot; `ribbon: false` collapses the ribbon), `play`.
   `animation.setBookmarkButton` puts a SESSION-ONLY big button in its own
   Bookmark section at the end of the Animation ribbon (`hostBookmark.*`,
   hotkey ALT 1572); a click emits `animation.bookmark` with the doc as Save

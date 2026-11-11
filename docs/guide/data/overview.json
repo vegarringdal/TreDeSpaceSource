@@ -195,10 +195,10 @@
       },
       {
         "icon": "",
-        "keys": "ALT+F1 … ALT+F12",
-        "section": "Configured App Layout (ALT + F1-F12)",
+        "keys": "CTRL+F1 … CTRL+F12",
+        "section": "Configured App Layout (CTRL+F1-F12)",
         "label": "Your layouts (Assets, Present, Config03–12)",
-        "tooltip": "ALT+F1 holds the Assets workspace; the others are empty until you save into them. Click one to switch to it, or to choose it as the target for Save."
+        "tooltip": "CTRL+F1 holds the Assets workspace; the others are empty until you save into them. Click one to switch to it, or to choose it as the target for Save."
       }
     ]
   },
