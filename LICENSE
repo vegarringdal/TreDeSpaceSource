@@ -49,6 +49,8 @@ regard to its conflict-of-law rules. The ordinary courts of Norway have
 exclusive jurisdiction over any dispute arising from this license, with the
 licensor's home venue as the agreed legal venue.
 
+7. Project collaboration. Giving clients, contractors, vendors, or other project partners access to a licensee’s own deployment of the software, so they can view or work on projects in which the licensee takes part, is not providing the software as a hosted or managed service under the Limitations. This applies only where the licensee (a) owns or operates the facility, installation, or other asset the project concerns, or (b) contributes substantial work of its own to the project, such as engineering, construction, or operations, and where providing access to the software is not that contribution. Each partner’s access must be limited to the projects shared with the licensee. The restriction still applies to offering the software, or access to it, as a product or service in its own right, whether paid or free.
+
 ELASTIC LICENSE 2.0
 
 URL: https://www.elastic.co/licensing/elastic-license
