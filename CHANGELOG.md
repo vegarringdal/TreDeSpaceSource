@@ -4,6 +4,39 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.14** (>0.0.153):
+  `docs:shots`: the `scans` scene now looks for its sample scan in your
+  download folder when `$SCAN_SAMPLES` is not set (it used to look in
+  `scanSamples/` in the repo). Drop the file in Downloads and run.
+
+- **2026.11.14** (>0.0.153):
+  Guide: the Scans page now has pictures and a reference table of every
+  control. A new `scans` scene for `npm run docs:shots` imports a small
+  laser scan through the Import Manager and captures the import section,
+  the progress window, the three sections of the Scans panel and three 3D
+  views (the cloud from outside, the photo from inside a setup, the photo
+  blended with the points). The scan is not in the repo: the scene reads
+  it from `$SCAN_SAMPLES` or `scanSamples/` and is skipped, pictures left
+  alone, where it is missing. The 3D views and the "inside a setup" state
+  need a run on a real GPU.
+  `docs:shots`: sample files are now handed to the app by content instead
+  of by path, so the browser taking the pictures no longer has to open
+  them itself. A Flatpak Chromium could not: the Assets scene staged the
+  files, the import then failed to read them and the scene died waiting
+  for the progress window. A scene can also show a file under another
+  name, and a missing sample is reported by name before anything starts.
+  Scans panel: the "Offset m" caption in front of the X, Y, Z boxes was
+  cut to "Offset…"; its column is a little wider.
+  Labels → Import tags: a row may now carry x, y and z after the name, in
+  metres, and the label is then placed at that point instead of on the
+  item. Copy four spreadsheet columns (name, X, Y, Z) and paste them as
+  they are; tabs, semicolons, commas and spaces all work as separators and
+  a decimal comma is read. A row with coordinates is not looked up for its
+  position and is never reported as not found, so the name does not have
+  to exist in the model — when it does, the label is linked to that item.
+  Rows with and without coordinates can be mixed; a row with only one or
+  two coordinates is written back under "Needs x, y and z".
+
 - **2026.11.14** (>0.0.152):
   Scans: a high budget no longer needs the camera moved closer to be
   used. Two changes. (1) A new "Detail" setting in Scans panel → Point

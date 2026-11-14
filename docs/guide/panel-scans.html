@@ -56,13 +56,17 @@
           <ol class="steps">
             <li>
               In the Import Manager, open <b>Import LGSX / E57</b> and pick a Leica <code class="inline">.lgsx</code>
-              or an <code class="inline">.e57</code> file. The options are described under
-              <a href="a01-assets.html#import-scan">Import LGSX / E57</a>.
+              or an <code class="inline">.e57</code> file <span class="mk">1</span>. The options appear once a file is picked:
+              <b>Panorama photos</b> <span class="mk">2</span> keeps the photos (needed to step into a setup),
+              <b>16-bit intensity</b> <span class="mk">3</span>, <b>Full fingerprint</b> <span class="mk">4</span> and <b>Workers</b> <span class="mk">5</span> are
+              described under <a href="a01-assets.html#import-scan">Import LGSX / E57</a>.
+              <figure class="shot" data-shot="scans-import"></figure>
             </li>
             <li>
-              Press <b>Import</b>. The scan is converted in your browser into one <code class="inline">.tdpp</code>
+              Press <b>Import</b> <span class="mk">6</span>. The scan is converted in your browser into one <code class="inline">.tdpp</code>
               file, kept in the store <b>lgsx-files</b> or <b>e57-files</b> unless you chose another. A big scan
-              takes minutes.
+              takes minutes; a window shows how far it has come.
+              <figure class="shot" data-shot="scans-progress"></figure>
             </li>
             <li>Load it from <b>Model Assets</b> like any model (it is loaded for you when <b>Load after import</b> is ticked).</li>
           </ol>
@@ -76,18 +80,22 @@
             The app draws the points nearest the camera in the finest detail and fills in coarser levels further away,
             up to a fixed number of points. The header shows how many are drawn now.
           </p>
+          <figure class="shot" data-shot="scans-points-viewport">
+            <figcaption>A scan in the 3D view. The orange spheres are the places the scanner stood.</figcaption>
+          </figure>
+          <figure class="shot" data-shot="scans-points"></figure>
           <ul>
-            <li><b>Show points</b> (<kbd>ALT 1710</kbd>) — show or hide all points.</li>
-            <li><b>Colour / Intensity</b> (<kbd>ALT 1715</kbd>) — colour the points from the scanner's photo, or grey by how strongly the laser came back.</li>
-            <li><b>Size</b> (<kbd>ALT 1711</kbd> / <kbd>ALT 1712</kbd>) — the size of a point on screen.</li>
-            <li><b>Budget</b> (<kbd>ALT 1713</kbd> / <kbd>ALT 1714</kbd>) — the most points drawn at once, in millions, over all scans. Higher shows more detail and needs more graphics memory (about 16 bytes per point).</li>
-            <li><b>Detail</b> (<kbd>ALT 1756</kbd> / <kbd>ALT 1757</kbd>) — how fine the points are loaded. The budget is only a ceiling: at 1 × the app stops loading once the points sit about one point size apart on screen, however much budget is left. A higher value loads closer points without moving nearer (2 × is twice as close, about four times the points) until the budget is full. Raise it when gaps show and the line below says fewer points are in view than the budget; lower it to load less.</li>
-            <li><b>Max dist</b> (<kbd>ALT 1732</kbd> / <kbd>ALT 1733</kbd>) — points farther from the camera than this many metres are neither loaded nor drawn; 0 means no limit. With a limit, the whole budget is spent within that distance, so what is near gets finer. Not used in orthographic views.</li>
-            <li><b>Focus</b> (<kbd>ALT 1737</kbd> / <kbd>ALT 1738</kbd>) — full detail within this many metres of the camera; beyond it the detail falls off. Use it when the budget runs out and you care most about what is near, for example 10 m indoors. 0 gives even detail over the whole picture. Not used in orthographic views.</li>
-            <li><b>Cache</b> (<kbd>ALT 1740</kbd> / <kbd>ALT 1741</kbd>) — how many points are kept in memory beyond the budget, in percent of it (default 50). They are not drawn, but turning or moving back needs no reload. 0 uses the least memory.</li>
-            <li><b>Budget counts points in view only</b> (<kbd>ALT 1739</kbd>) — points come in blocks, and a large block often reaches outside the picture. Ticked (default), such a block is charged only for the part in view, so the budget gives finer detail on screen. A block is still loaded and drawn whole, so more points are drawn than the budget says — never more than twice the budget. The line under these settings then shows both: about how many are in view, and how many are drawn. Unticked, every drawn point counts and the two are the same.</li>
-            <li><b>Adaptive size (fill gaps up close)</b> (<kbd>ALT 1716</kbd>) — grows the points of coarse levels so no gaps show. Off by default.</li>
-            <li><b>Only the entered setup's points</b> (<kbd>ALT 1720</kbd>) — inside a setup, draw only the points that scanner position measured: what its photo actually saw.</li>
+            <li><span class="mk">1</span> <b>Show points</b> (<kbd>ALT 1710</kbd>) — show or hide all points.</li>
+            <li><span class="mk">2</span> <b>Colour / Intensity</b> (<kbd>ALT 1715</kbd>) — colour the points from the scanner's photo, or grey by how strongly the laser came back.</li>
+            <li><span class="mk">3</span> <b>Size</b> (<kbd>ALT 1711</kbd> / <kbd>ALT 1712</kbd>) — the size of a point on screen.</li>
+            <li><span class="mk">4</span> <b>Budget</b> (<kbd>ALT 1713</kbd> / <kbd>ALT 1714</kbd>) — the most points drawn at once, in millions, over all scans. Higher shows more detail and needs more graphics memory (about 16 bytes per point).</li>
+            <li><span class="mk">5</span> <b>Detail</b> (<kbd>ALT 1756</kbd> / <kbd>ALT 1757</kbd>) — how fine the points are loaded. The budget is only a ceiling: at 1 × the app stops loading once the points sit about one point size apart on screen, however much budget is left. A higher value loads closer points without moving nearer (2 × is twice as close, about four times the points) until the budget is full. Raise it when gaps show and the line below says fewer points are in view than the budget; lower it to load less.</li>
+            <li><span class="mk">6</span> <b>Max dist</b> (<kbd>ALT 1732</kbd> / <kbd>ALT 1733</kbd>) — points farther from the camera than this many metres are neither loaded nor drawn; 0 means no limit. With a limit, the whole budget is spent within that distance, so what is near gets finer. Not used in orthographic views.</li>
+            <li><span class="mk">7</span> <b>Focus</b> (<kbd>ALT 1737</kbd> / <kbd>ALT 1738</kbd>) — full detail within this many metres of the camera; beyond it the detail falls off. Use it when the budget runs out and you care most about what is near, for example 10 m indoors. 0 gives even detail over the whole picture. Not used in orthographic views.</li>
+            <li><span class="mk">8</span> <b>Cache</b> (<kbd>ALT 1740</kbd> / <kbd>ALT 1741</kbd>) — how many points are kept in memory beyond the budget, in percent of it (default 50). They are not drawn, but turning or moving back needs no reload. 0 uses the least memory.</li>
+            <li><span class="mk">9</span> <b>Budget counts points in view only</b> (<kbd>ALT 1739</kbd>) — points come in blocks, and a large block often reaches outside the picture. Ticked (default), such a block is charged only for the part in view, so the budget gives finer detail on screen. A block is still loaded and drawn whole, so more points are drawn than the budget says — never more than twice the budget. The line under these settings <span class="mk">12</span> then shows both: about how many are in view, and how many are drawn. Unticked, every drawn point counts and the two are the same.</li>
+            <li><span class="mk">10</span> <b>Adaptive size (fill gaps up close)</b> (<kbd>ALT 1716</kbd>) — grows the points of coarse levels so no gaps show. Off by default.</li>
+            <li><span class="mk">11</span> <b>Only the entered setup's points</b> (<kbd>ALT 1720</kbd>) — inside a setup, draw only the points that scanner position measured: what its photo actually saw.</li>
           </ul>
           <p>
             <b>Clip planes and clip boxes</b> cut scan points like they cut models, and what is cut away is not
@@ -103,43 +111,53 @@
           <ol class="steps">
             <li>
               Every setup is an orange sphere in the 3D view. Double-click a sphere, double-click its row in the
-              panel, or select the row and press <b>Enter</b> (<kbd>ALT 1700</kbd>). The camera moves to where the
+              panel, or select the row and press <b>Enter</b> <span class="mk">1</span> (<kbd>ALT 1700</kbd>). The camera moves to where the
               scanner stood and the photo appears around you. A sphere hidden behind a wall or behind scan points
               does not take the click: what you see in front of it is selected instead. The photo is a perspective
               view, so an orthographic view switches to perspective when you enter, and switching to orthographic
               leaves the setup.
+              <figure class="shot" data-shot="scans-photo"></figure>
             </li>
-            <li>Drag to look around; the wheel zooms. The photo gets sharper as you zoom in.</li>
             <li>
-              Lower <b>Opacity</b> (<kbd>ALT 1704</kbd> / <kbd>ALT 1705</kbd>) to blend the photo with the model and
+              Drag to look around; the wheel zooms. The photo gets sharper as you zoom in.
+              <figure class="shot" data-shot="scans-photo-viewport">
+                <figcaption>Inside a setup: the photo taken from where the scanner stood.</figcaption>
+              </figure>
+            </li>
+            <li>
+              Lower <b>Opacity</b> <span class="mk">6</span> (<kbd>ALT 1704</kbd> / <kbd>ALT 1705</kbd>) to blend the photo with the model and
               the points. At 100 % you see the photo alone.
+              <figure class="shot" data-shot="scans-blend-viewport">
+                <figcaption>The same view at 50 % opacity: the photo blended with the scan points.</figcaption>
+              </figure>
             </li>
             <li>
-              <b>Over all / Background</b> (<kbd>ALT 1706</kbd>) — the photo covers the model and the points, or
+              <b>Over all / Background</b> <span class="mk">5</span> (<kbd>ALT 1706</kbd>) — the photo covers the model and the points, or
               shows only where nothing else is drawn.
             </li>
             <li>
-              The arrows (<kbd>ALT 1703</kbd> / <kbd>ALT 1702</kbd>) go to the previous and next setup;
-              <b>Exit</b> (<kbd>ALT 1701</kbd>) leaves the photo.
+              The arrows <span class="mk">3</span> <span class="mk">4</span> (<kbd>ALT 1703</kbd> / <kbd>ALT 1702</kbd>) go to the previous and next setup;
+              <b>Exit</b> <span class="mk">2</span> (<kbd>ALT 1701</kbd>) leaves the photo.
             </li>
           </ol>
           <p>
-            <b>Show setup markers</b> (<kbd>ALT 1707</kbd>) hides or shows the orange spheres, and <b>Markers</b>
-            (<kbd>ALT 1735</kbd> / <kbd>ALT 1736</kbd>) makes them see-through when they are in the way; they can
+            <b>Show setup markers</b> <span class="mk">7</span> (<kbd>ALT 1707</kbd>) hides or shows the orange spheres, and <b>Markers</b>
+            <span class="mk">8</span> (<kbd>ALT 1735</kbd> / <kbd>ALT 1736</kbd>) makes them see-through when they are in the way; they can
             still be double-clicked. A setup without a photo
             can still be entered: only the camera moves.
           </p>
 
           <h3 id="scans-list">Scans and setups</h3>
+          <figure class="shot" data-shot="scans-list"></figure>
           <ul>
-            <li>Every loaded scan file has a section of its own. Click its name to fold it away or open it; on the right of the name are its number of points and setups.</li>
-            <li>The <b>eye</b> button in the scan's header (<kbd>ALT 1723</kbd>) switches the scan on or off: off hides its points and spheres. The scan stays loaded.</li>
-            <li>The <b>✕</b> button (<kbd>ALT 1724</kbd>) takes the scan out of the scene. It stays in the library.</li>
-            <li><b>Coords</b> (<kbd>ALT 1748</kbd> steps to the next) — shown when the scan's source stores coordinate systems: pick the one to show the scan in, for example the one made from survey control (site coordinates), a user coordinate system, or <b>Scanner project frame</b> (the scanner software's own). Switching is instant — nothing is converted again — and remembered for the scan.</li>
-            <li><b>X</b>, <b>Y</b>, <b>Z</b> — three boxes, captioned <b>Offset m</b> where the panel is wide enough (<kbd>ALT 1742</kbd>–<kbd>ALT 1747</kbd> move one step): an offset in metres that moves the whole scan: points, setup spheres and photos. Use it to line a scan up with a model that is in other coordinates. The offset is saved with the scan and applied every time it is loaded. When you import the same scan again, the app asks whether the new one should keep it.</li>
-            <li>Below are the scan's setups; double-click one to enter it. They are not listed while the scan is switched off.</li>
-            <li><b>Offset step</b>, above the list (<kbd>ALT 1752</kbd> larger / <kbd>ALT 1753</kbd> smaller) — how far one − / + of the offset boxes moves a scan, for all scans. It starts at 0.1 m; type any value from 0.001 to 1000, or step it (0.1 → 0.2 … 1 → 2 going up, 0.1 → 0.09 … 0.01 going down). Use a large step to bring a scan roughly into place and a small one to fine-tune.</li>
-            <li>The two buttons to its right open every scan file (<kbd>ALT 1754</kbd>) or fold them all away (<kbd>ALT 1755</kbd>). The list scrolls by itself, so the settings above stay in place when many scans are loaded.</li>
+            <li>Every loaded scan file has a section of its own. Click its name to fold it away or open it; on the right of the name are its number of points and setups <span class="mk">4</span>.</li>
+            <li>The <b>eye</b> button <span class="mk">5</span> in the scan's header (<kbd>ALT 1723</kbd>) switches the scan on or off: off hides its points and spheres. The scan stays loaded.</li>
+            <li>The <b>✕</b> button <span class="mk">6</span> (<kbd>ALT 1724</kbd>) takes the scan out of the scene. It stays in the library.</li>
+            <li><b>Coords</b> (<kbd>ALT 1748</kbd> steps to the next; not in the picture) — shown when the scan's source stores coordinate systems: pick the one to show the scan in, for example the one made from survey control (site coordinates), a user coordinate system, or <b>Scanner project frame</b> (the scanner software's own). Switching is instant — nothing is converted again — and remembered for the scan.</li>
+            <li><span class="mk">7</span> <b>X</b>, <b>Y</b>, <b>Z</b> — three boxes, captioned <b>Offset m</b> where the panel is wide enough (<kbd>ALT 1742</kbd>–<kbd>ALT 1747</kbd> move one step): an offset in metres that moves the whole scan: points, setup spheres and photos. Use it to line a scan up with a model that is in other coordinates. The offset is saved with the scan and applied every time it is loaded. When you import the same scan again, the app asks whether the new one should keep it.</li>
+            <li><span class="mk">8</span> Below are the scan's setups; double-click one to enter it. They are not listed while the scan is switched off.</li>
+            <li><span class="mk">1</span> <b>Offset step</b>, above the list (<kbd>ALT 1752</kbd> larger / <kbd>ALT 1753</kbd> smaller) — how far one − / + of the offset boxes moves a scan, for all scans. It starts at 0.1 m; type any value from 0.001 to 1000, or step it (0.1 → 0.2 … 1 → 2 going up, 0.1 → 0.09 … 0.01 going down). Use a large step to bring a scan roughly into place and a small one to fine-tune.</li>
+            <li>The two buttons to its right open every scan file <span class="mk">2</span> (<kbd>ALT 1754</kbd>) or fold them all away <span class="mk">3</span> (<kbd>ALT 1755</kbd>). The list scrolls by itself, so the settings above stay in place when many scans are loaded.</li>
           </ul>
 
           <h3 id="scans-limits">Good to know</h3>
@@ -149,6 +167,12 @@
             <li>Scans imported before a fix or a format change are not converted again by themselves. Import the source file again to get the corrected or smaller file; the app asks before converting a file it has seen before.</li>
             <li>A <code class="inline">.tdpp</code> file can also be made outside the app with the <b>scan</b> command-line tool and imported as it is.</li>
           </ul>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control in the panel</h2>
+          <div class="ref-table" data-ref="scans"></div>
         </section>
       </main>
     </div>

@@ -1,12 +1,12 @@
 // Guide scene: CTRL+F1 Assets (a01-assets.html) — the asset workspace: Model
 // Assets, SQL Assets, Import Manager and Export. The RVM import is driven
-// through the real panel (files handed to its hidden file input, the way the
-// picker would), so the pictures show the panel mid- and post-import.
+// through the real panel (files handed to its hidden file input by content,
+// the way the picker would), so the pictures show the panel mid- and post-import.
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { choose, fitView, layout, PANEL_W, stack } from './_lib.mjs';
+import { choose, fitView, layout, PANEL_W, stack, stageImport as stage, waitDialog, waitImportIdle } from './_lib.mjs';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const RVM_DIR = resolve(ROOT, 'convertSamples/rvm');
@@ -27,8 +27,6 @@ const MA = { panel: 'modelAssets' };
 const IM = { panel: 'importManager' };
 const SQ = { panel: 'sqlAssets' };
 const EX = { panel: 'export' };
-
-const IMPORT_TIMEOUT_MS = 170000;
 
 /** SQL Assets' toolbar row needs a bit more than PANEL_W to fit. */
 const SQL_PANEL_W = 470;
@@ -56,40 +54,6 @@ function makeSampleDb() {
   }
   db.close();
   return path;
-}
-
-/** Wait until no import holds the import lock and the progress overlay is gone. */
-async function waitImportIdle(ctx) {
-  await ctx.eval(async (limit) => {
-    const { dialogsState } = await import('/src/components/dialogs/dialogs.state.ts');
-    const t0 = Date.now();
-    for (;;) {
-      const q = await navigator.locks.query();
-      const busy = [...(q.held ?? []), ...(q.pending ?? [])].some((l) => l.name === 'asset-import');
-      if (!busy && !dialogsState.get().loading) {
-        return;
-      }
-      if (Date.now() - t0 > limit) {
-        throw new Error('docs-shots: import did not finish');
-      }
-      await new Promise((r) => setTimeout(r, 250));
-    }
-  }, IMPORT_TIMEOUT_MS);
-  await ctx.sleep(500);
-}
-
-/** Wait (up to 20 s) for the progress overlay to appear. */
-async function waitDialog(ctx) {
-  await ctx.page.waitForSelector('[role="dialog"]', { timeout: 20000 });
-}
-
-/** Hand files to an Import Manager section's hidden file input — what the
- *  "Select … file…" picker does after the user picks. */
-async function stage(ctx, section, paths) {
-  await ctx.section('importManager', section, true);
-  const input = await ctx.handle({ ...IM, section, css: 'input[type="file"]' });
-  await input.uploadFile(...paths);
-  await ctx.sleep(500);
 }
 
 /** Drag the splitter on the RIGHT edge of panel `id`'s stack so the stack is
@@ -196,7 +160,7 @@ async function importRvms(ctx) {
 async function importDatabase(ctx, dbPath) {
   await choose(ctx, 'sqlAssets', 'Which store', STORE);
   const input = await ctx.handle({ ...SQ, css: 'input[type="file"]' });
-  await input.uploadFile(dbPath);
+  await ctx.setFiles(input, [dbPath]);
   await ctx.page.waitForFunction(
     async () => (await import('/src/state/sqlAssets/sqlAssets.state.ts')).sqlAssetsState.get().dbs.length > 0,
     { timeout: 60000, polling: 300 },

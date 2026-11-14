@@ -116,6 +116,14 @@
               is optional.
             </li>
             <li>
+              To put a label at a point of your own, add its X, Y and Z after the name, in metres. The
+              simplest way is to copy four spreadsheet columns (name, X, Y, Z) and paste them as they are.
+              A row like <code class="inline">NEW-VALVE-01 12.5 3.2 8.0</code> typed by hand works too, and so
+              do semicolons, commas and a decimal comma. Such a row is placed at its point and is never
+              reported as not found, so the name does not have to exist in the model. If it does exist,
+              the label is linked to that item. Rows with and without coordinates can be mixed.
+            </li>
+            <li>
               Choose the options:
               <span class="mk">2</span> <b>Snap anchor to nearest item</b> pins the label to the nearest part
               of the tag instead of the middle of its bounding box. Use it for long pipes, where the middle can be
@@ -132,7 +140,8 @@
             </li>
             <li>
               Names that were not found are written back into the box, so you can correct them and try
-              again.
+              again. A row with only one or two coordinates is written back under
+              <b>Needs x, y and z</b>.
               <figure class="shot" data-shot="labels-import-notfound"></figure>
               <figure class="shot" data-shot="labels-import-viewport"></figure>
             </li>

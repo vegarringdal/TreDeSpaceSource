@@ -64,7 +64,13 @@ puppeteer through every scene in `guide/scenes/*.mjs` (`_lib.mjs` holds the
 shared helpers): each scene boots a fresh app in an incognito context,
 imports Huldra sample RVMs from `convertSamples/rvm`, sets up a layout or
 panel state and captures crops (the a01 scene also imports an IFC sample, which
-is not in git — run `convertSamples/ifc/fetch-samples.sh` first). Outputs, all
+is not in git — run `convertSamples/ifc/fetch-samples.sh` first; the `scans`
+scene needs a laser scan that is not in git either — it reads
+`BLK360G1_Indoor_Office_classified 1.lgsx` from `$SCAN_SAMPLES`, or else from
+your download folder, and is skipped with a note when the file is
+not there, leaving its committed pictures alone). Files reach the app by
+content, not by path (`ctx.setFiles`): the browser never opens them itself, so
+a sandboxed one (Flatpak) or one on another machine works too. Outputs, all
 **committed** (the build never
 needs a browser):
 
@@ -96,6 +102,11 @@ no `/json/version`), then
 `npm run docs:shots -- --browser-url http://127.0.0.1:9222` (add
 `--app-url <url>` to use an already-running dev server). Keep that window
 uncovered while it runs — a covered window renders nothing new.
+A Flatpak Chromium is started the same way through `flatpak run <app id>`,
+with the `--user-data-dir` somewhere under `~/.var/app/<app id>/` (the sandbox
+can always write there). Stepping into a scan setup needs a real GPU too: the
+headless software GPU cannot take a photo upload, so headless the `scans`
+scene stays outside the setup and its "inside" pictures wait for a GPU run.
 
 Adding a page: copy a layout page (e.g. `guide/f04-selection-color.html`) and
 its scene; marks are element specs (`{ panel | within, section, tooltip |

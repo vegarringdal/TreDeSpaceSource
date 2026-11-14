@@ -6,8 +6,8 @@ import { type ScanAssetView, scansState } from '../../../state/scans/scans.state
 const AXES = ['x', 'y', 'z'] as const;
 const OFFSET_RANGE_M = 1_000_000;
 const SOURCE_FRAME_LABEL = 'Scanner project frame';
-/** Label column shared by the two rows, px. */
-const LABEL_WIDTH = 50;
+/** Label column shared by the two rows, px — wide enough for "Offset m" unclipped. */
+const LABEL_WIDTH = 58;
 
 /** Where a scan sits: the coordinate system it is shown in (when its source
  *  has any) and an offset on top — one row of three boxes, each with its

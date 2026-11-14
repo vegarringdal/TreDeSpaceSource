@@ -9,28 +9,28 @@
           "n": 1,
           "x": 15,
           "y": 39,
-          "w": 154.796875,
+          "w": 149.9375,
           "h": 24
         },
         {
           "n": 2,
           "x": 15,
           "y": 69,
-          "w": 222.328125,
+          "w": 209.546875,
           "h": 16
         },
         {
           "n": 3,
           "x": 15,
           "y": 91,
-          "w": 125.4375,
+          "w": 118.625,
           "h": 16
         },
         {
           "n": 4,
           "x": 15,
           "y": 113,
-          "w": 99.78125,
+          "w": 95.78125,
           "h": 16
         },
         {
@@ -65,38 +65,40 @@
           "n": 9,
           "x": 15,
           "y": 255,
-          "w": 96.40625,
+          "w": 92.921875,
           "h": 16
         },
         {
           "n": 10,
           "x": 15,
           "y": 277,
-          "w": 110.65625,
+          "w": 105.1875,
           "h": 16
         },
         {
           "n": 11,
           "x": 15,
           "y": 299,
-          "w": 77.828125,
+          "w": 74.921875,
           "h": 24
         },
         {
           "n": 12,
-          "x": 100.828125,
+          "x": 97.921875,
           "y": 299,
-          "w": 58.65625,
+          "w": 57.75,
           "h": 24,
           "at": "tr"
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-progress": {
       "w": 276,
-      "h": 111,
+      "h": 127,
       "gpu": false,
-      "marks": []
+      "marks": [],
+      "fromGpu": true
     },
     "a01-layout": {
       "w": 1440,
@@ -159,7 +161,8 @@
           "w": 260,
           "h": 758
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-model-assets": {
       "w": 420,
@@ -233,7 +236,7 @@
           "n": 10,
           "x": 145.65625,
           "y": 192,
-          "w": 99.78125,
+          "w": 95.78125,
           "h": 16
         },
         {
@@ -247,14 +250,14 @@
           "n": 12,
           "x": 9,
           "y": 218,
-          "w": 342.9375,
+          "w": 345.03125,
           "h": 24
         },
         {
           "n": 13,
-          "x": 359.9375,
+          "x": 362.03125,
           "y": 218,
-          "w": 51.0625,
+          "w": 48.96875,
           "h": 24,
           "at": "tr"
         },
@@ -272,13 +275,15 @@
           "w": 402,
           "h": 24
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-search": {
-      "w": 417,
-      "h": 146,
+      "w": 362,
+      "h": 144,
       "gpu": false,
-      "marks": []
+      "marks": [],
+      "fromGpu": true
     },
     "a01-store-config": {
       "w": 414,
@@ -303,7 +308,7 @@
           "n": 3,
           "x": 22,
           "y": 106,
-          "w": 75.40625,
+          "w": 73.015625,
           "h": 24
         },
         {
@@ -321,19 +326,22 @@
           "w": 370,
           "h": 24
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-folder-menu": {
       "w": 416,
       "h": 59,
       "gpu": false,
-      "marks": []
+      "marks": [],
+      "fromGpu": true
     },
     "a01-folders": {
       "w": 416,
-      "h": 255,
+      "h": 253,
       "gpu": false,
-      "marks": []
+      "marks": [],
+      "fromGpu": true
     },
     "a01-glb-tdp": {
       "w": 358,
@@ -344,37 +352,39 @@
           "n": 1,
           "x": 15,
           "y": 39,
-          "w": 125.671875,
+          "w": 119.875,
           "h": 24
         },
         {
           "n": 2,
           "x": 15,
           "y": 113,
-          "w": 115.375,
+          "w": 111.15625,
           "h": 24
         },
         {
           "n": 3,
-          "x": 138.375,
+          "x": 134.15625,
           "y": 113,
-          "w": 125.671875,
+          "w": 119.875,
           "h": 24
         },
         {
           "n": 4,
           "x": 15,
           "y": 145,
-          "w": 167.328125,
+          "w": 159.25,
           "h": 24
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-import-options": {
       "w": 340,
       "h": 132,
       "gpu": false,
-      "marks": []
+      "marks": [],
+      "fromGpu": true
     },
     "a01-ifc": {
       "w": 358,
@@ -413,10 +423,11 @@
           "n": 5,
           "x": 15,
           "y": 339,
-          "w": 74.796875,
+          "w": 71.8125,
           "h": 16
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-step": {
       "w": 358,
@@ -448,10 +459,11 @@
           "n": 4,
           "x": 15,
           "y": 285,
-          "w": 169.203125,
+          "w": 162.09375,
           "h": 16
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-stdglb": {
       "w": 358,
@@ -462,17 +474,18 @@
           "n": 1,
           "x": 15,
           "y": 195,
-          "w": 112.953125,
+          "w": 107.171875,
           "h": 16
         },
         {
           "n": 2,
           "x": 15,
           "y": 217,
-          "w": 82.921875,
+          "w": 79.921875,
           "h": 16
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-sql-assets": {
       "w": 434,
@@ -483,52 +496,53 @@
           "n": 1,
           "x": 9,
           "y": 32,
-          "w": 416,
+          "w": 404,
           "h": 26
         },
         {
           "n": 2,
           "x": 71,
           "y": 95,
-          "w": 354,
+          "w": 342,
           "h": 24
         },
         {
           "n": 3,
           "x": 9,
           "y": 125,
-          "w": 204,
+          "w": 198,
           "h": 25
         },
         {
           "n": 4,
-          "x": 221,
+          "x": 215,
           "y": 125,
-          "w": 204,
+          "w": 198,
           "h": 25
         },
         {
           "n": 5,
-          "x": 73.0625,
-          "y": 159.5,
-          "w": 72.859375,
+          "x": 9,
+          "y": 156,
+          "w": 198,
           "h": 25
         },
         {
           "n": 6,
-          "x": 250.046875,
-          "y": 159.5,
-          "w": 86.84375,
+          "x": 9,
+          "y": 187,
+          "w": 198,
           "h": 25
         },
         {
           "n": 7,
-          "x": 10,
-          "y": 232,
-          "w": 414,
-          "h": 20
+          "x": 69,
+          "y": 280,
+          "w": 76.65625,
+          "h": 16
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-export-formats": {
       "w": 254,
@@ -539,7 +553,7 @@
           "n": 1,
           "x": 15,
           "y": 39,
-          "w": 150,
+          "w": 144,
           "h": 16
         },
         {
@@ -560,14 +574,14 @@
           "n": 4,
           "x": 15,
           "y": 167,
-          "w": 179.21875,
+          "w": 170.484375,
           "h": 16
         },
         {
           "n": 5,
           "x": 15,
           "y": 191,
-          "w": 81.734375,
+          "w": 78.671875,
           "h": 16
         },
         {
@@ -598,7 +612,8 @@
           "w": 224,
           "h": 24
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "a01-export-snapshot": {
       "w": 254,
@@ -609,35 +624,35 @@
           "n": 1,
           "x": 15,
           "y": 39,
-          "w": 142.03125,
+          "w": 134.046875,
           "h": 16
         },
         {
           "n": 2,
           "x": 15,
           "y": 63,
-          "w": 156.515625,
+          "w": 148.109375,
           "h": 16
         },
         {
           "n": 3,
           "x": 15,
           "y": 87,
-          "w": 119.359375,
+          "w": 113.59375,
           "h": 16
         },
         {
           "n": 4,
           "x": 15,
           "y": 111,
-          "w": 131.21875,
+          "w": 123.578125,
           "h": 16
         },
         {
           "n": 5,
           "x": 15,
           "y": 135,
-          "w": 125.71875,
+          "w": 118.9375,
           "h": 16
         },
         {
@@ -658,28 +673,28 @@
           "n": 8,
           "x": 15,
           "y": 227,
-          "w": 155.84375,
+          "w": 148.53125,
           "h": 16
         },
         {
           "n": 9,
           "x": 15,
           "y": 251,
-          "w": 118.6875,
+          "w": 114,
           "h": 16
         },
         {
           "n": 10,
           "x": 15,
           "y": 275,
-          "w": 131.21875,
+          "w": 123.578125,
           "h": 16
         },
         {
           "n": 11,
           "x": 15,
           "y": 299,
-          "w": 125.71875,
+          "w": 118.9375,
           "h": 16
         },
         {
@@ -696,7 +711,15 @@
           "w": 224,
           "h": 24
         }
-      ]
+      ],
+      "fromGpu": true
+    },
+    "a01-task-import-viewport": {
+      "w": 364,
+      "h": 602,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
     }
   },
   "reference": {
@@ -719,7 +742,7 @@
         "section": "Store Config",
         "label": "Delete store",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
-        "tooltip": "Delete this store \u2014 every model AND database in it is deleted",
+        "tooltip": "Delete this store — every model AND database in it is deleted",
         "keys": ""
       },
       {
@@ -761,7 +784,7 @@
         "section": "",
         "label": "Export",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-file-export \"><path d=\"M14 3v4a1 1 0 0 0 1 1h4\"></path><path d=\"M11.5 21h-4.5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v5m-5 6h7m-3 -3l3 3l-3 3\"></path></svg>",
-        "tooltip": "Write the selected VISIBLE assets as .tdp files into a folder you pick \u2014 the folder structure is recreated (filter applies)",
+        "tooltip": "Write the selected VISIBLE assets as .tdp files into a folder you pick — the folder structure is recreated (filter applies)",
         "keys": ""
       },
       {
@@ -789,12 +812,12 @@
         "section": "",
         "label": "Pool",
         "icon": "",
-        "tooltip": "Models loaded at once (max 3 on this machine). Each keeps its whole file in memory until it is on the GPU.",
+        "tooltip": "Models loaded at once (max 10 on this machine). Each keeps its whole file in memory until it is on the GPU.",
         "keys": ""
       },
       {
         "section": "",
-        "label": "Pool \u2212",
+        "label": "Pool −",
         "icon": "",
         "tooltip": "Fewer parallel asset loads",
         "keys": "ALT 619"
@@ -810,14 +833,14 @@
         "section": "",
         "label": "*",
         "icon": "",
-        "tooltip": "Contains \u2014 any part of the name matches",
+        "tooltip": "Contains — any part of the name matches",
         "keys": ""
       },
       {
         "section": "",
         "label": "=",
         "icon": "",
-        "tooltip": "Equals \u2014 whole-string match, * wildcards allowed",
+        "tooltip": "Equals — whole-string match, * wildcards allowed",
         "keys": ""
       },
       {
@@ -831,7 +854,7 @@
     "importManager": [
       {
         "section": "Import merged glb",
-        "label": "Select folder\u2026",
+        "label": "Select folder…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-plus \"><path d=\"M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
         "tooltip": "Scan a folder tree and pick files to import (dot-folders are skipped)",
         "keys": "ALT 609"
@@ -845,44 +868,44 @@
       },
       {
         "section": "Import TDP",
-        "label": "Select files\u2026",
+        "label": "Select files…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
         "tooltip": "Pick individual .tdp files to import",
         "keys": "ALT 648"
       },
       {
         "section": "Import TDP",
-        "label": "Select folder\u2026",
+        "label": "Select folder…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-plus \"><path d=\"M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
-        "tooltip": "Pick a folder \u2014 .tdp files at its top level only",
+        "tooltip": "Pick a folder — .tdp files at its top level only",
         "keys": "ALT 649"
       },
       {
         "section": "Import TDP",
-        "label": "Folder + subfolders\u2026",
+        "label": "Folder + subfolders…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-plus \"><path d=\"M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
         "tooltip": "Pick a folder and scan every subfolder for .tdp files",
         "keys": "ALT 650"
       },
       {
         "section": "Import standard GLB",
-        "label": "Select GLB file\u2026",
+        "label": "Select GLB file…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-plus \"><path d=\"M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
-        "tooltip": "Pick a single standard .glb file to cook into the asset library (local only \u2014 nothing is uploaded)",
+        "tooltip": "Pick a single standard .glb file to cook into the asset library (local only — nothing is uploaded)",
         "keys": "ALT 1162"
       },
       {
         "section": "Import standard GLB",
         "label": "Import normals",
         "icon": "",
-        "tooltip": "Keep authored normals (smooth shading). Off = flat shading \u2014 which also restores the full facet edge lines",
+        "tooltip": "Keep authored normals (smooth shading). Off = flat shading — which also restores the full facet edge lines",
         "keys": "ALT 1164"
       },
       {
         "section": "Import standard GLB",
         "label": "Edge lines",
         "icon": "",
-        "tooltip": "Draw edge lines on this model when loaded \u2014 off for meshes where edges would fight the surface (stored per asset)",
+        "tooltip": "Draw edge lines on this model when loaded — off for meshes where edges would fight the surface (stored per asset)",
         "keys": "ALT 1165"
       },
       {
@@ -901,9 +924,9 @@
       },
       {
         "section": "Import RVM",
-        "label": "Select RVM file(s)\u2026",
+        "label": "Select RVM file(s)…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-plus \"><path d=\"M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
-        "tooltip": "Pick one or more .rvm files to convert and cook (local only \u2014 nothing is uploaded)",
+        "tooltip": "Pick one or more .rvm files to convert and cook (local only — nothing is uploaded)",
         "keys": "ALT 1000"
       },
       {
@@ -917,12 +940,12 @@
         "section": "Import RVM",
         "label": "Tolerance",
         "icon": "",
-        "tooltip": "Tessellation chord-height tolerance \u2014 smaller = smoother curves, more triangles",
+        "tooltip": "Tessellation chord-height tolerance — smaller = smoother curves, more triangles",
         "keys": ""
       },
       {
         "section": "Import RVM",
-        "label": "Tolerance \u2212",
+        "label": "Tolerance −",
         "icon": "",
         "tooltip": "Finer RVM tessellation (smaller chord-height tolerance)",
         "keys": "ALT 1004"
@@ -938,7 +961,7 @@
         "section": "Import RVM",
         "label": "Include lines",
         "icon": "",
-        "tooltip": "Include RVM Line primitives (drawn as small crosses \u2014 numerous, adds visual noise)",
+        "tooltip": "Include RVM Line primitives (drawn as small crosses — numerous, adds visual noise)",
         "keys": "ALT 1005"
       },
       {
@@ -964,21 +987,21 @@
       },
       {
         "section": "Import STEP",
-        "label": "Select STEP file\u2026",
+        "label": "Select STEP file…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-plus \"><path d=\"M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
-        "tooltip": "Pick a single .step/.stp file to convert and cook (local only \u2014 nothing is uploaded)",
+        "tooltip": "Pick a single .step/.stp file to convert and cook (local only — nothing is uploaded)",
         "keys": "ALT 1105"
       },
       {
         "section": "Import STEP",
         "label": "Deflection",
         "icon": "",
-        "tooltip": "Chordal sag tolerance (mm) \u2014 smaller = smoother curves, more triangles",
+        "tooltip": "Chordal sag tolerance (mm) — smaller = smoother curves, more triangles",
         "keys": ""
       },
       {
         "section": "Import STEP",
-        "label": "Deflection \u2212",
+        "label": "Deflection −",
         "icon": "",
         "tooltip": "Finer STEP tessellation (smaller chordal sag, mm)",
         "keys": "ALT 1108"
@@ -994,12 +1017,12 @@
         "section": "Import STEP",
         "label": "Max angle",
         "icon": "",
-        "tooltip": "Max chord turn angle (deg) \u2014 smaller = smoother curves, more triangles",
+        "tooltip": "Max chord turn angle (deg) — smaller = smoother curves, more triangles",
         "keys": ""
       },
       {
         "section": "Import STEP",
-        "label": "Max angle \u2212",
+        "label": "Max angle −",
         "icon": "",
         "tooltip": "Finer STEP tessellation (smaller max chord turn angle, deg)",
         "keys": "ALT 1110"
@@ -1020,7 +1043,7 @@
       },
       {
         "section": "Import STEP",
-        "label": "Workers \u2212",
+        "label": "Workers −",
         "icon": "",
         "tooltip": "One fewer STEP tessellation sub-worker (0 = tessellate in-process)",
         "keys": "ALT 1233"
@@ -1036,7 +1059,7 @@
         "section": "Import STEP",
         "label": "Cleanup (weld positions)",
         "icon": "",
-        "tooltip": "Weld duplicate positions (drops normals) \u2014 matches the flatshaded renderer",
+        "tooltip": "Weld duplicate positions (drops normals) — matches the flatshaded renderer",
         "keys": "ALT 1111"
       },
       {
@@ -1055,9 +1078,9 @@
       },
       {
         "section": "Import IFC",
-        "label": "Select IFC file\u2026",
+        "label": "Select IFC file…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-plus \"><path d=\"M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
-        "tooltip": "Pick a single .ifc file to convert and cook (local only \u2014 nothing is uploaded)",
+        "tooltip": "Pick a single .ifc file to convert and cook (local only — nothing is uploaded)",
         "keys": "ALT 1100"
       },
       {
@@ -1071,21 +1094,21 @@
         "section": "Import IFC",
         "label": "Quality",
         "icon": "",
-        "tooltip": "Tessellation quality \u2014 higher = smoother curves, more triangles",
+        "tooltip": "Tessellation quality — higher = smoother curves, more triangles",
         "keys": "ALT 1103"
       },
       {
         "section": "Import IFC",
         "label": "Spaces",
         "icon": "",
-        "tooltip": "IfcSpace handling \u2014 skip, include with geometry, or as separate files",
+        "tooltip": "IfcSpace handling — skip, include with geometry, or as separate files",
         "keys": ""
       },
       {
         "section": "Import IFC",
         "label": "Openings",
         "icon": "",
-        "tooltip": "Opening (void) handling \u2014 skip, include, or as separate files",
+        "tooltip": "Opening (void) handling — skip, include, or as separate files",
         "keys": ""
       },
       {
@@ -1113,8 +1136,8 @@
         "icon": "",
         "keys": "ALT 1201",
         "section": "Every import section",
-        "label": "Temp import (don\u2019t keep in store)",
-        "tooltip": "Session-only import: the model is loaded now but not kept \u2014 it is removed from the browser the next time the app starts. On by default."
+        "label": "Temp import (don’t keep in store)",
+        "tooltip": "Session-only import: the model is loaded now but not kept — it is removed from the browser the next time the app starts. On by default."
       },
       {
         "icon": "",
@@ -1164,7 +1187,7 @@
         "section": "Store Config",
         "label": "Delete store",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
-        "tooltip": "Delete this store \u2014 every model AND database in it is deleted",
+        "tooltip": "Delete this store — every model AND database in it is deleted",
         "keys": ""
       },
       {
@@ -1190,20 +1213,6 @@
       },
       {
         "section": "",
-        "label": "Select all",
-        "icon": "",
-        "tooltip": "Select every database in every store",
-        "keys": ""
-      },
-      {
-        "section": "",
-        "label": "Deselect all",
-        "icon": "",
-        "tooltip": "Clear the selection",
-        "keys": ""
-      },
-      {
-        "section": "",
         "label": "Collapse all",
         "icon": "",
         "tooltip": "Collapse every store in the tree",
@@ -1215,6 +1224,20 @@
         "icon": "",
         "tooltip": "Expand every store in the tree",
         "keys": "ALT 1209"
+      },
+      {
+        "section": "",
+        "label": "Select all",
+        "icon": "",
+        "tooltip": "Select every database in every store",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Deselect all",
+        "icon": "",
+        "tooltip": "Clear the selection",
+        "keys": ""
       }
     ],
     "export": [
@@ -1229,7 +1252,7 @@
         "section": "TDP (TreDeSpace)",
         "label": "Export merged TDP (per color)",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-box \"><path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"></path><path d=\"M12 12l8 -4.5\"></path><path d=\"M12 12l0 9\"></path><path d=\"M12 12l-8 -4.5\"></path></svg>",
-        "tooltip": "Write one merged .tdp per loaded model into a folder you pick: one color group per final color \u2014 smallest and fastest to load",
+        "tooltip": "Write one merged .tdp per loaded model into a folder you pick: one color group per final color — smallest and fastest to load",
         "keys": "ALT 1183"
       },
       {
@@ -1243,7 +1266,7 @@
         "section": "GLB",
         "label": "Recenter on bounding box",
         "icon": "",
-        "tooltip": "Shift the model onto its bounding-box centre \u2014 far-from-origin building coordinates lose f32 precision and break some viewers (e.g. Office)",
+        "tooltip": "Shift the model onto its bounding-box centre — far-from-origin building coordinates lose f32 precision and break some viewers (e.g. Office)",
         "keys": "ALT 1156"
       },
       {
@@ -1264,14 +1287,14 @@
         "section": "GLB",
         "label": "Export merged GLB (per color)",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-file-export \"><path d=\"M14 3v4a1 1 0 0 0 1 1h4\"></path><path d=\"M11.5 21h-4.5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v5m-5 6h7m-3 -3l3 3l-3 3\"></path></svg>",
-        "tooltip": "Export a merged GLB: one mesh primitive per color \u2014 small node count, fast to view anywhere",
+        "tooltip": "Export a merged GLB: one mesh primitive per color — small node count, fast to view anywhere",
         "keys": "ALT 1154"
       },
       {
         "section": "GLB",
         "label": "Export hierarchy GLB",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-sitemap \"><path d=\"M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"></path><path d=\"M15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"></path><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"></path><path d=\"M6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1\"></path><path d=\"M12 9l0 3\"></path></svg>",
-        "tooltip": "Export a GLB with the full item hierarchy as named nodes \u2014 larger and slower in viewers, keeps structure",
+        "tooltip": "Export a GLB with the full item hierarchy as named nodes — larger and slower in viewers, keeps structure",
         "keys": "ALT 1155"
       },
       {
@@ -1292,14 +1315,14 @@
         "section": "IFC",
         "label": "Export hierarchy IFC",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-sitemap \"><path d=\"M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"></path><path d=\"M15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"></path><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"></path><path d=\"M6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1\"></path><path d=\"M12 9l0 3\"></path></svg>",
-        "tooltip": "Export an IFC4 file with the app's tree as nested aggregates of named proxies \u2014 keeps structure, larger file",
+        "tooltip": "Export an IFC4 file with the app's tree as nested aggregates of named proxies — keeps structure, larger file",
         "keys": "ALT 1159"
       },
       {
         "section": "State snapshot",
         "label": "Only modified items",
         "icon": "",
-        "tooltip": "Save only items with an override, hidden flag or transform \u2014 untick to record every item's current state (bigger file, can repaint another dataset)",
+        "tooltip": "Save only items with an override, hidden flag or transform — untick to record every item's current state (bigger file, can repaint another dataset)",
         "keys": "ALT 1188"
       },
       {
@@ -1320,7 +1343,7 @@
         "section": "State snapshot",
         "label": "Skip white (#ffffff)",
         "icon": "",
-        "tooltip": "Leave plain white out of the file \u2014 it is the unpainted default, so skipping it shrinks the snapshot a lot (a translucent white is still saved)",
+        "tooltip": "Leave plain white out of the file — it is the unpainted default, so skipping it shrinks the snapshot a lot (a translucent white is still saved)",
         "keys": "ALT 1193"
       },
       {
@@ -1334,7 +1357,7 @@
         "section": "State snapshot",
         "label": "Store (save)",
         "icon": "",
-        "tooltip": "Save only models loaded from one store (plant) \u2014 All stores snapshots the whole scene",
+        "tooltip": "Save only models loaded from one store (plant) — All stores snapshots the whole scene",
         "keys": ""
       },
       {
@@ -1362,31 +1385,31 @@
         "section": "State snapshot",
         "label": "Skip white (#ffffff)",
         "icon": "",
-        "tooltip": "Ignore plain white in the file \u2014 those items keep their original color instead of being painted white",
+        "tooltip": "Ignore plain white in the file — those items keep their original color instead of being painted white",
         "keys": "ALT 1195"
       },
       {
         "section": "State snapshot",
         "label": "Skip hidden state",
         "icon": "",
-        "tooltip": "Ignore the file's hidden state \u2014 nothing gets hidden, only colors and opacity are applied",
+        "tooltip": "Ignore the file's hidden state — nothing gets hidden, only colors and opacity are applied",
         "keys": "ALT 1196"
       },
       {
         "section": "State snapshot",
         "label": "Store (load)",
         "icon": "",
-        "tooltip": "Apply only onto models of one store (plant) \u2014 other stores are left untouched; also lets a snapshot saved from one plant retarget onto another with the same structure",
+        "tooltip": "Apply only onto models of one store (plant) — other stores are left untouched; also lets a snapshot saved from one plant retarget onto another with the same structure",
         "keys": ""
       },
       {
         "section": "State snapshot",
-        "label": "Load snapshot\u2026",
+        "label": "Load snapshot…",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-folder-open \"><path d=\"M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2\"></path></svg>",
         "tooltip": "Pick a .tdsnap file and apply its state to the loaded models (replaces the selected channels)",
         "keys": "ALT 1187"
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.0.154"
 }

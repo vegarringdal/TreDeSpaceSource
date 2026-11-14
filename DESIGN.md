@@ -247,7 +247,11 @@ own. Key facts, kept here so the port history isn't lost:
 - **Scene Labels** (`LabelOverlay.ts`, `labels/` panel): world-anchored,
   draggable DOM text labels with leader lines (same projection path as the
   measurement overlay). Native has this only as backlog (its 8.3 labels item);
-  the web viewer shipped it.
+  the web viewer shipped it. Tag import (`labelTagRows.ts`, pure and unit
+  tested) takes one row per label: a name alone is looked up and anchored on
+  the item; a name followed by x, y, z in metres (tab, semicolon, comma or
+  space separated, decimal comma allowed) stands at that point, linked to the
+  item only when the name happens to exist.
 - **View cube** (`viewCubeGpu.ts` + `ViewGizmo.ts`): GPU-drawn orientation
   cube with a label atlas; DOM hit-test for face/edge/corner click-to-snap.
 - **Assets / Import**: Model Assets + Import Manager panels over OPFS-persisted

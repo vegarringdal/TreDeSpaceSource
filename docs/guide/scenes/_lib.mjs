@@ -14,6 +14,10 @@ export const SAMPLES = ['HA-PIPE', 'HA-MECH', 'HA-HVAC', 'HA-SAFE', 'HA-TELE'];
 /** Wide enough that no panel row wraps or clips. */
 export const PANEL_W = 420;
 
+/** How long a model import may take before a scene gives up. */
+export const IMPORT_TIMEOUT_MS = 170000;
+const IMPORT_POLL_MS = 250;
+
 /** Public-address loudspeakers under /HA-TELE/HA-TELE-PA — close together, so one view frames them all. */
 export const SPEAKERS = ['/SX-HA86-011A', '/SX-HA86-012A', '/SX-HA86-013A', '/SX-HA86-014A', '/SX-HA86-015A'];
 
@@ -74,4 +78,42 @@ export const stack = (id) => ({ css: `section.dock-tabs:has(.dock-panel[data-pan
 export async function select(ctx, fullname) {
   await ctx.call(VIEWER, 'viewerActions', 'select', fullname);
   await ctx.sleep(400);
+}
+
+/** Wait until no import holds the import lock and the progress overlay is
+ *  gone. Polled from here in short calls: one long call in the page would run
+ *  into the browser connection's own timeout on a slow import. */
+export async function waitImportIdle(ctx, limitMs = IMPORT_TIMEOUT_MS) {
+  const t0 = Date.now();
+  for (;;) {
+    const isBusy = await ctx.eval(async () => {
+      const { dialogsState } = await import('/src/components/dialogs/dialogs.state.ts');
+      const q = await navigator.locks.query();
+      const held = [...(q.held ?? []), ...(q.pending ?? [])].some((l) => l.name === 'asset-import');
+      return held || Boolean(dialogsState.get().loading);
+    });
+    if (!isBusy) {
+      break;
+    }
+    if (Date.now() - t0 > limitMs) {
+      throw new Error('docs-shots: import did not finish');
+    }
+    await ctx.sleep(IMPORT_POLL_MS);
+  }
+  await ctx.sleep(500);
+}
+
+/** Wait (up to 20 s) for the progress overlay to appear. */
+export async function waitDialog(ctx) {
+  await ctx.page.waitForSelector('[role="dialog"]', { timeout: 20000 });
+}
+
+/** Hand files to an Import Manager section's hidden file input — what the
+ *  "Select … file…" picker does after the user picks. `files`: paths, or
+ *  { path, name } to show a file under another name (see ctx.setFiles). */
+export async function stageImport(ctx, section, files) {
+  await ctx.section('importManager', section, true);
+  const input = await ctx.handle({ panel: 'importManager', section, css: 'input[type="file"]' });
+  await ctx.setFiles(input, files);
+  await ctx.sleep(500);
 }

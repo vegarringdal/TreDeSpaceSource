@@ -23,9 +23,20 @@
 // chrome://inspect "Allow remote debugging" toggle does NOT work here: it
 // serves no /json/version, so puppeteer cannot discover the browser.
 import { execSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import puppeteer from 'puppeteer-core';
@@ -42,6 +53,8 @@ const WEBP_QUALITY = 90;
 const BOOT_SETTLE_MS = 2500;
 const UI_SETTLE_MS = 350;
 const GPU_SETTLE_MS = 2500;
+const FILE_CHUNK_BYTES = 4 * 1024 * 1024;
+const READ_CHUNK_FN = '__docShotsReadChunk';
 
 const { values: opts } = parseArgs({
   options: {
@@ -174,10 +187,75 @@ function installPageHelpers() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** One slice of a local file, base64 — what the page pulls through setFiles. */
+function readChunk(path, offset, length) {
+  const fd = openSync(path, 'r');
+  try {
+    const buf = Buffer.alloc(length);
+    const got = readSync(fd, buf, 0, length, offset);
+    return buf.subarray(0, got).toString('base64');
+  } finally {
+    closeSync(fd);
+  }
+}
+
 function makeContext(page, data, seen) {
+  /** files this scene may hand to the page: token → path (see ctx.setFiles) */
+  const offered = new Map();
+  let hasReader = false;
   const ctx = {
     page,
     hasGpu,
+
+    /**
+     * Put local files into a file input by CONTENT — what the file picker
+     * does after the user picks. puppeteer's uploadFile hands the browser a
+     * PATH instead, which a sandboxed browser (a Flatpak, or one on another
+     * machine) cannot open: the file stages fine and then fails to read.
+     * Here Node reads the file and the page pulls it in chunks, so only the
+     * runner needs to see it. A missing file throws before anything is staged.
+     * An entry is a path, or { path, name } to show the file under another name.
+     */
+    async setFiles(input, paths) {
+      if (!hasReader) {
+        hasReader = true;
+        await page.exposeFunction(READ_CHUNK_FN, (token, offset, length) => {
+          const path = offered.get(token);
+          if (!path) {
+            throw new Error(`docs-shots: unknown file token ${token}`);
+          }
+          return readChunk(path, offset, length);
+        });
+      }
+      const files = paths.map((entry) => {
+        const { path, name = basename(path) } = typeof entry === 'string' ? { path: entry } : entry;
+        if (!existsSync(path)) {
+          throw new Error(`docs-shots: sample file missing — ${path}`);
+        }
+        const token = `f${offered.size}`;
+        offered.set(token, path);
+        return { token, name, size: statSync(path).size };
+      });
+      await input.evaluate(
+        async (el, list, chunk, fn) => {
+          const decode = (b64) =>
+            Uint8Array.fromBase64 ? Uint8Array.fromBase64(b64) : Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          const dt = new DataTransfer();
+          for (const f of list) {
+            const parts = [];
+            for (let at = 0; at < f.size; at += chunk) {
+              parts.push(decode(await window[fn](f.token, at, Math.min(chunk, f.size - at))));
+            }
+            dt.items.add(new File(parts, f.name));
+          }
+          el.files = dt.files;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+        files,
+        FILE_CHUNK_BYTES,
+        READ_CHUNK_FN,
+      );
+    },
 
     /** Call an app module export from the page: ctx.call('/src/x.ts', 'obj', 'method', ...args). */
     async call(modulePath, exportName, method, ...args) {
@@ -698,6 +776,13 @@ try {
     browser = await connectGpuBrowser(opts['browser-url']);
   }
   for (const scene of scenes) {
+    // a scene may need a sample that is not in the repo: without it the scene
+    // is left alone (its committed pictures and data stay as they are)
+    const skipReason = scene.skip?.();
+    if (skipReason) {
+      console.log(`scene ${scene.id} skipped — ${skipReason}`);
+      continue;
+    }
     console.log(`scene ${scene.id}`);
     const sceneBrowser = browser ?? (await launchHeadless());
     try {

@@ -9,6 +9,7 @@ import { clipShapesState } from './clipShapes.state';
 import { db } from './db';
 import { clampLabelFontSize } from './labelFont';
 import { LABEL_UNDO_MAX, type LabelsState, labelsState, MAX_LABELS, type SceneLabel } from './labels.state';
+import { parseTagRows, planTagLabels, type TagImportLeftovers } from './labelTagRows';
 import { DEFAULT_SPHERE_MARKER } from './sphereMarker';
 import { loadedIndicesForStore } from './storeScope';
 import { getRenderer } from './viewer.actions';
@@ -68,26 +69,6 @@ export function activeClipVolumes(): ((p: P3) => boolean)[] {
     }
   }
   return out;
-}
-
-/** Identity of a label's tag link — fullnames resolve case-insensitively. */
-const fullnameKey = (name: string): string => name.toLowerCase();
-
-/** Pasted tag rows → distinct names (case-insensitive, first spelling kept).
- *  Blank rows and the "Not found:" header of a previous run are dropped. */
-function distinctTagRows(text: string): string[] {
-  const seen = new Set<string>();
-  const names: string[] = [];
-  for (const row of text.split(/\r?\n/)) {
-    const name = row.trim();
-    const key = fullnameKey(name);
-    if (!name || key.startsWith('not found:') || seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    names.push(name);
-  }
-  return names;
 }
 
 // snapshot undo (own domain like coloring/transforms — never global)
@@ -583,43 +564,40 @@ export const labelsActions = {
     commit(labelsState.get().items.map((l) => ({ ...l, offset: [0, 0] as [number, number] })));
   },
 
-  /** Tag import. Returns the not-found names (the panel writes them back into
-   *  the paste box). replace = drop all existing labels first. A fullname gets
-   *  at most ONE label: pasted rows are made distinct first, and a tag that
-   *  already has a label (or resolves twice) is silently skipped. */
-  async importTags(text: string, mode: 'append' | 'replace'): Promise<string[]> {
-    const names = distinctTagRows(text);
-    if (names.length === 0) {
-      return [];
+  /** Tag import: one row per label, a name with optional x, y, z (see
+   *  labelTagRows). A name alone is looked up in the model and anchored on the
+   *  item; a row with coordinates stands at that point and is looked up only
+   *  to link it. Returns what could not be used — the panel writes it back
+   *  into the paste box. replace = drop all existing labels first. */
+  async importTags(text: string, mode: 'append' | 'replace'): Promise<TagImportLeftovers> {
+    const { rows, bad } = parseTagRows(text);
+    if (rows.length === 0) {
+      return { notFound: [], bad };
     }
     const { snapToItem, importStore, importStripSlash } = labelsState.get();
     const onlyModels = importStore ? await loadedIndicesForStore(importStore) : undefined;
-    const { found, notFound } = await db.findLabelAnchors(names, snapToItem, onlyModels);
+    const named = rows.flatMap((r) => (r.at === null ? [r.name] : []));
+    const placed = [...new Set(rows.flatMap((r) => (r.at === null ? [] : [r.name])))];
+    const { found, notFound } = await db.findLabelAnchors(named, snapToItem, onlyModels);
+    const links = placed.length > 0 ? (await db.findLabelAnchors(placed, false, onlyModels)).found : [];
     const s = labelsState.get();
     const base = mode === 'replace' ? [] : s.items;
-    const taken = new Set(base.flatMap((l) => (l.fullname == null ? [] : [fullnameKey(l.fullname)])));
-    const fresh = found.filter((f) => {
-      const key = fullnameKey(f.name);
-      if (taken.has(key)) {
-        return false;
-      }
-      taken.add(key);
-      return true;
-    });
-    const room = MAX_LABELS - base.length;
-    if (fresh.length > room) {
-      dialogs.error(`Label limit is ${MAX_LABELS} — only the first ${room} new tags were added.`, 'Labels');
+    const drafts = planTagLabels(rows, found, links, base, importStripSlash);
+    const room = Math.max(0, MAX_LABELS - base.length);
+    if (drafts.length > room) {
+      dialogs.error(`Label limit is ${MAX_LABELS} — only the first ${room} new labels were added.`, 'Labels');
     }
+    const added = drafts.slice(0, room);
     snapshot();
     commit([
       ...base,
-      ...fresh.slice(0, Math.max(0, room)).map((f) => ({
+      ...added.map((d) => ({
         id: nextId++,
         // the TEXT may drop the leading '/'; `fullname` keeps the model's real
         // name, so selection, colouring and viewpoints still resolve
-        text: importStripSlash ? f.name.replace(/^\//, '') : f.name,
-        fullname: f.name,
-        anchor: f.center,
+        text: d.text,
+        fullname: d.fullname,
+        anchor: [d.anchor[0], d.anchor[1], d.anchor[2]] as [number, number, number],
         offset: [0, 0] as [number, number],
         selected: false,
         bg: s.bg,
@@ -629,11 +607,13 @@ export const labelsActions = {
         sphere: s.sphere,
       })),
     ]);
+    const byPoint = added.filter((d) => rows.some((r) => r.at === d.anchor)).length;
     consoleActions.log(
       'info',
-      `Labels → imported ${Math.min(fresh.length, Math.max(0, room))} of ${names.length} tag(s), ${notFound.length} not found`,
+      `Labels → imported ${added.length} label(s) from ${rows.length} row(s), ${byPoint} placed by coordinates, ${notFound.length} not found, ${bad.length} unreadable`,
     );
-    return notFound;
+
+    return { notFound, bad };
   },
 
   /** Save all labels (+ the shared style) to a downloaded JSON file. */

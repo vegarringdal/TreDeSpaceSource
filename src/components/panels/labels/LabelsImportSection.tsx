@@ -2,9 +2,18 @@ import { Button, Checkbox, Collapsible, Select, TextArea } from '@treDeSpaceUI/w
 import { useState } from 'react';
 import { labelsActions as act } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
+import { formatTagLeftovers } from '../../../state/viewer/labelTagRows';
 import { useLoadedStores } from '../../../state/viewer/storeScope';
 
-/** Labels → Import tags: paste tag names, append or replace as labels. */
+const PASTE_PLACEHOLDER = [
+  'Paste tag names — one per line, x y z optional (metres)',
+  '/A-82BB010A-509-Q01',
+  'A-82BB010B-705-Q04',
+  'NEW-VALVE-01   12.5   3.2   8.0',
+].join('\n');
+
+/** Labels → Import tags: paste tag names (optionally with x, y, z), append or
+ *  replace as labels. */
 export function LabelsImportSection() {
   const [paste, setPaste] = useState('');
   const [importing, setImporting] = useState(false);
@@ -24,18 +33,13 @@ export function LabelsImportSection() {
     setImporting(true);
     void act
       .importTags(paste, mode)
-      .then((notFound) => setPaste(notFound.length ? `Not found:\n${notFound.join('\n')}` : ''))
+      .then((leftovers) => setPaste(formatTagLeftovers(leftovers)))
       .finally(() => setImporting(false));
   };
 
   return (
     <Collapsible title="Import tags" defaultOpen={false}>
-      <TextArea
-        value={paste}
-        rows={6}
-        placeholder={'Paste tag names — one per line\n/A-82BB010A-509-Q01\nA-82BB010B-705-Q04'}
-        onChange={setPaste}
-      />
+      <TextArea value={paste} rows={6} placeholder={PASTE_PLACEHOLDER} onChange={setPaste} />
       <Checkbox
         label="Snap anchor to nearest item"
         checked={snapToItem}
@@ -78,7 +82,9 @@ export function LabelsImportSection() {
         </Button>
       </div>
       <div className="text-slate-500 text-xs">
-        Tags match the model fullname, with or without the leading “/”. Anything not found is written back above.
+        Tags match the model fullname, with or without the leading “/”. A row with x, y, z after the name (metres —
+        paste the four spreadsheet columns as they are) is placed at that point instead of on the item. Anything not
+        found or not readable is written back above.
       </div>
     </Collapsible>
   );

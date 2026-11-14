@@ -1,0 +1,718 @@
+{
+  "shots": {
+    "scans-import": {
+      "w": 358,
+      "h": 330,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 186.65625,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 15,
+          "y": 195,
+          "w": 120.546875,
+          "h": 16
+        },
+        {
+          "n": 3,
+          "x": 15,
+          "y": 217,
+          "w": 104.4375,
+          "h": 16
+        },
+        {
+          "n": 4,
+          "x": 15,
+          "y": 239,
+          "w": 104.171875,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 77,
+          "y": 261,
+          "w": 266,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 15,
+          "y": 291,
+          "w": 74.921875,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "scans-progress": {
+      "w": 276,
+      "h": 127,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "scans-points": {
+      "w": 414,
+      "h": 368,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 90.65625,
+          "h": 16
+        },
+        {
+          "n": 2,
+          "x": 15,
+          "y": 61,
+          "w": 192.5,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 77,
+          "y": 91,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 77,
+          "y": 121,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 77,
+          "y": 151,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 77,
+          "y": 181,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 77,
+          "y": 211,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 77,
+          "y": 241,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 9,
+          "x": 15,
+          "y": 271,
+          "w": 211.859375,
+          "h": 16
+        },
+        {
+          "n": 10,
+          "x": 15,
+          "y": 293,
+          "w": 205.921875,
+          "h": 16
+        },
+        {
+          "n": 11,
+          "x": 15,
+          "y": 315,
+          "w": 196.78125,
+          "h": 16
+        },
+        {
+          "n": 12,
+          "x": 15,
+          "y": 337,
+          "w": 384,
+          "h": 16,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "scans-photo": {
+      "w": 414,
+      "h": 190,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 67.625,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 90.625,
+          "y": 39,
+          "w": 58.609375,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 157.234375,
+          "y": 39,
+          "w": 32,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 197.234375,
+          "y": 39,
+          "w": 32,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 5,
+          "x": 15,
+          "y": 69,
+          "w": 192.5,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 77,
+          "y": 99,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 15,
+          "y": 129,
+          "w": 137.171875,
+          "h": 16
+        },
+        {
+          "n": 8,
+          "x": 77,
+          "y": 151,
+          "w": 322,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "scans-list": {
+      "w": 412,
+      "h": 213,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 90,
+          "y": 42,
+          "w": 252,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 346,
+          "y": 42,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 374,
+          "y": 42,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 4,
+          "x": 251.765625,
+          "y": 81,
+          "w": 91.234375,
+          "h": 15,
+          "at": "bl"
+        },
+        {
+          "n": 5,
+          "x": 347,
+          "y": 79,
+          "w": 20,
+          "h": 20
+        },
+        {
+          "n": 6,
+          "x": 369,
+          "y": 79,
+          "w": 20,
+          "h": 20,
+          "at": "tr"
+        },
+        {
+          "n": 7,
+          "x": 21,
+          "y": 109,
+          "w": 370,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 21,
+          "y": 139,
+          "w": 370,
+          "h": 60
+        }
+      ],
+      "fromGpu": true
+    },
+    "scans-points-viewport": {
+      "w": 713,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "scans-photo-viewport": {
+      "w": 713,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "scans-blend-viewport": {
+      "w": 713,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "scans": [
+      {
+        "section": "Point cloud",
+        "label": "Show points",
+        "icon": "",
+        "tooltip": "Show or hide the laser-scan point clouds",
+        "keys": "ALT 1710"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Colour",
+        "icon": "",
+        "tooltip": "The colour the scanner captured",
+        "keys": "ALT 1715"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Intensity",
+        "icon": "",
+        "tooltip": "Grey by laser return intensity",
+        "keys": "ALT 1715"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Size",
+        "icon": "",
+        "tooltip": "Point size on screen (the smallest size when adaptive)",
+        "keys": ""
+      },
+      {
+        "section": "Point cloud",
+        "label": "Size −",
+        "icon": "",
+        "tooltip": "Shrink the scan points by 1 px",
+        "keys": "ALT 1712"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Size +",
+        "icon": "",
+        "tooltip": "Grow the scan points by 1 px",
+        "keys": "ALT 1711"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Budget",
+        "icon": "",
+        "tooltip": "Most points drawn at once over all scans, millions (GPU memory ≈ 16 B per point, plus the cache)",
+        "keys": ""
+      },
+      {
+        "section": "Point cloud",
+        "label": "Budget −",
+        "icon": "",
+        "tooltip": "Draw up to 1 million fewer scan points",
+        "keys": "ALT 1714"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Budget +",
+        "icon": "",
+        "tooltip": "Draw up to 1 million more scan points",
+        "keys": "ALT 1713"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Detail",
+        "icon": "",
+        "tooltip": "How fine the points are loaded. 1 ×: until they sit about one point size apart on screen. Higher loads closer points without moving nearer — 2 × is twice as close, about four times the points — until the budget is full. Raise it when gaps show and the budget is not used up; lower it to load less",
+        "keys": ""
+      },
+      {
+        "section": "Point cloud",
+        "label": "Detail −",
+        "icon": "",
+        "tooltip": "Load the scan points coarser (detail factor −0.5)",
+        "keys": "ALT 1757"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Detail +",
+        "icon": "",
+        "tooltip": "Load the scan points finer (detail factor +0.5): closer points on screen without moving nearer, as far as the budget allows",
+        "keys": "ALT 1756"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Max dist",
+        "icon": "",
+        "tooltip": "Points farther from the camera than this are not streamed or drawn (0 = no limit). The whole budget is then spent within this distance, so what is near gets finer",
+        "keys": ""
+      },
+      {
+        "section": "Point cloud",
+        "label": "Max dist −",
+        "icon": "",
+        "tooltip": "Lower the max distance of drawn scan points by 10 m (0 = no limit)",
+        "keys": "ALT 1733"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Max dist +",
+        "icon": "",
+        "tooltip": "Raise the max distance of drawn scan points by 10 m",
+        "keys": "ALT 1732"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Focus",
+        "icon": "",
+        "tooltip": "Full detail within this distance of the camera; beyond it the detail falls off, so a tight budget goes to what is near first (0 = even detail on screen)",
+        "keys": ""
+      },
+      {
+        "section": "Point cloud",
+        "label": "Focus −",
+        "icon": "",
+        "tooltip": "Lower the distance within which scan points get full detail by 5 m (0 = even detail)",
+        "keys": "ALT 1738"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Focus +",
+        "icon": "",
+        "tooltip": "Raise the distance within which scan points get full detail by 5 m",
+        "keys": "ALT 1737"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Cache",
+        "icon": "",
+        "tooltip": "Points kept in memory beyond the budget, so turning or moving back needs no reload. 0 = keep only what is shown (least memory)",
+        "keys": ""
+      },
+      {
+        "section": "Point cloud",
+        "label": "Cache −",
+        "icon": "",
+        "tooltip": "Keep 25 % fewer scan points in memory beyond the budget",
+        "keys": "ALT 1741"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Cache +",
+        "icon": "",
+        "tooltip": "Keep 25 % more scan points in memory beyond the budget",
+        "keys": "ALT 1740"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Budget counts points in view only",
+        "icon": "",
+        "tooltip": "Large blocks of points that reach outside the view are charged only for the part in view: finer detail on screen, somewhat more memory. Off = every loaded point counts",
+        "keys": "ALT 1739"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Adaptive size (fill gaps up close)",
+        "icon": "",
+        "tooltip": "Grow the scan points to their level spacing up close, so no gaps show",
+        "keys": "ALT 1716"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Only the entered setup’s points",
+        "icon": "",
+        "tooltip": "Inside a setup, draw only the points that scanner position measured — what its photo actually saw",
+        "keys": "ALT 1720"
+      },
+      {
+        "section": "Point cloud",
+        "label": "Points drawn",
+        "icon": "",
+        "tooltip": "In view: what the budget counts — an estimate of the points on screen. Drawn: every point of the blocks in use, the parts outside the picture included (a block is drawn whole); never more than twice the budget",
+        "keys": ""
+      },
+      {
+        "section": "Photo",
+        "label": "Enter",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-door-enter \"><path d=\"M13 12v.01\"></path><path d=\"M3 21h18\"></path><path d=\"M5 21v-16a2 2 0 0 1 2 -2h6m4 10.5v7.5\"></path><path d=\"M21 7h-7m3 -3l-3 3l3 3\"></path></svg>",
+        "tooltip": "Put the camera at the selected scanner setup and show its panorama",
+        "keys": "ALT 1700"
+      },
+      {
+        "section": "Photo",
+        "label": "Exit",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-door-exit \"><path d=\"M13 12v.01\"></path><path d=\"M3 21h18\"></path><path d=\"M5 21v-16a2 2 0 0 1 2 -2h7.5m2.5 10.5v7.5\"></path><path d=\"M14 7h7m-3 -3l3 3l-3 3\"></path></svg>",
+        "tooltip": "Leave the scanner setup: free camera, panorama hidden",
+        "keys": "ALT 1701"
+      },
+      {
+        "section": "Photo",
+        "label": "Previous setup",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-left \"><path d=\"M5 12l14 0\"></path><path d=\"M5 12l6 6\"></path><path d=\"M5 12l6 -6\"></path></svg>",
+        "tooltip": "Select the previous setup of the scan (enters it when a setup is entered)",
+        "keys": "ALT 1703"
+      },
+      {
+        "section": "Photo",
+        "label": "Next setup",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-right \"><path d=\"M5 12l14 0\"></path><path d=\"M13 18l6 -6\"></path><path d=\"M13 6l6 6\"></path></svg>",
+        "tooltip": "Select the next setup of the scan (enters it when a setup is entered)",
+        "keys": "ALT 1702"
+      },
+      {
+        "section": "Photo",
+        "label": "Over all",
+        "icon": "",
+        "tooltip": "Photo covers the model and the points — lower the opacity to see through it",
+        "keys": "ALT 1706"
+      },
+      {
+        "section": "Photo",
+        "label": "Background",
+        "icon": "",
+        "tooltip": "Photo only where nothing is drawn (hide the points to see it behind the model)",
+        "keys": "ALT 1706"
+      },
+      {
+        "section": "Photo",
+        "label": "Opacity",
+        "icon": "",
+        "tooltip": "Photo opacity: 100 % shows the photo alone, lower blends it with the model and the points",
+        "keys": ""
+      },
+      {
+        "section": "Photo",
+        "label": "Opacity −",
+        "icon": "",
+        "tooltip": "Lower the panorama opacity by 10 %",
+        "keys": "ALT 1705"
+      },
+      {
+        "section": "Photo",
+        "label": "Opacity +",
+        "icon": "",
+        "tooltip": "Raise the panorama opacity by 10 %",
+        "keys": "ALT 1704"
+      },
+      {
+        "section": "Photo",
+        "label": "Show setup markers",
+        "icon": "",
+        "tooltip": "Show or hide the scanner setup markers in the scene",
+        "keys": "ALT 1707"
+      },
+      {
+        "section": "Photo",
+        "label": "Markers",
+        "icon": "",
+        "tooltip": "Opacity of the setup marker spheres: lower it when they are in the way (they can still be double-clicked)",
+        "keys": ""
+      },
+      {
+        "section": "Photo",
+        "label": "Markers −",
+        "icon": "",
+        "tooltip": "Lower the opacity of the setup marker spheres by 10 % (when they are in the way)",
+        "keys": "ALT 1736"
+      },
+      {
+        "section": "Photo",
+        "label": "Markers +",
+        "icon": "",
+        "tooltip": "Raise the opacity of the setup marker spheres by 10 %",
+        "keys": "ALT 1735"
+      },
+      {
+        "section": "Scans and setups",
+        "label": "Offset step",
+        "icon": "",
+        "tooltip": "How far one − / + of the X, Y and Z offset boxes below moves a scan, metres. Type a value (0.001 to 1000), or step it: 0.1 → 0.2 … 1 → 2 going up, 0.1 → 0.09 … 0.01 going down",
+        "keys": ""
+      },
+      {
+        "section": "Scans and setups",
+        "label": "Offset step −",
+        "icon": "",
+        "tooltip": "Make one − / + of the scan offset boxes move less (0.1 → 0.09 … 0.01 m, down to 1 mm)",
+        "keys": "ALT 1753"
+      },
+      {
+        "section": "Scans and setups",
+        "label": "Offset step +",
+        "icon": "",
+        "tooltip": "Make one − / + of the scan offset boxes move further (0.1 → 0.2 … 1 → 2 m)",
+        "keys": "ALT 1752"
+      },
+      {
+        "section": "Scans and setups",
+        "label": "Open all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevrons-down \"><path d=\"M7 7l5 5l5 -5\"></path><path d=\"M7 13l5 5l5 -5\"></path></svg>",
+        "tooltip": "Open every scan file",
+        "keys": "ALT 1754"
+      },
+      {
+        "section": "Scans and setups",
+        "label": "Fold all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevrons-up \"><path d=\"M7 11l5 -5l5 5\"></path><path d=\"M7 17l5 -5l5 5\"></path></svg>",
+        "tooltip": "Fold every scan file away (only the headers stay)",
+        "keys": "ALT 1755"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Scan file",
+        "label": "Name",
+        "tooltip": "Click to fold the scan file away or open it. Grey while the scan is switched off."
+      },
+      {
+        "section": "Scan file",
+        "label": "Scan on / off",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"></path></svg>",
+        "tooltip": "On — click to hide this scan’s points and setup spheres (it stays loaded)",
+        "keys": "ALT 1723"
+      },
+      {
+        "section": "Scan file",
+        "label": "Remove scan",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-x \"><path d=\"M18 6l-12 12\"></path><path d=\"M6 6l12 12\"></path></svg>",
+        "tooltip": "Remove this scan from the scene (the asset stays in the library)",
+        "keys": "ALT 1724"
+      },
+      {
+        "section": "Scan file",
+        "label": "X",
+        "icon": "",
+        "tooltip": "Offset along X, metres: moves this scan (points, setups, photos) to line it up with a model. Remembered for this scan",
+        "keys": ""
+      },
+      {
+        "section": "Scan file",
+        "label": "X −",
+        "icon": "",
+        "tooltip": "Move the current scan − one offset step along X (the step is set below the scan list; the offset is remembered for the scan)",
+        "keys": "ALT 1743"
+      },
+      {
+        "section": "Scan file",
+        "label": "X +",
+        "icon": "",
+        "tooltip": "Move the current scan + one offset step along X (the step is set below the scan list; the offset is remembered for the scan)",
+        "keys": "ALT 1742"
+      },
+      {
+        "section": "Scan file",
+        "label": "Y",
+        "icon": "",
+        "tooltip": "Offset along Y, metres: moves this scan (points, setups, photos) to line it up with a model. Remembered for this scan",
+        "keys": ""
+      },
+      {
+        "section": "Scan file",
+        "label": "Y −",
+        "icon": "",
+        "tooltip": "Move the current scan − one offset step along Y (the step is set below the scan list; the offset is remembered for the scan)",
+        "keys": "ALT 1745"
+      },
+      {
+        "section": "Scan file",
+        "label": "Y +",
+        "icon": "",
+        "tooltip": "Move the current scan + one offset step along Y (the step is set below the scan list; the offset is remembered for the scan)",
+        "keys": "ALT 1744"
+      },
+      {
+        "section": "Scan file",
+        "label": "Z",
+        "icon": "",
+        "tooltip": "Offset along Z, metres: moves this scan (points, setups, photos) to line it up with a model. Remembered for this scan",
+        "keys": ""
+      },
+      {
+        "section": "Scan file",
+        "label": "Z −",
+        "icon": "",
+        "tooltip": "Move the current scan − one offset step along Z (the step is set below the scan list; the offset is remembered for the scan)",
+        "keys": "ALT 1747"
+      },
+      {
+        "section": "Scan file",
+        "label": "Z +",
+        "icon": "",
+        "tooltip": "Move the current scan + one offset step along Z (the step is set below the scan list; the offset is remembered for the scan)",
+        "keys": "ALT 1746"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Scan file",
+        "label": "Points · setups",
+        "tooltip": "On the right of the name: how many points and setups the scan has. Hover for the exact number."
+      },
+      {
+        "icon": "",
+        "keys": "ALT 1748",
+        "section": "Scan file",
+        "label": "Coords",
+        "tooltip": "Shown when the scan stores coordinate systems: the one the scan is shown in. Switching is instant and remembered for the scan."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Scan file",
+        "label": "Setup row",
+        "tooltip": "Click selects the setup, double-click enters it. A faint icon means the setup has no photo."
+      }
+    ]
+  },
+  "appVersion": "0.0.154"
+}
