@@ -377,7 +377,9 @@ function fallbackText(spdx) {
   return null;
 }
 
-/** {name -> version} for every [[package]] with a registry source. */
+/** {name -> [{version, git}]} for every [[package]] with a registry source —
+ *  a list, because one lock can hold several versions of a crate (different
+ *  wasm binaries then link different ones). */
 function lockVersions(lockPath) {
   const lock = readText(lockPath);
   const map = new Map();
@@ -389,12 +391,14 @@ function lockVersions(lockPath) {
     if (!name || !version || !source) continue; // path deps (our own crates) have no source
     // git-pinned crates (e.g. ifc-lite) carry their repo url + exact rev
     const git = source.startsWith('git+') ? source.match(/^git\+([^?#]+)\S*#([0-9a-f]+)$/) : null;
-    map.set(name, { version, git: git ? { url: git[1], rev: git[2] } : null });
+    const list = map.get(name) ?? [];
+    list.push({ version, git: git ? { url: git[1], rev: git[2] } : null });
+    map.set(name, list);
   }
   return map;
 }
 
-/** Names of third-party crates that actually LINK INTO a shipped wasm binary:
+/** Third-party crates (name + exact version) that actually LINK INTO a shipped wasm binary:
  *  cargo's dependency graph for the wasm target, minus [build-dependencies] and
  *  proc-macros (compile-time only, not in the binary). null if cargo is absent
  *  or the workspace can't be resolved — the caller then falls back. Workspace-own
@@ -407,12 +411,12 @@ function shippedCrateNames(cwd, pkg) {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     });
-    const names = new Set();
+    const crates = new Map(); // "name@version" -> {name, version}
     for (const line of out.split('\n')) {
-      const name = line.trim().match(/^([\w-]+)\s+v/)?.[1];
-      if (name) names.add(name);
+      const m = line.trim().match(/^([\w-]+)\s+v(\S+)/);
+      if (m) crates.set(`${m[1]}@${m[2]}`, { name: m[1], version: m[2] });
     }
-    return names.size ? names : null;
+    return crates.size ? [...crates.values()] : null;
   } catch {
     return null;
   }
@@ -472,7 +476,7 @@ function cargoTomlDeps(tomlPath) {
 
 // Every shipped wasm binary. All of them live in the single rust_src workspace
 // now (the converters used to have one workspace each under converters/), so
-// `dir` is the same for all four and only the package differs. `lib` names the
+// `dir` is the same for all of them and only the package differs. `lib` names the
 // src/lib/<lib>/wasm folder holding the prebuilt artifact + copied manifests,
 // used as the fallback when cargo can't resolve the workspace.
 const WASM_WORKSPACES = [
@@ -480,6 +484,8 @@ const WASM_WORKSPACES = [
   { dir: 'rust_src', pkg: 'rvm-wasm', lib: 'rvm2glb', stem: 'rvm' },
   { dir: 'rust_src', pkg: 'ifc-wasm', lib: 'ifc2glb', stem: 'ifc' },
   { dir: 'rust_src', pkg: 'step-wasm', lib: 'step2glb', stem: 'step' },
+  { dir: 'rust_src', pkg: 'scan-wasm', lib: 'scan2tdpp', stem: 'scan' },
+  { dir: 'rust_src', pkg: 'nwd-wasm', lib: 'nwd2tdp', stem: 'nwd' },
 ];
 
 // Vendored path crates that link INTO a shipped wasm but carry no registry
@@ -541,14 +547,20 @@ function collectVendored() {
 }
 
 function collectRust() {
-  const wanted = new Map(); // name -> {version, git}
+  const wanted = new Map(); // "name@version" -> {name, version, git}
+  const want = (name, v) => {
+    const key = `${name}@${v.version}`;
+    if (!wanted.has(key)) wanted.set(key, { name, ...v });
+  };
   for (const ws of WASM_WORKSPACES) {
     const lock = lockVersions(join(ROOT, ws.dir, 'Cargo.lock'));
     const shipped = lock.size ? shippedCrateNames(join(ROOT, ws.dir), ws.pkg) : null;
     if (shipped) {
-      // precise: only crates that link into this wasm binary, at lock versions
-      for (const name of shipped) {
-        if (lock.has(name) && !wanted.has(name)) wanted.set(name, lock.get(name));
+      // precise: only crates that link into this wasm binary, each at the
+      // version THIS binary links (the lock can hold several of one crate)
+      for (const { name, version } of shipped) {
+        const hit = lock.get(name)?.find((v) => v.version === version);
+        if (hit) want(name, hit);
       }
     } else if (ws.lib) {
       // workspace source or cargo unavailable → the copied core+wasm manifests
@@ -556,20 +568,22 @@ function collectRust() {
       console.warn(`  ⚠ ${ws.dir}: no resolvable workspace — using copied manifests (direct deps only)`);
       for (const toml of [`${ws.stem}-core.Cargo.toml`, `${ws.stem}-wasm.Cargo.toml`]) {
         for (const d of cargoTomlDeps(join(ROOT, 'src/lib', ws.lib, 'wasm', toml))) {
-          if (!wanted.has(d.name)) wanted.set(d.name, { version: d.version, git: null });
+          want(d.name, { version: d.version, git: null });
         }
       }
     } else {
       // the cooker workspace: fall back to its whole lock (over-inclusive)
       console.warn(`  ⚠ ${ws.dir}: cargo unavailable — falling back to the full Cargo.lock (includes build tooling)`);
-      for (const [name, v] of lockVersions(join(ROOT, ws.dir, 'Cargo.lock'))) {
-        if (!wanted.has(name)) wanted.set(name, v);
+      for (const [name, versions] of lockVersions(join(ROOT, ws.dir, 'Cargo.lock'))) {
+        for (const v of versions) want(name, v);
       }
     }
   }
   const out = [];
-  for (const [name, entry] of [...wanted].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const { version: reqVersion, git } = entry;
+  for (const entry of [...wanted.values()].sort(
+    (a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version, undefined, { numeric: true }),
+  )) {
+    const { name, version: reqVersion, git } = entry;
     const dir = findCrateDir(name, reqVersion);
     // prefer the resolved crate's real version (toml deps carry a semver req)
     const version = dir ? (dir.split('/').pop().slice(name.length + 1) ?? reqVersion) : reqVersion;

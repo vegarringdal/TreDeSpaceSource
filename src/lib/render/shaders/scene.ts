@@ -32,6 +32,93 @@ const RENDER_FRAME = /* wgsl */ `struct Frame {
 };`;
 
 // item state + per-model uniform + shared bindings + the full clip system
+// The clip system (port of the native clip.slang model): the ClipData uniform
+// and clip_discard, shared by the scene shaders (binding 5) and the scan
+// points (pointsWgsl) — split around the binding declaration.
+const CLIP_HEAD = /* wgsl */ `// clip system (port of the native clip.slang model, phase A subset):
+// 8 half-space planes + one axis-aligned box, evaluated per fragment
+// One clip shape — the native GpuClipShape tagged union (clip.slang layout):
+// inv_transform (world → shape-local, box kind only), params0 (box: local
+// min.xyz | sphere: center.xyz + radius.w | cyl: base.xyz + radius.w), params1
+// (box: local max.xyz | cyl: unit axis.xyz + height.w), kind_flags.x = kind
+// (0 disabled, 1 box, 2 sphere, 3 cylinder), kind_flags.y = inverted (hole).
+struct ClipShapeGpu {
+  inv_transform: mat4x4f,
+  params0: vec4f,
+  params1: vec4f,
+  kind_flags: vec4u,
+};
+struct ClipData {
+  planes: array<vec4f, 8>, // xyz = unit normal, w = distance
+  plane_mask: vec4u,       // x = enabled bitmask
+  // slot 0 = the DEFAULT clip box (Clipping Box ribbon), slots 1..7 = the user
+  // shapes — all evaluated together with the native union-of-keeps semantics
+  shapes: array<ClipShapeGpu, 8>,
+};
+
+`;
+
+const CLIP_FNS = /* wgsl */ `
+// True if p lies OUTSIDE the shape volume (native clip_shape_outside).
+fn clip_shape_outside(s: ClipShapeGpu, p: vec3f) -> bool {
+  switch (s.kind_flags.x) {
+    case 1u: { // box: world → local, AABB test
+      let local = (s.inv_transform * vec4f(p, 1.0)).xyz;
+      return any(local < s.params0.xyz) || any(local > s.params1.xyz);
+    }
+    case 2u: { // sphere
+      let d = p - s.params0.xyz;
+      return dot(d, d) > s.params0.w * s.params0.w;
+    }
+    case 3u: { // cylinder: base + radius | axis + height
+      let rel = p - s.params0.xyz;
+      let t = dot(rel, s.params1.xyz);
+      if (t < 0.0 || t > s.params1.w) { return true; }
+      let radial = rel - t * s.params1.xyz;
+      return dot(radial, radial) > s.params0.w * s.params0.w;
+    }
+    default: {
+      return false; // disabled: never outside (no clipping)
+    }
+  }
+}
+
+fn clip_discard(p: vec3f) -> bool {
+  let mask = clip.plane_mask.x;
+  for (var i = 0u; i < 8u; i++) {
+    if ((mask & (1u << i)) != 0u &&
+        dot(clip.planes[i].xyz, p) + clip.planes[i].w < 0.0) {
+      return true;
+    }
+  }
+  // Shapes — native combine semantics (clip.slang): inverted shapes are holes
+  // (each cuts what is inside it), normal shapes are keep-volumes (UNION — the
+  // fragment survives if it is inside ANY of them).
+  var any_keep = false;
+  var inside_a_keep = false;
+  for (var i = 0u; i < 8u; i++) {
+    let sh = clip.shapes[i];
+    if (sh.kind_flags.x == 0u) { continue; }
+    let outside = clip_shape_outside(sh, p);
+    if (sh.kind_flags.y != 0u) {
+      if (!outside) { return true; } // hole: clip everything inside it
+    } else {
+      any_keep = true;
+      if (!outside) { inside_a_keep = true; }
+    }
+  }
+  if (any_keep && !inside_a_keep) { return true; } // outside every keep volume
+  return false;
+}
+
+`;
+
+/** The clip system — ClipData at `@group(0) @binding(binding)` + clip_discard(p),
+ *  p in ABSOLUTE world. */
+export function clipWgsl(binding: number): string {
+  return `${CLIP_HEAD}@group(0) @binding(${binding}) var<uniform> clip: ClipData;\n${CLIP_FNS}`;
+}
+
 const RENDER_COMMON = /* wgsl */ `struct ItemState {
   flags: u32, // bit 2 = selected, bit 4 = has color override
   color: u32, // packed RGBA8 override
@@ -133,82 +220,7 @@ fn apply_item_state(base: vec4f, item: u32) -> vec4f {
   return c;
 }
 
-// clip system (port of the native clip.slang model, phase A subset):
-// 8 half-space planes + one axis-aligned box, evaluated per fragment
-// One clip shape — the native GpuClipShape tagged union (clip.slang layout):
-// inv_transform (world → shape-local, box kind only), params0 (box: local
-// min.xyz | sphere: center.xyz + radius.w | cyl: base.xyz + radius.w), params1
-// (box: local max.xyz | cyl: unit axis.xyz + height.w), kind_flags.x = kind
-// (0 disabled, 1 box, 2 sphere, 3 cylinder), kind_flags.y = inverted (hole).
-struct ClipShapeGpu {
-  inv_transform: mat4x4f,
-  params0: vec4f,
-  params1: vec4f,
-  kind_flags: vec4u,
-};
-struct ClipData {
-  planes: array<vec4f, 8>, // xyz = unit normal, w = distance
-  plane_mask: vec4u,       // x = enabled bitmask
-  // slot 0 = the DEFAULT clip box (Clipping Box ribbon), slots 1..7 = the user
-  // shapes — all evaluated together with the native union-of-keeps semantics
-  shapes: array<ClipShapeGpu, 8>,
-};
-
-@group(0) @binding(5) var<uniform> clip: ClipData;
-
-// True if p lies OUTSIDE the shape volume (native clip_shape_outside).
-fn clip_shape_outside(s: ClipShapeGpu, p: vec3f) -> bool {
-  switch (s.kind_flags.x) {
-    case 1u: { // box: world → local, AABB test
-      let local = (s.inv_transform * vec4f(p, 1.0)).xyz;
-      return any(local < s.params0.xyz) || any(local > s.params1.xyz);
-    }
-    case 2u: { // sphere
-      let d = p - s.params0.xyz;
-      return dot(d, d) > s.params0.w * s.params0.w;
-    }
-    case 3u: { // cylinder: base + radius | axis + height
-      let rel = p - s.params0.xyz;
-      let t = dot(rel, s.params1.xyz);
-      if (t < 0.0 || t > s.params1.w) { return true; }
-      let radial = rel - t * s.params1.xyz;
-      return dot(radial, radial) > s.params0.w * s.params0.w;
-    }
-    default: {
-      return false; // disabled: never outside (no clipping)
-    }
-  }
-}
-
-fn clip_discard(p: vec3f) -> bool {
-  let mask = clip.plane_mask.x;
-  for (var i = 0u; i < 8u; i++) {
-    if ((mask & (1u << i)) != 0u &&
-        dot(clip.planes[i].xyz, p) + clip.planes[i].w < 0.0) {
-      return true;
-    }
-  }
-  // Shapes — native combine semantics (clip.slang): inverted shapes are holes
-  // (each cuts what is inside it), normal shapes are keep-volumes (UNION — the
-  // fragment survives if it is inside ANY of them).
-  var any_keep = false;
-  var inside_a_keep = false;
-  for (var i = 0u; i < 8u; i++) {
-    let sh = clip.shapes[i];
-    if (sh.kind_flags.x == 0u) { continue; }
-    let outside = clip_shape_outside(sh, p);
-    if (sh.kind_flags.y != 0u) {
-      if (!outside) { return true; } // hole: clip everything inside it
-    } else {
-      any_keep = true;
-      if (!outside) { inside_a_keep = true; }
-    }
-  }
-  if (any_keep && !inside_a_keep) { return true; } // outside every keep volume
-  return false;
-}
-
-`;
+${clipWgsl(5)}`;
 
 // debug hash color + the VS→FS interface
 const RENDER_MISC = /* wgsl */ `fn hash_color(i: u32) -> vec3f {

@@ -71,6 +71,7 @@ import { type DrawList, drawListOf, type GpuModel, TRANSPARENT_LIST, vpArgsOffse
 import { type AdapterFacts, adapterFacts } from './gpuProbe';
 import { GpuTimings } from './gpuTimings';
 import { ItemPickPass, type PickGbuffer } from './itemPickPass';
+import { MARKER_INSTANCE_FLOATS, MARKER_INSTANCE_LAYOUT } from './markerInstance';
 import {
   classifySnap,
   isTransparentItem,
@@ -80,6 +81,8 @@ import {
   seamProbe,
 } from './measureSnap';
 import { OutlinePass } from './outlinePass';
+import { PanoPass } from './panoPass';
+import { PointsLayer } from './pointsLayer';
 import {
   cullWgsl,
   hzbWgsl,
@@ -218,6 +221,10 @@ const SORT_FAR_FALLBACK_OCTAVES = 20;
 // orbit distance / 12500, a real surface only dips this low some 80 000 orbit
 // distances away.
 const BACKDROP_DEPTH_MAX = 1e-9;
+/** A measure ray-cast triangle this much farther than the depth under the
+ *  cursor (relative + metres) is hidden behind scan points. */
+const OCCLUDED_HIT_SLACK = 0.02;
+const OCCLUDED_HIT_MIN = 0.02;
 
 // General 4x4 inverse (column-major). Returns null when singular.
 function invert4(m: Float32Array): Float32Array | null {
@@ -385,6 +392,8 @@ export class Renderer {
   // canvas-drawn view cube overlay (visuals only — the DOM ViewGizmo keeps
   // hit-testing; drawn after post AND into pending snapshots)
   private readonly viewCube = new ViewCubePass();
+  private readonly pano = new PanoPass();
+  private readonly pointsLayer = new PointsLayer();
   private lineBuf: GPUBuffer | null = null;
   private lineCount = 0;
   private lastLineKey = '';
@@ -409,6 +418,7 @@ export class Renderer {
   private transformsBuf!: GPUBuffer;
   private lastClipKey = '';
   private clipVersion = 0;
+  private clipDataVersion = 0;
   private vpGeoBGL!: GPUBindGroupLayout;
   private postPipeline!: GPURenderPipeline;
   private postMsPipeline!: GPURenderPipeline;
@@ -445,6 +455,20 @@ export class Renderer {
   // own createBuffer/createTexture, decremented on destroy())
   vramBuffers = 0;
   vramTextures = 0;
+
+  /** GPU bytes of the laser scans: streamed points and the entered setup's
+   *  photo. They have their own limit (the Scans panel's point budget and
+   *  cache), which the model VRAM budget knows nothing about. */
+  get scanBytes(): number {
+    return this.pointsLayer.bytes + this.pano.bytes;
+  }
+
+  /** What the model VRAM budget is measured against: everything tracked
+   *  except the scans. Counting them would make a loaded scan push models to
+   *  their coarse variant — the budget can only shrink models. */
+  get vramBudgeted(): number {
+    return Math.max(0, this.vramBuffers + this.vramTextures - this.scanBytes);
+  }
 
   /** Tracked GPU bytes held by live model slots — the part of `vramBuffers`
    *  the residency manager can move; the rest is render targets and shared
@@ -891,13 +915,29 @@ export class Renderer {
   readonly camera = new CameraController();
   private sceneMin = [Infinity, Infinity, Infinity];
   private sceneMax = [-Infinity, -Infinity, -Infinity];
+  /** Union box of the open laser-scan point clouds (setPointBounds). */
+  private pointMin = [Infinity, Infinity, Infinity];
+  private pointMax = [-Infinity, -Infinity, -Infinity];
   private denseMin = [Infinity, Infinity, Infinity];
   private denseMax = [-Infinity, -Infinity, -Infinity];
   /** Frame the v8 percentile dense bounds instead of the full AABB (setting). */
   fitDense = true;
 
+  /** Models + open point clouds (fit, ortho depth slab, clip-box seeds). */
   get sceneBounds(): { min: number[]; max: number[] } {
-    return { min: this.sceneMin, max: this.sceneMax };
+    if (!Number.isFinite(this.pointMin[0])) {
+      return { min: this.sceneMin, max: this.sceneMax };
+    }
+    return {
+      min: this.sceneMin.map((v, i) => Math.min(v, this.pointMin[i])),
+      max: this.sceneMax.map((v, i) => Math.max(v, this.pointMax[i])),
+    };
+  }
+
+  /** Bounds of the open point clouds; null when none is open. */
+  setPointBounds(box: { min: readonly number[]; max: readonly number[] } | null) {
+    this.pointMin = box ? [...box.min] : [Infinity, Infinity, Infinity];
+    this.pointMax = box ? [...box.max] : [-Infinity, -Infinity, -Infinity];
   }
 
   /** The box the camera should frame: dense union when enabled + available. */
@@ -905,7 +945,7 @@ export class Renderer {
     if (this.fitDense && Number.isFinite(this.denseMin[0])) {
       return { min: this.denseMin, max: this.denseMax };
     }
-    return { min: this.sceneMin, max: this.sceneMax };
+    return this.sceneBounds;
   }
 
   /** Fit the camera to an arbitrary box (assets batch-load fit). */
@@ -933,6 +973,14 @@ export class Renderer {
     this.clipDataU32 = new Uint32Array(data.buffer, data.byteOffset, data.length);
     this.device.queue.writeBuffer(this.clipBuf, 0, data);
     this.clipVersion++;
+    this.clipDataVersion++;
+  }
+
+  /** Changes whenever the clip planes / shapes do — and only then
+   *  (`clipVersion` also counts helper-line and marker uploads, which would
+   *  re-run the point LOD selection on every measure rubber-band update). */
+  get clipRevision(): number {
+    return this.clipDataVersion;
   }
 
   /** Last uploaded ClipData floats (null before the first setClip). */
@@ -970,15 +1018,15 @@ export class Renderer {
     this.clipVersion++;
   }
 
-  /** Filled marker spheres — INSTANCE_FLOATS per instance [cx, cy, cz, r, rr,
-   *  g, b, a], the opaque ones (a = 1) FIRST so they write depth before the
+  /** Filled marker spheres — MARKER_INSTANCE_FLOATS per instance, packed by
+   *  writeMarkerInstance, the opaque ones (a = 1) FIRST so they write depth before the
    *  translucent ones blend on top. `key` as in setHelperLines. */
   setMarkerSpheres(inst: Float32Array, opaqueCount: number, key: string) {
     if (key === this.lastMarkerKey) {
       return;
     }
     this.lastMarkerKey = key;
-    this.markerCount = inst.length / 8;
+    this.markerCount = inst.length / MARKER_INSTANCE_FLOATS;
     this.markerOpaque = Math.min(opaqueCount, this.markerCount);
     if (this.markerCount === 0) {
       this.clipVersion++;
@@ -994,6 +1042,25 @@ export class Renderer {
     }
     this.device.queue.writeBuffer(this.markerBuf, 0, inst);
     this.clipVersion++;
+  }
+
+  /** The laser-scan photo pass: the photo manager (state/scans/scanPhoto.ts)
+   *  uploads cube faces or a spherical image through it. */
+  get photo(): PanoPass {
+    return this.pano;
+  }
+
+  /** Finds the scan point nearest a sight line within `radius` (world units)
+   *  of `near` — set by the point streamer; used by the measure probe when
+   *  the cursor is on points. */
+  pointSnapper:
+    | ((ray: Ray, near: readonly [number, number, number], radius: number) => Promise<[number, number, number] | null>)
+    | null = null;
+
+  /** Laser-scan point clouds: node buffers, the drawn set and the style
+   *  (driven by state/scans/scanPoints.ts). */
+  get points(): PointsLayer {
+    return this.pointsLayer;
   }
 
   /** The canvas init() was called with — screenshot composition needs its host. */
@@ -1504,12 +1571,13 @@ export class Renderer {
           buffers: [
             { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' as const }] },
             {
-              arrayStride: 32,
+              arrayStride: MARKER_INSTANCE_LAYOUT.stride,
               stepMode: 'instance',
               attributes: [
-                { shaderLocation: 1, offset: 0, format: 'float32x3' as const },
-                { shaderLocation: 2, offset: 12, format: 'float32' as const },
-                { shaderLocation: 3, offset: 16, format: 'float32x4' as const },
+                { shaderLocation: 1, offset: MARKER_INSTANCE_LAYOUT.center, format: 'float32x3' as const },
+                { shaderLocation: 2, offset: MARKER_INSTANCE_LAYOUT.radius, format: 'float32' as const },
+                { shaderLocation: 3, offset: MARKER_INSTANCE_LAYOUT.color, format: 'float32x4' as const },
+                { shaderLocation: 4, offset: MARKER_INSTANCE_LAYOUT.centerLow, format: 'float32x3' as const },
               ],
             },
           ],
@@ -1544,6 +1612,8 @@ export class Renderer {
     };
 
     this.viewCube.init(dev, this.format);
+    this.pano.init(dev, this.format);
+    this.pointsLayer.init(dev, this.format, this.frameBuf, this.clipBuf);
 
     const makePost = (msaa: boolean) => {
       const m = dev.createShaderModule({ label: 'postModule', code: postWgsl(msaa) });
@@ -2273,11 +2343,16 @@ export class Renderer {
     if (p.mode === 'measure') {
       // True mesh ray-cast (port of the native measure_snap compute): exact,
       // view-independent corner/edge/face. Face fallback on a miss/failure.
-      const probe = await this.raycastMeasure(p.x, p.y, view).catch((e: unknown) => {
+      const probe = await this.raycastMeasure(p.x, p.y, view, point).catch((e: unknown) => {
         this.trace(() => `${view.tag} raycast threw: ${String(e)}`);
         return null;
       });
-      const result: MeasureProbe = probe ?? { point, normal: null, edgeDir: null, kind: 'face' };
+      const onPoint = probe ? null : await this.snapToScanPoint(p.x, p.y, view, point);
+      const result: MeasureProbe =
+        probe ??
+        (onPoint
+          ? { point: onPoint, normal: null, edgeDir: null, kind: 'corner' }
+          : { point, normal: null, edgeDir: null, kind: 'face' });
       this.trace(() => {
         const canvas = this.hostCanvas;
         const atEncode = projectToScreen(view.vp, view.w, view.h, result.point);
@@ -2313,7 +2388,12 @@ export class Renderer {
   // transparent counts as not there) to find the surface just behind; where
   // the two triangle planes meet within the edge radius, the seam wins over a
   // face hit (seamProbe). Priority: corner > seam corner > edge > seam edge > face.
-  private async raycastMeasure(px: number, py: number, view: PickView): Promise<MeasureProbe | null> {
+  private async raycastMeasure(
+    px: number,
+    py: number,
+    view: PickView,
+    seen: readonly [number, number, number],
+  ): Promise<MeasureProbe | null> {
     if (this.snapInFlight || this.models.length === 0) {
       this.trace(() => `${view.tag} raycast skipped: ${this.snapInFlight ? 'a cast is still in flight' : 'no models'}`);
       return null;
@@ -2334,6 +2414,13 @@ export class Renderer {
       }
       if (!a) {
         return null; // no triangle hit
+      }
+      // scan points in front of the nearest triangle: the eye sees a point,
+      // not that surface — leave it to the depth / point-snap fallback
+      const seenT = dist3(seen, ray.origin);
+      if (this.pointsLayer.active && a.t > seenT * (1 + OCCLUDED_HIT_SLACK) + OCCLUDED_HIT_MIN) {
+        this.trace(() => `${view.tag} triangle at ${fmt3(a.t)}m is behind the visible point at ${fmt3(seenT)}m`);
+        return null;
       }
       const snap = this.measureSnap;
       const w2p = (p: [number, number, number]) => projectToScreen(view.vp, view.w, view.h, p);
@@ -2356,6 +2443,22 @@ export class Renderer {
     } finally {
       this.snapInFlight = false;
     }
+  }
+
+  /** The scan point nearest the cursor's sight line around the depth-picked
+   *  position (the streamer's `pointSnapper` finds it); null without one. */
+  private async snapToScanPoint(
+    px: number,
+    py: number,
+    view: PickView,
+    seen: [number, number, number],
+  ): Promise<[number, number, number] | null> {
+    const ray = rayThroughPixel(view, px, py);
+    if (!ray || !this.pointSnapper || !this.pointsLayer.active || !this.measureSnap.enabled) {
+      return null;
+    }
+    const footprint = this.pixelFootprint(dist3(seen, ray.origin));
+    return this.pointSnapper(ray, seen, footprint * this.measureSnap.cornerPx).catch(() => null);
   }
 
   /** World size of one screen pixel at sight-line distance `t`. */
@@ -2803,10 +2906,11 @@ export class Renderer {
       const fwd = this.camera.forward();
       let dMin = Infinity,
         dMax = -Infinity;
+      const sb = this.sceneBounds;
       for (let c = 0; c < 8; c++) {
-        const x = (c & 1 ? this.sceneMax : this.sceneMin)[0] - eye[0];
-        const y = (c & 2 ? this.sceneMax : this.sceneMin)[1] - eye[1];
-        const z = (c & 4 ? this.sceneMax : this.sceneMin)[2] - eye[2];
+        const x = (c & 1 ? sb.max : sb.min)[0] - eye[0];
+        const y = (c & 2 ? sb.max : sb.min)[1] - eye[1];
+        const z = (c & 4 ? sb.max : sb.min)[2] - eye[2];
         const d = x * fwd[0] + y * fwd[1] + z * fwd[2];
         dMin = Math.min(dMin, d);
         dMax = Math.max(dMax, d);
@@ -2856,7 +2960,11 @@ export class Renderer {
       // view cube hover/position/palette must break the idle skip or the
       // overlay freezes once TAA converges (hover highlight, handle drags,
       // Settings colour changes)
-      this.viewCube.stateKey;
+      this.viewCube.stateKey +
+      // likewise the scan panorama (setup, faces, opacity, mode) and the
+      // streamed scan points (drawn set, style)
+      this.pano.stateKey +
+      this.pointsLayer.stateKey;
 
     // outline effect: is anything outlined, and does it need frames beyond
     // convergence (hover changed, or the pulse animation is running)?
@@ -3032,6 +3140,7 @@ export class Renderer {
     ff.set([...opt.selectionColor, opt.selectionTint ? 1.0 : 0.0], FRAME_SLOT.selColor);
     ff.set([...opt.bgColor, opt.backdropFade], FRAME_SLOT.backdrop);
     dev.queue.writeBuffer(this.frameBuf, 0, frameData);
+    this.pointsLayer.prepare(origin, canvas.width, canvas.height, this.camera.lastP11, this.dpr * this.captureScale);
     // vp = vertex pulling (core WebGPU); mdi = multi-draw indirect (feature);
     // full = no culling, static all-meshlets vertex-pull draw
     const cullMode: 'mdi' | 'vp' | 'full' = opt.vertexPull ? 'vp' : this.multiDraw ? 'mdi' : 'full';
@@ -3380,6 +3489,7 @@ export class Renderer {
         timestampWrites: this.timings.writes(5),
       });
       drawScene(pass2, 2);
+      this.pointsLayer.draw(pass2, opt.msaa4x);
       this.drawHelperLines(pass2, opt.msaa4x);
       this.drawMarkerSpheres(pass2, opt.msaa4x);
       pass2.end();
@@ -3393,6 +3503,7 @@ export class Renderer {
         timestampWrites: this.timings.writes(1),
       });
       drawScene(pass, 1);
+      this.pointsLayer.draw(pass, opt.msaa4x);
       this.drawHelperLines(pass, opt.msaa4x);
       this.drawMarkerSpheres(pass, opt.msaa4x);
       pass.end();
@@ -3430,6 +3541,20 @@ export class Renderer {
       post.setBindGroup(0, even ? this.postBindEven! : this.postBindOdd!);
       post.draw(3);
       post.end();
+    }
+
+    // laser-scan panorama after post (outside the TAA history), under the
+    // outline and view cube; redrawn on hold frames like them
+    if (this.pano.active) {
+      this.pano.draw(
+        enc,
+        swapView,
+        this.depth!,
+        this.targetsMsaa,
+        this.camera,
+        canvas.width / canvas.height,
+        this.timings,
+      );
     }
 
     // outline overlay AFTER post (never enters the TAA history — the same

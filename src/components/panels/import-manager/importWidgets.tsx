@@ -2,23 +2,38 @@ import { IconUpload } from '@tabler/icons-react';
 import { Button, Checkbox, FileTree, Select, TextInput } from '@treDeSpaceUI/widgets';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
+import { defaultFormatStore, formatStoreOf, type StoreFormat } from '../../../state/assets/sourceImport';
 import { storesState } from '../../../state/stores/stores.state';
 import type { StagedImport } from './useStagedImport';
 
-/** True when the import target is decided: temp imports need no store; a KEPT
- *  import requires an explicit store pick (no silent default to main). */
-export function useImportTargetReady(): boolean {
-  const { importTemp, importStore } = assetsState.use();
-  return importTemp || importStore !== '';
+/** Store picker of one format: starts on the format's own store (`rvm-files`,
+ *  `glb-files` …, created on the first import), any other store can be picked. */
+function FormatStoreSelect({ format, label, disabled }: { format: StoreFormat; label: string; disabled: boolean }) {
+  const { formatStores } = assetsState.use();
+  const { stores } = storesState.use();
+  const own = defaultFormatStore(format);
+  const names = stores.some((s) => s.name === own) ? stores.map((s) => s.name) : [own, ...stores.map((s) => s.name)];
+
+  return (
+    <Select
+      label={label}
+      labelPosition="left"
+      labelWidth={56}
+      value={disabled ? '' : formatStoreOf(formatStores, format)}
+      placeholder="Select store"
+      disabled={disabled}
+      options={names.map((n) => ({ value: n, label: n === own ? `${n} (default)` : n }))}
+      onChange={(v) => act.setFormatStore(format, v ?? '')}
+    />
+  );
 }
 
 /** Per-import options shown inside each import section's settings (once a
- *  file/folder is staged): temp/load checkboxes above the store target.
- *  Temp imports (the default) are purged on the next app start, always load
- *  into the viewer, and need no store choice. */
-export function ImportOptionsRows() {
-  const { importTemp, loadAfterImport, keepCamera, importStore } = assetsState.use();
-  const { stores } = storesState.use();
+ *  file/folder is staged): temp/load checkboxes above the store target — one
+ *  store picker per staged format. Temp imports are purged on the next app
+ *  start, always load into the viewer, and need no store. */
+export function ImportOptionsRows({ formats }: { formats: readonly StoreFormat[] }) {
+  const { importTemp, loadAfterImport, keepCamera } = assetsState.use();
 
   return (
     <>
@@ -44,16 +59,9 @@ export function ImportOptionsRows() {
         shortcut="assets.keepCamera"
         tooltip="Don’t move the camera when the imported models load — keep the current view instead of framing them"
       />
-      <Select
-        label="Store"
-        labelPosition="left"
-        labelWidth={56}
-        value={importTemp ? '' : importStore}
-        placeholder="Select store"
-        disabled={importTemp}
-        options={stores.map((s) => ({ value: s.name, label: s.name }))}
-        onChange={(v) => act.setImportStore(v ?? '')}
-      />
+      {formats.map((f) => (
+        <FormatStoreSelect key={f} format={f} label={formats.length > 1 ? f : 'Store'} disabled={importTemp} />
+      ))}
     </>
   );
 }
@@ -134,11 +142,8 @@ export function StagingTree({ si, emptyText }: { si: StagedImport; emptyText: st
   );
 }
 
-/** Import / Cancel row for the staged sections. Import stays disabled until
- *  the target is decided (temp, or an explicitly chosen store). */
+/** Import / Cancel row for the staged sections. */
 export function ImportCancelRow({ si, tooltip }: { si: StagedImport; tooltip: string }) {
-  const targetReady = useImportTargetReady();
-
   if (!si.staged) {
     return null;
   }
@@ -147,9 +152,9 @@ export function ImportCancelRow({ si, tooltip }: { si: StagedImport; tooltip: st
     <div className="flex gap-2">
       <Button
         icon={<IconUpload size={14} />}
-        disabled={si.selectedFiles().length === 0 || !targetReady}
+        disabled={si.selectedFiles().length === 0}
         onClick={() => void si.doImport()}
-        tooltip={targetReady ? tooltip : 'Pick a store first (or tick Temp import)'}
+        tooltip={tooltip}
       >
         Import{si.staged.tree ? ` (${si.selectedFiles().length})` : ''}
       </Button>

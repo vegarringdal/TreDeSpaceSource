@@ -1,6 +1,7 @@
 #include "../src/meshoptimizer.h"
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -57,12 +58,6 @@ struct Mesh
 {
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
-};
-
-union Triangle
-{
-	Vertex v[3];
-	char data[sizeof(Vertex) * 3];
 };
 
 Mesh parseObj(const char* path, double& reindex)
@@ -352,7 +347,7 @@ void simplifyUpdate(const Mesh& mesh, float threshold = 0.2f, unsigned int optio
 	lod = mesh; // start from the original mesh
 	lod.indices.resize(meshopt_simplifyWithUpdate(&lod.indices[0], mesh.indices.size(), &lod.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), &lod.vertices[0].nx, sizeof(Vertex), attr_weights, 3, NULL, target_index_count, target_error, options, &result_error));
 
-	lod.vertices.resize(meshopt_optimizeVertexFetch(&lod.vertices[0], &lod.indices[0], lod.indices.size(), &mesh.vertices[0], mesh.vertices.size(), sizeof(Vertex)));
+	lod.vertices.resize(meshopt_optimizeVertexFetch(&lod.vertices[0], &lod.indices[0], lod.indices.size(), &lod.vertices[0], lod.vertices.size(), sizeof(Vertex)));
 
 	for (size_t i = 0; i < lod.vertices.size(); ++i)
 	{
@@ -538,8 +533,8 @@ void simplifyClusters(const Mesh& mesh, float threshold = 0.2f)
 	// build clusters (meshlets) out of the mesh
 	size_t max_meshlets = meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, max_triangles);
 	std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-	std::vector<unsigned int> meshlet_vertices(max_meshlets * max_vertices);
-	std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
+	std::vector<unsigned int> meshlet_vertices(mesh.indices.size());
+	std::vector<unsigned char> meshlet_triangles(mesh.indices.size());
 
 	meshlets.resize(meshopt_buildMeshlets(&meshlets[0], &meshlet_vertices[0], &meshlet_triangles[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), max_vertices, max_triangles, 0.f));
 
@@ -551,7 +546,7 @@ void simplifyClusters(const Mesh& mesh, float threshold = 0.2f)
 
 	// partition clusters in groups; each group will be simplified separately and the boundaries between groups will be preserved
 	std::vector<unsigned int> cluster_indices;
-	cluster_indices.reserve(mesh.indices.size()); // slight underestimate, vector should realloc once
+	cluster_indices.reserve(mesh.indices.size());
 	std::vector<unsigned int> cluster_sizes(meshlets.size());
 
 	for (size_t i = 0; i < meshlets.size(); ++i)
@@ -617,7 +612,7 @@ void simplifyClusters(const Mesh& mesh, float threshold = 0.2f)
 		size_t group_triangles = (lod.size() - group_offset) / 3;
 
 		// simplify the group, preserving the border vertices
-		// note: this technically also locks the exterior border; a full mesh analysis (see nanite.cpp / lockBoundary) would work better for some meshes
+		// note: this technically also locks the exterior border; a full mesh analysis (see clusterlod.h / lockBoundary) would work better for some meshes
 		unsigned int options = meshopt_SimplifyLockBorder | meshopt_SimplifySparse | meshopt_SimplifyErrorAbsolute;
 
 		float group_target_error = 1e-2f * scale;
@@ -633,12 +628,12 @@ void simplifyClusters(const Mesh& mesh, float threshold = 0.2f)
 
 	double end = timestamp();
 
-	printf("%-9s: %d triangles => %d triangles (%.2f%% deviation) in %.2f msec, clusterized in %.2f msec, partitioned in %.2f msec (%d clusters in %d groups)\n",
-	    "SimplifyN", // N for Nanite
+	printf("%-9s: %d triangles => %d triangles (%.2f%% deviation) in %.2f msec, clusterized in %.2f msec, partitioned in %.2f msec (%d clusters in %d groups, %.1f avg)\n",
+	    "SimplifyG",
 	    int(mesh.indices.size() / 3), int(lod.size() / 3),
 	    error / scale * 100,
 	    (end - parttime) * 1000, (middle - start) * 1000, (parttime - middle) * 1000,
-	    int(meshlets.size()), int(partition_count));
+	    int(meshlets.size()), int(partition_count), double(meshlets.size()) / double(partition_count));
 }
 
 void optimize(const Mesh& mesh, bool fifo = false)
@@ -758,6 +753,341 @@ void encodeIndexSequence(const std::vector<unsigned int>& data, size_t vertex_co
 	    (double(result.size() * 4) / 1e9) / (middle - start),
 	    (end - middle) * 1000,
 	    (double(result.size() * 4) / 1e9) / (end - middle));
+}
+
+template <typename V, typename T>
+static void validateDecodeMeshlet(const unsigned char* data, size_t size, const unsigned int* vertices, size_t vertex_count, const unsigned char* triangles, size_t triangle_count)
+{
+	V rv[256];
+	T rt[sizeof(T) == 1 ? 256 * 3 : 256];
+
+	int rc = meshopt_decodeMeshlet(rv, vertex_count, rt, triangle_count, data, size);
+	assert(rc == 0);
+
+	for (size_t j = 0; j < vertex_count; ++j)
+		assert(rv[j] == V(vertices[j]));
+
+	for (size_t j = 0; j < triangle_count; ++j)
+	{
+		unsigned int a = triangles[j * 3 + 0];
+		unsigned int b = triangles[j * 3 + 1];
+		unsigned int c = triangles[j * 3 + 2];
+
+		unsigned int tri = sizeof(T) == 1 ? rt[j * 3] | (rt[j * 3 + 1] << 8) | (rt[j * 3 + 2] << 16) : rt[j];
+
+		unsigned int abc = (a << 0) | (b << 8) | (c << 16);
+		unsigned int bca = (b << 0) | (c << 8) | (a << 16);
+		unsigned int cba = (c << 0) | (a << 8) | (b << 16);
+
+		assert(tri == abc || tri == bca || tri == cba);
+	}
+}
+
+void encodeMeshlets(const Mesh& mesh, size_t max_vertices, size_t max_triangles, bool reorder = true, int level = 3)
+{
+	size_t max_meshlets = meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, max_triangles);
+	std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+	std::vector<unsigned int> meshlet_vertices(mesh.indices.size());
+	std::vector<unsigned char> meshlet_triangles(mesh.indices.size());
+
+	meshlets.resize(meshopt_buildMeshlets(&meshlets[0], &meshlet_vertices[0], &meshlet_triangles[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), max_vertices, max_triangles, 0.f));
+
+	if (meshlets.size())
+	{
+		const meshopt_Meshlet& last = meshlets.back();
+
+		// this is an example of how to trim the vertex/triangle arrays when copying data out to GPU storage
+		meshlet_vertices.resize(last.vertex_offset + last.vertex_count);
+		meshlet_triangles.resize(last.triangle_offset + last.triangle_count * 3);
+	}
+
+	std::vector<unsigned char> cbuf(meshopt_encodeMeshletBound(max_vertices, max_triangles));
+
+	// optimize each meshlet for locality; this is important for performance, and critical for good compression
+	for (size_t i = 0; i < meshlets.size(); ++i)
+		meshopt_optimizeMeshletLevel(&meshlet_vertices[meshlets[i].vertex_offset], meshlets[i].vertex_count, &meshlet_triangles[meshlets[i].triangle_offset], meshlets[i].triangle_count, level);
+
+	// optimize the order of vertex references within each meshlet and globally; this is valuable for access locality and critical for compression of vertex references
+	// note that this reorders the vertex buffer too, so if a traditional index buffer is required it would need to be reconstructed from the meshlet data for optimal locality
+	std::vector<Vertex> vertices = mesh.vertices;
+	if (reorder)
+		meshopt_optimizeVertexFetch(&vertices[0], &meshlet_vertices[0], meshlet_vertices.size(), &mesh.vertices[0], mesh.vertices.size(), sizeof(Vertex));
+
+	size_t mbst = 0;
+
+	std::vector<unsigned char> packed;
+
+	for (size_t i = 0; i < meshlets.size(); ++i)
+	{
+		const meshopt_Meshlet& meshlet = meshlets[i];
+
+		size_t mbs = meshopt_encodeMeshlet(&cbuf[0], cbuf.size(), &meshlet_vertices[meshlet.vertex_offset], meshlet.vertex_count, &meshlet_triangles[meshlet.triangle_offset], meshlet.triangle_count);
+		assert(mbs > 0);
+
+		// 24-bit header: 7 bit (vertex_count-1), 7 bit (triangle_count-1), 10 bit size
+		// fits up to 128v/128t meshlet with 1024 bytes of encoded data; meshopt_encodeMeshletBound(128,128) < 1000
+		assert(size_t(meshlet.vertex_count - 1) < 128 && size_t(meshlet.triangle_count - 1) < 128 && mbs < 1024);
+		unsigned int header = ((meshlet.vertex_count - 1) & 0x7f) | (((meshlet.triangle_count - 1) & 0x7f) << 7) | ((unsigned(mbs) & 0x3ff) << 14);
+		packed.push_back((unsigned char)(header & 0xff));
+		packed.push_back((unsigned char)((header >> 8) & 0xff));
+		packed.push_back((unsigned char)((header >> 16) & 0xff));
+		packed.insert(packed.end(), &cbuf[0], &cbuf[mbs]);
+
+		validateDecodeMeshlet<unsigned int, unsigned int>(&cbuf[0], mbs, &meshlet_vertices[meshlet.vertex_offset], meshlet.vertex_count, &meshlet_triangles[meshlet.triangle_offset], meshlet.triangle_count);
+		validateDecodeMeshlet<unsigned int, unsigned char>(&cbuf[0], mbs, &meshlet_vertices[meshlet.vertex_offset], meshlet.vertex_count, &meshlet_triangles[meshlet.triangle_offset], meshlet.triangle_count);
+		validateDecodeMeshlet<unsigned short, unsigned int>(&cbuf[0], mbs, &meshlet_vertices[meshlet.vertex_offset], meshlet.vertex_count, &meshlet_triangles[meshlet.triangle_offset], meshlet.triangle_count);
+		validateDecodeMeshlet<unsigned short, unsigned char>(&cbuf[0], mbs, &meshlet_vertices[meshlet.vertex_offset], meshlet.vertex_count, &meshlet_triangles[meshlet.triangle_offset], meshlet.triangle_count);
+
+		mbst += mbs;
+	}
+
+	size_t mbc = compress(packed);
+
+	printf("MeshletCodec (%d/%d): %d meshlets, %d bytes/meshlet; %d bytes, %.1f bits/triangle\n",
+	    int(max_vertices), int(max_triangles),
+	    int(meshlets.size()),
+	    int(mbst / meshlets.size()),
+	    int(mbst), double(mbst * 8) / double(mesh.indices.size() / 3));
+	printf("MeshletCodec (%d/%d, packed): %d bytes/meshlet, %.1f bits/triangle; post-deflate: %d bytes/meshlet, %.1f bits/triangle)\n",
+	    int(max_vertices), int(max_triangles),
+	    int(packed.size() / meshlets.size()), double(packed.size() * 8) / double(mesh.indices.size() / 3),
+	    int(mbc / meshlets.size()), double(mbc * 8) / double(mesh.indices.size() / 3));
+
+#if !TRACE
+	double mbtime = 0;
+
+	for (int i = 0; i < 10; ++i)
+	{
+		unsigned int rv[256];
+		unsigned int rt[256];
+		double t0 = timestamp();
+		unsigned char* p = &packed[0];
+		for (size_t j = 0; j < meshlets.size(); ++j)
+		{
+			unsigned int header = p[0] | (p[1] << 8) | (p[2] << 16);
+			size_t vertex_count = (header & 0x7f) + 1;
+			size_t triangle_count = ((header >> 7) & 0x7f) + 1;
+			size_t size = (header >> 14) & 0x3ff;
+			meshopt_decodeMeshletRaw(rv, vertex_count, rt, triangle_count, p + 3, size);
+			p += 3 + size;
+		}
+		double t1 = timestamp();
+
+		mbtime = (mbtime == 0 || t1 - t0 < mbtime) ? (t1 - t0) : mbtime;
+	}
+
+	printf("MeshletCodec (%d/%d, packed): decode time %.3f msec, %.3fB tri/sec, %.1f ns/meshlet\n",
+	    int(max_vertices), int(max_triangles),
+	    mbtime * 1000, double(mesh.indices.size() / 3) / 1e9 / mbtime, mbtime * 1e9 / double(meshlets.size()));
+#endif
+}
+
+static void writeBits(std::vector<unsigned char>& data, unsigned int& acc, int& acc_bits, unsigned int value, int bits)
+{
+	assert(value < (1u << bits));
+	assert(acc_bits + bits <= 32);
+
+	acc |= value << acc_bits;
+	acc_bits += bits;
+
+	while (acc_bits >= 8)
+	{
+		data.push_back((unsigned char)(acc & 0xff));
+		acc >>= 8;
+		acc_bits -= 8;
+	}
+}
+
+void encodeMeshletsDXR(const Mesh& mesh, size_t max_triangles, int min_exp, int level = 3)
+{
+	// split mesh into clusters, optimized for RT
+	size_t min_triangles = max_triangles / 4;
+	size_t max_vertices = 256;
+	float fill_weight = 0.25f;
+	size_t max_meshlets = meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, min_triangles);
+
+	std::vector<unsigned int> shadow_indices(mesh.indices.size());
+	meshopt_generateShadowIndexBuffer(&shadow_indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(float) * 3, sizeof(Vertex));
+
+	std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+	std::vector<unsigned int> meshlet_vertices(mesh.indices.size());
+	std::vector<unsigned char> meshlet_triangles(mesh.indices.size());
+	meshlets.resize(meshopt_buildMeshletsSpatial(&meshlets[0], &meshlet_vertices[0], &meshlet_triangles[0], &shadow_indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), max_vertices, min_triangles, max_triangles, fill_weight));
+
+	if (meshlets.size())
+	{
+		const meshopt_Meshlet& last = meshlets.back();
+
+		// this is an example of how to trim the vertex/triangle arrays when copying data out to GPU storage
+		meshlet_vertices.resize(last.vertex_offset + last.vertex_count);
+		meshlet_triangles.resize(last.triangle_offset + last.triangle_count * 3);
+	}
+
+	// optimize each meshlet for locality; this is critical for good compression
+	for (size_t i = 0; i < meshlets.size(); ++i)
+		meshopt_optimizeMeshletLevel(&meshlet_vertices[meshlets[i].vertex_offset], meshlets[i].vertex_count, &meshlet_triangles[meshlets[i].triangle_offset], meshlets[i].triangle_count, level);
+
+	// compute shared exponent per mesh:
+	// - must be at most min_exp which should be set to maximum required precision (e.g. -10 for 1mm accuracy given metric units)
+	// - must accommodate each cluster to fit into Compressed1 DXR encoding (16-bit offsets from 24-bit anchors)
+	// note, for DGF parity min_exp should be set based on mesh AABB; we do not do this as we do not consider this rigorous.
+	int exponent = min_exp;
+
+	for (const meshopt_Meshlet& meshlet : meshlets)
+	{
+		float minv[3] = {FLT_MAX, FLT_MAX, FLT_MAX}, maxv[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+
+		for (size_t j = 0; j < meshlet.vertex_count; ++j)
+		{
+			unsigned int v = meshlet_vertices[meshlet.vertex_offset + j];
+			const float* p = &mesh.vertices[v].px;
+
+			for (int k = 0; k < 3; ++k)
+			{
+				minv[k] = fminf(minv[k], p[k]);
+				maxv[k] = fmaxf(maxv[k], p[k]);
+			}
+		}
+
+		int cexp = meshopt_computePositionExponent(minv, maxv, min_exp, /* max_bits= */ 16);
+		exponent = (exponent > cexp) ? exponent : cexp;
+	}
+
+	std::vector<unsigned char> packed;
+	size_t stats_headers = 0, stats_positions = 0, stats_topology = 0;
+
+	for (size_t i = 0; i < meshlets.size(); ++i)
+	{
+		const meshopt_Meshlet& meshlet = meshlets[i];
+
+		// for each cluster, use meshopt codec for meshlet topology; will need to decode using meshopt_decodeMeshlet at runtime
+		unsigned char topology[1024];
+		assert(meshopt_encodeMeshletBound(0, max_triangles) <= sizeof(topology));
+
+		size_t tops = meshopt_encodeMeshlet(topology, sizeof(topology), NULL, 0, &meshlet_triangles[meshlet.triangle_offset], meshlet.triangle_count);
+		assert(tops > 0);
+
+		// for each cluster, positions are encoded using 24-bit anchor and up-to-16-bit offset per axis
+		float scale = ldexpf(1.f, exponent);
+
+		int positions[256][3];
+		int anchor[3] = {INT_MAX, INT_MAX, INT_MAX};
+
+		for (size_t j = 0; j < meshlet.vertex_count; ++j)
+		{
+			unsigned int v = meshlet_vertices[meshlet.vertex_offset + j];
+			const float* p = &mesh.vertices[v].px;
+
+			for (int k = 0; k < 3; ++k)
+			{
+				positions[j][k] = int(roundf(p[k] / scale));
+				anchor[k] = anchor[k] < positions[j][k] ? anchor[k] : positions[j][k];
+			}
+		}
+
+		// compute optimal per-cluster per-axis bit count
+		int bits[3] = {1, 1, 1};
+
+		for (size_t j = 0; j < meshlet.vertex_count; ++j)
+			for (int k = 0; k < 3; ++k)
+			{
+				int v = positions[j][k] - anchor[k];
+				assert(v >= 0 && v < (1 << 16));
+
+				while (v >= (1 << bits[k]))
+					bits[k]++;
+			}
+
+		// prepare cluster header: 1 word with cluster sizes, and 3 words for DXR-compatible cluster position header
+		// see https://microsoft.github.io/DirectX-Specs/d3d/Raytracing2.html#compressed1-position-encoding
+		unsigned int header[4] = {
+		    (meshlet.vertex_count - 1) | ((meshlet.triangle_count - 1) << 8) | (unsigned(tops) << 16),
+		    (unsigned(anchor[0]) << 8) | (exponent + 127),
+		    (unsigned(anchor[1]) << 8) | (unsigned(bits[1] - 1) << 4) | unsigned(bits[0] - 1),
+		    (unsigned(anchor[2]) << 8) | unsigned(bits[2] - 1),
+		};
+
+		// write cluster header, cluster positions, and cluster topology
+		// note: we write the data in a way that is easiest to consume for the decoding; however, for best post-deflate compression consider reordering it
+		// (by grouping headers, positions, and topology into three separate streams)
+		// maximum post-deflate compression can be achieved by interleaving the cluster position bits per axis (all X => all Y => all Z), but that requires extra decoding work
+		// this layout can be decoded using `meshopt_decodeMeshlet` + `memcpy` when the consumer is DXR2-compatible.
+		for (unsigned int word : header)
+			for (int k = 0; k < 4; ++k)
+				packed.push_back((unsigned char)((word >> (k * 8)) & 0xff));
+
+		unsigned int acc = 0;
+		int acc_bits = 0;
+
+		for (size_t j = 0; j < meshlet.vertex_count; ++j)
+			for (int k = 0; k < 3; ++k)
+				writeBits(packed, acc, acc_bits, positions[j][k] - anchor[k], bits[k]);
+
+		if (acc_bits)
+			packed.push_back((unsigned char)(acc & 0xff));
+
+		packed.insert(packed.end(), topology, topology + tops);
+
+		stats_headers += 4 * 4;
+		stats_positions += (meshlet.vertex_count * (bits[0] + bits[1] + bits[2]) + 7) / 8;
+		stats_topology += tops;
+	}
+
+	size_t mbc = compress(packed);
+	size_t tris = mesh.indices.size() / 3;
+
+	printf("MeshletCodecDXR (%d@%d): %d meshlets, %d bytes; %.1f bytes/triangle (%.1f headers, %.1f positions, %.1f topology); post-deflate: %.1f bytes/triangle\n",
+	    int(max_triangles), exponent,
+	    int(meshlets.size()), int(packed.size()),
+	    double(packed.size()) / double(tris), double(stats_headers) / double(tris), double(stats_positions) / double(tris), double(stats_topology) / double(tris),
+	    double(mbc) / double(tris));
+
+#if !TRACE
+	double mbtime = 0;
+	size_t mbsize = 0;
+
+	for (int i = 0; i < 10; ++i)
+	{
+		unsigned char clp[12 + 256 * 6]; // up to 48 bits per vertex
+		unsigned char clt[256 * 3 + 4];  // +4 bytes for padding
+
+		double t0 = timestamp();
+		unsigned char* p = &packed[0];
+		for (size_t j = 0; j < meshlets.size(); ++j)
+		{
+			// decode cluster header
+			size_t vertex_count = p[0] + 1;
+			size_t triangle_count = p[1] + 1;
+			size_t topology_size = p[2] | (p[3] << 8);
+
+			// decode DXR header to establish position size
+			size_t position_bitsx = (p[8] & 15) + 1;
+			size_t position_bitsy = ((p[8] >> 4) & 15) + 1;
+			size_t position_bitsz = (p[12] & 15) + 1;
+			size_t position_size = (vertex_count * (position_bitsx + position_bitsy + position_bitsz) + 7) / 8;
+
+			// memcpy DXR Compressed1 portion as is
+			void* clpopt = topology_size ? clp : clt; // note: hack to ensure memcpy is not elided for benchmarking purposes; topology_size is always >0 so this always copies into clp
+			memcpy(clpopt, p + 4, 12 + position_size);
+
+			// decode topology as 3 bytes per triangle
+			int rc = meshopt_decodeMeshlet(static_cast<unsigned int*>(NULL), 0, clt, triangle_count, p + 16 + position_size, topology_size);
+			assert(rc == 0);
+			(void)rc;
+
+			p += 16 + position_size + topology_size;
+			if (i == 0) // stats for decode throughput
+				mbsize += position_size + triangle_count * 3;
+		}
+		double t1 = timestamp();
+
+		mbtime = (mbtime == 0 || t1 - t0 < mbtime) ? (t1 - t0) : mbtime;
+	}
+
+	printf("MeshletCodecDXR (%d): decode time %.3f msec, %.3fB tri/sec, %.3f GB/sec\n",
+	    int(max_triangles),
+	    mbtime * 1000, double(tris) / 1e9 / mbtime, double(mbsize) / mbtime * 1e-9);
+#endif
 }
 
 template <typename PV>
@@ -886,22 +1216,21 @@ static int follow(int* parents, int index)
 
 void meshlets(const Mesh& mesh, bool scan = false, bool uniform = false, bool flex = false, bool spatial = false, bool dump = false)
 {
-	// NVidia-recommends 64/126; we round 126 down to a multiple of 4
-	// alternatively we also test uniform configuration with 64/64 which is better for AMD
+	// NVidia recommends 64/126; we also test uniform configuration with 64/64 which is better for earlier AMD GPUs
 	const size_t max_vertices = 64;
-	const size_t max_triangles = uniform ? 64 : 124;
+	const size_t max_triangles = uniform ? 64 : 126;
 	const size_t min_triangles = spatial ? 16 : (uniform ? 24 : 32); // only used in flex/spatial modes
 
 	// note: should be set to 0 unless cone culling is used at runtime!
-	const float cone_weight = flex ? -1.0f : 0.25f;
+	const float cone_weight = 0.25f;
 	const float split_factor = flex ? 2.0f : 0.0f;
 
 	// note: input mesh is assumed to be optimized for vertex cache and vertex fetch
 	double start = timestamp();
 	size_t max_meshlets = meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, min_triangles);
 	std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-	std::vector<unsigned int> meshlet_vertices(max_meshlets * max_vertices);
-	std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
+	std::vector<unsigned int> meshlet_vertices(mesh.indices.size());
+	std::vector<unsigned char> meshlet_triangles(mesh.indices.size());
 
 	if (scan)
 		meshlets.resize(meshopt_buildMeshletsScan(&meshlets[0], &meshlet_vertices[0], &meshlet_triangles[0], &mesh.indices[0], mesh.indices.size(), mesh.vertices.size(), max_vertices, max_triangles));
@@ -909,7 +1238,7 @@ void meshlets(const Mesh& mesh, bool scan = false, bool uniform = false, bool fl
 		meshlets.resize(meshopt_buildMeshletsFlex(&meshlets[0], &meshlet_vertices[0], &meshlet_triangles[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), max_vertices, min_triangles, max_triangles, cone_weight, split_factor));
 	else if (spatial)
 		meshlets.resize(meshopt_buildMeshletsSpatial(&meshlets[0], &meshlet_vertices[0], &meshlet_triangles[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), max_vertices, min_triangles, max_triangles, 0.f));
-	else // note: equivalent to the call of buildMeshletsFlex() with non-negative cone_weight and split_factor = 0
+	else // note: equivalent to the call of buildMeshletsFlex() with split_factor = 0 and min_triangles = max_triangles
 		meshlets.resize(meshopt_buildMeshlets(&meshlets[0], &meshlet_vertices[0], &meshlet_triangles[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight));
 
 	if (!dump)
@@ -922,7 +1251,7 @@ void meshlets(const Mesh& mesh, bool scan = false, bool uniform = false, bool fl
 
 		// this is an example of how to trim the vertex/triangle arrays when copying data out to GPU storage
 		meshlet_vertices.resize(last.vertex_offset + last.vertex_count);
-		meshlet_triangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
+		meshlet_triangles.resize(last.triangle_offset + last.triangle_count * 3);
 	}
 
 	double end = timestamp();
@@ -959,7 +1288,7 @@ void meshlets(const Mesh& mesh, bool scan = false, bool uniform = false, bool fl
 				cluster.push_back(meshlet_vertices[m.vertex_offset + meshlet_triangles[m.triangle_offset + j]]);
 
 			char cname[32];
-			snprintf(cname, sizeof(cname), "ml_%d\n", int(i));
+			snprintf(cname, sizeof(cname), "ml_%d", int(i));
 			dumpObj(cname, cluster);
 		}
 
@@ -1155,6 +1484,21 @@ void spatialClusterPoints(const Mesh& mesh, size_t cluster_size)
 	    (end - start) * 1000);
 }
 
+void filterTriangles(const Mesh& mesh)
+{
+	double start = timestamp();
+
+	std::vector<unsigned int> newindices(mesh.indices.size());
+	newindices.resize(meshopt_filterIndexBuffer(&newindices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0], mesh.vertices.size(), sizeof(float) * 3, sizeof(Vertex)));
+
+	double end = timestamp();
+
+	printf("FilterIB : %d triangles -> %d (%.2f%% redundant) in %.2f msec\n",
+	    int(mesh.indices.size() / 3), int(newindices.size() / 3),
+	    double((mesh.indices.size() - newindices.size()) / 3) / double(mesh.indices.size() / 3) * 100.0,
+	    (end - start) * 1000);
+}
+
 void tessellationAdjacency(const Mesh& mesh)
 {
 	double start = timestamp();
@@ -1262,6 +1606,130 @@ void coverage(const Mesh& mesh)
 	    cs.coverage[0] * 100, cs.coverage[1] * 100, cs.coverage[2] * 100, (end - start) * 1000);
 }
 
+struct VertexTangent
+{
+	float px, py, pz;
+	float nx, ny, nz;
+	float tu, tv;
+	float tx, ty, tz, tw;
+};
+
+void tangents(const Mesh& mesh)
+{
+	double start = timestamp();
+
+	// note: tangent generation produces a tangent vector and orientation (+-1) per *corner* (3 per triangle), even for indexed inputs
+	// you *could* then copy the tangents to the existing vertices, but that will not work correctly in case the input has UV mirroring
+	// a simple way to handle this is to work on unindexed data (indices==NULL), generate tangents, and re-index
+	// we show a more involved way that splits vertices with divergent tangents on the fly.
+	std::vector<float> tangents(mesh.indices.size() * 4);
+
+	meshopt_generateTangents(&tangents[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), &mesh.vertices[0].nx, sizeof(Vertex), &mesh.vertices[0].tx, sizeof(Vertex));
+
+	std::vector<VertexTangent> newvertices(mesh.vertices.size());
+	std::vector<unsigned int> newindices = mesh.indices;
+
+	// copy positions/normals/UVs (Vertex has no tangent field, so we use VertexTangent)
+	for (size_t i = 0; i < mesh.vertices.size(); ++i)
+	{
+		VertexTangent& vt = newvertices[i];
+		const Vertex& v = mesh.vertices[i];
+
+		vt.px = v.px, vt.py = v.py, vt.pz = v.pz;
+		vt.nx = v.nx, vt.ny = v.ny, vt.nz = v.nz;
+		vt.tu = v.tx, vt.tv = v.ty;
+	}
+
+	// seed each vertex with one of its corner tangents; the loop below fixes any mismatches
+	for (size_t i = 0; i < mesh.indices.size(); ++i)
+	{
+		VertexTangent& vt = newvertices[mesh.indices[i]];
+		const float* t = &tangents[i * 4];
+		vt.tx = t[0], vt.ty = t[1], vt.tz = t[2], vt.tw = t[3];
+	}
+
+	std::vector<unsigned int> splits(mesh.vertices.size(), ~0u);
+
+	for (size_t i = 0; i < mesh.indices.size(); ++i)
+	{
+		const float* t = &tangents[i * 4];
+		unsigned int v = mesh.indices[i];
+
+		// walk the chain of split copies looking for a vertex whose tangent matches
+		while (v != ~0u && (newvertices[v].tx != t[0] || newvertices[v].ty != t[1] || newvertices[v].tz != t[2] || newvertices[v].tw != t[3]))
+			v = splits[v];
+
+		// no match in chain: append a new split copy with the target tangent and chain it
+		if (v == ~0u)
+		{
+			v = unsigned(newvertices.size());
+			newvertices.push_back(newvertices[mesh.indices[i]]);
+			newvertices[v].tx = t[0], newvertices[v].ty = t[1], newvertices[v].tz = t[2], newvertices[v].tw = t[3];
+			splits.push_back(splits[mesh.indices[i]]);
+			splits[mesh.indices[i]] = v;
+		}
+
+		newindices[i] = v;
+	}
+
+	double end = timestamp();
+
+	printf("Tangents : %d corners, %d splits in %.2f msec\n", int(mesh.indices.size()), int(newvertices.size() - mesh.vertices.size()), (end - start) * 1000);
+}
+
+void normals(const Mesh& mesh, float smoothing)
+{
+	// note: normal generation produces a normal vector per *corner* (3 per triangle), even for indexed inputs
+	// you could split the existing vertices on the fly (see tangents()), here we demonstrate an alternative approach with full reindexing
+	std::vector<float> normals(mesh.indices.size() * 3);
+
+	double start = timestamp();
+
+	const float crease = 1.f; // 1 rad ~= 60 deg
+	meshopt_generateNormals(&normals[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), crease, smoothing);
+
+	double middle = timestamp();
+
+	std::vector<Vertex> unindexed(mesh.indices.size());
+
+	for (size_t i = 0; i < mesh.indices.size(); ++i)
+	{
+		unindexed[i] = mesh.vertices[mesh.indices[i]];
+		unindexed[i].nx = normals[i * 3 + 0];
+		unindexed[i].ny = normals[i * 3 + 1];
+		unindexed[i].nz = normals[i * 3 + 2];
+	}
+
+	std::vector<unsigned int> remap(mesh.indices.size());
+	size_t vertex_count = meshopt_generateVertexRemap(&remap[0], NULL, mesh.indices.size(), &unindexed[0], mesh.indices.size(), sizeof(Vertex));
+
+	std::vector<unsigned int> newindices(mesh.indices.size());
+	meshopt_remapIndexBuffer(&newindices[0], NULL, mesh.indices.size(), &remap[0]);
+
+	std::vector<Vertex> newvertices(vertex_count);
+	meshopt_remapVertexBuffer(&newvertices[0], &unindexed[0], mesh.indices.size(), sizeof(Vertex), &remap[0]);
+
+	double end = timestamp();
+
+	printf("Normals %d: %d corners, %d vertices in %.2f msec; reindexed in %.2f msec\n",
+	    int(ceilf(smoothing)), int(mesh.indices.size()), int(vertex_count), (middle - start) * 1000, (end - middle) * 1000);
+}
+
+void remesh(const Mesh& mesh, int resolution, unsigned int options = 0)
+{
+	double start = timestamp();
+	size_t capacity = meshopt_remesh(NULL, 0, &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), resolution, options);
+	double middle = timestamp();
+	std::vector<float> triangles(capacity * 3 * 3);
+	size_t count = meshopt_remesh(&triangles[0], capacity, &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), resolution, options);
+	double end = timestamp();
+
+	assert(count <= capacity);
+
+	printf("Remesh%3d: %d triangles => %d triangles in %.2f msec (count %.2f msec, compute %.2f msec)\n", resolution,
+	    int(mesh.indices.size() / 3), int(count), (end - start) * 1000, (middle - start) * 1000, (end - middle) * 1000);
+}
+
 void nanite(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices); // nanite.cpp
 
 bool loadMesh(Mesh& mesh, const char* path)
@@ -1307,6 +1775,9 @@ void processDeinterleaved(const char* path)
 
 	for (unsigned int i = 0; i < obj->face_count; ++i)
 	{
+		if (obj->face_vertices[i] <= 2)
+			continue;
+
 		for (unsigned int j = 0; j < obj->face_vertices[i]; ++j)
 		{
 			fastObjIndex gi = obj->indices[index_offset + j];
@@ -1411,6 +1882,7 @@ void process(const char* path)
 	meshlets(copy, /* scan= */ false, /* uniform= */ true, /* flex= */ false, /* spatial= */ true);
 
 	shadow(copy);
+	filterTriangles(copy);
 	tessellationAdjacency(copy);
 	provoking(copy);
 
@@ -1426,11 +1898,15 @@ void process(const char* path)
 	encodeVertex<PackedVertex>(copy, "");
 	encodeVertex<PackedVertexOct>(copy, "O");
 
+	encodeMeshlets(mesh, 64, 96);
+	encodeMeshletsDXR(mesh, 128, /* min_exp= */ -14);
+
 	simplify(mesh);
 	simplify(mesh, 0.1f, meshopt_SimplifyPrune);
 	simplifyAttr(mesh);
 	simplifyAttr(mesh, 0.1f, meshopt_SimplifyPermissive);
 	simplifyUpdate(mesh);
+	simplifyUpdate(mesh, 0.1f, meshopt_SimplifyPermissive);
 	simplifySloppy(mesh);
 	simplifyComplete(mesh);
 	simplifyPoints(mesh);
@@ -1443,6 +1919,12 @@ void process(const char* path)
 	reindexFuzzy(mesh);
 	coverage(mesh);
 
+	tangents(mesh);
+	normals(mesh, 1.5f);
+
+	remesh(mesh, 128);
+	remesh(mesh, 128, meshopt_RemeshSolve);
+
 	if (path)
 		processDeinterleaved(path);
 }
@@ -1453,7 +1935,7 @@ void processDev(const char* path)
 	if (!loadMesh(mesh, path))
 		return;
 
-	simplifyUpdate(mesh, 0.1f, meshopt_SimplifyPrune | meshopt_SimplifyPermissive);
+	remesh(mesh, 160, meshopt_RemeshSolve);
 }
 
 void processNanite(const char* path)
@@ -1468,9 +1950,6 @@ void processNanite(const char* path)
 int main(int argc, char** argv)
 {
 	void runTests();
-
-	meshopt_encodeVertexVersion(1);
-	meshopt_encodeIndexVersion(1);
 
 	if (argc == 1)
 	{

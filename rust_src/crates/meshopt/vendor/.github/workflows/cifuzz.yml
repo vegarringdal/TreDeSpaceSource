@@ -22,11 +22,11 @@ jobs:
         uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
         with:
           oss-fuzz-project-name: 'meshoptimizer'
-          fuzz-seconds: 150
+          fuzz-seconds: 30
           dry-run: false
           language: c++
       - name: Upload Crash
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure() && steps.build.outcome == 'success'
         with:
           name: artifacts

@@ -17,6 +17,7 @@ import {
 } from '../../lib/cooker/cookerPool';
 import type { CookerApi } from '../../lib/cooker/cookerWorker';
 import type { Ifc2GlbApi } from '../../lib/ifc2glb/ifc2glbWorker';
+import type { Nwd2TdpApi } from '../../lib/nwd2tdp/nwd2tdpWorker';
 import {
   clearDir,
   deleteFile,
@@ -30,8 +31,12 @@ import {
   writeJson,
 } from '../../lib/opfs/opfs';
 import type { Rvm2GlbApi } from '../../lib/rvm2glb/rvm2glbWorker';
+import { storeScanFile } from '../../lib/scan2tdpp/cookScan';
 import type { Step2GlbApi, StepProgress } from '../../lib/step2glb/step2glbWorker';
 import { spawnComlinkWorker } from '../../lib/worker/spawnComlinkWorker';
+import { scansActions } from '../scans/scans.actions';
+import { scansState } from '../scans/scans.state';
+import { storesActions } from '../stores/stores.actions';
 import { MAIN_STORE, type StoreDef, storesState, TEMP_STORE } from '../stores/stores.state';
 import { db } from '../viewer/db';
 import { residency } from '../viewer/residency';
@@ -45,13 +50,32 @@ import {
   assetsState,
   groupOf,
   type IfcImportOptions,
+  type NwdImportOptions,
   type RvmImportOptions,
+  type ScanImportOptions,
   type StdGlbImportOptions,
   type StepImportOptions,
 } from './assets.state';
-import { workerPoolCap } from './workerPoolCap';
+import {
+  assetsFromSource,
+  describePlaces,
+  formatStoreOf,
+  hashFile,
+  isQuickFormat,
+  quickFingerprint,
+  type SourceFingerprint,
+  type SourceFormat,
+  type StoreFormat,
+  sourceFormatOf,
+} from './sourceImport';
+import { scanWorkerCap, workerPoolCap } from './workerPoolCap';
 
 const INDEX = 'index.json';
+/** Web Lock every import path takes — one import at a time, across tabs. */
+const IMPORT_LOCK = 'asset-import';
+/** Largest panorama level a scan cook keeps, px (an E57 face above it is dropped,
+ *  not downscaled — the viewer downscales to ≤ 1536 itself). */
+const PANO_MAX_PX = 4096;
 
 /** A globally-unique asset id — the OPFS file name is `<id>.tdp`, so a
  *  collision would silently overwrite another asset. crypto.randomUUID gives
@@ -90,15 +114,44 @@ function resolveStore(name?: string): string {
  *  full file or it would leak (deleteFile swallows not-found). */
 async function deleteAssetFiles(entries: AssetEntry[]) {
   for (const a of entries) {
+    // an open scan reads its file by range — close it before the file goes
+    if (a.kind === 'points') {
+      scansActions.closeAsset(a.id);
+    }
     const dir = await modelStoreDir(a.store);
     await deleteFile(dir, `${a.id}.tdp`);
     await deleteFile(dir, `${a.id}.coarse.tdp`);
+    await deleteFile(dir, `${a.id}.tdpp`);
   }
 }
 
+/** Place a scan (offset and coordinate system): shown at once when it is
+ *  loaded, saved with the asset either way. The library bounds follow when
+ *  the scan is open (they are recomputed from the placed file). */
+async function placeScanAsset(id: string, patch: Pick<AssetEntry, 'scanOffset' | 'scanCoordSystem'>) {
+  const entry = assetsState.get().assets.find((a) => a.id === id);
+  if (!entry) {
+    return;
+  }
+  const next = { ...entry, ...patch };
+  const full = scansActions.applyPlacement(id, {
+    system: next.scanCoordSystem,
+    offset: next.scanOffset ?? [0, 0, 0],
+  });
+  const placed: AssetEntry = full && next.bounds ? { ...next, bounds: { ...next.bounds, full } } : next;
+  assetsState.set((s) => ({ assets: s.assets.map((a) => (a.id === id ? placed : a)) }));
+  await persistIndex();
+}
+
+/** Offsets are kept to the millimetre. */
+const round3 = (v: number) => Math.round(v * 1000) / 1000;
+
 /** An asset's identity for overwrite purposes: same store, same folder, same
- *  display name = the same thing, re-imported. */
-const identityKey = (a: { store: string; folder: string; name: string }) => `${a.store}\0${a.folder}\0${a.name}`;
+ *  display name = the same thing, re-imported. A laser scan and a model are
+ *  never the same thing — a scan named like a model in its store must not
+ *  replace it. */
+const identityKey = (a: { store: string; folder: string; name: string; kind?: AssetEntry['kind'] }) =>
+  `${a.store}\0${a.folder}\0${a.name}${a.kind === 'points' ? '\0points' : ''}`;
 
 /** Per-import overrides. The UI never sets these — overwrite is unconditional
  *  in the app, and loading follows the Import Manager checkbox — but the
@@ -115,6 +168,11 @@ export interface ImportBehaviour {
   /** Host metadata stamped on every asset this import produces (a converter
    *  can yield several). Opaque to the viewer; returned by `assets.list`. */
   meta?: Record<string, unknown>;
+  /** MD5 of the converted source file, stamped on every asset the import
+   *  produces — what the Import Manager's "already imported" check compares. */
+  sourceMd5?: string;
+  /** The source's quick fingerprint (size and both ends), stamped likewise. */
+  sourceQuick?: string;
   /** Drive NO app dialogs (no progress overlay, no error popup) — for callers
    *  that report progress themselves, e.g. a host driving `assets.importUrl`
    *  with a progress subscription. Console logging is unaffected. */
@@ -156,6 +214,31 @@ async function finishImport(
     await assetsActions.loadIds(added.map((a) => a.id));
   }
   return { replaced, byKey };
+}
+
+/**
+ * The offset a re-imported scan takes over from the one it replaces (same
+ * store, folder and name): the user is asked whether to keep it — a scan
+ * converted again usually sits where the old one did, but a corrected source
+ * may not. A quiet (host-driven) import keeps it without asking.
+ */
+async function keptScanOffset(
+  replaced: AssetEntry | undefined,
+  target: { name: string },
+  quiet: boolean,
+): Promise<[number, number, number] | undefined> {
+  const old = replaced?.scanOffset;
+  if (!old || old.every((v) => v === 0)) {
+    return undefined;
+  }
+  if (quiet) {
+    return old;
+  }
+  const keep = await dialogs.confirm(
+    `${target.name} is being replaced. The scan it replaces is moved by an offset of X ${old[0]} m, Y ${old[1]} m, Z ${old[2]} m. Keep that offset for the new one?`,
+    { title: 'Keep the scan offset?', okLabel: 'Keep offset', cancelLabel: 'Start at 0' },
+  );
+  return keep ? old : undefined;
 }
 
 /** Depth of import locks THIS tab holds across message dispatches — the
@@ -208,7 +291,7 @@ async function withImportLock<T>(run: () => Promise<T>): Promise<T | null> {
   if (heldLocally > 0) {
     return await run();
   }
-  return navigator.locks.request('asset-import', { ifAvailable: true }, async (lock) => {
+  return navigator.locks.request(IMPORT_LOCK, { ifAvailable: true }, async (lock) => {
     if (!lock) {
       consoleActions.log('error', 'Assets: another import is already running — try again when it finishes');
       dialogs.error('Another import is already running — try again when it finishes.', 'Import busy');
@@ -250,7 +333,7 @@ export function acquireImportLock(): Promise<(() => Promise<void>) | null> {
     });
     let done: Promise<unknown> = Promise.resolve();
     done = navigator.locks
-      .request('asset-import', { ifAvailable: true }, (lock) => {
+      .request(IMPORT_LOCK, { ifAvailable: true }, (lock) => {
         if (!lock) {
           resolveOuter(null);
           return; // not held — nothing to await
@@ -360,6 +443,33 @@ export async function loadIdsPooled(
   return okIds;
 }
 
+/**
+ * Make a just-opened scan's library entry say where it is drawn. The import
+ * stamps the box of the coordinate system the file is in; a scan that took
+ * over another system from the one it replaced is placed elsewhere (fitting
+ * the camera to the stale box would frame empty space), and a taken-over
+ * system the new file no longer lists is forgotten.
+ */
+async function syncScanPlacement(entry: AssetEntry) {
+  const placed = scansActions.placed(entry.id);
+  if (!placed) {
+    return;
+  }
+  const old = entry.bounds?.full;
+  const sameBox = old !== undefined && placed.bounds.every((v, k) => v === old[k]);
+  const sameSystem = entry.scanCoordSystem === undefined || entry.scanCoordSystem === placed.system;
+  if (sameBox && sameSystem) {
+    return;
+  }
+  const { scanCoordSystem: _stale, ...rest } = entry;
+  const next: AssetEntry = {
+    ...(sameSystem ? entry : rest),
+    bounds: { full: placed.bounds, dense: entry.bounds?.dense ?? null },
+  };
+  assetsState.set((s) => ({ assets: s.assets.map((a) => (a.id === entry.id ? next : a)) }));
+  await persistIndex();
+}
+
 export async function loadAssetIntoViewer(id: string): Promise<boolean> {
   return loadOne(id);
 }
@@ -368,6 +478,15 @@ async function loadOne(id: string): Promise<boolean> {
   const entry = assetsState.get().assets.find((a) => a.id === id);
   if (!entry) {
     return false;
+  }
+  if (entry.kind === 'points') {
+    const res = await scansActions.openAsset(entry);
+    if (res.error) {
+      consoleActions.log('error', `Assets: failed to load ${entry.name}: ${res.error.msg}`);
+      return false;
+    }
+    await syncScanPlacement(entry);
+    return true;
   }
   try {
     // With a VRAM budget active, start from the COARSE variant — the scene
@@ -392,6 +511,51 @@ async function loadOne(id: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Remove the output of scan conversions that never finished: a reload, a tab
+ * crash or an out-of-memory during a multi-minute cook leaves a partial
+ * `.tdpp` — often GBs — in the store with no library entry, so nothing in
+ * the app could ever delete it. Every finished scan is in the index before
+ * the next one starts, so a `.tdpp` the index does not know is such a
+ * leftover — unless an import is running right now (this tab or another),
+ * which the import lock tells: then nothing is touched. The index is read
+ * again under the lock (another tab may have landed a scan since this one
+ * read it), and a missing or unreadable index removes nothing.
+ */
+async function sweepUnfinishedScans(): Promise<void> {
+  await navigator.locks.request(IMPORT_LOCK, { ifAvailable: true }, async (lock) => {
+    if (!lock) {
+      return;
+    }
+    const root = await modelAssetsDir();
+    const idx = await readJson<StoredIndex>(root, INDEX);
+    if (!idx?.assets) {
+      return;
+    }
+    const known = new Set(idx.assets.map((a) => `${a.store || MAIN_STORE}/${a.id}.tdpp`));
+    let removed = 0;
+    for await (const [store, entry] of root.entries()) {
+      if (entry.kind !== 'directory') {
+        continue;
+      }
+      const dir = await root.getDirectoryHandle(store);
+      const names: string[] = [];
+      for await (const name of dir.keys()) {
+        names.push(name);
+      }
+      for (const name of names) {
+        if (name.endsWith('.tdpp') && !known.has(`${store}/${name}`)) {
+          await deleteFile(dir, name);
+          removed++;
+        }
+      }
+    }
+    if (removed > 0) {
+      consoleActions.log('info', `Assets: removed ${removed} unfinished scan conversion(s) left by an earlier session`);
+    }
+  });
+}
+
 interface StoredIndex {
   /** Written by pre-0.0.19 saves; the registry lives in stores.json now and
    *  storesActions.init() seeds itself from this. */
@@ -399,6 +563,161 @@ interface StoredIndex {
   assets?: (AssetEntry & { store?: string })[];
   // pre-store saves used a flat string[]; current saves use a per-store record
   extraFolders?: string[] | Record<string, string[]>;
+}
+
+/** What an Import Manager import of a converted source resolved to: its
+ *  store and the fingerprint(s) taken of the file. */
+interface PreparedSource extends SourceFingerprint {
+  store: string;
+}
+
+/** Whether the user asked for a whole-file hash of this format (the formats
+ *  without the option are always hashed whole). */
+function wantsFullFingerprint(format: SourceFormat): boolean {
+  if (!isQuickFormat(format)) {
+    return true;
+  }
+  const s = assetsState.get();
+  return format === 'nwd' ? s.nwd.fullFingerprint : s.scan.fullFingerprint;
+}
+
+/** Fingerprint a source file: the quick one for the formats that have it,
+ *  the full MD5 (with a progress overlay — it reads every byte) when wanted. */
+async function fingerprintSource(file: File, format: SourceFormat): Promise<SourceFingerprint> {
+  const sourceQuick = isQuickFormat(format) ? await quickFingerprint(file) : undefined;
+  if (!wantsFullFingerprint(format)) {
+    return { sourceQuick };
+  }
+  const title = `${file.name} — checking the file`;
+  dialogs.loading('0%', title);
+  try {
+    const sourceMd5 = await hashFile(file, (f) => dialogs.loading(`${Math.round(f * 100)}%`, title));
+    return { sourceMd5, sourceQuick };
+  } finally {
+    dialogs.hideLoading();
+  }
+}
+
+/**
+ * Before converting a source file from the Import Manager: fingerprint it
+ * (full MD5), ask before converting a file whose assets are already in the
+ * library, and resolve the format's store (created on first use). Returns null
+ * when the user skips. A caller that names a store (the postMessage API) is
+ * left alone — no hash, no question, its store.
+ */
+async function prepareSource(
+  file: File,
+  format: SourceFormat,
+  opts: { store?: string } & ImportBehaviour,
+): Promise<PreparedSource | null> {
+  if (opts.store !== undefined) {
+    return { store: resolveStore(opts.store) };
+  }
+  let fp: SourceFingerprint;
+  try {
+    fp = await fingerprintSource(file, format);
+  } catch (e) {
+    // runs before the import lock, whose error dialog would not see this: a
+    // file changed or moved since it was picked, or on a drive that went away
+    const msg = `${file.name} could not be read: ${e instanceof Error ? e.message : String(e)}`;
+    consoleActions.log('error', `Assets: ${msg}`);
+    dialogs.error(msg, 'Import failed');
+    return null;
+  }
+  const have = assetsFromSource(assetsState.get().assets, fp);
+  if (have.length > 0) {
+    // a quick match says less than a whole-file one
+    const same = fp.sourceMd5 !== undefined ? 'this exact file' : 'a file of the same size with the same start and end';
+    const again = await dialogs.confirm(
+      `${file.name} is already imported: ${have.length} asset${have.length === 1 ? '' : 's'} in ${describePlaces(have)} came from ${same}. Convert it again?`,
+      { title: 'Already imported', okLabel: 'Convert again', cancelLabel: 'Skip' },
+    );
+    if (!again) {
+      consoleActions.log('info', `Assets: ${file.name} skipped — already imported (${describePlaces(have)})`);
+      return null;
+    }
+  }
+  const s = assetsState.get();
+  const want = formatStoreOf(s.formatStores, format);
+  if (!(opts.temp ?? s.importTemp)) {
+    await storesActions.addStore(want);
+  }
+  return { store: resolveStore(want), ...fp };
+}
+
+/** prepareSource, then `run` with the resolved store + fingerprint; false when skipped. */
+async function importPrepared<O extends { store?: string } & ImportBehaviour>(
+  file: File,
+  format: SourceFormat,
+  opts: O,
+  run: (opts: O) => Promise<boolean>,
+): Promise<boolean> {
+  const prepared = await prepareSource(file, format, opts);
+  return prepared ? run({ ...opts, ...prepared }) : false;
+}
+
+/** Land a converter's in-RAM cooked outputs (`<name>.tdp` + its
+ *  `<name>.coarse.tdp`) in the store, logging the converter's status
+ *  warnings — the shared final phase of the IFC and NWD imports. */
+async function landCookedOutputs(
+  file: File,
+  files: readonly { name: string; bytes: ArrayBuffer }[],
+  status: string | null,
+  label: string,
+  t0: number,
+  store: string,
+  opts: { folder: string } & ImportBehaviour,
+): Promise<void> {
+  // the warnings first: they are what explains a file that gave nothing
+  // (a model that only references external files, say)
+  if (status) {
+    try {
+      const st = JSON.parse(status) as { warnings?: string[]; notes?: string[] };
+      for (const w of st.warnings ?? []) {
+        consoleActions.log('error', `${label}: ${w}`);
+      }
+      // what the converter did by itself that the user should know of
+      // (a Revit export scaled from feet to metres)
+      for (const n of st.notes ?? []) {
+        consoleActions.log('info', `${label}: ${n}`);
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
+  if (files.length === 0) {
+    consoleActions.log('error', `Assets: ${file.name} produced no geometry — nothing imported`);
+    return;
+  }
+  const coarseByName = new Map(files.filter((f) => /\.coarse\.tdp$/i.test(f.name)).map((f) => [f.name, f.bytes]));
+  const cooked = files.filter((f) => !/\.coarse\.tdp$/i.test(f.name));
+  consoleActions.log(
+    'info',
+    `Assets: ${file.name} → ${cooked.length} cooked file(s) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+  );
+  const sources: ImportSource[] = cooked.map((f) => {
+    const c = coarseByName.get(f.name.replace(/\.tdp$/i, '.coarse.tdp'));
+    return {
+      name: f.name,
+      bytes: () => Promise.resolve(f.bytes),
+      ...(c ? { coarseBytes: () => Promise.resolve(c) } : {}),
+      folder: opts.folder,
+    };
+  });
+  await assetsActions.importSourcesLocked(sources, {
+    folder: opts.folder,
+    store,
+    title: `Importing ${label} — storing`,
+    replace: opts.replace,
+    load: opts.load,
+    temp: opts.temp,
+    // the rest of the behaviour must travel too — `quiet` keeps the final
+    // phase's overlay down for a host, `meta` tags every asset
+    quiet: opts.quiet,
+    meta: opts.meta,
+    sourceMd5: opts.sourceMd5,
+    sourceQuick: opts.sourceQuick,
+  });
 }
 
 export const assetsActions = {
@@ -412,9 +731,9 @@ export const assetsActions = {
   },
 
   /** Read index.json once (panel mount). The shared store registry is loaded
-   *  separately by storesActions.init() — callers run that FIRST (one-way
-   *  dependency: stores never import assets state, assets never import store
-   *  actions). */
+   *  separately by storesActions.init() — callers run that FIRST (stores
+   *  never import assets state; assets only ask the stores to create a
+   *  format's default store). */
   async init() {
     if (assetsState.get().ready) {
       return;
@@ -445,6 +764,11 @@ export const assetsActions = {
     if (stale.length) {
       await persistIndex();
     }
+    try {
+      await sweepUnfinishedScans();
+    } catch (e) {
+      consoleActions.log('error', `Assets: cleanup of unfinished scan conversions failed: ${e}`);
+    }
   },
 
   /** Drop every asset belonging to a store that is being deleted. The store's
@@ -453,6 +777,9 @@ export const assetsActions = {
   async forgetStore(name: string) {
     const s = assetsState.get();
     const doomed = s.assets.filter((a) => a.store === name);
+    for (const a of doomed.filter((d) => d.kind === 'points')) {
+      scansActions.closeAsset(a.id);
+    }
     const { [name]: _dropped, ...extraFolders } = s.extraFolders;
     assetsState.set({
       assets: s.assets.filter((a) => a.store !== name),
@@ -464,10 +791,56 @@ export const assetsActions = {
     consoleActions.log('info', `Assets: dropped ${doomed.length} asset(s) with store "${name}"`);
   },
 
-  /** '' (or an unknown name) = no store chosen — kept imports stay blocked
-   *  until the user picks one. */
-  setImportStore(name: string) {
-    assetsState.set({ importStore: storesState.get().stores.some((st) => st.name === name) ? name : '' });
+  /** Move a laser scan by `offset` (metres from its own coordinates): saved
+   *  with the asset, so it is applied again whenever the scan is loaded. */
+  async setScanOffset(id: string, offset: readonly [number, number, number]) {
+    await placeScanAsset(id, { scanOffset: [round3(offset[0]), round3(offset[1]), round3(offset[2])] });
+  },
+
+  /** Show a laser scan in another of its source's coordinate systems
+   *  ('' = the source's own frame): saved with the asset. */
+  async setScanCoordSystem(id: string, system: string) {
+    await placeScanAsset(id, { scanCoordSystem: system });
+  },
+
+  /** Step the current scan to its next coordinate system (hotkey). */
+  async nextScanCoordSystem() {
+    const view = scansState.get().assets.find((a) => a.assetId === scansActions.currentScan());
+    if (!view || view.systems.length < 2) {
+      return;
+    }
+    const at = view.systems.indexOf(view.system);
+    await assetsActions.setScanCoordSystem(view.assetId, view.systems[(at + 1) % view.systems.length]);
+  },
+
+  /** Nudge one axis of the current scan's offset (hotkeys). */
+  async stepScanOffset(axis: 0 | 1 | 2, direction: 1 | -1) {
+    const id = scansActions.currentScan();
+    const entry = assetsState.get().assets.find((a) => a.id === id);
+    if (!id || !entry) {
+      return;
+    }
+    const next: [number, number, number] = [...(entry.scanOffset ?? [0, 0, 0])];
+    next[axis] += direction * scansState.get().offsetStep;
+    await assetsActions.setScanOffset(id, next);
+  },
+
+  /** The store Import Manager imports of one format go to ('' = back to its default). */
+  setFormatStore(format: StoreFormat, name: string) {
+    assetsState.set((s) => ({ formatStores: { ...s.formatStores, [format]: name } }));
+  },
+
+  /** Where an Import Manager import of `format` lands: the format's store
+   *  (the user's pick, else `<format>-files`), created on first use.
+   *  Undefined for a temp import, which needs none. */
+  async importTargetStore(format: StoreFormat): Promise<string | undefined> {
+    const s = assetsState.get();
+    if (s.importTemp) {
+      return undefined;
+    }
+    const want = formatStoreOf(s.formatStores, format);
+    await storesActions.addStore(want);
+    return want;
   },
 
   setImportTemp(importTemp: boolean) {
@@ -500,6 +873,17 @@ export const assetsActions = {
 
   setStepOptions(patch: Partial<StepImportOptions>) {
     assetsState.set((s) => ({ step: { ...s.step, ...patch } }));
+  },
+
+  setNwdOptions(patch: Partial<NwdImportOptions>) {
+    assetsState.set((s) => ({ nwd: { ...s.nwd, ...patch } }));
+  },
+
+  setScanOptions(patch: Partial<ScanImportOptions>) {
+    assetsState.set((s) => {
+      const scan = { ...s.scan, ...patch };
+      return { scan: { ...scan, workers: Math.max(0, Math.min(scanWorkerCap(), Math.round(scan.workers))) } };
+    });
   },
 
   setStdGlbOptions(patch: Partial<StdGlbImportOptions>) {
@@ -708,6 +1092,8 @@ export const assetsActions = {
             ...(edges !== undefined ? { edges } : {}),
             ...(coarse ? { coarse } : {}),
             ...((src.meta ?? opts.meta) ? { meta: src.meta ?? opts.meta } : {}),
+            ...(opts.sourceMd5 ? { sourceMd5: opts.sourceMd5 } : {}),
+            ...(opts.sourceQuick ? { sourceQuick: opts.sourceQuick } : {}),
             ...(temp ? { temp: true } : {}),
           };
           added.push(entry);
@@ -771,22 +1157,182 @@ export const assetsActions = {
     }));
   },
 
+  /** Laser scans: `.tdpp` files are copied into the store as they are (a Blob
+   *  write, never read whole — scans are GBs); Leica `.lgsx` and `.e57` are
+   *  cooked to `.tdpp` in a worker, straight into the store. The header is
+   *  validated and gives the asset bounds. */
+  async importTdpp(files: File[], opts: { folder: string; store?: string } & ImportBehaviour) {
+    const prepared = new Map<File, PreparedSource>();
+    const todo: File[] = [];
+    for (const file of files) {
+      const format = sourceFormatOf(file.name);
+      const p = format ? await prepareSource(file, format, opts) : undefined;
+      if (p === null) {
+        continue; // already imported, skipped by the user
+      }
+      if (p) {
+        prepared.set(file, p);
+      }
+      todo.push(file);
+    }
+    if (todo.length === 0) {
+      return false;
+    }
+    return (await withImportLock(() => this.importTdppLocked(todo, opts, prepared))) !== null;
+  },
+
+  /** `prepared`: the store + fingerprint of each cooked source (LGSX / E57);
+   *  a `.tdpp` has none and goes to the import store. */
+  async importTdppLocked(
+    files: File[],
+    opts: { folder: string; store?: string } & ImportBehaviour,
+    prepared: ReadonlyMap<File, PreparedSource> = new Map(),
+  ) {
+    const t0 = performance.now();
+    const quiet = opts.quiet === true;
+    const before = assetsState.get().assets;
+    const temp = opts.temp ?? assetsState.get().importTemp;
+    const added: AssetEntry[] = [];
+    let failed = 0;
+    const scanOpts = assetsState.get().scan;
+    const cookOpts = {
+      panoMaxSize: scanOpts.panoramas ? PANO_MAX_PX : 0,
+      intensity16: scanOpts.intensity16,
+      workers: scanOpts.workers,
+    };
+    // Where every file goes and what it takes over from the scan it replaces,
+    // settled for the whole batch BEFORE the first conversion: the "keep the
+    // offset?" question must not come up minutes in, under the progress
+    // overlay of the file before it (which covers it).
+    const targets: {
+      file: File;
+      source: PreparedSource | undefined;
+      store: string;
+      name: string;
+      scanOffset: [number, number, number] | undefined;
+      scanCoordSystem: string | undefined;
+    }[] = [];
+    for (const file of files) {
+      const source = prepared.get(file);
+      // a .tdpp copied as it is has no source check: its own format store
+      const own = source?.store ?? opts.store ?? (temp ? undefined : await assetsActions.importTargetStore('tdpp'));
+      const store = temp ? TEMP_STORE : resolveStore(own);
+      const name = file.name.replace(/\.(tdpp|lgsx|e57)$/i, '');
+      const key = identityKey({ store, folder: opts.folder, name, kind: 'points' });
+      const replacedScan = before.find((b) => identityKey(b) === key);
+      targets.push({
+        file,
+        source,
+        store,
+        name,
+        scanOffset: await keptScanOffset(replacedScan, { name }, quiet),
+        // the coordinate system chosen for the scan being replaced carries over
+        scanCoordSystem: replacedScan?.scanCoordSystem,
+      });
+    }
+    for (const [i, { file, source, store, name, scanOffset, scanCoordSystem }] of targets.entries()) {
+      // an LGSX / E57 is cooked, a .tdpp is already in the local format
+      const phase = sourceFormatOf(file.name) ? 'Converting to local format' : 'Copying into local store';
+      const title = `${phase} — scan ${i + 1} of ${files.length}`;
+      if (!quiet) {
+        dialogs.loading(file.name, title);
+      }
+      const dir = await modelStoreDir(store);
+      const id = uid();
+      const stored = await storeScanFile(file, dir, `${id}.tdpp`, cookOpts, (msg) => {
+        if (!quiet) {
+          dialogs.loading(msg, title);
+        }
+      });
+      if (!stored.data) {
+        failed++;
+        consoleActions.log('error', `Assets: ${stored.error?.msg ?? `${file.name} failed`}`);
+        continue;
+      }
+      if (stored.data.frame) {
+        consoleActions.log('info', `Assets: ${file.name} — coordinates: ${stored.data.frame.replace(/ \(.*\)$/, '')}`);
+      }
+      // everything the source says about coordinates, applied or not: the
+      // lines to look at (or pass on) when a scan lands in the wrong place
+      for (const line of stored.data.coordinateReport) {
+        consoleActions.log('info', `Assets: ${file.name} — source ${line}`);
+      }
+      const entry: AssetEntry = {
+        id,
+        store,
+        name,
+        folder: opts.folder,
+        fileName: file.name,
+        size: stored.data.size,
+        importedAt: Date.now(),
+        kind: 'points',
+        bounds: {
+          full: stored.data.bounds.map((v, k) => v + (scanOffset?.[k % 3] ?? 0)),
+          dense: null,
+        },
+        ...(opts.meta ? { meta: opts.meta } : {}),
+        ...(source?.sourceMd5 ? { sourceMd5: source.sourceMd5 } : {}),
+        ...(source?.sourceQuick ? { sourceQuick: source.sourceQuick } : {}),
+        ...(scanOffset ? { scanOffset } : {}),
+        ...(scanCoordSystem !== undefined ? { scanCoordSystem } : {}),
+        ...(temp ? { temp: true } : {}),
+      };
+      added.push(entry);
+      // landed in the index at once: a reload or crash later in a long batch
+      // must not leave this finished scan as an unlisted multi-GB file
+      assetsState.set((s) => ({ assets: [...s.assets, entry] }));
+      await persistIndex();
+    }
+    if (!quiet) {
+      dialogs.hideLoading();
+    }
+    const { replaced } = await finishImport(before, added, opts);
+    consoleActions.log(
+      'info',
+      `Assets: imported ${added.length} scan(s)${replaced ? `, replaced ${replaced}` : ''}${
+        failed ? `, ${failed} failed` : ''
+      } in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+    );
+    if (failed > 0 && !quiet) {
+      dialogs.error(
+        `${failed} of ${files.length} scan file(s) failed to import — see the Console panel.`,
+        'Import errors',
+      );
+    }
+    return added;
+  },
+
   /** RVM import, two phases under one lock: (1) the rvm wasm streams the .rvm
    *  (staged into OPFS temp/rvm-import/) into COOKED `.tdp` files in the same
    *  dir — it cooks the merged model itself, so no GLB is ever built — and
    *  (2) those land in the store like any cooked file. Temp is cleared before
    *  and after, so the user never sees the intermediates. */
   async importRvm(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
-    return (await withImportLock(() => this.importRvmLocked(file, opts))) !== null;
+    return importPrepared(
+      file,
+      'rvm',
+      opts,
+      async (o) => (await withImportLock(() => this.importRvmLocked(file, o))) !== null,
+    );
   },
 
   /** Import SEVERAL .rvm files in one lock window; each file lands in its own
    *  folder named after the file (the UI disables the folder field for this). */
   async importRvmFiles(files: File[], opts: { store?: string } & ImportBehaviour = {}) {
+    const jobs: { file: File; prepared: PreparedSource }[] = [];
+    for (const file of files) {
+      const prepared = await prepareSource(file, 'rvm', opts);
+      if (prepared) {
+        jobs.push({ file, prepared });
+      }
+    }
+    if (jobs.length === 0) {
+      return false;
+    }
     return (
       (await withImportLock(async () => {
-        for (const file of files) {
-          await this.importRvmLocked(file, { ...opts, folder: file.name });
+        for (const { file, prepared } of jobs) {
+          await this.importRvmLocked(file, { ...opts, ...prepared, folder: file.name });
         }
       })) !== null
     );
@@ -799,7 +1345,7 @@ export const assetsActions = {
       const t0 = performance.now();
       // overlay first — before OPFS clear + worker spin-up — so the click lands
       // on a blocked UI, not a still-live one
-      phaseLoading(opts, `Converting ${file.name}…`, 'Importing RVM — phase 1 of 2');
+      phaseLoading(opts, `${file.name}…`, 'Importing RVM — copying into local store');
       const rvmOpts = assetsState.get().rvm;
       const temp = await rvmTempDir();
       await clearDir(temp);
@@ -817,6 +1363,7 @@ export const assetsActions = {
         started = worker;
         // phase 1 — convert (single wasm thread; counter = sites written)
         await writeFile(temp, 'input.rvm', file);
+        phaseLoading(opts, `${file.name}…`, 'Importing RVM — converting to local format');
         // if the wasm traps, the worker dies WITHOUT rejecting the Comlink
         // call — race against the worker's error event so we don't hang
         const workerDied = new Promise<never>((_, reject) => {
@@ -831,7 +1378,11 @@ export const assetsActions = {
             { ...rvmOpts },
             Comlink.proxy(() => {
               parts++;
-              phaseLoading(opts, `${parts} ${unit}${parts === 1 ? '' : 's'} converted`, 'Importing RVM — phase 1 of 2');
+              phaseLoading(
+                opts,
+                `${parts} ${unit}${parts === 1 ? '' : 's'} converted`,
+                'Importing RVM — converting to local format',
+              );
             }),
           ),
           workerDied,
@@ -880,7 +1431,7 @@ export const assetsActions = {
         await this.importSourcesLocked(sources, {
           folder: opts.folder,
           store,
-          title: 'Importing RVM — final phase',
+          title: 'Importing RVM — storing',
           replace: opts.replace,
           load: opts.load,
           temp: opts.temp,
@@ -888,6 +1439,7 @@ export const assetsActions = {
           // final phase's overlay down for a host, `meta` tags every asset
           quiet: opts.quiet,
           meta: opts.meta,
+          sourceMd5: opts.sourceMd5,
         });
       } finally {
         // errors propagate to the lock holder (error dialog + console)
@@ -902,13 +1454,18 @@ export const assetsActions = {
    *  merged output itself, yielding 1..N `.tdp` files (split by spatial tier)
    *  plus their coarse siblings — no GLB is built. In-RAM: no OPFS staging,
    *  the cooked buffers pass straight to importSourcesLocked. */
-  async importIfc(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
+  async importIfc(file: File, opts: { folder: string; store?: string } & ImportBehaviour): Promise<boolean> {
+    return importPrepared(file, 'ifc', opts, (o) => this.importIfcPrepared(file, o));
+  },
+
+  /** importIfc after the source check: `opts.store` is resolved. */
+  async importIfcPrepared(file: File, opts: { folder: string; store?: string } & ImportBehaviour): Promise<boolean> {
     const store = resolveStore(opts.store);
     return (
       (await withImportLock(async () => {
         const t0 = performance.now();
         // overlay first — before the worker spin-up — so the UI blocks on click
-        phaseLoading(opts, `Converting ${file.name}…`, 'Importing IFC — phase 1 of 2');
+        phaseLoading(opts, `Converting ${file.name}…`, 'Importing IFC — converting to local format');
         const ifcOpts = assetsState.get().ifc;
         let started: Worker | undefined;
         try {
@@ -933,54 +1490,66 @@ export const assetsActions = {
               file.name,
               { ...ifcOpts },
               Comlink.proxy((f: number) =>
-                phaseLoading(opts, `${Math.round(f * 100)}% converted`, 'Importing IFC — phase 1 of 2'),
+                phaseLoading(opts, `${Math.round(f * 100)}% converted`, 'Importing IFC — converting to local format'),
               ),
             ),
             workerDied,
           ]);
-          if (files.length === 0) {
-            consoleActions.log('error', `Assets: ${file.name} produced no geometry — nothing imported`);
-            return;
-          }
-          if (status) {
-            try {
-              const st = JSON.parse(status) as { warnings?: string[] };
-              for (const w of st.warnings ?? []) {
-                consoleActions.log('error', `IFC: ${w}`);
-              }
-            } catch {
-              /* non-fatal */
-            }
-          }
-          const coarseByName = new Map(
-            files.filter((f) => /\.coarse\.tdp$/i.test(f.name)).map((f) => [f.name, f.bytes]),
+          await landCookedOutputs(file, files, status, 'IFC', t0, store, opts);
+        } finally {
+          started?.terminate();
+          phaseHideLoading(opts);
+        }
+      })) !== null
+    );
+  },
+
+  /** Navisworks import (.nwd / .nwc): the nwd wasm parses the whole file in
+   *  RAM and cooks every root's merged model itself into `.tdp` + coarse — no
+   *  GLB is built — and the outputs land like the IFC ones. */
+  async importNwd(file: File, opts: { folder: string; store?: string } & ImportBehaviour): Promise<boolean> {
+    return importPrepared(file, 'nwd', opts, (o) => this.importNwdPrepared(file, o));
+  },
+
+  /** importNwd after the source check: `opts.store` is resolved. */
+  async importNwdPrepared(file: File, opts: { folder: string; store?: string } & ImportBehaviour): Promise<boolean> {
+    const store = resolveStore(opts.store);
+    return (
+      (await withImportLock(async () => {
+        const t0 = performance.now();
+        phaseLoading(opts, `Converting ${file.name}…`, 'Importing NWD — converting to local format');
+        let started: Worker | undefined;
+        try {
+          const spawned = await spawnComlinkWorker<Nwd2TdpApi>(
+            () => new Worker(new URL('../../lib/nwd2tdp/nwd2tdpWorker.ts', import.meta.url), { type: 'module' }),
+            'nwd2tdp',
           );
-          const cooked = files.filter((f) => !/\.coarse\.tdp$/i.test(f.name));
-          consoleActions.log(
-            'info',
-            `Assets: ${file.name} → ${cooked.length} cooked file(s) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
-          );
-          const sources: ImportSource[] = cooked.map((f) => {
-            const c = coarseByName.get(f.name.replace(/\.tdp$/i, '.coarse.tdp'));
-            return {
-              name: f.name,
-              bytes: () => Promise.resolve(f.bytes),
-              ...(c ? { coarseBytes: () => Promise.resolve(c) } : {}),
-              folder: opts.folder,
-            };
+          if (!spawned.data) {
+            throw new Error(spawned.error?.msg);
+          }
+          const { worker, api: nwd } = spawned.data;
+          started = worker;
+          // a wasm trap kills the worker without rejecting the Comlink call — race it
+          const workerDied = new Promise<never>((_, reject) => {
+            worker.addEventListener('error', (e) => reject(new Error(e.message || 'nwd2tdp worker crashed')));
           });
-          await this.importSourcesLocked(sources, {
-            folder: opts.folder,
-            store,
-            title: 'Importing IFC — final phase',
-            replace: opts.replace,
-            load: opts.load,
-            temp: opts.temp,
-            // the rest of the behaviour must travel too — `quiet` keeps the
-            // final phase's overlay down for a host, `meta` tags every asset
-            quiet: opts.quiet,
-            meta: opts.meta,
-          });
+          const bytes = await file.arrayBuffer();
+          const { files, status } = await Promise.race([
+            nwd.convert(
+              Comlink.transfer(bytes, [bytes]),
+              file.name,
+              { ...assetsState.get().nwd },
+              Comlink.proxy((n: number) =>
+                phaseLoading(
+                  opts,
+                  `${n} file${n === 1 ? '' : 's'} cooked`,
+                  'Importing NWD — converting to local format',
+                ),
+              ),
+            ),
+            workerDied,
+          ]);
+          await landCookedOutputs(file, files, status, 'NWD', t0, store, opts);
         } finally {
           started?.terminate();
           phaseHideLoading(opts);
@@ -995,15 +1564,20 @@ export const assetsActions = {
    *  cooked `.tdp` plus its coarse variant in the same dir (no GLB is ever
    *  built), and (2) those land in the store like any cooked file. Temp is
    *  cleared before and after. */
-  async importStep(file: File, opts: { folder: string; store?: string } & ImportBehaviour) {
+  async importStep(file: File, opts: { folder: string; store?: string } & ImportBehaviour): Promise<boolean> {
+    return importPrepared(file, 'step', opts, (o) => this.importStepPrepared(file, o));
+  },
+
+  /** importStep after the source check: `opts.store` is resolved. */
+  async importStepPrepared(file: File, opts: { folder: string; store?: string } & ImportBehaviour): Promise<boolean> {
     const store = resolveStore(opts.store);
     return (
       (await withImportLock(async () => {
         const t0 = performance.now();
-        const title = 'Importing STEP — phase 1 of 2';
+        const title = 'Importing STEP — converting to local format';
         // overlay first — before OPFS staging + worker spin-up — so the UI
         // blocks on click
-        phaseLoading(opts, `Staging ${file.name}…`, title);
+        phaseLoading(opts, `${file.name}…`, 'Importing STEP — copying into local store');
         const stepOpts = assetsState.get().step;
         const temp = await stepTempDir();
         await clearDir(temp);
@@ -1059,7 +1633,7 @@ export const assetsActions = {
           await this.importSourcesLocked(sources, {
             folder: opts.folder,
             store,
-            title: 'Importing STEP — final phase',
+            title: 'Importing STEP — storing',
             replace: opts.replace,
             load: opts.load,
             temp: opts.temp,
@@ -1067,6 +1641,7 @@ export const assetsActions = {
             // final phase's overlay down for a host, `meta` tags every asset
             quiet: opts.quiet,
             meta: opts.meta,
+            sourceMd5: opts.sourceMd5,
           });
           consoleActions.log(
             'info',
@@ -1122,9 +1697,9 @@ export const assetsActions = {
       // worker (a whole outlier file gets trimmed like an outlier vertex —
       // per-file dense boxes can't do that); off, the plain full-box union.
       if (!s.keepCamera) {
-        const loadedEntries = ids
-          .map((id) => s.assets.find((a) => a.id === id))
-          .filter((a): a is AssetEntry => a != null);
+        // read again: loading a scan may have corrected its bounds
+        const now = assetsState.get().assets;
+        const loadedEntries = ids.map((id) => now.find((a) => a.id === id)).filter((a): a is AssetEntry => a != null);
         let dense: { min: number[]; max: number[] } | null = null;
         if (viewerState.get().fitDense) {
           const indices = await db.indicesForPaths(
@@ -1172,6 +1747,14 @@ export const assetsActions = {
       const allow = new Set(only);
       entries = entries.filter((a) => allow.has(a.id));
     }
+    if (entries.length === 0) {
+      return;
+    }
+    // laser scans live in the Scans domain, not modeldb
+    for (const a of entries.filter((e) => e.kind === 'points')) {
+      scansActions.closeAsset(a.id);
+    }
+    entries = entries.filter((a) => a.kind !== 'points');
     if (entries.length === 0) {
       return;
     }
@@ -1299,12 +1882,16 @@ export const assetsActions = {
    *  virtual folder tree is recreated as real subdirectories. */
   async exportSelected(only?: string[]) {
     const s = assetsState.get();
-    let entries = s.assets.filter((a) => s.selected[a.id]);
+    // laser scans are GB-sized and opened from OPFS in place — not exported here
+    let entries = s.assets.filter((a) => s.selected[a.id] && a.kind !== 'points');
     if (only) {
       const allow = new Set(only);
       entries = entries.filter((a) => allow.has(a.id));
     }
     if (entries.length === 0) {
+      if (s.assets.some((a) => s.selected[a.id] && a.kind === 'points')) {
+        consoleActions.log('warn', 'Assets: laser scans are not exported — only models are');
+      }
       return;
     }
     let root: FileSystemDirectoryHandle;

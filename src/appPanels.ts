@@ -24,6 +24,7 @@ import { RibbonPad } from './components/panels/ribbon-pad/RibbonPad';
 import { RibbonPanels } from './components/panels/ribbon-panels/RibbonPanels';
 import { RibbonSelectionColor } from './components/panels/ribbon-selection-color/RibbonSelectionColor';
 import { RibbonSelectionTransform } from './components/panels/ribbon-selection-transform/RibbonSelectionTransform';
+import { Scans } from './components/panels/scans/Scans';
 import { Settings } from './components/panels/settings/Settings';
 import { SqlAssets } from './components/panels/sql-assets/SqlAssets';
 import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
@@ -84,6 +85,8 @@ export const panels: PanelDefinition[] = [
   definePanel({ id: 'labels', title: 'Label', home: 'right', component: Labels }),
   definePanel({ id: 'export', title: 'Export', home: 'right', component: Export }),
   definePanel({ id: 'importManager', title: 'Import Manager', home: 'right', component: ImportManager }),
+  // laser-scan setups + panoramas — opened on demand
+  definePanel({ id: 'scans', title: 'Scans', home: 'right', component: Scans }),
   definePanel({ id: 'viewpoints', title: 'Viewpoint Editor', home: 'right', component: Viewpoints }),
   definePanel({ id: 'viewpointViewer', title: 'Viewpoint Viewer', home: 'left', component: ViewpointViewer }),
   definePanel({ id: 'labelsViewpoint', title: 'Label (viewpoint)', home: 'right', component: LabelsViewpoint }),

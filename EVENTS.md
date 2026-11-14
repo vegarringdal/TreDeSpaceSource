@@ -669,6 +669,12 @@ response: { assets: [
 `md5` is the MD5 of the source bytes (for RVM/IFC/STEP: the converted GLB) — a
 host can compare it against its own to decide whether a re-import is needed.
 
+`kind: 'points'` marks a laser scan (a point cloud imported in the app's
+Import Manager). `assets.load`, `assets.unload`, `assets.setLoaded` and
+`assets.remove` take its id like a model's and `loaded` says whether it is in
+the scene; it has no items or SQL data, and there is no import command for
+scans yet.
+
 ### assets.import
 Send a file to be converted/cooked into the asset manager. Bytes ride as a
 transferable; `format` picks the pipeline; `store` (optional, default 'main',

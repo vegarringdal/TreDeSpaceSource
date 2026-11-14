@@ -7,7 +7,7 @@
 // Output: docs/generated/apiData.json — imported and rendered by docs/events.ts.
 // Run standalone (`node scripts/gen-api-docs.mjs`) or via the Vite plugin.
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -411,8 +411,11 @@ export function writeApiDocs() {
   return data;
 }
 
-// CLI
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CLI — compared as real file paths: comparing URLs silently skipped the run
+// (and left the build without its generated data) whenever the checkout path
+// had a space or other URL-escaped character, went through a symlink, or was
+// a Windows path.
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const d = writeApiDocs();
   console.log(`wrote ${OUT} — ${d.methodCount} methods, ${d.groups.length} namespaces, ${d.types.length} types`);
   if (d.problems.length) {

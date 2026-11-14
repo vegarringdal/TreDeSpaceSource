@@ -4,6 +4,495 @@ Newest first. Each entry is dated and marked with the `package.json` version it
 lands AFTER (`>0.0.68` = unreleased on top of 0.0.68); the director bumps the
 version at release time. See CLAUDE.md for the rule.
 
+- **2026.11.14** (>0.0.152):
+  Scans: a high budget no longer needs the camera moved closer to be
+  used. Two changes. (1) A new "Detail" setting in Scans panel → Point
+  cloud (0.5–8 ×, ALT 1756 / ALT 1757): the budget is only a ceiling —
+  the points are loaded until they sit about one point size apart on
+  screen and then loading stops, whatever is left of the budget; Detail
+  2 × loads them twice as close without moving nearer, and so on until
+  the budget is full. (2) The spacing that rule works from is now
+  measured when a scan is converted. It was assumed — a block's width
+  over the square root of its point count, right for one flat sheet of
+  points across the block — and in a block holding several surfaces the
+  real points lie wider, so loading stopped while gaps still showed (and
+  where the points cover only a corner of a block it loaded more than
+  needed). The cook now counts the surface the points cover. Measured on
+  a 464 M point indoor scan from nine views inside it: the old figure
+  stopped at 9–11 M points in view where the measured one reaches 14–22 M
+  of a 22 M budget, and Detail 2 × fills the budget in most views.
+  Re-import a scan to get the measured spacing (the scan wasm is
+  rebuilt; older `.tdpp` files keep working with their rougher figure).
+  Scans panel: the point size starts at 1 px (was 2). Besides the look,
+  the size is also the detail target — points are loaded until they sit
+  about one point size apart on screen — so 1 px loads finer detail at
+  the same distance.
+  Scans: with "Budget counts points in view only" (or a Max dist, or a
+  clip box) the number of points drawn could be several times the budget
+  — 14.8 M at a budget of 5 M in one case. A block of points is charged
+  only for its share in view, but it is loaded and drawn whole, so the
+  budget did not bound what reached the GPU. The points drawn are now
+  capped at twice the budget, and the line under the point settings says
+  what is what: "about 5.0 M in view · 9.8 M drawn in 64 nodes" — in view
+  is what the budget counts (an estimate), drawn is every point of the
+  blocks in use.
+  Scans panel → Scans and setups: the list of scan files scrolls by
+  itself (the point and photo settings stay in place with many scans
+  loaded); above it are the offset step, moved up from below the list,
+  and two buttons that open every scan file or fold them all away
+  (ALT 1754 / ALT 1755). Which files are folded is now kept while the
+  section is collapsed or the panel is closed. The X, Y and Z of the
+  offset boxes are letters in front of each box again: as a unit inside
+  the box they were cut off in a narrow panel, leaving three boxes with
+  nothing to tell them apart. The "Offset m" caption shows where there is
+  room.
+  Scans panel: the step of the scan offset boxes can be set — "Offset
+  step" under the scan list (ALT 1752 larger / ALT 1753 smaller), one
+  value for all scans. It was fixed at 0.1 m, too coarse for fine-tuning
+  and too fine for bringing a scan in from far off. Type any step from
+  1 mm to 1 km, or press − / + to walk through the sizes (0.1 → 0.2 … 1 →
+  2 going up, 0.1 → 0.09 … 0.01 going down). The X / Y / Z boxes and
+  their hotkeys (ALT 1742–1747) move by it.
+  NWD import: models exported from Revit come in at the right size. Revit
+  stores its geometry in feet whatever units the project shows, and the
+  NWC / NWD keeps those numbers; the reader took them as metres, so such
+  a model was 3.28 times too large next to a model or scan in metres. A
+  file written by Navisworks' Revit reader or by the Revit export add-in
+  is now scaled to metres (the Console says "Revit export: geometry
+  scaled from feet to metres"), and the weld precision and line width
+  apply in metres after scaling. Files from PDMS / RVM were already in
+  metres — checked on the Huldra area sample, whose NWD and RVM give the
+  same bounds to the centimetre — and are converted to the same bytes as
+  before. A new "Units" choice in Import NWD (ALT 1751 = next) overrides
+  it when a model looks wrong: Automatic, Metres (as stored), Feet,
+  Inches, Millimetres, Centimetres. DWG and 3DS files are taken as metres
+  in Automatic; their unit is not known from the file. The `nwd` tool has
+  `--units`.
+  Scans in survey or national-grid coordinates (millions of metres from
+  the origin): the setup spheres and the view from inside a setup are now
+  exact. Numbers that large only resolve half a metre in the 32-bit
+  floats the camera position and the sphere centres were kept in, so a
+  sphere could sit up to 0.25 m beside its setup — more than its radius,
+  and a click on the drawn sphere could miss — and inside a setup the
+  photo and the points did not line up on nearby objects. The camera
+  position is now kept in 64 bits, and a sphere's centre is sent to the
+  GPU in two parts that add up to the true place. The points themselves
+  were already exact. Label and measurement marker spheres gain the same.
+  VRAM budget: laser scans no longer count against it. Their points and
+  the photo of the entered setup were in the total the budget compares
+  with its ceiling, but the budget can only shrink models — so loading a
+  scan pushed models to their coarse variant or kept them from coming
+  back to full detail. Scans are limited by their own point budget and
+  cache in the Scans panel. The Stats row "vram (tracked)" still shows
+  everything, with scans as their own part.
+  Import: the "already imported" check no longer reads a whole NWD, LGSX
+  or E57 before converting it. Those are compared by a quick fingerprint
+  — the file's size, its first and its last 4 MB — which is instant where
+  hashing a 9 GB scan took about a minute. A new option in Import NWD and
+  Import LGSX / E57, "Full fingerprint" (ALT 1749 / ALT 1750, off),
+  compares the whole file as before; the question then says "this exact
+  file", otherwise "a file of the same size with the same start and end".
+  RVM, STEP and IFC are still hashed whole: a text file can change in the
+  middle at the same length. Scans and NWD files imported before this
+  have no quick fingerprint, so the first re-import of one is not
+  recognised unless Full fingerprint is ticked.
+  Scans panel → Scans and setups: every loaded scan file is a section of
+  its own that folds away, so a long setup list no longer pushes the
+  other scans out of sight. Its header has the name, the number of points
+  and setups on the right, an eye button that switches the scan on or off
+  (was a checkbox; ALT 1723 as before) and the remove button. The offset
+  is one compact row — "Offset m" and three boxes with X, Y and Z where a
+  unit would be — instead of three labelled boxes whose unit was cut off.
+  Review of the scan and NWD work — fixes, by area.
+  Scan import: with several scans picked, every question about a scan
+  being replaced ("Keep the scan offset?") is now asked before the first
+  conversion starts. It used to come up when its file's turn came, under
+  the progress overlay of the scan before it, where it could not be
+  clicked — the import then sat there holding the import lock.
+  Scan import: each scan is in the library as soon as it is done, instead
+  of all of them when the batch ends, so a reload or crash during scan 5
+  no longer leaves scans 1–4 as unlisted multi-GB files. The partial file
+  of an interrupted conversion is removed the next time the app starts (a
+  `.tdpp` in a store that the library does not list — nothing is touched
+  while an import is running in any tab, or when the library index cannot
+  be read). After a worker crash the partial file is removed once the
+  worker has let go of it; a failed `.tdpp` copy no longer leaves an empty
+  file or an open write stream.
+  Scan import: a scan converted again that takes over the coordinate
+  system of the one it replaces is now framed where it is drawn (the
+  library kept the bounds of the file's own system, so "load after
+  import" could point the camera kilometres away), and a taken-over
+  system the new file no longer has is dropped with a Console line
+  instead of silently showing the scanner frame.
+  Scan import: an E57 gives the same file whether it is converted on
+  sub-workers, on one worker (Workers 0) or after the sub-workers failed
+  to start — the one-worker path used another chunk size, which changes
+  the order of the data in the file. The native `scan` tool matches with
+  `--chunk-points 3000000`.
+  Import: a source file that cannot be read during the "already imported"
+  check (changed or moved since it was picked, a drive that went away)
+  now gives an "Import failed" box; the progress window used to vanish
+  with nothing said. A laser scan no longer replaces a model with the
+  same store, folder and name (or the other way round). Scan Workers is
+  limited to what the machine has cores for, like the other worker
+  settings. Exporting a selection of only scans says so in the Console.
+  Scans: entering a setup could end half done — pressing Exit, entering
+  another setup or removing the scan while the photo was still loading
+  left the camera pinned without a photo, or with another setup's photo.
+  The latest enter or exit now wins.
+  Scans: a setup sphere hidden behind a wall, a floor or scan points no
+  longer takes the click (or the double-click that enters it); what is
+  seen in front of it is selected. Spheres behind a fully opaque photo
+  are not clickable either.
+  Scans: entering a setup from an orthographic view switches to
+  perspective (it showed a 1 mm tall view with no photo), switching to
+  orthographic inside a setup leaves it, and so does a viewport that is
+  rebuilt — closing the 3D view panel or recovering from a GPU crash left
+  the panel saying "inside" with no photo. The wheel no longer zooms the
+  photo while the view is locked.
+  Scans: the Cache setting works again with "Budget counts points in view
+  only", a Max dist or a clip box. Those charge a block of points for
+  part of it but keep it in memory whole, so what was wanted alone could
+  exceed budget + cache and everything else was thrown out on every
+  move — turning back reloaded it all. The cache is now counted beyond
+  what the view wants. A change of Cache also takes effect at once.
+  Scans: a block of points that failed to load is tried again (up to
+  three times, after the view has moved); it used to be given up for the
+  session, and the blocks below it were still loaded and counted although
+  they could never be drawn. A `.tdpp` whose node table is damaged is
+  refused at open instead of hanging the app.
+  Scans: opening or removing a scan now moves an un-anchored clip plane
+  with the scene centre at once (the cut and its gizmo could disagree),
+  and measuring no longer re-runs the point selection on every cursor
+  move. Measure snapping on a dense scan keeps the blocks under the
+  cursor in memory instead of reading them from disk on every probe.
+  Scans panel: the Over all / Background and Colour / Intensity switches
+  show their hotkey in the tooltip; previous / next setup and Enter skip
+  scans that are switched off.
+  Host API: `assets.list` reports a laser scan as `kind: 'points'` with a
+  true `loaded` (it was always false), `assets.unload` and
+  `assets.setLoaded` close scans (unload returned 0, and setLoaded
+  re-opened a listed scan on every call). There is still no import
+  command for scans.
+  NWD import: the weld precision defaults to 3 decimals (1 mm in a metre
+  model). At 2 the weld grid was 1 cm and small parts were welded away —
+  one public sample lost 63 % of its triangles. The progress line counts
+  models (the coarse copy of each was counted too), converter warnings
+  are shown when a file gives no geometry (they explain why), and the
+  import titles say NWD like the section. The guide notes the memory need
+  (about 25 times the file size) and that Revit exports stay in feet.
+  NWD import: "Include lines" now does what it says for files from the
+  Revit, DWG and 3DS loaders — their line records were always converted,
+  ticked or not (a sample with 96 lines gave the same file either way);
+  unticked, they are now left out. The reader no longer crashes or hangs
+  on a damaged file in the places found: string lengths that run past
+  the data, sorting when a coordinate is not a number, tables that claim
+  more entries than the file can hold, and a compressed chunk that
+  inflates beyond 1.5 GB (refused). The nwd wasm is rebuilt; apart from
+  the lines, the sample files convert to the same bytes as before.
+  Scan conversion (LGSX / E57 readers; the scan wasm is rebuilt, valid
+  files convert to the same bytes as before): an E57 whose stations have
+  ordinary photos — no cube, no spherical image — had every setup sphere
+  at the origin; they now stand where the photos were taken. In an E57
+  with several scans whose points are already in world coordinates, a
+  setup takes the pose of its photo station instead of the scan's
+  (identity), so the sphere and the photo are where the scanner stood.
+  Points with non-finite coordinates are dropped (NaN became real points
+  at the cloud centre, one infinity failed the import), and the "extent
+  too large" error says what is wrong with the file instead of naming a
+  command-line flag. Float intensity without declared limits is read as
+  0–1 (it came out all black or all grey).
+  Scan conversion: a panorama that cannot be read is left out with a
+  warning in the Console, and the scan is kept — it used to fail the whole
+  conversion at the very end, after the points were done. An LGSX whose
+  setup table is missing or damaged converts without setups; one that
+  declares no point count is no longer refused. A damaged project
+  database, index table, attribute block or photo, and an E57 that
+  declares a photo larger than the file, now give an error (or are
+  skipped) instead of crashing or exhausting the worker's memory. An E57
+  with more than 256 scans warns that scans 256 and up share one setup
+  index. The normals flag is set only when a normal stream is written.
+  Third-party notices: a crate linked in different versions by different
+  wasm modules is listed once per version (only the last version in the
+  lock file was named).
+  Scans: what the clip planes and clip boxes cut away is no longer loaded
+  or counted against the point budget. The points were already hidden when
+  drawn, but the streamer still fetched them and spent the budget on them;
+  now a block that is cut away entirely is skipped with everything below
+  it, and one cut partly is charged only for what is left — so a clip box
+  around a work area gives it the whole budget.
+  Fixed: an LGSX whose project has survey control applied but no
+  coordinate system marked active was placed in the scanner project's own
+  frame — tens of kilometres from its site coordinates. Such a file holds
+  a coordinate system made from the control; the reader now uses it when
+  none is active. Confirmed on a real project's numbers: the control
+  system and the file's separate applied-control record put the same
+  setup at the same site coordinates.
+  Scans: a scan whose source stores coordinate systems gets a "Coords"
+  picker under its name in Scans panel → Scans and setups (ALT 1748 =
+  next): survey control, user coordinate systems, or the scanner project
+  frame. Switching is instant (the points are not converted again) and
+  saved with the scan; a re-import keeps the choice.
+  Scans: importing an LGSX now lists in the Console what the file says
+  about coordinates — the point cloud's origin and bounds, every
+  coordinate system and which is active, and the survey-control entries
+  (which the reader does not apply: they are empty in every sample file,
+  so their meaning is unconfirmed). Names and numbers only, nothing of
+  the scan itself — for finding out why a scan lands in the wrong place
+  when the file cannot be shared. The report also names the Leica version
+  that wrote the file: Leica documents that up to 2024.0.2 a survey
+  Control system took priority over the active coordinate system, which
+  the reader does not reproduce.
+  Scans: each loaded scan has an offset — X / Y / Z in metres under its
+  name in Scans panel → Scans and setups (ALT 1742–1747 step 0.1 m) —
+  that moves the whole scan (points, setup spheres, photos, snapping) to
+  line it up with a model in other coordinates. It is saved with the
+  asset and applied on every load; importing the same scan again asks
+  whether the new one keeps the offset or starts at 0.
+  Fixed: LGSX scans were placed in the Leica project's internal frame, not
+  in the project's coordinate system, so a scan did not line up with a
+  model (or with the E57 export of the same project). The reader now loads
+  the project's coordinate systems and the cook writes the scan in the
+  active one — the coordinates the Leica software shows and exports:
+  the origin and the setup positions move, and a rotated system is applied
+  when drawing, streaming and snapping (the points keep their exact grid).
+  Checked against the Piazza E57 export: a setup lands within 1 mm of its
+  E57 position. Files without an active coordinate system are unchanged.
+  Re-import a scan to get it; the console names the coordinates each
+  imported scan is in (the coordinate system, or the project frame).
+  Scans: three ways to steer where the point budget goes (Scans panel →
+  Point cloud). "Budget counts points in view only" (ALT 1739, on): a
+  block of points that reaches outside the picture is charged only for
+  the part in view, so the budget is not used up by points nobody sees —
+  finer detail on screen, somewhat more points held. "Focus" (ALT 1737 /
+  1738, 0 = off): full detail within that many metres, falling off
+  beyond, so a tight budget goes to the near surroundings first. "Cache"
+  (ALT 1740 / 1741, default 50 %): how many points stay in memory beyond
+  the budget for turning back without a reload; it was fixed at 50 %.
+  Build fix: `npm run build` failed with "Cannot find module
+  './generated/apiData.json'" when the repo was checked out under a path
+  with a space (or another URL-escaped character), through a symlink, or
+  on Windows. The two docs generators decide whether they were run
+  directly by comparing the script's URL with its path; there the two
+  never match, so `npm run gen:docs` did nothing, silently, and the
+  type-check then missed the files. They now compare real file paths.
+  Import Manager: GLB (standard and merged), TDP and TDPP imports have a
+  default store too — `glb-files`, `tdp-files`, `tdpp-files`, created on
+  first use — like the converted formats. Every section now shows its
+  format's store picker, so the shared "Store" box and the greyed-out
+  Import button ("Pick a store first") are gone: an import is always
+  kept unless Temp import is ticked. Imports through the host API are
+  unchanged.
+  Scans: the setup marker spheres can be made see-through — Scans panel →
+  Photo → "Markers" (10–100 %, ALT 1735 / 1736) — for when they are in the
+  way of the points or the model. They stay clickable.
+  Scans: with a Max dist set, the point budget is now spent within that
+  distance. A node that reaches past the limit used to count in full
+  against the budget although its far points are not drawn; it is now
+  charged only for the estimated share within range, so the same budget
+  gives finer detail near the camera. Memory can exceed the budget by the
+  out-of-range part of those nodes.
+  Scans: every point of a cooked scan is now stored exactly on the scan's
+  grid. A cluster of points spread over more than 65 m (sparse points in
+  the coarse levels of a large scan) used to be stored with a coarser step,
+  a few millimetres off; such a cluster is now split until each part fits.
+  The FMB Bridge and Rotterdam samples (58 M and 415 M points) verify
+  point-for-point against their LGSX source; the files grow by about 1 KB.
+  Re-import a scan to get it.
+  Fixed: LGSX scans that carry an HDR colour attribute beside the normal
+  colour failed to import with "unsupported: APRN dtype 2 (ColorRgbe32)"
+  (seen on a 415 M point scan written by a newer Leica exporter). The
+  reader now knows the 32-bit attribute type and skips that attribute;
+  the scan's ordinary 8-bit colour is used as before.
+  Import Manager: the two newest sections are named after their file types
+  like the others — "Import NWD" (was "Import Navisworks") and "Import
+  LGSX / E57" (was "Import laser scan"); the pick buttons follow.
+  Docs: the user guide has a new Scans page (import, point cloud, stepping
+  into a setup's photo) and the Assets page describes Import NWD, Import
+  LGSX / E57, the per-format default stores and the "already imported"
+  question; its text still said imports are temp by default. README and
+  DESIGN.md list the NWD and scan crates; DESIGN.md's "E57 — parked"
+  note now describes what was built. No new screenshots: the guide's
+  pictures and "every control" tables need `npm run docs:shots` in a GPU
+  Chrome.
+  Build: `npm install` now generates `docs/generated/*.json` (postinstall),
+  so a plain `tsc` or the editor's typecheck no longer fails on a fresh
+  clone with "Cannot find module './generated/apiData.json'" —
+  `npm run build` already generated them.
+  Scans: cooked `.tdpp` files are about 20% smaller, so they also stream
+  faster. Two changes, measured on the BLK360 office and FMB Bridge
+  samples (27.0 → 21.5 MB and 354 → 279 MB without photos): colours are
+  stored as differences from green (lossless), and intensity keeps 8 bits
+  instead of 16 — the low byte is sensor noise that cost about a byte per
+  point, and the viewer only ever showed 8. A new import option, "16-bit
+  intensity" (ALT 1734), keeps the full value; the `scan` tool has
+  `--intensity16`. Already imported scans keep working unchanged;
+  re-import them to get the smaller files. (The codec itself was already
+  meshoptimizer 1.3's newest; a higher compression level gave nothing.)
+  Fixed: LGSX scans whose octree root does not start at the grid origin
+  were drawn shifted — by 98.3 m on every axis in the Teatro Pergolesi scan
+  — so the setup spheres sat outside the cloud and the photos could not
+  line up. The file's `root-offset` field is the root cube's corner, not
+  the zero of the point grid, which is always 2³¹; the reader subtracted the
+  former. Affected scans must be imported again. Checked on four real scans:
+  the cooked bounds now equal the bounds each file declares.
+  Import progress wording: a phase that stages the picked file says
+  "copying into local store", the conversion says "converting to local
+  format", and the last phase "storing" (was "phase 1 of 2" / "final
+  phase").
+  Scans panel: every loaded scan has its own row with a show / hide
+  checkbox (ALT 1723 — hides its points and setup spheres, the scan stays
+  loaded) and a remove button (ALT 1724), where only Home → Remove all
+  could take a scan out of the scene.
+  LGSX conversion is spread over sub-workers too: the Workers setting of
+  "Import laser scan" now applies to every scan, each worker re-encoding
+  runs of octree nodes that are written in order (the file is the same
+  whatever the worker count). Measured with the shipped wasm: a
+  464-million-point LGSX in 39 s on 3 workers at 0.5 GB peak memory.
+  Scans panel: "Adaptive size" is off by default. With it on, the points
+  of coarse levels are drawn as large squares over the fine ones, which
+  reads as blocks instead of filling gaps.
+  Import Navisworks has conversion options now: Normals (smooth shading,
+  ALT 1725), Include lines with a line width (ALT 1726–1728), and Cleanup
+  with the weld precision in decimal places (ALT 1729–1731) — the options
+  the nwd2glb converter offers. Mesh simplification is not among them: the
+  browser module is built without it.
+  Fixed: an LGSX whose point cloud sits across the centre of its grid has
+  several top-level octree nodes and no single root ("LGSX octree has more
+  than one root node"). The cook now lays an empty root over them; the
+  point streamer accepts empty nodes (it tried to read a payload they do
+  not have). Checked on a 295-million-point RTC360 scan with 8 top nodes:
+  it cooks, verifies node for node and matches the file's bounds.
+  E57 import: the "Indexing the file" step shows a percentage, and reads
+  the file a third as often (one read per data packet where it made three)
+  — in the browser each read is a round trip to the picked file.
+  Stats: two rows for laser scans — "scan points" (drawn of the total, the
+  nodes drawn, how many are loading) and "scan points memory" (what the
+  streamed nodes hold on the GPU against the point budget).
+  Scans panel → Point cloud → "Max dist" (ALT 1732 / 1733, 0 = no limit):
+  points farther from the camera than this are neither streamed nor drawn,
+  so the budget goes to what is near. Perspective views only.
+
+- **2026.11.13** (>0.0.152):
+  Laser scans, groundwork: new `.tdpp` reader (`src/lib/tdpp/`) for the
+  laser-scan point-cloud format cooked from Leica LGSX / E57 files — a
+  single range-readable file with an octree of point clusters, the scanner
+  setups and their cube-map panoramas. Reads byte ranges only (scan files
+  are many GB) and decodes nodes with the existing meshopt decoder; pinned
+  against the Rust reader on a small fixture. Nothing in the UI uses it yet.
+  Vendored meshoptimizer 1.2 → 1.3 (`rust_src/crates/meshopt`, whole
+  upstream tree incl. `demo/clusterlod.h`). 1.3 only adds API, so the
+  bindings and the native cooker tests are unchanged; the committed wasm
+  modules still carry 1.2 until they are rebuilt.
+  Laser-scan converters moved into `rust_src` (`crates/scan-core`,
+  `scan-cook`, `scan-cli`, `scan-wasm`): Leica LGSX and E57 readers and the
+  `.tdpp` cook, with the LGSX format notes. The `scan` command-line tool
+  cooks a 461-million-point LGSX in about 25 s and verifies the result
+  against the source; not wired into the app yet.
+  Navisworks NWD/NWC converter moved into `rust_src` (`crates/nwd-core`,
+  `nwd-cli`, `nwd-wasm`, `nwd-dissect`, ported from nwd2glb) and cooking
+  straight to `.tdp`: each root's merged model is cooked in memory, so no
+  GLB file is written (`nwd file.nwd --tdp [--coarse]`, and
+  `convert_streaming_tdp` for the browser). Its freely licensed test
+  samples are in `convertSamples/nwd` (42 MB). Not in the Import Manager yet.
+  Renderer groundwork for laser-scan panoramas: a pass after post draws the
+  six cube faces of a scanner setup around the camera, either filling only
+  the empty background or blended over the model at an opacity (the
+  as-built vs as-designed crossfade); it stays out of the TAA history and
+  redraws on still frames like the view cube. The camera gains a scan
+  look-around mode that pins the eye at the scanner position: dragging turns
+  the view, the wheel zooms the field of view, panning and moving are off.
+  Laser scans in the app: Import Manager → "Import laser scan" copies
+  `.tdpp` files (cooked from LGSX / E57) into the asset library, and loading
+  one from Model Assets opens it — only its header, octree index and setup
+  list are read. The new Scans panel (ALT 693) lists the scanner setups;
+  each also shows as an orange marker in the scene (click selects,
+  double-click enters). Enter (ALT 1700) puts the camera at the scanner and
+  shows its photo; Exit (ALT 1701), next / previous setup (ALT 1702 / 1703),
+  panorama opacity (ALT 1704 / 1705), Background vs Over model (ALT 1706)
+  and marker visibility (ALT 1707). The point cloud itself is not drawn yet.
+  Laser-scan point clouds are drawn: an opened scan streams its octree
+  nodes from the asset store as the camera moves, finest where it looks,
+  under a point budget shared by every open scan (default 5 million, least
+  recently needed nodes evicted past 1.5× that). Points are screen-sized
+  squares in the last scene pass, so they hide behind the model and the model
+  hides behind them, clip boxes / planes / shapes cut them, and sketch mode
+  keeps their colour; no edge lines are drawn on them. Scans panel: show
+  points (ALT 1710), size (ALT 1711 / 1712), budget (ALT 1713 / 1714),
+  colour or laser intensity (ALT 1715) and adaptive size (ALT 1716, grows
+  coarse points up close so no gaps show). Fit view, the ortho depth range
+  and clip-box seeding now include open scans.
+  Import Manager → "Import laser scan" now also takes Leica `.lgsx` and
+  `.e57` files and cooks them to `.tdpp` in the browser (new scan wasm,
+  `src/lib/scan2tdpp/`): the file is read in ranges straight from disk and
+  the cooked scan is written straight into the asset store, so a
+  multi-GB scan is never held in memory or copied first. "Panorama photos"
+  (ALT 1717) keeps the setups' cube photos.
+  New Import Manager section "Import Navisworks" (ALT 1718 / 1719):
+  `.nwd` / `.nwc` files are converted and cooked into assets in one pass
+  (new nwd wasm, `src/lib/nwd2tdp/`), each model root becoming its own
+  asset, as with IFC. The IFC and Navisworks imports share their final
+  phase now.
+  `.github/workflows/pages.yml`: a manual-only workflow that builds the app
+  and deploys it to GitHub Pages, for trying a branch on a test repo.
+  Import Manager: imports are KEPT by default now ("Temp import" starts
+  unticked), and each converted format lands in its own store unless
+  another is picked in that section: `rvm-files`, `step-files`, `ifc-files`,
+  `nwd-files`, `e57-files`, `lgsx-files` (created on the first import). GLB,
+  `.tdp` and `.tdpp` imports still use the shared store picker.
+  Converting the same source twice now asks first: the picked RVM / STEP /
+  IFC / Navisworks / E57 / LGSX file is fingerprinted (MD5 of the whole file,
+  with a progress line — a multi-GB scan takes a while) and, when assets
+  from that exact file are already in the library, a dialog says where and
+  offers Skip or Convert again. Assets carry the fingerprint as `sourceMd5`;
+  ones imported before this change have none and are not detected. Imports
+  driven through the postMessage API (which name their store) are unchanged.
+  Scans panel regrouped into Point cloud / Photo / Setups sections, each
+  with a status in its header (points drawn, the setup the camera is inside,
+  setups with a photo); the setup list marks which setups have a photo. The
+  photo now starts in "Over all" at 100 % when a setup is entered — it covers
+  the model and the points, and lowering the opacity blends the three; the
+  old default (Background) showed almost nothing inside a point cloud, where
+  the points fill the view.
+  Fixed: Home → Remove all now also closes open scans (and works when only
+  scans are loaded), and deleting a scan asset, clearing its store or
+  re-importing it closes the open scan first instead of leaving it reading a
+  deleted file.
+  Scans, three additions. (1) E57 files with one spherical photo per
+  scanner position (what most non-Leica scanners export) now get their
+  photospheres: the cook keeps the equirectangular image and the photo pass
+  draws it like a cube photo. A file whose pixel sizes make no sense is
+  shown as a full 360° panorama. Scans cooked before this change need a
+  re-import to gain them. (2) The photo sharpens on zoom: every cube face
+  is its own texture now, and once the view is zoomed in far enough that
+  the base 1536 px would blur, the faces in view are reloaded at up to
+  4096 px (at most three sharp faces at once, the least recently viewed
+  going back to base); a spherical photo goes from 4096 to 8192 px wide.
+  (3) Scans panel → Point cloud → "Only the entered setup's points" (ALT
+  1720): inside a setup, only the points that scanner position measured
+  are streamed and drawn — what its photo actually saw.
+  Measuring on scan points: the measure tools now snap to the actual scan
+  point nearest the cursor (shown with the corner glyph, within the corner
+  snap radius), found by re-reading only the few octree nodes around the
+  click — no per-point copy is kept in memory beyond a small cache. Fixed
+  with it: with model geometry behind a point cloud, a measure click on the
+  points used to land on the hidden surface behind them.
+  E57 cook, much faster and spread over workers. Each pass now decodes
+  only the parts of the file that hold the points it needs (the records
+  are taken in blocks of about a million, and a block is skipped when none
+  of its points belong to the batch being built), and the file's packet
+  index is walked once and reused where it was walked per pass. On the
+  461-million-point test scan the command-line cook went from 153 s to
+  71 s, writing a byte-identical file. In the browser an E57 is now cooked
+  on sub-workers (Import laser scan → Workers, ALT 1721 / 1722, default 3,
+  0 = one worker): each builds whole batches and the results are written
+  in order, so the file is the same whatever the worker count. Measured
+  with the shipped wasm on that scan: 137 s on 4 workers at 2.0 GB peak
+  memory, 215 s on 2 workers at 1.35 GB (about 0.35 GB per worker), where
+  the previous single-worker cook needed around half an hour. LGSX cooks
+  are a single pass as before.
+
+
 - **2026.11.11** (>0.0.151):
   Labels → Common: new Lock drag toggle (ALT 1066). While on, labels can't
   be dragged in the 3D view; Ctrl+click still selects and Alt+click still

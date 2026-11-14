@@ -82,6 +82,7 @@ import { ANIMATION_KEY_HOTKEYS } from './animationKeyBindings';
 import { ANIMATION_LOOK_HOTKEYS } from './animationLookBindings';
 import { ANIMATION_TOOL_HOTKEYS } from './animationToolBindings';
 import { OVERLAY_FIELD_HOTKEYS } from './overlayFieldBindings';
+import { SCAN_HOTKEYS } from './scanBindings';
 
 /** Clamp-bump one numeric viewer setting (drives the number-input +/- hotkeys). */
 function bump(field: keyof ViewerState, delta: number, lo: number, hi: number) {
@@ -3600,6 +3601,8 @@ export const HOTKEYS: HotkeyDef[] = [
       'Download the whole Console as a text file — every level, whatever the filter — to send with a bug report',
     run: () => consoleActions.download(),
   },
+  // — Scans + scan / Navisworks import (ALT 1700-1757, scanBindings.ts) —
+  ...SCAN_HOTKEYS,
   // — Animation (ALT 901-989, animationBindings.ts) —
   ...ANIMATION_PLAYER_HOTKEYS,
   ...ANIMATION_AUTHOR_HOTKEYS,

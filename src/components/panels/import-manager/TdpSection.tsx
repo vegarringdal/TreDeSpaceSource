@@ -56,7 +56,7 @@ export function TdpSection({ si }: { si: StagedImport }) {
             {!si.staged.tree && (
               <div className="text-[11px] text-slate-500">{si.selectedFiles().length} file(s) staged</div>
             )}
-            <ImportOptionsRows />
+            <ImportOptionsRows formats={['tdp']} />
             <FolderField value={si.folder} onChange={si.setFolder} />
             <ImportCancelRow si={si} tooltip="Import the selected .tdp files into the chosen store" />
           </>

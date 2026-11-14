@@ -3,7 +3,7 @@ import { Button, Checkbox, Collapsible, InfoBox, Link, NumberInput, useFilePicke
 import { useState } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
-import { FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
+import { FolderField, ImportOptionsRows } from './importWidgets';
 
 /** Above this size the section warns that the import may exhaust memory. */
 const LARGE_STEP_BYTES = 200 * 1024 * 1024;
@@ -12,7 +12,6 @@ const MAX_STEP_WORKERS = 5;
 /** Import Manager → STEP B-rep (tessellated and cooked in one wasm pass). */
 export function StepSection() {
   const { step } = assetsState.use();
-  const targetReady = useImportTargetReady();
   const [file, setFile] = useState<File | null>(null);
   const [folder, setFolder] = useState('');
   const picker = useFilePicker('.step,.stp', (f) => {
@@ -66,7 +65,7 @@ export function StepSection() {
         )}
         {file && (
           <>
-            <ImportOptionsRows />
+            <ImportOptionsRows formats={['step']} />
             <FolderField value={folder} onChange={setFolder} labelWidth={64} />
             <NumberInput
               label="Deflection"
@@ -119,7 +118,6 @@ export function StepSection() {
             <div className="flex gap-2">
               <Button
                 icon={<IconUpload size={14} />}
-                disabled={!targetReady}
                 onClick={() => void doImport()}
                 tooltip="Tessellate and cook the STEP into the asset library"
                 shortcut="assets.step.import"

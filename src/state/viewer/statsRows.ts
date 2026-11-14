@@ -1,4 +1,6 @@
 import type { Renderer } from '../../lib/render/renderer';
+import { pointStatsState } from '../scans/pointStats.state';
+import { scansState } from '../scans/scans.state';
 import { residency } from './residency';
 import { viewerState } from './viewer.state';
 import { vramBudgetMb } from './vramBudget';
@@ -27,6 +29,9 @@ const NONE = '—';
  * fixed — a row whose value does not apply right now shows `—` instead of
  * disappearing, so neither list ever shifts its layout.
  */
+/** GPU bytes per streamed scan point (shaders/points.ts: 4 words). */
+const POINT_GPU_BYTES = 16;
+
 export function collectStats(r: Renderer | null): StatsSnapshot {
   if (!r) {
     return { rows: [{ key: 'renderer', label: 'renderer', value: 'none' }], gpuRows: [] };
@@ -39,6 +44,9 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
   const drawn = r.drawnPass1 + r.drawnPass2 + r.drawnBlend;
   const culledPct = s.meshlets > 0 ? (100 * (1 - drawn / s.meshlets)).toFixed(1) : '0.0';
   const res = vramBudgetMb(st) > 0 ? residency.statsSummary() : null;
+  const pts = pointStatsState.get();
+  const scans = scansState.get();
+  const scanTotal = scans.assets.reduce((n, a) => n + a.pointCount, 0);
   const rows: StatRow[] = [
     { key: 'adapter', label: 'adapter', value: r.adapterInfo },
     { key: 'models', label: 'models', value: String(s.models) },
@@ -62,16 +70,37 @@ export function collectStats(r: Renderer | null): StatsSnapshot {
       value: culls ? `${culledPct}% (${drawn.toLocaleString()} of ${s.meshlets.toLocaleString()} meshlets)` : NONE,
     },
     {
+      key: 'points',
+      label: 'scan points',
+      value:
+        scans.assets.length === 0
+          ? NONE
+          : `${pts.drawn.toLocaleString()} drawn of ${scanTotal.toLocaleString()} in ${scans.assets.length} scan(s), ${pts.nodes} nodes${pts.loading > 0 ? `, loading ${pts.loading}` : ''}`,
+    },
+    {
+      key: 'pointMemory',
+      label: 'scan points memory',
+      // streamed from the local store: only the drawn + cached nodes are on
+      // the GPU, nothing per point is held in the JS heap
+      value:
+        scans.assets.length === 0
+          ? NONE
+          : `${mb(pts.residentPoints * POINT_GPU_BYTES)} MB on the GPU (${pts.residentPoints.toLocaleString()} points in ${pts.resident} nodes), budget ${scans.pointBudget} M`,
+    },
+    {
       key: 'vram',
       label: 'vram (tracked)',
-      // models = what the budget can move; the rest is render targets and
-      // shared buffers, which count against the ceiling all the same
-      value: `${mb(vram)} MB (models ${mb(r.modelBytesTotal)} + targets/other ${mb(vram - r.modelBytesTotal)})`,
+      // models = what the budget can move; targets/other = render targets and
+      // shared buffers, which count against the ceiling all the same; scans =
+      // points and photos, limited by the Scans panel and not by the budget
+      value: `${mb(vram)} MB (models ${mb(r.modelBytesTotal)} + targets/other ${mb(r.vramBudgeted - r.modelBytesTotal)} + scans ${mb(r.scanBytes)})`,
     },
     {
       key: 'vramBudget',
       label: 'vram budget',
-      value: res ? `${vramBudgetMb(st)} MB (${Math.round((vram / MB / vramBudgetMb(st)) * 100)}% used)` : NONE,
+      value: res
+        ? `${vramBudgetMb(st)} MB (${Math.round((r.vramBudgeted / MB / vramBudgetMb(st)) * 100)}% used)`
+        : NONE,
     },
     {
       key: 'residency',

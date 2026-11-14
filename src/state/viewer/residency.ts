@@ -621,7 +621,7 @@ function issueSteps(
     }
     if (step.kind !== 'demote' && budgetMb > 0) {
       const grow = expectedBytesOf(step, rec, r) - r.modelBytes(rec.slot);
-      const projected = r.vramBuffers + r.vramTextures + pendingDelta(r) + Math.max(0, grow);
+      const projected = r.vramBudgeted + pendingDelta(r) + Math.max(0, grow);
       if (grow > 0 && projected > budgetMb * MB * PROMOTE_HEADROOM) {
         if (inFlight.size > 0) {
           break; // frees still landing
@@ -675,7 +675,7 @@ function evaluate(r: Renderer, now: number, pacing: Pacing): void {
       zones: snapshotZones(r, now),
       now,
       budgetMb: vramBudgetMb(s),
-      used: r.vramBuffers + r.vramTextures,
+      used: r.vramBudgeted,
       eye,
       fwd,
       cuts,
@@ -882,7 +882,7 @@ export const residency = {
     const now = performance.now();
     const s = viewerState.get();
     const eye = r?.camera.eye() ?? [0, 0, 0];
-    const total = r ? r.vramBuffers + r.vramTextures : 0;
+    const total = r ? r.vramBudgeted : 0;
     const lines: string[] = [
       `VRAM budget debug — ${new Date().toISOString()}`,
       `budget ${vramBudgetMb(s)} MB · speed ${s.vramSwapSpeed} · cut ${s.vramCutSizeM} m / ${s.vramCutDistM} m · ` +

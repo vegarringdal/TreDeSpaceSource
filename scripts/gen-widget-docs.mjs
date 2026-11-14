@@ -14,7 +14,7 @@
 //
 // Run standalone (`node scripts/gen-widget-docs.mjs`) or via the Vite plugin.
 
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -146,8 +146,11 @@ export function writeWidgetDocs() {
   return data;
 }
 
-// CLI
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CLI — compared as real file paths: comparing URLs silently skipped the run
+// (and left the build without its generated data) whenever the checkout path
+// had a space or other URL-escaped character, went through a symlink, or was
+// a Windows path.
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const d = writeWidgetDocs();
   console.log(`wrote ${OUT} — ${d.typeCount} types, ${Object.keys(d.aliases).length} aliases`);
 }

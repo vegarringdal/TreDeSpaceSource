@@ -60,7 +60,8 @@ export function useStagedImport(): StagedImport {
           return (await h.getFile()).arrayBuffer();
         },
       }));
-    await act.importSources(sources, { folder });
+    const store = await act.importTargetStore(staged?.kind === 'tdp' ? 'tdp' : 'glb');
+    await act.importSources(sources, { folder, store });
     setStaged(null);
   };
 

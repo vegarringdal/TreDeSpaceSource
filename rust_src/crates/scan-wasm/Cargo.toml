@@ -1,0 +1,22 @@
+[package]
+name = "scan-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "WebAssembly shell for scan-cook: LGSX / E57 info and → .tdpp in the browser (Worker + OPFS)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+scan-core = { path = "../scan-core" }
+scan-cook = { path = "../scan-cook" }
+wasm-bindgen = "0.2"
+serde.workspace = true
+serde_json.workspace = true
+console_error_panic_hook = "0.1"
+
+[package.metadata.wasm-pack.profile.release]
+# no binaryen download in the sandbox; LTO already trims the module
+wasm-opt = false

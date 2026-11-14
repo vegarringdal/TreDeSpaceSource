@@ -20,6 +20,7 @@ import { registerKioskToggle, registerSoloToggle } from './components/panels/rib
 import { ribbonMeasurementsActions } from './components/panels/ribbon-measurements/ribbonMeasurements.actions';
 import { registerPanelToggler } from './components/panels/ribbon-panels/panelToggle';
 import { ribbonSelectionTransformActions } from './components/panels/ribbon-selection-transform/ribbonSelectionTransform.actions';
+import { registerScansOpener } from './components/panels/scans/scansPanel';
 import { registerSqlAssetsOpener } from './components/panels/sql-assets/sqlAssetsPanel';
 import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
 import {
@@ -217,6 +218,7 @@ export function useAppStartup(manager: DockManager): void {
     registerImportManagerOpener(() => manager.openPanel('importManager'));
     registerMultiColorOpener(() => manager.openPanel('multiColor'));
     registerLabelsOpener(() => manager.openPanel('labels'));
+    registerScansOpener(() => manager.openPanel('scans'));
     registerExportOpener(() => manager.openPanel('export'));
     registerViewpointsOpener(() => manager.openPanel('viewpoints'));
     registerViewpointViewerOpener(() => manager.openPanel('viewpointViewer'));

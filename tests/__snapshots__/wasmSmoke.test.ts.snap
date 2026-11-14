@@ -6,6 +6,13 @@ exports[`committed wasm: IFC > cooks the import path to the same bytes as the co
 }
 `;
 
+exports[`committed wasm: Navisworks > cooks the import path to the same bytes as the cooker cooking its GLB 1`] = `
+{
+  "Level_1": "cf414cbdb097c3453daae9d1d65b2960",
+  "Level_1.coarse": "77740d078f31ccd2803394b172335b61",
+}
+`;
+
 exports[`committed wasm: RVM > cooks the import path to the same bytes as the cooker cooking its GLB 1`] = `
 {
   "_HA-PIPE": "53b80f5a7ec8dbd23c4cb39385a37f29",

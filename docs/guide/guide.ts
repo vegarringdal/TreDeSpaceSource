@@ -81,6 +81,7 @@ const GUIDE: readonly GuideGroup[] = [
       { href: 'panel-set-color.html', title: 'Set Color' },
       { href: 'panel-label.html', title: 'Label' },
       { href: 'panel-measurements.html', title: 'Measurement List' },
+      { href: 'panel-scans.html', title: 'Scans' },
       { href: 'panel-settings.html', title: 'Settings' },
     ],
   },

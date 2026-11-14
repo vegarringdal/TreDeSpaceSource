@@ -17,7 +17,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import * as cookerWasm from '../src/lib/cooker/wasm/cooker_wasm.js';
 import * as ifcWasm from '../src/lib/ifc2glb/wasm/ifc_wasm.js';
 import { parseModel } from '../src/lib/model/format';
+import * as nwdWasm from '../src/lib/nwd2tdp/wasm/nwd_wasm.js';
 import * as rvmWasm from '../src/lib/rvm2glb/wasm/rvm_wasm.js';
+import * as scanWasm from '../src/lib/scan2tdpp/wasm/scan_wasm.js';
 import * as stepWasm from '../src/lib/step2glb/wasm/step_wasm.js';
 
 // -----------------------------------------------------------------------------
@@ -40,6 +42,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 const RVM_SAMPLE = 'convertSamples/rvm/HA-PIPE.RVM';
 const STEP_SAMPLE = 'rust_src/crates/step-core/tests/fixtures/colored.step';
 const IFC_SAMPLE = 'tests/fixtures/box.ifc';
+const NWD_SAMPLE = 'convertSamples/nwd/aps-params-test-desks/params_test_desks.nwd';
 
 // the app's import defaults (assets.state.ts) and worker flags
 const COMPUTE_NORMALS = false;
@@ -159,6 +162,8 @@ beforeAll(() => {
   rvmWasm.initSync({ module: read('src/lib/rvm2glb/wasm/rvm_wasm_bg.wasm') });
   stepWasm.initSync({ module: read('src/lib/step2glb/wasm/step_wasm_bg.wasm') });
   ifcWasm.initSync({ module: read('src/lib/ifc2glb/wasm/ifc_wasm_bg.wasm') });
+  nwdWasm.initSync({ module: read('src/lib/nwd2tdp/wasm/nwd_wasm_bg.wasm') });
+  scanWasm.initSync({ module: read('src/lib/scan2tdpp/wasm/scan_wasm_bg.wasm') });
 });
 
 describe('committed wasm: RVM', () => {
@@ -180,6 +185,70 @@ describe('committed wasm: RVM', () => {
       await expectParses(`${stem}.coarse.tdp`, directCoarse);
       expect({ [stem]: md5(viaGlb.full), [`${stem}.coarse`]: viaGlb.coarse && md5(viaGlb.coarse) }).toMatchSnapshot();
     }
+  });
+});
+
+describe('committed wasm: Navisworks', () => {
+  it('cooks the import path to the same bytes as the cooker cooking its GLB', async () => {
+    const nwd = read(NWD_SAMPLE);
+    const direct = createMemIo(nwd);
+    const viaGlb = createMemIo(nwd);
+    const o = new nwdWasm.Options();
+    nwdWasm.convert_streaming_tdp(direct.io, o, 'params_test_desks.nwd', COMPUTE_NORMALS, COARSEN);
+    nwdWasm.convert_streaming(viaGlb.io, o, 'params_test_desks.nwd');
+    o.free();
+    const glbs = [...viaGlb.files].filter(([name]) => /\.glb$/i.test(name));
+    expect(glbs.length).toBeGreaterThan(0);
+
+    for (const [glbName, glb] of glbs) {
+      const stem = glbName.replace(/\.glb$/i, '');
+      const full = direct.files.get(`${stem}.tdp`);
+      const coarse = direct.files.get(`${stem}.coarse.tdp`);
+      const cooked = cookGlb(glb);
+      expect(full && md5(full), `${stem}.tdp`).toBe(md5(cooked.full));
+      expect(coarse && md5(coarse), `${stem}.coarse.tdp`).toBe(cooked.coarse && md5(cooked.coarse));
+      await expectParses(`${stem}.tdp`, full);
+      await expectParses(`${stem}.coarse.tdp`, coarse);
+      expect({ [stem]: md5(cooked.full), [`${stem}.coarse`]: cooked.coarse && md5(cooked.coarse) }).toMatchSnapshot();
+    }
+  });
+});
+
+describe('committed wasm: Navisworks options', () => {
+  it('cooks per-vertex normals when asked, and lines add geometry', async () => {
+    const nwd = read(NWD_SAMPLE);
+    const cookWith = (set: (o: nwdWasm.Options) => void, normals: boolean) => {
+      const mem = createMemIo(nwd);
+      const o = new nwdWasm.Options();
+      set(o);
+      nwdWasm.convert_streaming_tdp(mem.io, o, 'params_test_desks.nwd', normals, COARSEN);
+      o.free();
+      return [...mem.files].filter(([name]) => /(?<!\.coarse)\.tdp$/i.test(name));
+    };
+    const plain = cookWith(() => {}, false);
+    const smooth = cookWith((o) => {
+      o.include_normals = true;
+    }, true);
+    expect(plain.length).toBeGreaterThan(0);
+    expect(smooth.length).toBe(plain.length);
+    for (const [i, [name, bytes]] of smooth.entries()) {
+      await expectParses(name, bytes);
+      expect(bytes.length, `${name} with normals`).toBeGreaterThan(plain[i][1].length);
+    }
+  });
+});
+
+describe('committed wasm: laser scans', () => {
+  it('loads, and rejects a file that is neither LGSX nor E57 with an error (no trap)', () => {
+    expect(scanWasm.version()).toMatch(/^scan-wasm .*meshoptimizer 1\.3/);
+    const junk = new Uint8Array(4096).fill(7);
+    const io = {
+      size: () => junk.length,
+      read: (offset: number, len: number) => junk.slice(offset, offset + len),
+      write: () => undefined,
+      progress: () => undefined,
+    };
+    expect(() => scanWasm.cook(io, '{}')).toThrow();
   });
 });
 

@@ -16,6 +16,7 @@ const TS_PASSES = [
   'outline',
   'cube',
   'item pick',
+  'pano',
 ] as const;
 
 /** Reject implausible per-pass deltas: some drivers hand back a garbage

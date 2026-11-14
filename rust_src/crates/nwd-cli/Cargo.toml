@@ -1,0 +1,17 @@
+[package]
+name = "nwd-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Navisworks NWD → GLB / .tdp converter (command-line front end)"
+
+[[bin]]
+name = "nwd"
+path = "src/main.rs"
+
+[dependencies]
+nwd-core = { path = "../nwd-core" }
+cooker-core = { path = "../cooker-core" }
+clap = { version = "4", features = ["derive"] }
+serde_json.workspace = true

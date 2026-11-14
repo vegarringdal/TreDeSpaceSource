@@ -1,0 +1,37 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_get_options_cleanup_position: (a: number) => number;
+export const __wbg_get_options_cleanup_precision: (a: number) => number;
+export const __wbg_get_options_include_line: (a: number) => number;
+export const __wbg_get_options_include_normals: (a: number) => number;
+export const __wbg_get_options_line_width: (a: number) => number;
+export const __wbg_get_options_meshopt_target_error: (a: number) => number;
+export const __wbg_get_options_meshopt_threshold: (a: number) => number;
+export const __wbg_get_options_mode: (a: number) => number;
+export const __wbg_get_options_unit_scale: (a: number) => number;
+export const __wbg_options_free: (a: number, b: number) => void;
+export const __wbg_set_options_cleanup_position: (a: number, b: number) => void;
+export const __wbg_set_options_cleanup_precision: (a: number, b: number) => void;
+export const __wbg_set_options_include_line: (a: number, b: number) => void;
+export const __wbg_set_options_include_normals: (a: number, b: number) => void;
+export const __wbg_set_options_line_width: (a: number, b: number) => void;
+export const __wbg_set_options_meshopt_target_error: (a: number, b: number) => void;
+export const __wbg_set_options_meshopt_threshold: (a: number, b: number) => void;
+export const __wbg_set_options_mode: (a: number, b: number) => void;
+export const __wbg_set_options_unit_scale: (a: number, b: number) => void;
+export const convert_streaming: (a: any, b: number, c: number, d: number) => [number, number, number, number];
+export const convert_streaming_tdp: (a: any, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+export const options_new: () => number;
+export const version: () => [number, number];
+export const start: () => void;
+export const meshopt_wasm_alloc: (a: number) => number;
+export const meshopt_wasm_free: (a: number) => void;
+export const __wbindgen_exn_store: (a: number) => void;
+export const __externref_table_alloc: () => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_start: () => void;

@@ -5,6 +5,7 @@ import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
 import { acquireImportLock, assetsActions, loadIdsPooled } from '../../state/assets/assets.actions';
 import { type AssetEntry, assetsState, groupOf } from '../../state/assets/assets.state';
+import { scansActions } from '../../state/scans/scans.actions';
 import { sqlAssetsActions } from '../../state/sqlAssets/sqlAssets.actions';
 import { sqlAssetsState } from '../../state/sqlAssets/sqlAssets.state';
 import { storesActions } from '../../state/stores/stores.actions';
@@ -141,6 +142,16 @@ const toApiEntry = (a: AssetEntry) => ({
   ...(a.meta ? { meta: a.meta } : {}),
   loaded: false,
 });
+
+/** Close the open laser scans among `entries` (scans live in the Scans
+ *  domain, not the model worker); returns how many were open. */
+function closeScans(entries: readonly AssetEntry[]): number {
+  const open = entries.filter((a) => a.kind === 'points' && scansActions.isOpen(a.id));
+  for (const a of open) {
+    scansActions.closeAsset(a.id);
+  }
+  return open.length;
+}
 
 /** Formats whose whole import is ONE single-file cook, so they ride a single
  *  pooled batch — download and cook pipeline per file, `concurrent` at a time.
@@ -528,7 +539,8 @@ export const assetHandlers: Record<string, ApiHandler> = {
         hasNormals: a.hasNormals,
         edges: a.edges,
         ...(a.meta ? { meta: a.meta } : {}),
-        loaded: loaded[i],
+        // a laser scan is not a model in the worker: it is loaded when open
+        loaded: a.kind === 'points' ? scansActions.isOpen(a.id) : loaded[i],
       })),
     };
   },
@@ -740,12 +752,14 @@ export const assetHandlers: Record<string, ApiHandler> = {
 
   'assets.unload': async ({ p }) => {
     const ids = strings(p.ids, 'ids');
-    const entries = assetsState.get().assets.filter((a) => ids.includes(a.id));
+    const listed = assetsState.get().assets.filter((a) => ids.includes(a.id));
+    const scans = closeScans(listed);
+    const entries = listed.filter((a) => a.kind !== 'points');
     const indices = await db.indicesForPaths(entries.map((a) => ({ name: a.name, group: groupOf(a), store: a.store })));
     if (indices.length > 0) {
       await viewerActions.removeModelsQuiet(indices);
     }
-    return { unloaded: indices.length };
+    return { unloaded: indices.length + scans };
   },
 
   /** Declarative load state: make the loaded set EXACTLY `ids` — anything
@@ -763,7 +777,9 @@ export const assetHandlers: Record<string, ApiHandler> = {
 
     const toUnload: typeof scoped = [];
     const toLoad: string[] = [];
-    const loadedNow = await db.hasModels(scoped.map((a) => ({ name: a.name, group: groupOf(a), store: a.store })));
+    const inWorker = await db.hasModels(scoped.map((a) => ({ name: a.name, group: groupOf(a), store: a.store })));
+    // a laser scan is not a model in the worker: it is loaded when open
+    const loadedNow = scoped.map((a, i) => (a.kind === 'points' ? scansActions.isOpen(a.id) : inWorker[i]));
     scoped.forEach((a, i) => {
       if (want.has(a.id) && !loadedNow[i]) {
         toLoad.push(a.id);
@@ -773,8 +789,9 @@ export const assetHandlers: Record<string, ApiHandler> = {
     });
 
     if (toUnload.length > 0) {
+      closeScans(toUnload);
       const indices = await db.indicesForPaths(
-        toUnload.map((a) => ({ name: a.name, group: groupOf(a), store: a.store })),
+        toUnload.filter((a) => a.kind !== 'points').map((a) => ({ name: a.name, group: groupOf(a), store: a.store })),
       );
       if (indices.length > 0) {
         await viewerActions.removeModelsQuiet(indices);

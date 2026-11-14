@@ -40,6 +40,7 @@ export const PANEL_TOGGLES: readonly PanelToggle[] = [
   { id: 'animationTimeline', title: 'Timeline', keys: 'ALT 692' },
   { id: 'overlayEditor', title: 'Overlay Editor', keys: 'ALT 695' },
   { id: 'overlayPreview', title: 'Overlay Preview', keys: 'ALT 696' },
+  { id: 'scans', title: 'Scans', keys: 'ALT 693' },
 ];
 
 const TOGGLE_IDS = new Set(PANEL_TOGGLES.map((p) => p.id));

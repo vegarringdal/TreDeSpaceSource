@@ -178,8 +178,15 @@ export async function clearDir(parent: FileSystemDirectoryHandle) {
 export async function writeFile(parent: FileSystemDirectoryHandle, name: string, data: ArrayBuffer | Blob) {
   const handle = await parent.getFileHandle(name, { create: true });
   const w = await handle.createWritable();
-  await w.write(data);
-  await w.close();
+  try {
+    await w.write(data);
+    await w.close();
+  } catch (e) {
+    // a failed write (quota, a source that went away) must not leave the
+    // stream open — it holds the file's lock until the page is reloaded
+    await w.abort().catch(() => undefined);
+    throw e;
+  }
 }
 
 export async function readFile(parent: FileSystemDirectoryHandle, name: string): Promise<ArrayBuffer> {

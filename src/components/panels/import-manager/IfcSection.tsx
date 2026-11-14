@@ -3,7 +3,7 @@ import { Button, Checkbox, Collapsible, Link, Select, useFilePicker } from '@tre
 import { useState } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
-import { FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
+import { FolderField, ImportOptionsRows } from './importWidgets';
 
 const PART_OPTIONS = [
   { value: 'skip', label: 'Skip' },
@@ -14,7 +14,6 @@ const PART_OPTIONS = [
 /** Import Manager → IFC building models (ifc-lite → merged model → cook). */
 export function IfcSection() {
   const { ifc } = assetsState.use();
-  const targetReady = useImportTargetReady();
   const [file, setFile] = useState<File | null>(null);
   const [folder, setFolder] = useState('');
   const picker = useFilePicker('.ifc', (f) => {
@@ -60,7 +59,7 @@ export function IfcSection() {
         </div>
         {file && (
           <>
-            <ImportOptionsRows />
+            <ImportOptionsRows formats={['ifc']} />
             <FolderField value={folder} onChange={setFolder} labelWidth={64} />
             <Select
               label="Split"
@@ -121,7 +120,6 @@ export function IfcSection() {
             <div className="flex gap-2">
               <Button
                 icon={<IconUpload size={14} />}
-                disabled={!targetReady}
                 onClick={() => void doImport()}
                 tooltip="Convert and cook the IFC into the asset library"
                 shortcut="assets.ifc.import"

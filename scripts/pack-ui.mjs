@@ -19,7 +19,7 @@
 // which emits the tarball into dist/docs/ for the widget-gallery download.
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -196,8 +196,8 @@ export function packUi() {
   return { tgzPath: resolve(OUT_DIR, fileName), fileName, version };
 }
 
-// CLI
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CLI — compared as real file paths (see gen-api-docs.mjs)
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { tgzPath } = packUi();
   console.log(`\npacked → ${tgzPath}`);
 }

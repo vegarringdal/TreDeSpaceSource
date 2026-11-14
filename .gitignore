@@ -11,3 +11,6 @@ dist/
 # IFC test models — third-party files, not kept in git: fetched on demand with
 # convertSamples/ifc/fetch-samples.sh (--large adds the big stress models).
 convertSamples/ifc/*.ifc
+
+# multi-GB LGSX / E57 samples for rust_src/crates/scan-* tests (not committed)
+/scanSamples

@@ -88,7 +88,8 @@ permission error, give this repo the *Admin* role under the package's
 ## Three parts, three licenses
 
 - **The viewer** (`src/`, the app itself, and `rust_src/`, the Rust cooker
-  and the RVM / IFC / STEP converters with their CLIs, C APIs and the prebuilt
+  and the RVM / IFC / STEP / NWD converters and the LGSX / E57 laser-scan
+  cook, with their CLIs, C APIs and the prebuilt
   wasm under `src/lib/`) — **TreDeSpace License**: Elastic
   License 2.0 plus attribution and public-improvement terms. Use, modify and
   redistribute it, but no hosted/managed service for third parties, the About
@@ -165,8 +166,8 @@ what you are comfortable with — personal tweaks belong in
 rule that the maintainer owns merges and pushes.
 
 **Optional — rebuild the Rust → wasm modules.** The cooker (`rust_src/`) and the
-in-tree converters (`rust_src/crates/{rvm,ifc,step}-*`) ship as prebuilt wasm in
-`src/lib/<unit>/wasm/` (cooker, rvm2glb, ifc2glb, step2glb), so you don't need
+in-tree converters (`rust_src/crates/{rvm,ifc,step,nwd,scan}-*`) ship as prebuilt wasm in
+`src/lib/<unit>/wasm/` (cooker, rvm2glb, ifc2glb, step2glb, nwd2tdp, scan2tdpp), so you don't need
 Rust for normal
 dev. To rebuild them you need the Rust toolchain plus `wasm-pack`, and a
 wasm-capable clang for the bundled C++ meshoptimizer. The compiler is pinned in
@@ -218,6 +219,10 @@ src/
     rvm2glb/    RVM converter — comlink worker + prebuilt wasm
     ifc2glb/    IFC converter — comlink worker + prebuilt wasm
     step2glb/   STEP converter — comlink worker + prebuilt wasm
+    nwd2tdp/    Navisworks NWD / NWC converter — comlink worker + prebuilt wasm
+    scan2tdpp/  LGSX / E57 laser scan → .tdpp cook — coordinator worker,
+                sub-workers + prebuilt wasm
+    tdpp/       .tdpp reader, point LOD selection and snapping
   state/        one createStore per domain + *.actions (mutation): viewer, assets,
                 stores, labels, measurements, …
   hotkeys/      hotkey bindings (every control gets a hotkey + tooltip)
@@ -229,9 +234,11 @@ docs/           product page + generated API reference + live demo → dist/docs
 demo/           postMessage API playground host page → dist/demo/
 public/         static assets copied as-is (robots.txt)
 samples/        demo assets (Huldra GLB, license PDF) — gzipped at build time
-rust_src/       Rust workspace: the wasm cooker AND the RVM/IFC/STEP import
-                converters (crates/{rvm,ifc,step}-{core,cli,wasm,capi}) →
-                src/lib/<unit>/wasm/ — the converters cook straight to .tdp
+rust_src/       Rust workspace: the wasm cooker AND the RVM/IFC/STEP/NWD import
+                converters (crates/{rvm,ifc,step,nwd}-{core,cli,wasm,capi}) →
+                src/lib/<unit>/wasm/ — the converters cook straight to .tdp;
+                crates/scan-{core,cook,cli,wasm} read LGSX / E57 laser scans
+                and cook them to .tdpp (format: crates/scan-cook/docs/)
 convertSamples/ sample RVM/IFC models the converter tests run against
 scripts/        doc/notice generators (gen-api-docs, gen-widget-docs,
                 gen-third-party-notices), pack-ui (npm tarball), checks

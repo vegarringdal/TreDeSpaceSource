@@ -31,12 +31,16 @@ struct VsOut {
 @vertex
 fn vs(
   @location(0) pos: vec3f,    // unit-sphere vertex — also its normal
-  @location(1) center: vec3f, // per instance, absolute world
+  @location(1) center: vec3f, // per instance, absolute world (float32 part)
   @location(2) radius: f32,
   @location(3) color: vec4f,  // rgb + opacity
+  @location(4) center_low: vec3f, // what float32 lost of the centre
 ) -> VsOut {
   var o: VsOut;
-  let rel = center - frame.origin.xyz + pos * radius;
+  // (center - origin) first: both are large and close, so the difference is
+  // exact; the float32 remainder then restores the centre's true place — at
+  // millions of metres a float32 centre alone is up to 0.25 m off
+  let rel = (center - frame.origin.xyz) + center_low + pos * radius;
   o.clip = frame.view_proj * vec4f(rel, 1.0);
   o.normal = pos;
   o.color = color;

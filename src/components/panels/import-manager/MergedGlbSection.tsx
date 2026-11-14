@@ -41,7 +41,7 @@ export function MergedGlbSection({ si }: { si: StagedImport }) {
         {si.staged?.kind === 'glb' && (
           <>
             <StagingTree si={si} emptyText={NO_IMPORTABLE_FILES} />
-            <ImportOptionsRows />
+            <ImportOptionsRows formats={['glb']} />
             <FolderField value={si.folder} onChange={si.setFolder} />
             <NumberInput
               label="Pool"

@@ -1,5 +1,15 @@
 # Changes
 
+## (local) 2026-11-13
+
+* Upgraded vendored meshoptimizer library to v1.3 (tag v1.3, commit
+  9e1f07b, MESHOPTIMIZER_VERSION 1030): the whole upstream tree is mirrored
+  into `vendor/` (incl. `demo/clusterlod.h`). The 1.3 header only ADDS API
+  (position exponent, index-buffer filters, opacity-map helpers, tangent
+  generation), so the existing bindings are unchanged; `remesher.cpp` is not
+  compiled (no bindings). Brings `meshopt_spatialClusterPoints` /
+  `meshopt_simplifyPoints` as used by the scan cook.
+
 ## (local) 2026-07-11
 
 * Upgraded vendored meshoptimizer library to v1.2 (tag v1.2, MESHOPTIMIZER_VERSION 1020)

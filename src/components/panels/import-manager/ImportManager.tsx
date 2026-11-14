@@ -6,7 +6,9 @@ import { storesActions } from '../../../state/stores/stores.actions';
 import { registerStagingSelect } from '../model-assets/stagingSelect';
 import { IfcSection } from './IfcSection';
 import { MergedGlbSection } from './MergedGlbSection';
+import { NwdSection } from './NwdSection';
 import { RvmSection } from './RvmSection';
+import { ScanSection } from './ScanSection';
 import { StdGlbSection } from './StdGlbSection';
 import { StepSection } from './StepSection';
 import { TdpSection } from './TdpSection';
@@ -52,6 +54,8 @@ export function ImportManager() {
       <RvmSection />
       <StepSection />
       <IfcSection />
+      <NwdSection />
+      <ScanSection />
     </PanelBody>
   );
 }

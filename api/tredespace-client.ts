@@ -805,7 +805,10 @@ export interface AssetInfo {
   /** MD5 of the source bytes — compare to decide whether to re-import */
   md5?: string;
   size: number;
-  kind?: 'merged' | 'standard';
+  /** `'points'` is a laser scan (a `.tdpp` point cloud with its setups and
+   *  photos) imported in the app: it can be listed, loaded, unloaded and
+   *  removed like a model, but has no items, SQL data or import command */
+  kind?: 'merged' | 'standard' | 'points';
   hasNormals?: boolean;
   edges?: boolean;
   loaded: boolean;

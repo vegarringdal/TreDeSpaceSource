@@ -9,6 +9,8 @@ import type { ColorRuleSpec, StateUpdate } from '../../lib/modeldb/modeldbWorker
 import type { Renderer } from '../../lib/render/renderer';
 import { startTrace, traceEnabled } from '../../lib/trace';
 import { emitTreeSelect } from '../../lib/treeSelectEvent';
+import { openScans } from '../scans/scanFiles';
+import { scansActions } from '../scans/scans.actions';
 import { clipAwareFitBounds } from './clipVolumes';
 import { db, transfer } from './db';
 import { getLastPick, recordViewportPick } from './pickListeners';
@@ -353,12 +355,13 @@ export const viewerActions = {
 
   /** Home → Remove: unload everything. */
   async removeAll() {
-    if (!renderer || renderer.stats.models === 0) {
+    if (!renderer || (renderer.stats.models === 0 && openScans.size === 0)) {
       return;
     }
-    if (!(await dialogs.confirm('Unload all models?', { okLabel: 'Remove' }))) {
+    if (!(await dialogs.confirm('Unload all models and scans?', { okLabel: 'Remove' }))) {
       return;
     }
+    scansActions.closeAll();
     residency.reset();
     renderer.clearModels();
     await db.clear();

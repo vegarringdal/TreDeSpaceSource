@@ -3,12 +3,11 @@ import { Button, Checkbox, Collapsible, NumberInput, Select, useMultiFilePicker 
 import { useState } from 'react';
 import { assetsActions as act } from '../../../state/assets/assets.actions';
 import { assetsState } from '../../../state/assets/assets.state';
-import { FolderField, ImportOptionsRows, useImportTargetReady } from './importWidgets';
+import { FolderField, ImportOptionsRows } from './importWidgets';
 
 /** Import Manager → AVEVA RVM (converted and cooked in one wasm pass). */
 export function RvmSection() {
   const { rvm } = assetsState.use();
-  const targetReady = useImportTargetReady();
   const [files, setFiles] = useState<File[]>([]);
   const [folder, setFolder] = useState('');
   const picker = useMultiFilePicker('.rvm', (fs) => {
@@ -63,7 +62,7 @@ export function RvmSection() {
         </div>
         {files.length > 0 && (
           <>
-            <ImportOptionsRows />
+            <ImportOptionsRows formats={['rvm']} />
             <FolderField
               value={folder}
               onChange={setFolder}
@@ -132,7 +131,6 @@ export function RvmSection() {
             <div className="flex gap-2">
               <Button
                 icon={<IconUpload size={14} />}
-                disabled={!targetReady}
                 onClick={() => void doImport()}
                 tooltip="Convert and cook the RVM file(s) into the asset library"
                 shortcut="assets.rvm.import"

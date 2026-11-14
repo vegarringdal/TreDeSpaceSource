@@ -52,6 +52,11 @@ import { animationUiState } from '../../../state/animation/animationUi.state';
 import { animationHelperLines } from '../../../state/animation/helperLines';
 import { playerState } from '../../../state/animation/player.state';
 import { attachAnimationViewport, postFrameAnimation, tickAnimation } from '../../../state/animation/runtime';
+import { markerInFront, mergeMarkerInstances } from '../../../state/scans/scanMarkers';
+import { scanPhoto } from '../../../state/scans/scanPhoto';
+import { scanPoints } from '../../../state/scans/scanPoints';
+import { scansActions } from '../../../state/scans/scans.actions';
+import { scansState } from '../../../state/scans/scans.state';
 import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { db, transfer } from '../../../state/viewer/db';
 import { gizmoLabelsState } from '../../../state/viewer/gizmoLabels.state';
@@ -482,7 +487,15 @@ export const viewport: PanelDefinition = {
       if (!renderer.hasHelperLines(lineKey)) {
         renderer.setHelperLines(concatLines(concatLines(clip.lines, markers), anim.verts), lineKey);
       }
-      renderer.setMarkerSpheres(markerLines.instances, markerLines.opaqueCount, `${markerLines.version}`);
+      // laser-scan setup markers ride along as opaque filled spheres
+      const scanMarkers = scansActions.markerInstances();
+      const spheres = mergeMarkerInstances(
+        markerLines.instances,
+        markerLines.opaqueCount,
+        scanMarkers.data,
+        scanMarkers.opaque,
+      );
+      renderer.setMarkerSpheres(spheres.data, spheres.opaqueCount, `${markerLines.version}|${scanMarkers.key}`);
       // Seed a new clip shape at the scene centre with a scene-scaled radius.
       const { min, max } = renderer.sceneBounds;
       if (Number.isFinite(min[0])) {
@@ -563,6 +576,7 @@ export const viewport: PanelDefinition = {
       ribbonClippingPlaneState,
       labelsState,
       measurementsState,
+      scansState,
       animationDocState,
       animationUiState,
     ].map((store) => store.subscribe(markOptionsDirty));
@@ -688,6 +702,19 @@ export const viewport: PanelDefinition = {
         viewerActions.bumpModelsVersion();
       }
 
+      // The laser-scan setup marker SEEN at a canvas pixel, or null: the ray
+      // test alone would also take a sphere behind a wall, so the hit is
+      // checked against what the depth buffer holds there.
+      const visibleScanMarker = async (x: number, y: number): Promise<string | null> => {
+        const ray = renderer.screenRay(x, y);
+        const hit = ray ? scansActions.pickMarker(ray) : null;
+        if (!ray || !hit) {
+          return null;
+        }
+        const surface = await renderer.probeWorldAsync(x, y);
+        return markerInFront(ray, hit, surface) ? hit.key : null;
+      };
+
       // plain click (no drag, no modifier) -> pick the item under the cursor
       let downAt = { x: 0, y: 0, type: 'mouse' };
       let heldDigit = 0; // 1-9 while held (digit+click level select)
@@ -792,25 +819,42 @@ export const viewport: PanelDefinition = {
           });
           return;
         }
-        renderer.probeWorld(e.offsetX, e.offsetY); // remember the click point
+        const { offsetX, offsetY, shiftKey } = e;
         const additive = e.ctrlKey; // ctrl+click toggles into the selection
         const level = heldDigit; // digit 1-9 held → select the ancestor at that level
-        // shift inverts the pick-opacity band (select faint / through glass)
-        void renderer.pickItem(e.offsetX, e.offsetY, e.shiftKey).then((id) => {
-          if (level > 0) {
-            const hit = id !== null ? renderer.itemFromGlobalId(id) : null;
-            if (hit) {
-              void viewerActions.selectAtLevel(hit.model, hit.item, level, additive);
+        const selectItem = () => {
+          renderer.probeWorld(offsetX, offsetY); // remember the click point
+          // shift inverts the pick-opacity band (select faint / through glass)
+          void renderer.pickItem(offsetX, offsetY, shiftKey).then((id) => {
+            if (level > 0) {
+              const hit = id !== null ? renderer.itemFromGlobalId(id) : null;
+              if (hit) {
+                void viewerActions.selectAtLevel(hit.model, hit.item, level, additive);
+              }
+              return;
             }
-            return;
+            void viewerActions.selectFromPick(id, additive);
+          });
+        };
+        // a laser-scan setup marker seen under the cursor takes the click
+        void visibleScanMarker(offsetX, offsetY).then((key) => {
+          if (key) {
+            scansActions.select(key);
+          } else {
+            selectItem();
           }
-          void viewerActions.selectFromPick(id, additive);
         });
       });
 
       // Double-click finishes an open-ended measurement (Path / Area).
       canvas.addEventListener('dblclick', (e) => {
         if (!measurementsState.get().activeKind) {
+          // double-click on a laser-scan setup marker enters it
+          void visibleScanMarker(e.offsetX, e.offsetY).then((key) => {
+            if (key) {
+              void scansActions.enter(key);
+            }
+          });
           return;
         }
         e.preventDefault();
@@ -973,6 +1017,17 @@ export const viewport: PanelDefinition = {
         tickAnimation(now); // playhead + band slots + camera follow, before the frame
         renderer.frame(canvas);
         residency.tick(renderer, now); // VRAM budget (no-op while disabled)
+        // laser-scan point streaming (no-op without open scans); a scan opened
+        // or closed moves the scene box the clip planes are packed around
+        if (scanPoints.tick(renderer)) {
+          optionsDirty = true;
+        }
+        // a setup's photo is a perspective view: the pinned eye shows nothing
+        // in orthographic, so switching projection inside a setup leaves it
+        if (renderer.camera.ortho && scansState.get().active) {
+          scansActions.exit();
+        }
+        scanPhoto.tick(renderer); // sharpen the entered setup's photo on zoom
         gizmo?.update(cubeQ);
         clipGizmo?.update();
         measureOverlay?.update();
@@ -1006,7 +1061,7 @@ export const viewport: PanelDefinition = {
               vColor = '#4dabf7';
             }
           } else {
-            const pct = Math.round(((renderer.vramBuffers + renderer.vramTextures) / 1048576 / vramBudgetMb(st)) * 100);
+            const pct = Math.round((renderer.vramBudgeted / 1048576 / vramBudgetMb(st)) * 100);
             if (act.inFlight > 0) {
               vText = `⟳ optimizing — vram ${pct}%`;
               vColor = '#4dabf7';
@@ -1034,6 +1089,9 @@ export const viewport: PanelDefinition = {
       disposed = true;
       registerViewportRemount(null);
       cancelAnimationFrame(frame);
+      // the photo and the pinned camera die with this renderer (panel closed,
+      // or remounted after a GPU device loss): leave the entered setup
+      scansActions.exit();
       registerRenderer(null);
       gizmo?.dispose();
       clipGizmo?.dispose();

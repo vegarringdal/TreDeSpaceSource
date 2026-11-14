@@ -5,6 +5,8 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   cubeBlitWgsl,
+  panoWgsl,
+  pointsWgsl,
   cullWgsl,
   hzbWgsl,
   lineWgsl,
@@ -54,6 +56,9 @@ describe('shader text pins', () => {
     hashes['markerWgsl()'] = sha(markerWgsl());
     hashes['measureSnapWgsl()'] = sha(measureSnapWgsl());
     hashes['cubeBlitWgsl()'] = sha(cubeBlitWgsl());
+    hashes['panoWgsl(false)'] = sha(panoWgsl(false));
+    hashes['panoWgsl(true)'] = sha(panoWgsl(true));
+    hashes['pointsWgsl()'] = sha(pointsWgsl());
     hashes['viewCubeWgsl()'] = sha(viewCubeWgsl());
     expect(hashes).toMatchSnapshot();
   });

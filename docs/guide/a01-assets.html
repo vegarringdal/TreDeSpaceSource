@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TreDeSpace — CTRL+F1 Assets</title>
-  <meta name="description" content="Guide to the CTRL+F1 Assets layout: import RVM, IFC, STEP, GLB and TDP files, keep them in stores and folders, load and unload models, manage databases and export what you see." />
+  <meta name="description" content="Guide to the CTRL+F1 Assets layout: import RVM, IFC, STEP, NWD, GLB and TDP files and laser scans, keep them in stores and folders, load and unload models, manage databases and export what you see." />
   <link rel="stylesheet" href="../styles.css" />
   <link rel="stylesheet" href="./guide.css" />
 </head>
@@ -57,7 +57,7 @@
             <li><b>SQL Assets</b> — your SQLite databases, in the same stores as the models. <a href="#sql-assets">Described below</a>.</li>
             <li><b>3D view</b> — shows the loaded models.</li>
             <li><b>Console</b> — messages, for example how many files an import produced, how long it took, and any warnings from the converter.</li>
-            <li><b>Import Manager</b> — brings GLB, TDP, RVM, STEP and IFC files into the library. <a href="#import-manager">Described below</a>.</li>
+            <li><b>Import Manager</b> — brings GLB, TDP, RVM, STEP, IFC and NWD models and LGSX / E57 laser scans into the library. <a href="#import-manager">Described below</a>.</li>
             <li><b>Export</b> — writes what you see to TDP, GLB or IFC, and saves or loads colour and visibility snapshots. <a href="#export">Described below</a>.</li>
           </ol>
 
@@ -81,8 +81,10 @@
             <li><b>Delete</b> removes a model from the library for good.</li>
           </ul>
           <p>
-            By default an import is a <b>temp import</b>: the model is loaded straight away, but it is not kept — it is
-            removed from the browser the next time the app starts. Untick <b>Temp import</b> and pick a store to keep it.
+            By default an import is <b>kept</b>. Every file goes into a store
+            named after its format — <b>rvm-files</b>, <b>e57-files</b> and so on — unless you pick another one. Tick
+            <b>Temp import</b> for a quick look instead: the model is loaded straight away but removed from the browser
+            the next time the app starts.
           </p>
 
           <h3 id="stores">Stores and folders</h3>
@@ -115,13 +117,13 @@
             <li>Create a store for the project, if you don't have one yet: see <a href="#task-organise">Organise the library</a>. Here it is called <b>Huldra</b>.</li>
             <li>In the Import Manager, open <b>Import RVM</b> and press <b>Select RVM file(s)…</b>. Pick one or more <code class="inline">.rvm</code> files (hold <kbd>Ctrl</kbd> to pick several).</li>
             <li>
-              Untick <b>Temp import</b>, and choose the store under <b>Store</b>. Leave the other options as they are for a
+              Choose the store under <b>Store</b> (it starts on <b>rvm-files</b>). Leave the other options as they are for a
               first try. With several files, each file gets its own folder, named after the file.
               <figure class="shot" data-shot="a01-rvm-staged"></figure>
             </li>
             <li>
-              Press <b>Import</b>. A progress window shows each phase: converting the file, storing the result, and
-              loading it.
+              Press <b>Import</b>. A progress window shows each phase: copying the file into the local store, converting
+              it to the local format, and loading it.
               <figure class="shot" data-shot="a01-progress">
                 <figcaption>An import in progress. Wait for it to finish; only one import can run at a time.</figcaption>
               </figure>
@@ -134,13 +136,18 @@
           </ol>
           <p class="note">
             Importing the same file again <b>replaces</b> the model with the same store, folder and name. The old copy is
-            removed only after the new one is in place, so a failed import keeps the previous version.
+            removed only after the new one is in place, so a failed import keeps the previous version. The app also
+            recognises a source file it has converted before, wherever the result was put: an <b>Already imported</b>
+            box then lets you <b>Skip</b> it or <b>Convert again</b>. RVM, STEP and IFC files are compared by the MD5
+            checksum of the whole file. NWD, LGSX and E57 files are compared by their size, start and end, so the
+            check is instant on a file of any size; tick <b>Full fingerprint</b> in their section to compare the
+            whole file.
           </p>
 
           <h3 id="task-temp">Have a quick look at a file without keeping it</h3>
           <ol class="steps">
             <li>In the Import Manager, open the section for the file type and pick the file.</li>
-            <li>Leave <b>Temp import</b> ticked (it is ticked every time the app starts) and press <b>Import</b>. No store is needed.</li>
+            <li>Tick <b>Temp import</b> and press <b>Import</b>. No store is needed.</li>
             <li>The model loads and appears under <b>temp</b> in Model Assets and in the Hierarchy. The next time you start the app, it is gone.</li>
           </ol>
 
@@ -277,6 +284,8 @@
               <tr><td><b>Import STEP</b></td><td>Mechanical CAD parts and assemblies (<code class="inline">.step</code>, <code class="inline">.stp</code>). One file at a time.</td></tr>
               <tr><td><b>Import standard GLB</b></td><td>glTF binary files from any 3D program (<code class="inline">.glb</code>). One file at a time.</td></tr>
               <tr><td><b>Import merged glb</b></td><td>GLB files made by the <i>rvm2glb</i> tool in its "merged" mode. A whole folder at once.</td></tr>
+              <tr><td><b>Import NWD</b></td><td>Navisworks models (<code class="inline">.nwd</code>, <code class="inline">.nwc</code>). One file at a time.</td></tr>
+              <tr><td><b>Import LGSX / E57</b></td><td>Laser scans: Leica <code class="inline">.lgsx</code>, <code class="inline">.e57</code>, or already converted <code class="inline">.tdpp</code>. One or several files at once. See the <a href="panel-scans.html">Scans guide</a>.</td></tr>
               <tr><td><b>Import TDP</b></td><td>TreDeSpace's own files (<code class="inline">.tdp</code>), for example exported from this app. No conversion, so this is the fastest.</td></tr>
             </tbody>
           </table></div>
@@ -287,13 +296,13 @@
 
           <h3 id="import-options">Options in every section</h3>
           <figure class="shot" data-shot="a01-import-options">
-            <figcaption>As the options start out: Temp import is ticked, so Load after import is forced on and no store is needed.</figcaption>
+            <figcaption>The options in every section. (The picture is from an earlier version, where Temp import started ticked.)</figcaption>
           </figure>
           <ul>
             <li><b>Temp import (don’t keep in store)</b> (<kbd>ALT 1201</kbd>) — load the model now but don't keep it: it is removed the next time the app starts.</li>
             <li><b>Load after import</b> (<kbd>ALT 638</kbd>) — show the result in the 3D view as soon as the import is done. Always on for temp imports.</li>
             <li><b>Keep camera</b> (<kbd>ALT 623</kbd>) — don't move the camera to the new models.</li>
-            <li><b>Store</b> — where a kept import goes. <b>Import</b> stays greyed out until you pick one (or tick Temp import).</li>
+            <li><b>Store</b> — where a kept import goes. It starts on a store named after the file format — <b>rvm-files</b>, <b>ifc-files</b>, <b>step-files</b>, <b>nwd-files</b>, <b>lgsx-files</b>, <b>e57-files</b>, <b>glb-files</b>, <b>tdp-files</b>, <b>tdpp-files</b> — which is created when first used. Pick another and it is remembered for that format until you restart the app.</li>
             <li><b>Folder</b> — the folder in the store. It is filled in from the file name; clear it for no folder.</li>
           </ul>
           <p class="note">
@@ -339,6 +348,46 @@
           <p class="note">
             The STEP reader is new and may misread some parts. For a file of 200 MB or more the section warns you: the
             import can need several GB of memory and may crash the tab. Save your work first, and use fewer Workers.
+          </p>
+
+          <h3 id="import-nwd">Import NWD</h3>
+          <ol class="legend-list">
+            <li><b>Select NWD file…</b> (<kbd>ALT 1718</kbd>) — pick one <code class="inline">.nwd</code> or <code class="inline">.nwc</code> file.</li>
+            <li><b>Units</b> (<kbd>ALT 1751</kbd> steps to the next) — what the file's coordinates are in; the model is converted to metres. <b>Automatic</b> reads a file exported from Revit as feet (Revit always stores feet) and every other file as metres. If a model comes in at the wrong size, pick <b>Metres (as stored)</b>, <b>Feet</b>, <b>Inches</b>, <b>Millimetres</b> or <b>Centimetres</b> and import it again.</li>
+            <li><b>Normals (smooth shading)</b> (<kbd>ALT 1725</kbd>) — curved parts look round; the model gets larger.</li>
+            <li><b>Include lines</b> (<kbd>ALT 1726</kbd>) — also import construction and datum lines, drawn as thin crosses. Ticked, a <b>Line width</b> box appears.</li>
+            <li><b>Cleanup (weld positions)</b> (<kbd>ALT 1729</kbd>) — joins corner points that share a position: smaller files, cleaner edges. <b>Precision</b> is the number of decimals they must agree to (3, the default, = within 0.001 model units: 1 mm in a metre model). Fewer decimals weld more and can remove small parts.</li>
+            <li><b>Full fingerprint</b> (<kbd>ALT 1749</kbd>) — read the whole file when checking whether it was imported before. Off (default), only its size, start and end are compared.</li>
+            <li><b>Import</b> (<kbd>ALT 1719</kbd>) — start.</li>
+          </ol>
+          <p class="note">
+            The Navisworks reader is new and may misread some parts. The whole file is held in memory while it
+            converts, and the conversion needs roughly 25 times the file's size: a file above about 150 MB may fail.
+            A model exported from Revit is stored in feet and is converted to metres for you; the Console says so
+            when it happens. Files from other sources (DWG, 3DS) are taken as metres — set <b>Units</b> if that is
+            wrong.
+          </p>
+
+          <h3 id="import-scan">Import LGSX / E57</h3>
+          <p>
+            A laser scan is converted in your browser into one <code class="inline">.tdpp</code> file: the point cloud
+            in a form that can be streamed from disk, the scanner setups and their panorama photos. How to look at the
+            result is described in the <a href="panel-scans.html">Scans guide</a>.
+          </p>
+          <ol class="legend-list">
+            <li><b>Select LGSX / E57 file(s)…</b> (<kbd>ALT 1708</kbd>) — pick <code class="inline">.lgsx</code> or <code class="inline">.e57</code> scans to convert, or <code class="inline">.tdpp</code> files to copy as they are.</li>
+            <li><b>Panorama photos</b> (<kbd>ALT 1717</kbd>) — keep each setup's photo (on by default). Needed to step into a setup and see the photo.</li>
+            <li><b>16-bit intensity</b> (<kbd>ALT 1734</kbd>) — keep the scanner's full intensity value. Off (default) keeps the 8 bits the viewer shows, and the file is about 15% smaller.</li>
+            <li><b>Workers</b> (<kbd>ALT 1721</kbd> / <kbd>ALT 1722</kbd>) — how many helpers share the conversion (0–8, default 3). More is faster; each uses about 0.35 GB of memory.</li>
+            <li><b>Full fingerprint</b> (<kbd>ALT 1750</kbd>) — read the whole file when checking whether it was imported before; a scan of several GB takes about a minute. Off (default), only its size, start and end are compared, which is instant.</li>
+            <li><b>Import</b> (<kbd>ALT 1709</kbd>) — start.</li>
+          </ol>
+          <p class="note">
+            A big scan takes minutes and needs free browser storage of about a third of its size. The scan itself is
+            read straight from your disk and is never loaded whole into memory. With several scans picked, each one
+            is in the library as soon as it is done; if the page is reloaded or closed during a conversion, the
+            unfinished file is removed the next time the app starts. Questions about a scan that is being replaced
+            (keep its offset?) are all asked before the first conversion starts.
           </p>
 
           <h3 id="import-glb">Import standard GLB</h3>

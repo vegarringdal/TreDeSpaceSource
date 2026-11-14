@@ -34,9 +34,20 @@ const EL_CLAMP_ANIM = 89.99 * DEG;
  *  settle). Crossing it re-bases the delta, so the orbit starts from where the
  *  drag was recognised instead of jumping by the slop. */
 const TOUCH_SLOP = 10;
+/** Scan look-around: the orbit pivot sits this far in front of the pinned eye. */
+const SCAN_NUDGE = 0.001;
+/** Scan look-around zoom: fovY range and wheel response. */
+const SCAN_FOV_MIN = 15 * DEG;
+const SCAN_FOV_MAX = 100 * DEG;
+const SCAN_ZOOM = 0.1;
+const MOVE_KEYS = ['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
 
 export class CameraController {
-  target = new Float32Array([0, 0, 0]);
+  /** Orbit pivot, absolute world. Float64: at national-grid coordinates
+   *  (millions of metres) a float32 resolves only 0.5 m, which would put the
+   *  eye up to 0.25 m off — a scan setup's photo and its points then no
+   *  longer line up. */
+  target = new Float64Array([0, 0, 0]);
   azimuth = 0.6;
   elevation = 0.5;
   orbitDistance = 10;
@@ -108,11 +119,11 @@ export class CameraController {
   private anim: {
     start: number;
     smoothTime: number;
-    sTarget: Float32Array;
+    sTarget: Float64Array;
     sDist: number;
     sAz: number;
     sEl: number;
-    eTarget: Float32Array;
+    eTarget: Float64Array;
     eDist: number;
     eAz: number;
     eEl: number;
@@ -223,7 +234,7 @@ export class CameraController {
       sDist: this.orbitDistance,
       sAz: this.azimuth,
       sEl: this.elevation,
-      eTarget: new Float32Array(point),
+      eTarget: new Float64Array(point),
       eDist: Math.max(distance, 0.05),
       eAz: this.azimuth,
       eEl: Math.min(EL_CLAMP_ANIM, Math.max(-EL_CLAMP_ANIM, this.elevation)),
@@ -294,7 +305,73 @@ export class CameraController {
     }
   }
 
+  /** Scan look-around: the eye is pinned at a scanner position (laser-scan
+   *  panorama view) — orbit / look input turns the view, the wheel zooms
+   *  (fovY), pan / dolly / movement are ignored. null = normal navigation. */
+  scanEye: [number, number, number] | null = null;
+  private scanSavedFov = 0;
+
+  /** Pin the eye at `eye` (a setup position), keeping the view direction. */
+  enterScan(eye: readonly [number, number, number]) {
+    if (!this.scanEye) {
+      this.scanSavedFov = this.fovY;
+    }
+    this.anim = null;
+    this.scanEye = [eye[0], eye[1], eye[2]];
+    this.reportMove();
+    this.pinScan();
+  }
+
+  /** Back to normal navigation from where the scan left the eye. */
+  exitScan() {
+    if (!this.scanEye) {
+      return;
+    }
+    this.scanEye = null;
+    this.fovY = this.scanSavedFov;
+    this.reportMove();
+  }
+
   update(dtIn: number) {
+    if (this.scanEye) {
+      this.scanInput();
+    }
+    this.updateCore(dtIn);
+    if (this.scanEye) {
+      this.pinScan();
+    }
+  }
+
+  /** In scan mode only looking survives: the wheel becomes a fovY zoom
+   *  (not under an input lock — a locked view must not zoom either). */
+  private scanInput() {
+    if (this.wheel !== 0 && !this.inputLocked) {
+      this.fovY = Math.min(SCAN_FOV_MAX, Math.max(SCAN_FOV_MIN, this.fovY * Math.exp(-this.wheel * SCAN_ZOOM)));
+      this.wheel = 0;
+      this.reportMove();
+    }
+    this.panDX = this.panDY = 0;
+    this.padMove = [0, 0];
+    for (const k of MOVE_KEYS) {
+      this.keys.delete(k);
+    }
+  }
+
+  /** Eye at the scan position, pivot a hair in front of it (any move or
+   *  goto animation that ran this frame only keeps its view direction). */
+  private pinScan() {
+    const e = this.scanEye;
+    if (!e) {
+      return;
+    }
+    const f = this.forward();
+    this.orbitDistance = this.tDist = SCAN_NUDGE;
+    for (let i = 0; i < 3; i++) {
+      this.target[i] = e[i] + f[i] * SCAN_NUDGE;
+    }
+  }
+
+  private updateCore(dtIn: number) {
     const dt = Math.min(dtIn, 0.033); // native clamp
     const sprint = this.keys.has('shift') ? SPRINT_MULT : 1;
     const { f, right, up } = this.axes();
@@ -490,7 +567,7 @@ export class CameraController {
     this.orbitDX = this.orbitDY = this.panDX = this.panDY = this.wheel = 0;
     this.padMove = [0, 0];
     this.padLook = [0, 0];
-    for (const k of ['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']) {
+    for (const k of MOVE_KEYS) {
       this.keys.delete(k);
     }
   }

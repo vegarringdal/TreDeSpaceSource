@@ -1,12 +1,13 @@
 {
   "name": "tredespace",
   "private": true,
-  "version": "0.0.152",
+  "version": "0.0.153",
   "type": "module",
   "author": "Vegar Ringdal <vegar.ringdal@postboxen.no>",
   "scripts": {
     "dev": "vite",
     "gen:docs": "node scripts/gen-api-docs.mjs && node scripts/gen-widget-docs.mjs",
+    "postinstall": "node -e \"require('node:fs').existsSync('scripts/gen-api-docs.mjs') && require('node:child_process').execSync('npm run gen:docs', { stdio: 'inherit' })\"",
     "build": "npm run gen:docs && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "npm run gen:docs && tsc --noEmit",

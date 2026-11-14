@@ -16,3 +16,13 @@ export function workerPoolCap(): number {
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined;
   return Math.max(1, Math.min(POOL_CEILING, (cores ?? FALLBACK_CORES) - 1));
 }
+
+/** Most sub-workers a laser-scan cook fans out to (each holds a batch of
+ *  points, about 0.35 GB). */
+const SCAN_WORKER_CEILING = 8;
+
+/** The scan cook's sub-worker limit on this machine (0 workers = the one
+ *  coordinator worker does everything, so there is no floor). */
+export function scanWorkerCap(): number {
+  return Math.min(SCAN_WORKER_CEILING, workerPoolCap());
+}

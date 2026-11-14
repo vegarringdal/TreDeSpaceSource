@@ -1404,6 +1404,13 @@ a **coarse variant** and promoting near zones to full detail, swapping
 **only while the camera is idle**. Loads are coarse-first under a budget, so
 the ceiling is never overshot at load time.
 
+Laser scans are **not** part of this budget: streamed points and the entered
+setup's photo are limited by the Scans panel (point budget + cache), and the
+residency manager can only shrink models — counting scan memory would make a
+loaded scan push models to coarse. The budget is measured against
+`Renderer.vramBudgeted` (tracked VRAM minus `scanBytes`); the Stats row
+"vram (tracked)" still shows everything, scans as their own part.
+
 **The invariant** (the lesson from the failed LOD+streaming attempt, which
 kept LOD resident *alongside* full geometry): **exclusive residency — for
 any zone, coarse or full geometry is on the GPU, never both** (per item in
@@ -1562,17 +1569,63 @@ of stalling a waiting promote; the coarse-first `bytesFull` is a file-ratio
 guess, so one over-budget correction, bounded by dwell, is expected.
 
 ## Other TODO / future
-- **E57 laser-scan point clouds — PARKED** (`plans/E57_POINTS.md`, design capture
-  only). The domain where streaming LOD is *mandatory* rather than an
-  emergency lever: in-app E57 cook → chunk-addressable octree (Potree-2.0
-  shaped; inner-node subsamples via `meshopt_simplifyPoints`, streams via the
-  meshopt vertex codec) → screen-space-error streaming from OPFS **or a blob
-  store via HTTP Range**, multiple E57s unified by a combined loading index →
-  vertex-pull point quads + EDL inside the existing WebGPU pipeline (shared
-  depth/clip/TAA — the product value is scan/CAD *overlay*, one scene).
-  potree-core evaluated and rejected as a dependency (three.js/WebGL, needs
-  desktop PotreeConverter); Potree's format/heuristics kept as reference.
-  Epic-sized; don't build until scan overlay is a product need.
+- **Laser-scan point clouds — BUILT** (LGSX and E57; the design capture is
+  `plans/E57_POINTS.md` / `plans/TDPP_VIEWER.md`, the file format is
+  `rust_src/crates/scan-cook/docs/TDPP_FORMAT.md`). What exists:
+  - *Cook* (`rust_src/crates/scan-{core,cook,wasm}`, `src/lib/scan2tdpp/`):
+    in-app LGSX / E57 → one `.tdpp` — an additive octree of cluster-quantized
+    points (inner-node subsamples via `meshopt_simplifyPoints`, clusters via
+    `meshopt_spatialClusterPoints`, streams via the meshopt vertex codec v1),
+    the setups and their panoramas. The source is read by range straight
+    from the picked File and the output streamed into OPFS; the work fans
+    out over sub-workers and the coordinator commits in order, so the file
+    is the same whatever the worker count. Against the native `scan` CLI
+    an LGSX cook is byte-identical; an E57 cook is byte-identical at the
+    same chunk size — the chunk size decides where the octree is cut, so
+    the payload order — and the app always uses 3 M points
+    (`scan cook --chunk-points 3000000`; the CLI's own default is 8 M).
+    Each finished scan is written to the asset index before the next one
+    starts; a `.tdpp` in a store that the index does not know is the
+    leftover of an interrupted cook and is removed at the next start
+    (`sweepUnfinishedScans`, skipped while any tab holds the import lock).
+  - *Streaming* (`src/lib/tdpp/`, `src/state/scans/scanPoints.ts`): per
+    frame a best-first walk over projected point spacing under one point
+    budget (frustum, optional max distance, focus distance, clip planes and
+    boxes), node payloads read by range from OPFS. A node is charged for its
+    share in view / in range / unclipped but is resident whole, so the LRU
+    cache is measured beyond the wanted nodes: idle nodes are evicted above
+    `max(budget, wanted) + budget × cache %`. A node is fetched only when its
+    parent is resident or on its way (additive LOD: a child without its
+    parent is never drawn), and a failed read is retried a few times, each
+    after the view has moved on. The walk refines a node while its spacing
+    projects wider than `point size / detail` px; that spacing is measured
+    at cook time from the surface the node's points cover
+    (`node::measured_spacing`), not assumed from the cube. Because a node
+    charged by share is still
+    drawn whole, the walk also stops when the picked nodes hold twice the
+    budget counted whole (`maxHeld`); the panel shows both figures, "in
+    view" (charged) and "drawn". Nothing is held whole.
+  - *Setups and photos*: a setup marker is picked by a CPU ray–sphere test
+    and then checked against the depth buffer, so a sphere behind a wall
+    does not take the click. Entering a setup pins the camera and loads its
+    photo; a later enter or an exit wins over one still loading. A photo is
+    a perspective view — entering switches off orthographic, and switching
+    it on (or the viewport being remounted, as after a GPU device loss)
+    leaves the setup.
+  - *Large coordinates*: a scan in survey / national-grid coordinates sits
+    millions of metres from the origin, where a float32 resolves 0.5 m. The
+    points were always rebased in f64; the camera's orbit pivot is a
+    Float64Array too (so the pinned eye is exact), and a marker sphere's
+    centre is uploaded as a float32 plus its float32 remainder
+    (`markerInstance.ts`) — the shader subtracts the frame origin from the
+    first and adds the second.
+  - *Rendering* (`src/lib/render/pointsLayer.ts`, `shaders/points.ts`):
+    vertex-pull instanced quads in the scene pass — shared depth, clip
+    volume, G-buffer and TAA with the model, so scan and CAD are one scene.
+    Panoramas (cube or sphere) are a separate pass with opacity
+    (`panoPass.ts`).
+  - *Not built*: reading a `.tdpp` over HTTP Range from a blob store, EDL
+    shading, a host (postMessage) API for scans.
 - **Multi-tab external panels — PARKED** (`plans/MULTI_TAB.md`, design capture
   only). Pop a *deliberately small* set of panels into real browser tabs:
   v1 = **SQL editor** (each tab an independent SQL workspace — own worker

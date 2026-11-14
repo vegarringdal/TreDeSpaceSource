@@ -1,0 +1,20 @@
+{
+  "name": "scan-wasm",
+  "type": "module",
+  "collaborators": [
+    "Vegar Ringdal"
+  ],
+  "description": "WebAssembly shell for scan-cook: LGSX / E57 info and → .tdpp in the browser (Worker + OPFS)",
+  "version": "0.1.0",
+  "license": "LicenseRef-TreDeSpace",
+  "files": [
+    "scan_wasm_bg.wasm",
+    "scan_wasm.js",
+    "scan_wasm.d.ts"
+  ],
+  "main": "scan_wasm.js",
+  "types": "scan_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

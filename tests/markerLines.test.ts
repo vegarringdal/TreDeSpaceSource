@@ -8,6 +8,7 @@ import {
   sphereInstances,
   sphereLineVerts,
 } from '../src/components/panels/viewport/markerLines';
+import { MARKER_INSTANCE_FLOATS } from '../src/lib/render/markerInstance';
 import type { SceneLabel } from '../src/state/viewer/labels.state';
 import type { Measurement } from '../src/state/viewer/measurements.state';
 import { readSphereMarker } from '../src/state/viewer/sphereMarker';
@@ -99,11 +100,11 @@ describe('sphere markers', () => {
     expect(wire.map((s) => s.center[0])).toEqual([1]);
     const { data, opaqueCount } = sphereInstances(spheres.filter((s) => s.solid));
     expect(opaqueCount).toBe(1);
-    expect(data.length).toBe(16);
+    expect(data.length).toBe(2 * MARKER_INSTANCE_FLOATS);
     expect(data[0]).toBe(2); // the opaque one leads
     expect(data[7]).toBe(1);
-    expect(data[8]).toBe(1);
-    expect(data[15]).toBe(0.5);
+    expect(data[MARKER_INSTANCE_FLOATS]).toBe(1);
+    expect(data[MARKER_INSTANCE_FLOATS + 7]).toBe(0.5);
   });
 
   it('bumps its version only when the vertices really change', () => {

@@ -1,5 +1,7 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
-import { workerPoolCap } from './workerPoolCap';
+import type { NwdUnits } from '../../lib/nwd2tdp/nwdUnits';
+import type { StoreFormat } from './sourceImport';
+import { scanWorkerCap, workerPoolCap } from './workerPoolCap';
 
 /** One imported model asset — the file lives in OPFS
  *  `model_assets/<store>/<id>.tdp`; this metadata lives in
@@ -30,14 +32,30 @@ export interface AssetEntry {
   /** MD5 of the source bytes (RVM/IFC/STEP: the converted GLB) — lets a host
    *  detect whether re-importing would change anything. */
   md5?: string;
+  /** MD5 of the ORIGINAL file a converter import came from (RVM, STEP, IFC,
+   *  NWD, E57, LGSX) — every asset of that import carries it, and the Import
+   *  Manager asks before converting the same file again. */
+  sourceMd5?: string;
+  /** Quick fingerprint of the converted source (its size and both ends) —
+   *  what the "already imported" check compares for the formats that are not
+   *  hashed whole by default (NWD, LGSX, E57). */
+  sourceQuick?: string;
   size: number;
   importedAt: number;
   /** Captured at import (v8 cooker) — drives fit-to-loaded-selection. */
   bounds?: AssetBounds;
-  /** merged = rvm2glb web3dversion-2; standard = generic glTF (incl. gpu-instanced). */
-  kind?: 'merged' | 'standard';
+  /** merged = rvm2glb web3dversion-2; standard = generic glTF (incl. gpu-instanced);
+   *  points = a laser scan (`<id>.tdpp`, opened by the Scans domain, not modeldb). */
+  kind?: 'merged' | 'standard' | 'points';
   /** The cooked file carries an authored-normal stream (smooth shading). */
   hasNormals?: boolean;
+  /** A laser scan's offset from its own coordinates, metres (x, y, z) — set
+   *  in the Scans panel to line the scan up with a model; applied every
+   *  time the scan is loaded. */
+  scanOffset?: [number, number, number];
+  /** The coordinate system a laser scan is shown in, by name ('' = the
+   *  source's own frame); unset = the one the file was written in. */
+  scanCoordSystem?: string;
   /** Draw edge lines on this model (undefined = true). Import option — off
    *  for meshes where edges would fight the surface (e.g. future textures). */
   edges?: boolean;
@@ -60,9 +78,12 @@ export interface AssetEntry {
 export const groupOf = (a: { folder: string; name: string }): string => (a.folder || a.name).replace(/^\/+/, '');
 
 export interface AssetsState {
-  /** Import destination store (Import Manager dropdown). '' = not chosen yet —
-   *  kept (non-temp) imports require an explicit pick, no silent main. */
+  /** Store of an import whose caller names none and that has no format
+   *  store (host API imports); '' = main. */
   importStore: string;
+  /** Per format, the store its Import Manager imports go to when the user
+   *  picked one; unset = the format's default (`rvm-files`, `glb-files` …). */
+  formatStores: Partial<Record<StoreFormat, string>>;
   assets: AssetEntry[];
   /** index.json has been read from OPFS. */
   ready: boolean;
@@ -75,9 +96,9 @@ export interface AssetsState {
   keepCamera: boolean;
   /** Load whatever an import produced into the viewer when it finishes. */
   loadAfterImport: boolean;
-  /** Import as session-only temp (the DEFAULT): purged on next app start.
-   *  Temp imports always load and ignore the store pick; keeping a file
-   *  instead requires unticking this and choosing a store explicitly. */
+  /** Import as session-only temp: purged on next app start. Temp imports
+   *  always load and ignore the store pick. Off by default — an import is
+   *  kept, in its format's store or the picked one. */
   importTemp: boolean;
   /** Edge-triggered counters the library tree listens to (Collapse all /
    *  Expand all buttons and hotkeys) — the tree itself owns per-folder state. */
@@ -93,6 +114,10 @@ export interface AssetsState {
   ifc: IfcImportOptions;
   /** STEP import options (Import Manager → Import STEP). */
   step: StepImportOptions;
+  /** Navisworks import options (Import Manager → Import NWD). */
+  nwd: NwdImportOptions;
+  /** Laser-scan import options (Import Manager → Import LGSX / E57). */
+  scan: ScanImportOptions;
   /** Standard-GLB import options (Import Manager → Import standard GLB). */
   stdGlb: StdGlbImportOptions;
 }
@@ -129,6 +154,39 @@ export interface IfcImportOptions {
   recenter: boolean;
 }
 
+export interface NwdImportOptions {
+  /** Smooth shading: the cooked model carries per-vertex normals. */
+  normals: boolean;
+  /** Include line primitives (construction / datum layer), drawn as crosses. */
+  includeLines: boolean;
+  /** Width of those line crosses, model units. */
+  lineWidth: number;
+  /** Weld coincident vertex positions per mesh. */
+  cleanup: boolean;
+  /** Decimal places of the weld grid (3 = 0.001 model units). */
+  precision: number;
+  /** Hash the whole file for the "already imported" check (off: its size
+   *  and both ends). */
+  fullFingerprint: boolean;
+  /** The unit of the file's coordinates (automatic: feet for a Revit
+   *  export, metres otherwise) — the model is converted to metres. */
+  units: NwdUnits;
+}
+
+export interface ScanImportOptions {
+  /** Keep the scanner setups' panorama photos (LGSX / E57 cook). */
+  panoramas: boolean;
+  /** Keep the scanner's full 16-bit intensity (off: 8 bits — what the
+   *  viewer shows — and about 15% smaller files). */
+  intensity16: boolean;
+  /** Sub-workers of a scan cook (0–8; 0 = one worker does everything):
+   *  more = faster, more memory. */
+  workers: number;
+  /** Hash the whole file for the "already imported" check (off: its size
+   *  and both ends — a multi-GB scan takes a minute to hash whole). */
+  fullFingerprint: boolean;
+}
+
 export interface StepImportOptions {
   /** Chordal sag tolerance (mm) — smaller = smoother, more triangles. */
   deflectionMm: number;
@@ -141,15 +199,19 @@ export interface StepImportOptions {
   workers: number;
 }
 
+/** Sub-workers of a laser-scan cook unless the machine has fewer cores to give. */
+const DEFAULT_SCAN_WORKERS = 3;
+
 export const assetsState = createStore<AssetsState>({
   importStore: '',
+  formatStores: {},
   assets: [],
   ready: false,
   pool: workerPoolCap(),
   loadPool: workerPoolCap(),
   keepCamera: false,
   loadAfterImport: true,
-  importTemp: true,
+  importTemp: false,
   treeCollapseSignal: 0,
   treeExpandSignal: 0,
   selected: {},
@@ -157,5 +219,20 @@ export const assetsState = createStore<AssetsState>({
   rvm: { level: 0, tolerance: 0.01, includeLines: false, lineWidth: 0.005, alignElements: false },
   ifc: { split: 'none', quality: 'medium', spaces: 'skip', openings: 'skip', recenter: true },
   step: { deflectionMm: 1.0, maxAngleDeg: 25.0, cleanup: true, workers: 2 },
+  nwd: {
+    normals: false,
+    includeLines: false,
+    lineWidth: 0.005,
+    cleanup: true,
+    precision: 3,
+    fullFingerprint: false,
+    units: 'auto',
+  },
+  scan: {
+    panoramas: true,
+    intensity16: false,
+    workers: Math.min(DEFAULT_SCAN_WORKERS, scanWorkerCap()),
+    fullFingerprint: false,
+  },
   stdGlb: { normals: true, edges: true },
 });

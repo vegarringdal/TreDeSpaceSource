@@ -5,6 +5,7 @@
 // reads at its true depth. Pure data assembly, rebuilt only when an input
 // changes; unit-tested as is.
 import type { V3 } from '../../../lib/math/quat';
+import { MARKER_INSTANCE_FLOATS, writeMarkerInstance } from '../../../lib/render/markerInstance';
 import type { SceneLabel } from '../../../state/viewer/labels.state';
 import type { Measurement } from '../../../state/viewer/measurements.state';
 import { readSphereMarker } from '../../../state/viewer/sphereMarker';
@@ -23,8 +24,6 @@ export interface MarkerSphere {
   opacity: number;
 }
 
-/** Instance floats per filled sphere: centre xyz, radius, rgba. */
-export const INSTANCE_FLOATS = 8;
 /** A fill at or above this is drawn opaque (depth-writing) rather than blended. */
 const OPAQUE_AT = 0.999;
 
@@ -130,17 +129,9 @@ export function sphereInstances(spheres: readonly MarkerSphere[]): { data: Float
   const opaque = spheres.filter((s) => s.opacity >= OPAQUE_AT);
   const translucent = spheres.filter((s) => s.opacity < OPAQUE_AT);
   const ordered = [...opaque, ...translucent];
-  const data = new Float32Array(ordered.length * INSTANCE_FLOATS);
+  const data = new Float32Array(ordered.length * MARKER_INSTANCE_FLOATS);
   ordered.forEach((s, i) => {
-    const k = i * INSTANCE_FLOATS;
-    data[k] = s.center[0];
-    data[k + 1] = s.center[1];
-    data[k + 2] = s.center[2];
-    data[k + 3] = s.radius;
-    data[k + 4] = s.rgb[0];
-    data[k + 5] = s.rgb[1];
-    data[k + 6] = s.rgb[2];
-    data[k + 7] = Math.min(1, s.opacity);
+    writeMarkerInstance(data, i, s.center, s.radius, [s.rgb[0], s.rgb[1], s.rgb[2], Math.min(1, s.opacity)]);
   });
   return { data, opaqueCount: opaque.length };
 }
