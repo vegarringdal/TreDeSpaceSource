@@ -30,6 +30,7 @@ export function ColorOpacityGroup() {
         label="Set Sel"
         tooltip="Set the opacity override on the selection"
         disabled={none}
+        shortcut="opacity.setSel"
         onClick={() => void act.setOpacity(opacity)}
       />
       <RibbonButton
