@@ -174,11 +174,13 @@ async function f05Scene(ctx) {
         section: 'Pivot',
         label: 'Lock',
         tooltip: "Shown while placing the pivot: keep this position — it becomes the object's pivot.",
+        keys: 'ALT 127',
       },
       {
         section: 'Pivot',
         label: 'Cancel',
         tooltip: 'Shown while placing the pivot: discard this placement — the pivot stays where it was.',
+        keys: 'ALT 128',
       },
       {
         section: 'Pivot',

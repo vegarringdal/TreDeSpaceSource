@@ -35,6 +35,7 @@ export function ClipBoxFaceGroups() {
               label={letters[face] + sign}
               className="!w-auto !px-0 !justify-center aspect-square min-w-0"
               tooltip={`${sign === '+' ? 'Grow' : 'Shrink'} the box through its ${labels[face]} face`}
+              shortcut={`clip.box.${sign === '+' ? 'grow' : 'shrink'}.${key}`}
               onClick={() => act.resize(key + (sign === '+' ? '+' : '-'))}
             />
           )),
@@ -64,6 +65,7 @@ export function ClipBoxFaceGroups() {
             label={letters[face]}
             className="!w-auto !px-0 !justify-center aspect-square min-w-0"
             tooltip={`Move the whole box one step toward ${labels[face]}`}
+            shortcut={`clip.box.move.${key}`}
             onClick={() => act.move(key)}
           />
         ))}
