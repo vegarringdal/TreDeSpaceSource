@@ -4,12 +4,13 @@
 > should land while the pilot is running, so the pilot build stays as it is.
 > Measurements were taken on 2026-11-17 with the pinned toolchain (Rust
 > 1.96.0); file names and counts were accurate then — **check them again
-> before starting**.
+> before starting**. The version gate part is **done** (see "Version gate"
+> below); its repository settings are still manual.
 
 ## Today
 
 `.github/workflows/ci.yml` runs on pushes to `dev` / `main` and on PRs into
-them. Three jobs:
+them. Two jobs:
 
 - **check** — `npm run check` (Biome lint + format), `npm run typecheck`,
   `npm test` (vitest, incl. the wasm source fingerprint and wasm smoke
@@ -17,9 +18,9 @@ them. Three jobs:
   so a build that regenerates a tracked file fails.
 - **rust** — `cargo test --workspace --locked`, with the IFC samples fetched
   first.
-- **version-gate** — PRs into `main` only: the PR must come from `dev`, the
-  version must be the next `MAJOR.YY.RELEASE`, an unchanged version allows
-  non-app files only, and the PR title must contain the version.
+
+`.github/workflows/version-gate.yml` gates PRs into `main` (rules in
+CONTRIBUTING.md › Versioning and releases).
 
 `rustfmt` and `clippy` are installed by `rust_src/rust-toolchain.toml` but
 **nothing runs them** — no workflow, script or npm script. A green CI says
@@ -27,8 +28,8 @@ the Rust code compiles and its tests pass, nothing about format or lints.
 
 ## Suggestions
 
-Ordered from smallest to largest. 1–4 are small edits to `ci.yml`; 5 is a
-cleanup task of its own.
+Ordered from smallest to largest. 1–3 are small edits to `ci.yml`; 5 is a
+cleanup task of its own. (4, the version gate, is done.)
 
 ### 1. Run on every branch
 
@@ -54,13 +55,52 @@ CLAUDE.md requires a CHANGELOG entry for every change; nothing enforces it.
 Fail a PR (and a push to a branch) that changes app files but not
 `CHANGELOG.md`. Reuse the version gate's file classification
 (`.github/*`, `plans/*`, root Markdown = not app) so the two never disagree
-— ideally move that `case` list into one small script both steps call.
+— ideally move that `case` list into one small script both steps call. The
+gate must read that script from its own checkout of `main`, never from the
+PR (see "Version gate").
 
-### 4. The version gate in a fork
+### 4. Version gate — done 2026-11-17
 
-"PRs into `main` must come from `dev`" fails every PR in a fork that has no
-`dev`. Either allow any head branch in the fork (keep the version rules), or
-create `dev` in the fork and keep the original flow. Undecided.
+Moved out of `ci.yml` into `.github/workflows/version-gate.yml` and
+tightened. Decisions (director, 2026-11-17):
+
+| # | Decision |
+|---|---|
+| G1 | Only this repository's own `dev` may open a PR into `main` — a fork's `dev` is refused, so everything goes through `dev`. |
+| G2 | The gate runs on `pull_request_target`: main's copy always runs, so a PR cannot loosen it. It never runs PR code (git objects only, read-only token, no caches). |
+| G3 | It re-runs when the PR title is edited. |
+| G4 | A `MAJOR` bump must reset `RELEASE` to `1` (`0.26.3` → `1.26.1`), so a mistyped `MAJOR` fails. |
+| G5 | Renames count by both paths: moving a file out of `src/` is an app change. |
+| G6 | The version must be a word of its own in the PR title; `v0.26.30` is not `v0.26.3`. |
+| G7 | `docs/` changes need a version bump (they change the published docs). |
+| G8 | The year stays UTC. A release PR that hits the new-year edge just waits a few hours. |
+
+Tested locally (2026-11-17) by running the step's script against throwaway
+repos: next release, skipped release, `MAJOR` with and without reset,
+`MAJOR` +2, wrong year, leading zero, title word matching, a title carrying
+`$(…)` (not executed), unchanged version with `plans/` only / a `src/` change
+/ a move out of `src/`, and the same-repo `dev` check. Not yet run on GitHub.
+
+#### Repository settings (manual — GitHub settings, not files)
+
+Order matters. The gate only runs from `main`'s copy, so the PR that brings
+`version-gate.yml` to `main` runs no gate at all; if branch protection
+already requires a `version-gate` check, that PR waits forever.
+
+1. Create `dev` from `main` (the fork has none). Work branches go
+   `<branch> → dev → main`.
+2. Merge the gate into `main` through a `dev → main` PR.
+3. Then protect `main`: require a pull request; require the status checks
+   `check`, `rust` and `version-gate`; require branches to be up to date
+   before merging; do not allow bypassing (admins included). Branch
+   protection on a private repository needs a paid GitHub plan.
+4. Settings → Actions → General: require approval before running workflows
+   from fork pull requests for all external contributors. Fork PRs into
+   `dev` then run CI only after you approve them, read-only and without
+   secrets (the `check` / `rust` jobs must run the PR's code, so they stay
+   on `pull_request`, never `pull_request_target`).
+5. Optional: a `CODEOWNERS` entry for `/.github/` plus "require review from
+   code owners", so every change to CI needs the owner's review.
 
 ### 5. Rust format and clippy — clean up first, then enforce
 

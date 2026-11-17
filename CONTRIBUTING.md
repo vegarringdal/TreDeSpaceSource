@@ -233,9 +233,11 @@ Rules for updating the version:
    tools parse it cleanly.
 2. **Release increments.** Each new app build/release within the same year
    increments `RELEASE` by 1 (`0.26.1` → `0.26.2` → `0.26.3`).
-3. **Graduating to 1.** At the stable launch, bump `MAJOR` from `0` to `1`
-   and continue with the current year and release count (`1.26.1` or
-   `1.26.4`).
+3. **Graduating to 1 (and any `MAJOR` bump).** At the stable launch, bump
+   `MAJOR` from `0` to `1`, keep the current year and reset `RELEASE` to `1`
+   (`0.26.3` → `1.26.1`). Every later `MAJOR` bump resets it the same way
+   (`1.27.4` → `2.27.1`). The reset is required, so a mistyped `MAJOR` cannot
+   pass as an ordinary release.
 4. **New year rollover.** On the first release of a new calendar year,
    update `YY` and reset `RELEASE` to `1` (`1.26.5` → `1.27.1`).
 5. **Non-app changes.** Do not bump the version or cut a release tag for
@@ -243,17 +245,25 @@ Rules for updating the version:
    do not change the built application.
 
 Branches: `dev` is the development branch. `main` only takes pull requests
-from `dev`, and only when CI passes — tests, and the version gate
-(`.github/workflows/ci.yml`): the PR's `package.json` version must be the
-next release by the rules above (`MAJOR` the same or one up, `YY` the current
-year, `RELEASE` one up within the year or `1` in a new one) and the PR title
-must contain it (`v0.26.1`). A PR that changes only files the app is not
-built from — `.github/`, `plans/`, `README.md`, `CHANGELOG.md`, `DESIGN.md`,
-`CLAUDE.md`, and Markdown outside `src/` and `docs/` other than `EVENTS.md`
-— keeps the version unchanged. The gate cannot tell a comment-only change
-in code from any other, so such a change waits in `dev` for the next
-release. After a merge, the container image is built
-from `main` and tagged with that version (below).
+from this repository's own `dev` (not a fork's), and only when CI passes —
+tests, and the version gate (`.github/workflows/version-gate.yml`): the PR's
+`package.json` version must be the next release by the rules above (`MAJOR`
+the same or one up, `YY` the current year in UTC, `RELEASE` one up within the
+year, or `1` in a new year or after a `MAJOR` bump) and the PR title must
+contain it as a word of its own (`v0.26.1`; `v0.26.10` does not count). A PR
+that changes only files the app is not built from — `.github/`, `plans/`,
+`README.md`, `CHANGELOG.md`, `DESIGN.md`, `CLAUDE.md`, and Markdown outside
+`src/` and `docs/` other than `EVENTS.md` — keeps the version unchanged; a
+file moved out of `src/` or `docs/` still counts as an app change. The gate
+cannot tell a comment-only change in code from any other, so such a change
+waits in `dev` for the next release. After a merge, the container image is
+built from `main` and tagged with that version (below).
+
+The gate runs from `main`'s copy of its workflow (`pull_request_target`), so
+a PR cannot change the gate it is checked by, and a change to the gate takes
+effect only once it is on `main`. It re-runs when the PR title is edited. It
+never runs code from the PR — it reads the PR's `package.json` and file list
+as git objects with a read-only token.
 
 ## Container images
 

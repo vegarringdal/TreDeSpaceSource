@@ -7,6 +7,17 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.17** (>0.26.2):
+  Version gate (CI, no app change): moved from `ci.yml` into its own
+  `version-gate.yml` on `pull_request_target`, so main's copy always runs
+  and a PR cannot loosen the gate it is checked by; it never runs PR code.
+  Tightened: only this repository's own `dev` may target `main` (a fork's
+  `dev` is refused), it re-runs when the PR title is edited, a `MAJOR` bump
+  must reset `RELEASE` to 1 (`0.26.3` → `1.26.1`, so a mistyped `MAJOR`
+  fails), a file moved out of `src/` counts as an app change, and the
+  version must be a word of its own in the title (`v0.26.30` no longer
+  passes for `v0.26.3`). CONTRIBUTING.md and `plans/action.md` describe the
+  new rules and the branch-protection setup order.
+
   New `plans/action.md`: suggested CI improvements (run on every branch,
   boot test, CHANGELOG check, Rust format/clippy cleanup), postponed until
   after the pilot. No CI change yet.
