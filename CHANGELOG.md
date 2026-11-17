@@ -7,6 +7,14 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.17** (>0.26.2):
+  Pages workflow (manual, for trying a branch on a test fork): it now
+  builds the branch picked under "Run workflow" and force-pushes the site
+  to the root of `gh-pages` as a single commit, so that branch holds only
+  the latest deploy instead of growing a history. The build's version reads
+  `<branch>#<short sha>`, so About and `/build.version` show which branch
+  and commit are live. Pages must be set to deploy from the `gh-pages`
+  branch.
+
   More ribbon buttons get a shortcut, so a keyboard user or a host driving
   the viewer through `hotkeys.run` can reach them too:
   Clipping Box face resize (ALT 3300–3305 grow, ALT 3310–3315 shrink) and
