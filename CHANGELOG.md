@@ -7,6 +7,10 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.17** (>0.26.2):
+  New `plans/action.md`: suggested CI improvements (run on every branch,
+  boot test, CHANGELOG check, Rust format/clippy cleanup), postponed until
+  after the pilot. No CI change yet.
+
   Pages workflow (manual, for trying a branch on a test fork): it now
   builds the branch picked under "Run workflow" and force-pushes the site
   to the root of `gh-pages` as a single commit, so that branch holds only
