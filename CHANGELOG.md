@@ -16,7 +16,9 @@ Entries from before the stable pilot (0.26.1) have been removed.
   fails), a file moved out of `src/` counts as an app change, and the
   version must be a word of its own in the title (`v0.26.30` no longer
   passes for `v0.26.3`). CONTRIBUTING.md and `plans/action.md` describe the
-  new rules and the branch-protection setup order.
+  new rules, the fork workflow (fork `main` / `dev` only synced, work
+  branches PR into this repository's `dev`) and the branch-protection
+  setup order.
 
   New `plans/action.md`: suggested CI improvements (run on every branch,
   boot test, CHANGELOG check, Rust format/clippy cleanup), postponed until

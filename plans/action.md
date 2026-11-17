@@ -81,26 +81,35 @@ repos: next release, skipped release, `MAJOR` with and without reset,
 `$(…)` (not executed), unchanged version with `plans/` only / a `src/` change
 / a move out of `src/`, and the same-repo `dev` check. Not yet run on GitHub.
 
-#### Repository settings (manual — GitHub settings, not files)
+#### Rollout and repository settings (manual — GitHub settings, not files)
 
-Order matters. The gate only runs from `main`'s copy, so the PR that brings
-`version-gate.yml` to `main` runs no gate at all; if branch protection
-already requires a `version-gate` check, that PR waits forever.
+Work happens in a fork whose `main` / `dev` are never committed to — they
+are only synced from the source repo, and work branches are cut from them.
+Every PR goes from a fork branch into the **source repo's `dev`**; only the
+source repo's own `dev` goes on into its `main`. So the settings below are
+for the **source repo**; the fork needs none.
 
-1. Create `dev` from `main` (the fork has none). Work branches go
-   `<branch> → dev → main`.
-2. Merge the gate into `main` through a `dev → main` PR.
-3. Then protect `main`: require a pull request; require the status checks
-   `check`, `rust` and `version-gate`; require branches to be up to date
-   before merging; do not allow bypassing (admins included). Branch
-   protection on a private repository needs a paid GitHub plan.
-4. Settings → Actions → General: require approval before running workflows
-   from fork pull requests for all external contributors. Fork PRs into
-   `dev` then run CI only after you approve them, read-only and without
-   secrets (the `check` / `rust` jobs must run the PR's code, so they stay
-   on `pull_request`, never `pull_request_target`).
+Order matters. The gate only runs from `main`'s copy, so the release PR that
+first brings `version-gate.yml` to `main` runs no gate at all; if branch
+protection already requires a `version-gate` check, that PR waits forever.
+
+1. PR the work branch (with the gate) into the source repo's `dev`.
+2. Merge `dev → main` as usual — this one release PR is not gated.
+3. Then protect the source repo's `main`: require a pull request; require
+   the status checks `check`, `rust` and `version-gate`; require branches to
+   be up to date before merging; do not allow bypassing (admins included).
+   Protect its `dev` too (require a pull request and `check` / `rust`), so
+   fork work reaches it only through a reviewed PR. Branch protection on a
+   private repository needs a paid GitHub plan.
+4. Source repo, Settings → Actions → General: require approval before
+   running workflows from fork pull requests for all external contributors.
+   Fork PRs into `dev` then run CI only after approval, read-only and
+   without secrets (the `check` / `rust` jobs must run the PR's code, so they
+   stay on `pull_request`, never `pull_request_target`).
 5. Optional: a `CODEOWNERS` entry for `/.github/` plus "require review from
    code owners", so every change to CI needs the owner's review.
+6. After each release, sync the fork's `main` / `dev` from the source repo
+   ("Sync fork") and cut new work branches from the synced `dev`.
 
 ### 5. Rust format and clippy — clean up first, then enforce
 
@@ -157,6 +166,7 @@ quiet period after the pilot, as its own change with its own release.
 - **Duplicate typecheck.** `npm run build` already runs `gen:docs` and
   `tsc --noEmit`, so the separate `typecheck` step repeats them. Keeping it
   gives a clearer failing step name; dropping it saves a little time.
-- **Pages workflow on `main`.** `pages.yml` (deploy any branch to
-  `gh-pages`) only exists on the branches that have it. Merging it into
-  `main` makes every new branch deployable.
+- **Pages workflow on `main`.** `pages.yml` (deploy any branch of a fork to
+  its `gh-pages`) only exists on the branches that have it. Once it reaches
+  the source repo's `main` (via `dev`) and the fork is synced, every new
+  work branch can be deployed.

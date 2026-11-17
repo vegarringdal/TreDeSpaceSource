@@ -259,6 +259,13 @@ cannot tell a comment-only change in code from any other, so such a change
 waits in `dev` for the next release. After a merge, the container image is
 built from `main` and tagged with that version (below).
 
+Working from a fork: never commit to the fork's own `main` or `dev` — only
+sync them from this repository ("Sync fork") — and cut work branches from
+the synced `dev`. A fork's work goes into this repository by a pull request
+from the work branch into `dev`; CI runs on it (after approval, read-only),
+the version gate does not, since it only guards `main`. The deploy-any-branch
+Pages workflow (`.github/workflows/pages.yml`) is meant for such a fork.
+
 The gate runs from `main`'s copy of its workflow (`pull_request_target`), so
 a PR cannot change the gate it is checked by, and a change to the gate takes
 effect only once it is on `main`. It re-runs when the PR title is edited. It
