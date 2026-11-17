@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F7 External</title>
+  <meta name="description" content="Guide to the F7 External layout: open the web tools your organisation has connected to the viewer, as a panel, a dialog or a browser tab." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F7</p>
+      <h1>External</h1>
+      <p class="lede">
+        Open the other web tools your organisation has connected to the viewer, right next to the model. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F7</p>
+          <h2>The External layout</h2>
+          <p>
+            An <b>external app</b> is a web page from somewhere else that opens inside TreDeSpace: a tag report, a
+            document lookup, a project selector, your company's own tools. Each one gets a button on the
+            <b>External</b> ribbon. Some of these tools are built to work together with the viewer, for example to
+            select or colour items in the model, or to show details for what you select.
+          </p>
+          <p>
+            Press <kbd>F7</kbd> (or pick <b>External</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to show the External ribbon with the model tree and the 3D view.
+          </p>
+          <figure class="shot" data-shot="f07-layout">
+            <figcaption>The F7 layout, here with four example apps configured. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>External ribbon</b> — one button per app, described below.</li>
+            <li><b>Hierarchy</b> — the model tree.</li>
+            <li><b>3D view</b>.</li>
+            <li><b>Console</b> — minimised. Click its tab to see messages.</li>
+          </ol>
+          <p class="note">
+            Which buttons you see depends on how TreDeSpace is set up for you. Apps are added under
+            <b>Settings → External</b> (see <a href="#setup">below</a>), by whoever set up TreDeSpace for you or by
+            yourself. When TreDeSpace is built into your company's own web page, that page can add them too. If
+            nothing is set up, the ribbon only shows a greyed-out <b>Configure…</b> button.
+          </p>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The External ribbon</h2>
+          <figure class="shot" data-shot="f07-ribbon">
+            <figcaption>Example apps: a big button in a group called Help, two smaller ones under Project tools.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>A big button</b> — click it to open the app.</li>
+            <li><b>A smaller button</b> — apps can have big, medium or small buttons; it makes no difference to how they work.</li>
+            <li><b>Another button in the same group</b> — this one opens in a new browser tab.</li>
+            <li><b>The group name</b> — apps are grouped by topic. Apps without a group are under <b>External Apps</b>.</li>
+          </ol>
+          <p>
+            Hold the mouse over a button to see what it opens. If your administrator wrote no description, the tooltip
+            shows the web address and how the app opens: <i>as a panel</i>, <i>in a new browser tab</i> or <i>as a modal
+            dialog</i>.
+          </p>
+
+          <h3 id="open-ways">How an app opens</h3>
+          <ul class="plain">
+            <li>
+              <b>As a panel</b> (the usual way) — the app opens as a tab on the right side of the screen, like any other
+              panel. Drag its tab to move it, drag the edge to make it wider, and close it with the ✕ on its tab. Closing
+              the panel closes the app; opening it again starts it fresh. Most apps open one panel only: clicking the
+              button again brings that panel back. Some are set up to open a <b>new panel per click</b>, so you can have
+              several side by side.
+            </li>
+            <li>
+              <b>As a dialog</b> — the app opens in a window in the middle of the screen, over the model. Drag its title
+              bar to move it, drag the bottom-right corner to resize it, and close it with ✕. TreDeSpace's own messages
+              (loading, errors, questions) still appear on top of it.
+            </li>
+            <li>
+              <b>In a new browser tab</b> — the app opens next to TreDeSpace in your browser. Tools that work with the
+              viewer still do so from that tab.
+            </li>
+          </ul>
+          <figure class="shot" data-shot="f07-panel">
+            <figcaption>An app opened as a panel <span class="mk">2</span> after a click on its button <span class="mk">1</span>. Here the example app is this user guide.</figcaption>
+          </figure>
+
+          <h3 id="home">Apps on the Home ribbon</h3>
+          <p>
+            An app you need all the time, such as a project selector, can be put on the <b>Home</b> ribbon instead,
+            so it is there as soon as TreDeSpace starts. It then sits at the start (left) or the end (right) of the
+            Home ribbon, in its own group, and no longer shows on the External ribbon.
+          </p>
+          <figure class="shot" data-shot="f07-home">
+            <figcaption>An app button <span class="mk">1</span> at the start of the Home ribbon, before the Assets group.</figcaption>
+          </figure>
+          <p>An app can also be set to <b>open by itself</b> when TreDeSpace starts, as a panel or a dialog.</p>
+        </section>
+
+        <section id="setup" class="g-sec">
+          <p class="sec-kick">Settings</p>
+          <h2>Where apps are set up</h2>
+          <p>
+            Apps are added and changed under <b>Settings → External</b>. Click
+            <b>Add external app</b>, fill in at least a name and a web address, and the button appears on the ribbon.
+            The full set of options is described in the <a href="panel-settings.html">Settings guide</a>; the ones that
+            change what you see are:
+          </p>
+          <figure class="shot" data-shot="f07-settings"></figure>
+          <ol class="legend-list">
+            <li><b>Button name</b> — the text on the button, and the panel's title.</li>
+            <li><b>Web address</b> — the page that opens.</li>
+            <li><b>Section</b> — the ribbon group the button goes in. Next to it: the button size.</li>
+            <li><b>Multiple instances</b> — a new panel per click, instead of one.</li>
+            <li><b>New window</b> — opens in a new browser tab instead of a panel.</li>
+            <li><b>Modal dialog</b> — opens as a dialog over the app.</li>
+            <li><b>Show in Home</b> — puts the button on the Home ribbon instead; a list next to it picks the start or the end.</li>
+            <li><b>Open on start</b> — opens the app by itself when TreDeSpace starts (not for apps that open in a new browser tab).</li>
+          </ol>
+          <p>
+            The two text boxes in the middle hold the button's tooltip and optional settings passed to the app. The
+            <b>Sandbox</b> and <b>Permissions</b> boxes control what the app's page is allowed to do in your browser
+            (open pop-ups, use the camera, …); all are off unless your administrator ticks them.
+          </p>
+          <ul class="plain">
+            <li>Apps are kept in your browser, so they are still there next time. <b>Reset all settings</b> does not remove them; <b>Reset external apps</b> on the same tab does.</li>
+            <li>When TreDeSpace is built into another web page, that page can add its own app buttons for the session. Those are not listed under Settings and can't be changed there.</li>
+          </ul>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

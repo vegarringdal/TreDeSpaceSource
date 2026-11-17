@@ -1,0 +1,17 @@
+[package]
+name = "scan-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Readers for Leica LGSX and ASTM E57 laser scans (points, setups, panoramas); LGSX spec in docs/"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+# zstd byte planes of the LGSX point octree — pure Rust, wasm-safe
+ruzstd = "0.8"
+# E57 XML section
+roxmltree = "0.21"
+# zlib blocks of the LGSX mMapArchive directory (pure-Rust backend)
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }

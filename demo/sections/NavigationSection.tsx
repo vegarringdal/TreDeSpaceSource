@@ -1,0 +1,95 @@
+import { Button, Checkbox, Select, TextInput } from '@treDeSpaceUI/widgets';
+import { useState } from 'react';
+import type { CameraState, FitVisibleBounds } from '../../api/tredespace-client';
+import { DemoSection } from '../components/DemoSection';
+import { Hint } from '../components/Hint';
+import { Row } from '../components/Row';
+import { useDemo } from '../DemoContext';
+
+const FIT_BOUNDS_OPTIONS = [
+  { value: 'visible', label: 'bounds: visible (cut to clipping)' },
+  { value: 'bbox', label: 'bounds: bbox (the clip volumes)' },
+];
+
+export function NavigationSection() {
+  const { run, c, line } = useDemo();
+  const [name, setName] = useState('');
+  const [select, setSelect] = useState(false);
+  const [wait, setWait] = useState(false);
+  const [bounds, setBounds] = useState<FitVisibleBounds>('visible');
+  const [saved, setSaved] = useState<CameraState | null>(null);
+
+  const handleFly = () => {
+    const fullname = name.trim();
+    void run('nav.flyTo', { fullname, select, wait }, () => c().navFlyTo(fullname, { select, wait }));
+  };
+
+  const handleOrbit = () => {
+    const fullname = name.trim();
+    void run('nav.orbit', { fullname, select, wait }, () => c().navOrbit(fullname, { select, wait }));
+  };
+
+  // camera.get → camera.set is a round trip: park a view, move around, restore
+  const handleCameraGet = () => {
+    void run('camera.get', {}, async () => {
+      const res = await c().cameraGet();
+      if (res.data) {
+        setSaved(res.data);
+      }
+
+      return res;
+    });
+  };
+
+  const handleCameraRestore = () => {
+    if (!saved) {
+      line('err', 'camera.get first — nothing saved yet');
+      return;
+    }
+
+    const camera = { position: saved.position, target: saved.target, orthographic: saved.orthographic };
+    void run('camera.set', camera, () => c().cameraSet(camera));
+  };
+
+  return (
+    <DemoSection title="Navigation">
+      <TextInput value={name} onChange={setName} placeholder="fullname (e.g. /SITE/ZONE-1/PIPE-401)" />
+      <Checkbox checked={select} onChange={setSelect} label="also select it" />
+      <Checkbox checked={wait} onChange={setWait} label="wait for the camera to arrive before responding" />
+      <Row>
+        <Button onClick={handleFly}>nav.flyTo</Button>
+        <Button onClick={handleOrbit}>nav.orbit</Button>
+        <Button
+          tooltip="Frame everything that is not hidden, cut to the clipping in force — hide, isolate or clip first, then fit"
+          onClick={() => void run('nav.fitVisible', { wait, bounds }, () => c().navFitVisible({ wait, bounds }))}
+        >
+          nav.fitVisible
+        </Button>
+        <Select
+          value={bounds}
+          onChange={(v: string | null) => setBounds(v === 'bbox' ? 'bbox' : 'visible')}
+          options={FIT_BOUNDS_OPTIONS}
+          className="min-w-48"
+        />
+      </Row>
+      <Hint>
+        Camera: get the current pose, move the view around by hand, then restore it. The same object works as the{' '}
+        <code>camera</code> option on assets.load / assets.setLoaded, which places the view instead of framing it.
+      </Hint>
+      <Row>
+        <Button onClick={handleCameraGet}>camera.get</Button>
+        <Button onClick={handleCameraRestore}>camera.set (restore)</Button>
+        <Button
+          tooltip="Snap 40 units out along +X, looking at the origin"
+          onClick={() =>
+            void run('camera.set', { position: [40, 0, 15], target: [0, 0, 0], animate: false }, () =>
+              c().cameraSet({ position: [40, 0, 15], target: [0, 0, 0], animate: false }),
+            )
+          }
+        >
+          camera.set (snap)
+        </Button>
+      </Row>
+    </DemoSection>
+  );
+}

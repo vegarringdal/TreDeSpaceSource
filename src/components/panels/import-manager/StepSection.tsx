@@ -1,0 +1,136 @@
+import { IconFolderPlus, IconUpload } from '@tabler/icons-react';
+import { Button, Checkbox, Collapsible, InfoBox, Link, NumberInput, useFilePicker } from '@treDeSpaceUI/widgets';
+import { useState } from 'react';
+import { assetsActions as act } from '../../../state/assets/assets.actions';
+import { assetsState } from '../../../state/assets/assets.state';
+import { STEP_WORKER_CEILING, stepWorkerDefault } from '../../../state/assets/workerPoolCap';
+import { FolderField, ImportOptionsRows } from './importWidgets';
+
+/** Above this size the section warns that the import may exhaust memory. */
+const LARGE_STEP_BYTES = 200 * 1024 * 1024;
+
+/** Import Manager → STEP B-rep (tessellated and cooked in one wasm pass). */
+export function StepSection() {
+  const { step } = assetsState.use();
+  const [file, setFile] = useState<File | null>(null);
+  const [folder, setFolder] = useState('');
+  const picker = useFilePicker('.step,.stp', (f) => {
+    setFile(f);
+    setFolder(f.name);
+  });
+
+  const doImport = async () => {
+    if (!file) {
+      return;
+    }
+    await act.importStep(file, { folder });
+    setFile(null);
+  };
+
+  return (
+    <Collapsible
+      title="Import STEP"
+      defaultOpen={false}
+      info={
+        <>
+          AI-written STEP parser — it may misread some parts.{' '}
+          <Link href="https://github.com/vegarringdal/step2glb">step2glb</Link> is the source; improvements welcome. The
+          B-rep is tessellated and cooked into a single asset in one pass — no intermediate file.
+          <br />
+          <br />
+          <b>Deflection</b> / <b>Max angle</b> control curve smoothness (smaller = smoother, more triangles).{' '}
+          <b>Cleanup</b> welds duplicate positions (drops normals) to match the flat-shaded renderer.
+        </>
+      }
+    >
+      <div className="flex flex-col gap-1.5">
+        {picker.element}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            icon={<IconFolderPlus size={14} />}
+            onClick={picker.open}
+            tooltip="Pick a single .step/.stp file to convert and cook (local only — nothing is uploaded)"
+            shortcut="assets.step.pick"
+          >
+            Select STEP file…
+          </Button>
+          {file && <span className="self-center truncate text-slate-400 text-xs">{file.name}</span>}
+        </div>
+        {file && file.size >= LARGE_STEP_BYTES && (
+          <InfoBox>
+            Large file ({Math.round(file.size / 1024 / 1024)} MB): a STEP import can need several GB of RAM (every
+            tessellation worker keeps its own copy of the file index) and may crash the tab — save your work first.
+            Fewer workers use less memory.
+          </InfoBox>
+        )}
+        {file && (
+          <>
+            <ImportOptionsRows formats={['step']} />
+            <FolderField value={folder} onChange={setFolder} labelWidth={64} />
+            <NumberInput
+              label="Deflection"
+              labelPosition="left"
+              labelWidth={64}
+              tooltip="Chordal sag tolerance (mm) — smaller = smoother curves, more triangles"
+              value={step.deflectionMm}
+              min={0.01}
+              max={10}
+              step={0.1}
+              unit="mm"
+              decShortcut="assets.step.deflection.dec"
+              incShortcut="assets.step.deflection.inc"
+              onChange={(v) => act.setStepOptions({ deflectionMm: v })}
+            />
+            <NumberInput
+              label="Max angle"
+              labelPosition="left"
+              labelWidth={64}
+              tooltip="Max chord turn angle (deg) — smaller = smoother curves, more triangles"
+              value={step.maxAngleDeg}
+              min={1}
+              max={90}
+              step={1}
+              unit="deg"
+              decShortcut="assets.step.angle.dec"
+              incShortcut="assets.step.angle.inc"
+              onChange={(v) => act.setStepOptions({ maxAngleDeg: v })}
+            />
+            <NumberInput
+              label="Workers"
+              labelPosition="left"
+              labelWidth={64}
+              tooltip={`Tessellation sub-workers (0 = in-process): more = faster, more memory — each keeps its own copy of the file index, about 0.3 GB per GB of STEP. Default: as many as this machine has cores to spare, up to ${STEP_WORKER_CEILING} (${stepWorkerDefault()} here). Lower it if a large file runs the tab out of memory`}
+              value={step.workers}
+              min={0}
+              max={STEP_WORKER_CEILING}
+              step={1}
+              decShortcut="assets.step.workers.dec"
+              incShortcut="assets.step.workers.inc"
+              onChange={(v) => act.setStepOptions({ workers: v })}
+            />
+            <Checkbox
+              label="Cleanup (weld positions)"
+              shortcut="assets.step.cleanup"
+              tooltip="Weld duplicate positions (drops normals) — matches the flatshaded renderer"
+              checked={step.cleanup}
+              onChange={(v) => act.setStepOptions({ cleanup: v })}
+            />
+            <div className="flex gap-2">
+              <Button
+                icon={<IconUpload size={14} />}
+                onClick={() => void doImport()}
+                tooltip="Tessellate and cook the STEP into the asset library"
+                shortcut="assets.step.import"
+              >
+                Import
+              </Button>
+              <Button onClick={() => setFile(null)} tooltip="Discard this STEP import">
+                Cancel
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </Collapsible>
+  );
+}

@@ -1,0 +1,151 @@
+import { IconBox } from '@tabler/icons-react';
+import {
+  Button,
+  ConfirmDialogCore,
+  DialogFrame,
+  ErrorDialogCore,
+  LoadingDialogCore,
+  Modal,
+  PromptDialogCore,
+  TitleBar,
+} from '@treDeSpaceUI/widgets';
+import { useState } from 'react';
+import { Section } from './Section';
+
+/** Gallery section for the dialog cores (Confirm / Prompt / Error / Loading)
+ *  and the Modal + TitleBar shell they all render through. */
+export function DialogsDemo() {
+  const [confirm, setConfirm] = useState(false);
+  const [prompt, setPrompt] = useState(false);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [frame, setFrame] = useState(false);
+  const [custom, setCustom] = useState(false);
+  const [promptValue, setPromptValue] = useState('Viewpoint 1');
+  const [last, setLast] = useState('');
+  return (
+    <Section
+      title="Dialogs"
+      note="The dialog cores are pure: props in, onResult out, no store coupling — the app wraps them in its own dialogs helper. All four are DialogFrame plus their content: one bordered window with a title bar (and its ✕), a body that scrolls within maxHeight, and a footer rule for the buttons — build a new dialog the same way (the DialogFrame button). Escape and a backdrop press close the TOP dialog only; for the cores both count as Cancel. Modal + TitleBar stay exported for a host building something else in the same look (the Custom button shows the bare shell)."
+      props={[
+        'ConfirmDialogCoreProps',
+        'PromptDialogCoreProps',
+        'ErrorDialogCoreProps',
+        'LoadingDialogCoreProps',
+        'DialogFrameProps',
+        'ModalProps',
+        'TitleBarProps',
+      ]}
+      code={`function LicenseButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>License…</Button>
+      {open && (
+        <DialogFrame icon={<IconLicense size={16} className="shrink-0 text-blue-400" />}
+          title="License" width="min(480px, 92vw)" onClose={() => setOpen(false)}
+          footer={<Button variant="primary" onClick={() => setOpen(false)}>Accept</Button>}>
+          {licenseText}
+        </DialogFrame>
+      )}
+    </>
+  );
+}
+
+function ResetButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>Reset…</Button>
+      {open && (
+        <ConfirmDialogCore title="Reset scene" okLabel="Reset"
+          cancelLabel="Cancel" message="Reset the scene to defaults?"
+          onResult={(ok) => { setOpen(false); if (ok) { reset(); } }} />
+      )}
+    </>
+  );
+}`}
+    >
+      <div className="flex flex-wrap gap-1.5">
+        <Button onClick={() => setConfirm(true)}>Confirm</Button>
+        <Button onClick={() => setPrompt(true)}>Prompt</Button>
+        <Button onClick={() => setError(true)}>Error</Button>
+        <Button
+          onClick={() => {
+            setLoading(true);
+            setTimeout(() => setLoading(false), 1800);
+          }}
+        >
+          Loading (1.8 s)
+        </Button>
+        <Button onClick={() => setFrame(true)}>DialogFrame</Button>
+        <Button onClick={() => setCustom(true)}>Custom (Modal + TitleBar)</Button>
+      </div>
+      {last && <p className="m-0 mt-2 text-slate-500 text-xs">Last result: {last}</p>}
+      {confirm && (
+        <ConfirmDialogCore
+          title="Reset scene"
+          message="Reset the scene to defaults?"
+          okLabel="Reset"
+          cancelLabel="Cancel"
+          onResult={(ok) => {
+            setConfirm(false);
+            setLast(`confirm → ${ok}`);
+          }}
+        />
+      )}
+      {prompt && (
+        <PromptDialogCore
+          title="Rename viewpoint"
+          message="New name:"
+          value={promptValue}
+          okLabel="Rename"
+          onChange={setPromptValue}
+          onResult={(ok) => {
+            setPrompt(false);
+            setLast(ok ? `prompt → "${promptValue}"` : 'prompt → cancelled');
+          }}
+        />
+      )}
+      {error && (
+        <ErrorDialogCore
+          title="Demo error"
+          message="The knot refused to untangle itself."
+          onDismiss={() => {
+            setError(false);
+            setLast('error dismissed');
+          }}
+        />
+      )}
+      {loading && <LoadingDialogCore title="Working" label="Pretending to work…" />}
+      {frame && (
+        <DialogFrame
+          icon={<IconBox size={16} className="shrink-0 text-blue-400" />}
+          title="DialogFrame"
+          width={360}
+          onClose={() => setFrame(false)}
+          footer={
+            <Button variant="primary" onClick={() => setFrame(false)}>
+              Done
+            </Button>
+          }
+        >
+          Any content in the shared frame: title bar with its ✕, a body that scrolls inside maxHeight, a footer rule.
+        </DialogFrame>
+      )}
+      {custom && (
+        <Modal z={2000}>
+          <div className="w-[320px] border border-slate-700 bg-slate-900 shadow-xl">
+            <TitleBar icon={<IconBox size={14} />}>Custom dialog</TitleBar>
+            <div className="p-3 text-slate-300">
+              Any content, framed by the shared shell: dimmed backdrop, centred window, TitleBar on top.
+            </div>
+            <div className="flex justify-end p-3 pt-0">
+              <Button onClick={() => setCustom(false)}>Close</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </Section>
+  );
+}

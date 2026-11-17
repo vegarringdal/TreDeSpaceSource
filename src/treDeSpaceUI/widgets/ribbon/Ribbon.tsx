@@ -1,0 +1,86 @@
+import { Children, isValidElement, type ReactNode } from 'react';
+import { RibbonNumber } from './RibbonNumber';
+import { RibbonSlot } from './RibbonSlot';
+import { RIBBON_ROWS, type RibbonSize } from './ribbonSizes';
+
+export { RibbonButton, type RibbonButtonProps } from './RibbonButton';
+export { RibbonNumber, type RibbonNumberProps } from './RibbonNumber';
+export { RibbonSlot } from './RibbonSlot';
+export type { RibbonSize } from './ribbonSizes';
+
+/** The bar itself: a full-height row of sections with dividers between them. */
+export function Ribbon({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`flex h-full min-w-0 items-stretch overflow-x-auto bg-slate-900 px-1 py-1 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/** The rows a section child takes: its own `size`, else what it draws at. */
+function packedSize(child: ReactNode): RibbonSize {
+  if (!isValidElement(child)) {
+    return 'big';
+  }
+  const own = (child.props as { size?: RibbonSize }).size;
+  if (own) {
+    return own;
+  }
+  return child.type === RibbonSlot || child.type === RibbonNumber ? 'medium' : 'big';
+}
+
+/**
+ * A titled group: the item area on top, a tinted full-width title band
+ * underneath that reads as the group's footer in both themes.
+ * Children declare a `size` (big = 1 per column, medium = 2, mini = 3); the
+ * section packs them into equal-width columns in order, and a column that is
+ * not completely full centres its content vertically.
+ * The size is read off each DIRECT child element's props (a RibbonSlot or
+ * RibbonNumber without one packs as the `medium` it draws, anything else as
+ * `big`), so a component that wraps a RibbonButton must take `size` as its
+ * own prop — a size decided inside it is invisible here.
+ */
+export function RibbonSection({
+  title,
+  children,
+  className = '',
+}: {
+  title: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  const columns: ReactNode[][] = [];
+  let column: ReactNode[] = [];
+  let used = 0;
+  for (const child of Children.toArray(children)) {
+    const size = packedSize(child);
+    if (used + RIBBON_ROWS[size] > 6) {
+      columns.push(column);
+      column = [];
+      used = 0;
+    }
+    column.push(child);
+    used += RIBBON_ROWS[size];
+  }
+  if (column.length) {
+    columns.push(column);
+  }
+
+  return (
+    <div
+      className={`grid shrink-0 grid-rows-[1fr_auto] gap-y-1 border-slate-800 border-r px-1.5 last:border-r-0 ${className}`}
+    >
+      <div className="grid min-h-0 auto-cols-max grid-flow-col gap-x-0.5">
+        {columns.map((col, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: column order is the identity
+          <div key={i} className="flex min-h-0 flex-col justify-center gap-[2px]">
+            {col}
+          </div>
+        ))}
+      </div>
+      <div className="w-full bg-slate-800 px-3 py-0.5 text-center font-semibold text-slate-200 text-xs leading-tight">
+        {title}
+      </div>
+    </div>
+  );
+}

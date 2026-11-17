@@ -1,0 +1,16 @@
+node_modules/
+rust_src/target/
+target/
+temp_ref/
+docs/generated/
+.pack/
+chrome/
+dist/
+.claude/settings.local.json
+
+# IFC test models — third-party files, not kept in git: fetched on demand with
+# convertSamples/ifc/fetch-samples.sh (--large adds the big stress models).
+convertSamples/ifc/*.ifc
+
+# multi-GB LGSX / E57 samples for rust_src/crates/scan-* tests (not committed)
+/scanSamples

@@ -1,0 +1,191 @@
+import type { Renderer } from '../../lib/render/renderer';
+import { type BurstStats, pointPerf, type SelectStats } from '../scans/pointPerf';
+import { pointStatsState } from '../scans/pointStats.state';
+import { scansState } from '../scans/scans.state';
+import { residency } from './residency';
+import { viewerState } from './viewer.state';
+import { vramBudgetMb } from './vramBudget';
+
+export type StatRow = Readonly<{ key: string; label: string; value: string }>;
+
+export type StatsSnapshot = Readonly<{
+  rows: StatRow[];
+  /** per-pass GPU times (empty unless `gpuTimings` is on and supported) */
+  gpuRows: StatRow[];
+}>;
+
+/** Stable key for a GPU pass row — the overlay hide-list addresses rows by key. */
+export const gpuRowKey = (label: string): string => `gpu:${label}`;
+
+const MB = 1048576;
+
+const mb = (bytes: number): string => (bytes / MB).toFixed(0);
+
+const NONE = '—';
+
+const ms = (v: number, digits = 2): string => v.toFixed(digits);
+
+/** The selection rounds of the last second the camera moved in. */
+function selectValue(s: SelectStats | null): string {
+  if (!s) {
+    return NONE;
+  }
+
+  return `${s.rounds} rounds/s, walk ${ms(s.walkAvgMs)} ms avg / ${ms(s.walkMaxMs)} max, round ${ms(s.roundAvgMs)} avg / ${ms(s.roundMaxMs)} max, ${s.picks.toLocaleString()} nodes picked`;
+}
+
+/** What the last streaming burst loaded and where its time went. */
+function burstValue(b: BurstStats | null): string {
+  if (!b) {
+    return NONE;
+  }
+
+  const state = b.isRunning ? 'loading, ' : '';
+  return `${state}${b.nodes} nodes, ${b.points.toLocaleString()} points, ${mb(b.bytes)} MB in ${(b.wallMs / 1000).toFixed(2)} s — read ${ms(b.readMs, 0)} ms, decode ${ms(b.decodeMs, 0)}, pack ${ms(b.packMs, 0)}, upload ${ms(b.uploadMs, 0)}`;
+}
+
+/** The hitches of the last burst: its heaviest frame and node on the main thread. */
+function burstPeaksValue(b: BurstStats | null): string {
+  if (!b || b.nodes === 0) {
+    return NONE;
+  }
+
+  return `worst frame ${ms(b.worstFrameMs, 1)} ms (${b.worstFrameNodes} nodes, ${(b.worstFrameBytes / MB).toFixed(1)} MB), worst node ${ms(b.worstNodeMs, 1)} ms, ${b.notWanted} not wanted, ${b.dropped} dropped`;
+}
+
+/**
+ * One snapshot of the renderer's live stats as label/value rows. Shared by
+ * the Settings → Stats readout and the viewport overlay so both show the same
+ * list; `key` is what the overlay's per-row checkbox toggles. The row SET is
+ * fixed — a row whose value does not apply right now shows `—` instead of
+ * disappearing, so neither list ever shifts its layout.
+ */
+/** GPU bytes per streamed scan point (shaders/points.ts: 3 words). */
+const POINT_GPU_BYTES = 12;
+
+export function collectStats(r: Renderer | null): StatsSnapshot {
+  if (!r) {
+    return { rows: [{ key: 'renderer', label: 'renderer', value: 'none' }], gpuRows: [] };
+  }
+  const st = viewerState.get();
+  const s = r.stats;
+  const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0;
+  const vram = r.vramBuffers + r.vramTextures;
+  const culls = r.cullMode !== 'full';
+  const drawn = r.drawnPass1 + r.drawnPass2 + r.drawnBlend;
+  const culledPct = s.meshlets > 0 ? (100 * (1 - drawn / s.meshlets)).toFixed(1) : '0.0';
+  const res = vramBudgetMb(st) > 0 ? residency.statsSummary() : null;
+  const pts = pointStatsState.get();
+  const scans = scansState.get();
+  const scanTotal = scans.assets.reduce((n, a) => n + a.pointCount, 0);
+  const perf = pointPerf.snapshot(performance.now());
+  const rows: StatRow[] = [
+    { key: 'adapter', label: 'adapter', value: r.adapterInfo },
+    { key: 'models', label: 'models', value: String(s.models) },
+    { key: 'meshlets', label: 'meshlets', value: s.meshlets.toLocaleString() },
+    { key: 'triangles', label: 'triangles', value: s.tris.toLocaleString() },
+    {
+      key: 'culling',
+      label: 'culling',
+      value: r.cullMode === 'full' ? 'none (no MDI; enable vertex-pull)' : r.cullMode === 'vp' ? 'vertex-pull' : 'MDI',
+    },
+    {
+      key: 'drawn',
+      label: 'drawn p1 / p2 / blend',
+      value: culls
+        ? `${r.drawnPass1.toLocaleString()} / ${r.drawnPass2.toLocaleString()} / ${r.drawnBlend.toLocaleString()}`
+        : NONE,
+    },
+    {
+      key: 'culled',
+      label: 'culled',
+      value: culls ? `${culledPct}% (${drawn.toLocaleString()} of ${s.meshlets.toLocaleString()} meshlets)` : NONE,
+    },
+    {
+      key: 'points',
+      label: 'scan points',
+      value:
+        scans.assets.length === 0
+          ? NONE
+          : `${pts.drawn.toLocaleString()} drawn of ${scanTotal.toLocaleString()} in ${scans.assets.length} scan(s), ${pts.nodes} nodes, ${pts.draws} draws${pts.loading > 0 ? `, loading ${pts.loading}` : ''}`,
+    },
+    {
+      key: 'pointMemory',
+      label: 'scan points memory',
+      // streamed from the local store: only the drawn + cached nodes are on
+      // the GPU, nothing per point is held in the JS heap
+      value:
+        scans.assets.length === 0
+          ? NONE
+          : `${mb(pts.residentPoints * POINT_GPU_BYTES)} MB on the GPU (${pts.residentPoints.toLocaleString()} points in ${pts.resident} nodes), budget ${scans.pointBudget} M`,
+    },
+    // main-thread cost of the point streamer (state/scans/pointPerf.ts)
+    { key: 'pointSelect', label: 'scan select', value: selectValue(perf.select) },
+    { key: 'pointStream', label: 'scan stream (last burst)', value: burstValue(perf.burst) },
+    { key: 'pointPeaks', label: 'scan stream peaks', value: burstPeaksValue(perf.burst) },
+    {
+      key: 'vram',
+      label: 'vram (tracked)',
+      // models = what the budget can move; targets/other = render targets and
+      // shared buffers, which count against the ceiling all the same; scans =
+      // points and photos, limited by the Scans panel and not by the budget
+      value: `${mb(vram)} MB (models ${mb(r.modelBytesTotal)} + targets/other ${mb(r.vramBudgeted - r.modelBytesTotal)} + scans ${mb(r.scanBytes)})`,
+    },
+    {
+      key: 'vramBudget',
+      label: 'vram budget',
+      value: res
+        ? `${vramBudgetMb(st)} MB (${Math.round((r.vramBudgeted / MB / vramBudgetMb(st)) * 100)}% used)`
+        : NONE,
+    },
+    {
+      key: 'residency',
+      label: 'residency',
+      value: res ? `${res.full} full / ${res.mixed} mixed / ${res.coarse} coarse / ${res.unloaded} unloaded` : NONE,
+    },
+    {
+      key: 'newCap',
+      label: 'meshlets per frame (cap)',
+      // what pass 2 wanted to draw that pass 1 had not: >= the cap means the
+      // budget deferred some to the next frames, and 0 means the occlusion has
+      // converged — the signal that ends the settle window
+      value: !culls
+        ? NONE
+        : st.newMeshletCap > 0
+          ? `${r.newVisibleWanted.toLocaleString()} wanted / ${st.newMeshletCap.toLocaleString()}`
+          : `${r.newVisibleWanted.toLocaleString()} new`,
+    },
+    { key: 'jsHeap', label: 'js heap', value: `${mb(heap)} MB` },
+    { key: 'frame', label: 'frame', value: r.idle ? 'idle' : 'rendering' },
+    { key: 'fps', label: 'fps', value: r.idle ? NONE : r.fps.toFixed(0) },
+    { key: 'cpu', label: 'cpu', value: r.idle ? NONE : `${r.cpuMs.toFixed(2)} ms` },
+    { key: 'aa', label: 'AA accumulation', value: r.accumCount > 0 ? `${r.accumCount} / ${r.aaMax}` : NONE },
+  ];
+  const gpuRows: StatRow[] = st.gpuTimings
+    ? [
+        ...r.gpuTimes.map((p) => ({ key: gpuRowKey(p.label), label: p.label, value: `${p.ms.toFixed(2)} ms` })),
+        {
+          key: gpuRowKey('total'),
+          label: 'total',
+          value: r.gpuTimes.length ? `${r.gpuTimes.reduce((a, p) => a + p.ms, 0).toFixed(2)} ms` : NONE,
+        },
+      ]
+    : [];
+  return { rows, gpuRows };
+}
+
+/** The overlay's text: every row not hidden by the user, one `label  value`
+ *  line each, with the GPU pass times as a second block — the same list as
+ *  the Settings → Stats readout. */
+export function formatOverlay(snap: StatsSnapshot, hidden: readonly string[]): string {
+  const hide = new Set(hidden);
+  const rows = snap.rows.filter((x) => !hide.has(x.key));
+  const gpu = snap.gpuRows.filter((x) => !hide.has(x.key));
+  const width = Math.max(0, ...rows.map((x) => x.label.length), ...gpu.map((x) => x.label.length + 2));
+  const line = (x: StatRow, indent: string) => `${(indent + x.label).padEnd(width)}  ${x.value}`;
+  const lines = rows.map((x) => line(x, ''));
+  if (gpu.length > 0) {
+    lines.push('GPU pass times', ...gpu.map((x) => line(x, '  ')));
+  }
+  return lines.join('\n');
+}

@@ -1,0 +1,10 @@
+{
+  "sources": "cd1c278a9aed164deffdf7f1a10a5c703ecf7cc82ab4455c4f127cb9ca34137f",
+  "wasm": "1463fdec5d3e0608fbd49135283aa303893277b2eb352760f7736a1252eaa483",
+  "crates": [
+    "meshopt",
+    "scan-cook",
+    "scan-core",
+    "scan-wasm"
+  ]
+}

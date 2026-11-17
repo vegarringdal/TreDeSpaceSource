@@ -1,0 +1,24 @@
+[package]
+name = "nwd-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Navisworks NWD/NWC reader → merged GLB per root (rvm2glb contract); spec in docs/"
+
+[features]
+default = []
+# meshopt simplification of welded parts (C++ via the shared meshopt crate;
+# wasm needs clang, like the other converters).
+optimize = ["dep:meshopt"]
+
+[dependencies]
+meshopt = { path = "../meshopt", optional = true }
+flate2 = "1"
+glam = "0.30"
+md5 = "0.7"
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rayon = "1.12"

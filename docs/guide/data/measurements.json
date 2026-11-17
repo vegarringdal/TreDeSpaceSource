@@ -1,0 +1,456 @@
+{
+  "shots": {
+    "measurements-overview": {
+      "w": 420,
+      "h": 624,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 32,
+          "w": 402,
+          "h": 66
+        },
+        {
+          "n": 2,
+          "x": 9,
+          "y": 106,
+          "w": 402,
+          "h": 26
+        },
+        {
+          "n": 3,
+          "x": 18,
+          "y": 111,
+          "w": 365,
+          "h": 16
+        },
+        {
+          "n": 4,
+          "x": 19,
+          "y": 174,
+          "w": 382,
+          "h": 26
+        },
+        {
+          "n": 5,
+          "x": 19,
+          "y": 200,
+          "w": 382,
+          "h": 73.5
+        }
+      ],
+      "fromGpu": true
+    },
+    "measurements-files": {
+      "w": 414,
+      "h": 78,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 56.140625,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 79.140625,
+          "y": 39,
+          "w": 56.5625,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 143.703125,
+          "y": 39,
+          "w": 83.46875,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 235.171875,
+          "y": 39,
+          "w": 91.3125,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "measurements-config": {
+      "w": 402,
+      "h": 206,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 110,
+          "y": 40,
+          "w": 252,
+          "h": 22
+        },
+        {
+          "n": 2,
+          "x": 15,
+          "y": 71,
+          "w": 372,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 3,
+          "x": 112,
+          "y": 104,
+          "w": 96,
+          "h": 22
+        },
+        {
+          "n": 4,
+          "x": 87,
+          "y": 139,
+          "w": 48.09375,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 15,
+          "y": 167,
+          "w": 82.453125,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "measurements-row": {
+      "w": 396,
+      "h": 114,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 39,
+          "y": 41,
+          "w": 150,
+          "h": 29.5
+        },
+        {
+          "n": 2,
+          "x": 197,
+          "y": 43.75,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 229,
+          "y": 43.75,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 4,
+          "x": 261,
+          "y": 43.75,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 293,
+          "y": 43.75,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 6,
+          "x": 325,
+          "y": 43.75,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 357,
+          "y": 43.75,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 8,
+          "x": 39,
+          "y": 74.5,
+          "w": 41.890625,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 9,
+          "x": 84.890625,
+          "y": 74.5,
+          "w": 26.1875,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 10,
+          "x": 113.078125,
+          "y": 74.5,
+          "w": 33.46875,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 11,
+          "x": 281.6875,
+          "y": 74.5,
+          "w": 50.15625,
+          "h": 24,
+          "at": "bl"
+        }
+      ],
+      "fromGpu": true
+    },
+    "measurements-angle": {
+      "w": 396,
+      "h": 86,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 293,
+          "y": 43.75,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "measurements-legs-viewport": {
+      "w": 713,
+      "h": 730,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "measurements": [
+      {
+        "section": "Load & save",
+        "label": "Save\u2026",
+        "icon": "",
+        "tooltip": "Save all measurements to a JSON file",
+        "keys": "ALT 721"
+      },
+      {
+        "section": "Load & save",
+        "label": "Load\u2026",
+        "icon": "",
+        "tooltip": "Load measurements from a JSON file",
+        "keys": "ALT 722"
+      },
+      {
+        "section": "Load & save",
+        "label": "Mute all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-off \"><path d=\"M10.585 10.587a2 2 0 0 0 2.829 2.828\"></path><path d=\"M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hide/show all measurements in the viewport",
+        "keys": "ALT 720"
+      },
+      {
+        "section": "Load & save",
+        "label": "Delete all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete every measurement",
+        "keys": "ALT 723"
+      },
+      {
+        "section": "Config",
+        "label": "Decimals \u2212",
+        "icon": "",
+        "tooltip": "Fewer measurement decimals",
+        "keys": "ALT 725"
+      },
+      {
+        "section": "Config",
+        "label": "Decimals +",
+        "icon": "",
+        "tooltip": "More measurement decimals",
+        "keys": "ALT 724"
+      },
+      {
+        "section": "Config",
+        "label": "Sphere size \u2212",
+        "icon": "",
+        "tooltip": "Smaller 3D point spheres (Config \u2192 Sphere)",
+        "keys": "ALT 727"
+      },
+      {
+        "section": "Config",
+        "label": "Sphere size +",
+        "icon": "",
+        "tooltip": "Bigger 3D point spheres (Config \u2192 Sphere)",
+        "keys": "ALT 726"
+      },
+      {
+        "section": "Config",
+        "label": "Solid spheres",
+        "icon": "",
+        "tooltip": "Fill the spheres (shaded, with the opacity beside) instead of drawing wireframes",
+        "keys": "ALT 728"
+      },
+      {
+        "section": "Config",
+        "label": "Sphere opacity \u2212",
+        "icon": "",
+        "tooltip": "More translucent point spheres",
+        "keys": "ALT 737"
+      },
+      {
+        "section": "Config",
+        "label": "Sphere opacity +",
+        "icon": "",
+        "tooltip": "More opaque point spheres",
+        "keys": "ALT 729"
+      },
+      {
+        "section": "Config",
+        "label": "Spheres on",
+        "icon": "",
+        "tooltip": "Spheres at every point of every measurement \u2014 all on with the Config sphere, or all off",
+        "keys": "ALT 738"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Config",
+        "label": "Color",
+        "tooltip": "Colour of every measurement\u2019s lines, markers and area fill in the 3D view."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Config",
+        "label": "Sphere colour",
+        "tooltip": "Colour of the 3D point spheres."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Each measurement",
+        "label": "Name",
+        "tooltip": "The measurement\u2019s name. Enter starts a new line; **bold** works. The row header shows the first line."
+      },
+      {
+        "section": "Each measurement",
+        "label": "Label",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-tag \"><path d=\"M6.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3\"></path></svg>",
+        "tooltip": "Show the name/value label in the viewport",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Spheres",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-sphere \"><path d=\"M3 12c0 1.657 4.03 3 9 3s9 -1.343 9 -3\"></path><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"></path></svg>",
+        "tooltip": "3D sphere at each point, depth tested (size and colour under Config)",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Perpendicular helper",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-angle \"><path d=\"M21 19h-18l9 -15\"></path><path d=\"M20.615 15.171h.015\"></path><path d=\"M19.515 11.771h.015\"></path><path d=\"M17.715 8.671h.015\"></path><path d=\"M15.415 5.971h.015\"></path></svg>",
+        "tooltip": "No perpendicular (Shift) points in this measurement",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Slope",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trending-up \"><path d=\"M3 17l6 -6l4 4l8 -8\"></path><path d=\"M14 7l7 0l0 7\"></path></svg>",
+        "tooltip": "Append the slope (\u2220 from horizontal + % fall) to the label",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Show / hide",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"></path></svg>",
+        "tooltip": "Hide in the viewport",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Delete",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this measurement",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "XYZ",
+        "icon": "",
+        "tooltip": "Toggle all \u0394X/\u0394Y/\u0394Z legs",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "X",
+        "icon": "",
+        "tooltip": "Show the \u0394X leg",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "XT",
+        "icon": "",
+        "tooltip": "Show the \u0394X length",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Y",
+        "icon": "",
+        "tooltip": "Show the \u0394Y leg",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "YT",
+        "icon": "",
+        "tooltip": "Show the \u0394Y length",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Z",
+        "icon": "",
+        "tooltip": "Show the \u0394Z leg",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "ZT",
+        "icon": "",
+        "tooltip": "Show the \u0394Z length",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "\u03a3XYZ",
+        "icon": "",
+        "tooltip": "Append the \u0394X/\u0394Y/\u0394Z lengths to the main label (X: \u2026 / Y: \u2026 / Z: \u2026)",
+        "keys": ""
+      },
+      {
+        "section": "Each measurement",
+        "label": "Reflex angle",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-angle -scale-x-100\"><path d=\"M21 19h-18l9 -15\"></path><path d=\"M20.615 15.171h.015\"></path><path d=\"M19.515 11.771h.015\"></path><path d=\"M17.715 8.671h.015\"></path><path d=\"M15.415 5.971h.015\"></path></svg>",
+        "tooltip": "Flip to the reflex angle (360\u00b0 \u2212 \u03b8)",
+        "keys": ""
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

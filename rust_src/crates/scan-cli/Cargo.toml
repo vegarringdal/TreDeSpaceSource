@@ -1,0 +1,17 @@
+[package]
+name = "scan-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "LGSX / E57 inspection, export and .tdpp cook (command-line front end)"
+
+[[bin]]
+name = "scan"
+path = "src/main.rs"
+
+[dependencies]
+scan-core = { path = "../scan-core" }
+scan-cook = { path = "../scan-cook" }
+clap = { version = "4", features = ["derive"] }
+serde_json.workspace = true

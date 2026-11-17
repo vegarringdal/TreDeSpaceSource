@@ -1,0 +1,302 @@
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { gzipSync } from 'node:zlib';
+import tailwindcss from '@tailwindcss/vite';
+import basicSsl from '@vitejs/plugin-basic-ssl';
+import react from '@vitejs/plugin-react';
+import { defineConfig, type Plugin } from 'vite';
+import pkg from './package.json' with { type: 'json' };
+import { type ApiDocsData, applyApiNamespaces, writeApiDocs } from './scripts/gen-api-docs.mjs';
+import { writeWidgetDocs } from './scripts/gen-widget-docs.mjs';
+import { packUi } from './scripts/pack-ui.mjs';
+import { PAGE_CSP } from './scripts/page-csp.mjs';
+
+/** The version the app shows (About, Console banner, /build.version, legal
+ *  banner). The APP_VERSION env var overrides package.json for non-release
+ *  builds — the dev container sets DEVBUILD-<run number>. It is not semver, so
+ *  the @tredespace/ui tarball (npm pack) keeps package.json's version. */
+const APP_VERSION = process.env.APP_VERSION || pkg.version;
+
+// Third-party license attribution (Settings → About → "Show third-party
+// notices") is generated into src/generated/third-party-notices.json by
+// scripts/gen-third-party-notices.mjs — run `npm run gen:notices` after a
+// dependency change.
+
+/** Rollup inputs for the user guide: one per docs/guide/*.html page. */
+function guidePages(): Record<string, string> {
+  const dir = resolve(import.meta.dirname, 'docs/guide');
+  return Object.fromEntries(
+    readdirSync(dir)
+      .filter((f) => f.endsWith('.html'))
+      .map((f) => [`docsGuide-${f.replace(/\.html$/, '')}`, resolve(dir, f)]),
+  );
+}
+
+/** Emit dist/build.version at build time — a deployed instance can be probed
+ *  at <host>/build.version to see which version/build is live. */
+function buildVersion(): Plugin {
+  return {
+    name: 'build-version',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'build.version',
+        source: `VERSION: ${APP_VERSION}\nBUILD_TIME: ${new Date().toISOString()}\n`,
+      });
+    },
+  };
+}
+
+/** Ship the demo's large sample assets, kept in /samples (OUTSIDE public/ so
+ *  Vite's public-dir copy never touches them — a 10 MB GLB shouldn't be copied
+ *  raw into the build just to be deleted again).
+ *
+ *  Build: a `gzip` asset is written `<name>.gz` ONLY (the live demo fetches it
+ *  and gunzips in-browser via DecompressionStream); a non-gzip asset (the
+ *  license PDF, which must open in a tab) is copied as-is. Dev: a middleware
+ *  serves them from /samples at their root URLs, incl. the on-the-fly `.gz`.
+ *  The `.gz` is served as OPAQUE bytes (no `Content-Encoding: gzip`) so the
+ *  client-side DecompressionStream sees the compressed stream, not a decoded one. */
+function sampleAssets(assets: { name: string; type: string; gzip?: boolean }[]): Plugin {
+  const dir = resolve(import.meta.dirname, 'samples');
+  let outDir = 'dist';
+  return {
+    name: 'sample-assets',
+    configResolved(cfg) {
+      outDir = cfg.build.outDir;
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url ?? '').split('?')[0];
+        for (const a of assets) {
+          const src = resolve(dir, a.name);
+          if (url === `/${a.name}` && existsSync(src)) {
+            res.setHeader('Content-Type', a.type);
+            res.end(readFileSync(src));
+            return;
+          }
+          if (a.gzip && url === `/${a.name}.gz` && existsSync(src)) {
+            res.setHeader('Content-Type', 'application/gzip');
+            res.end(gzipSync(readFileSync(src), { level: 9 }));
+            return;
+          }
+        }
+        next();
+      });
+    },
+    closeBundle() {
+      for (const a of assets) {
+        const src = resolve(dir, a.name);
+        if (!existsSync(src)) {
+          this.warn(`sample-assets: samples/${a.name} not found — skipped`);
+          continue;
+        }
+        const bytes = readFileSync(src);
+        writeFileSync(
+          resolve(import.meta.dirname, outDir, a.gzip ? `${a.name}.gz` : a.name),
+          a.gzip ? gzipSync(bytes, { level: 9 }) : bytes,
+        );
+      }
+    },
+  };
+}
+
+const LEGAL_BANNER = `/*!
+ * TreDeSpace Web Viewer v${APP_VERSION}
+ * Copyright (c) ${new Date().getFullYear()} Vegar Ringdal. All rights reserved.
+ *
+ * Use of the hosted application is permitted as-is. Redistribution of this
+ * code or a reconstructed form of it, publication of the model format or
+ * derived tools to compete with the application, and use of this code or its
+ * data for machine-learning training or text and data mining are not
+ * permitted. Rights under mandatory law (incl. decompilation for
+ * interoperability) are unaffected. See https://tredespace.com — LICENSE.
+ */`;
+
+/** Prepend the copyright / no-reverse-engineering notice to every emitted JS
+ *  chunk. Vite drops rollupOptions.output.banner and the minifier strips
+ *  ordinary comments, so this runs in generateBundle — after minification. */
+function legalBanner(): Plugin {
+  return {
+    name: 'legal-banner',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      for (const file of Object.values(bundle)) {
+        if (file.type === 'chunk') {
+          file.code = `${LEGAL_BANNER}\n${file.code}`;
+        }
+      }
+    },
+  };
+}
+
+/** Script policy for the viewer page: only the app's own bundles (plus the
+ *  wasm the meshopt decoder compiles on the main thread) may run, so an
+ *  injected inline `<script>` or `on*=` handler is inert. Network, frames,
+ *  images and styles stay open on purpose: URL imports and external apps reach
+ *  arbitrary origins, and React / lit-html set inline styles. Workers carry
+ *  their own (header-delivered) policy, so the meta tag does not touch them. */
+/** Add PAGE_CSP (scripts/page-csp.mjs) to EVERY built page as a meta tag —
+ *  the viewer, /docs/ and /demo/ share one origin, and same-origin pages are
+ *  API-trusted. Build-only: the dev server's React refresh preamble is an
+ *  inline script. The container's nginx also sends it as a header. */
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'content-security-policy',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler() {
+        return [
+          {
+            tag: 'meta',
+            attrs: { 'http-equiv': 'Content-Security-Policy', content: PAGE_CSP },
+            injectTo: 'head-prepend',
+          },
+        ];
+      },
+    },
+  };
+}
+
+/** Docs generation for /docs/: (1) derive the API command reference from
+ *  api/tredespace-client.ts into docs/generated/apiData.json so the docs can't
+ *  drift from the SDK — runs for dev AND build; (2) on build, copy the SDK
+ *  source into the output so hosts can grab it at /docs/tredespace-client.ts;
+ *  (3) derive the widget gallery's props reference from src/treDeSpaceUI into
+ *  docs/generated/widgetData.json (lenient — no build failures). */
+function apiDocs(): Plugin {
+  const clientPath = resolve(import.meta.dirname, 'api/tredespace-client.ts');
+  let isBuild = false;
+  let apiData: ApiDocsData | null = null;
+  return {
+    name: 'api-docs',
+    configResolved(config) {
+      isBuild = config.command === 'build';
+    },
+    buildStart() {
+      writeWidgetDocs();
+      apiData = writeApiDocs();
+      const { problems } = apiData;
+      // STRICT: every command must be documented (JSDoc in the SDK + an example
+      // in EVENTS.md). Fail the build if not; in dev just warn so iterating on
+      // unrelated code isn't blocked.
+      if (problems.length) {
+        const msg = `API docs out of sync — document these before shipping:\n  ${problems.join('\n  ')}`;
+        if (isBuild) {
+          this.error(msg);
+        } else {
+          this.warn(msg);
+        }
+      }
+    },
+    // the product page's namespace count + command-surface grid come from
+    // the same data as the reference, so they cannot drift from the SDK
+    transformIndexHtml(html) {
+      if (!html.includes('{{apiNamespaceCount}}') && !html.includes('data-ns=')) {
+        return html;
+      }
+      apiData ??= writeApiDocs();
+      const r = applyApiNamespaces(html, apiData);
+      if (r.problems.length) {
+        const msg = `API namespace grid out of sync:\n  ${r.problems.join('\n  ')}`;
+        if (isBuild) {
+          throw new Error(msg);
+        }
+        console.warn(msg);
+      }
+      return r.html;
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'docs/tredespace-client.ts',
+        source: readFileSync(clientPath, 'utf8'),
+      });
+    },
+  };
+}
+
+/** Package @tredespace/ui (scripts/pack-ui.mjs: tsc emit → npm pack) and ship
+ *  the tarball next to the widget gallery, which offers it for download so
+ *  hosts can depend on it via `"@tredespace/ui": "file:…"`. Build-only — in
+ *  dev the gallery's download card explains the tarball comes from a build. */
+function uiPackage(): Plugin {
+  return {
+    name: 'ui-package',
+    apply: 'build',
+    generateBundle() {
+      const { tgzPath, fileName } = packUi();
+      this.emitFile({ type: 'asset', fileName: `docs/${fileName}`, source: readFileSync(tgzPath) });
+    },
+  };
+}
+
+export default defineConfig({
+  base: './',
+  define: {
+    // baked in at build/dev time (About, Console banner)
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
+  // keep in sync with "paths" in tsconfig.json
+  resolve: { alias: { '@treDeSpaceUI': resolve(import.meta.dirname, 'src/treDeSpaceUI') } },
+  // basicSsl serves the dev server over HTTPS (self-signed) so the deployed
+  // HTTPS viewer can embed this dev instance as an External-app dialog without
+  // mixed-content blocking. Dev-only (apply: 'serve'); never in the build.
+  plugins: [
+    react(),
+    tailwindcss(),
+    buildVersion(),
+    legalBanner(),
+    contentSecurityPolicy(),
+    basicSsl(),
+    apiDocs(),
+    uiPackage(),
+    // demo samples live in /samples (not public/); GLB shipped gzipped, PDF raw.
+    sampleAssets([
+      { name: 'HuldraDemo.glb', type: 'model/gltf-binary', gzip: true },
+      { name: 'EquinorDemoLicense.pdf', type: 'application/pdf' },
+    ]),
+  ],
+  // Workers bundle through a separate pipeline that does not inherit `plugins`,
+  // so the legal banner has to be registered here too (cooker, modeldb, the
+  // *2glb importers).
+  worker: { plugins: () => [legalBanner()] },
+  build: {
+    target: 'es2022',
+    rollupOptions: {
+      input: {
+        // the app + the API demo host page (dist/demo/ — shipped so hosts can
+        // try the postMessage API against a deployed viewer)
+        main: resolve(import.meta.dirname, 'index.html'),
+        demo: resolve(import.meta.dirname, 'demo/index.html'),
+        // combined product page + API docs + live demo (dist/docs/). The docs
+        // page renders apiData.json (generated by apiDocs()); the demo embeds
+        // the viewer at ../ and drives it with the copy-paste SDK.
+        docs: resolve(import.meta.dirname, 'docs/index.html'),
+        docsEvents: resolve(import.meta.dirname, 'docs/events.html'),
+        docsDemo: resolve(import.meta.dirname, 'docs/demo.html'),
+        // live gallery of the @treDeSpaceUI component library (internal ref)
+        docsWidgets: resolve(import.meta.dirname, 'docs/widgets.html'),
+        // end-user guide: every docs/guide/*.html page (hand-written steps +
+        // screenshots from scripts/doc-shots.mjs)
+        ...guidePages(),
+      },
+    },
+  },
+  server: {
+    fs: {
+      // the dev server serves files from the repo root only
+      allow: ['.'],
+    },
+    watch: {
+      // the Rust reference tree is huge (target/ especially) and never affects
+      // the web build — watching it exhausts inotify watchers
+      // docs/guide/img + data are rewritten by `npm run docs:shots` while it
+      // drives this app; once a guide page has been loaded they are in the
+      // module graph and every write would full-reload the page being shot
+      ignored: ['**/rust_src/target/**', '**/docs/guide/img/**', '**/docs/guide/data/**'],
+    },
+  },
+});

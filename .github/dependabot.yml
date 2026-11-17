@@ -1,0 +1,26 @@
+# Keeps the pinned GitHub Action SHAs (.github/workflows) and the base-image
+# digests (Dockerfile) current. Pull requests go to dev: main only takes PRs
+# from dev (CONTRIBUTING.md › Versioning and releases). Major versions are a
+# deliberate change (Node 24 is a project requirement), so only minor / patch
+# releases and new digests of the same tag are proposed.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: docker
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']

@@ -1,0 +1,93 @@
+// One ribbon button for a configured external app. Shared by the External
+// ribbon and the Home ribbon (apps flagged `home`), so both open an app the
+// same way: new browser tab, modal dialog, or a docked iframe panel.
+import { IconWorld } from '@tabler/icons-react';
+import { usePanelContext } from '@treDeSpaceUI/dockable';
+import { RibbonButton, type RibbonSize } from '@treDeSpaceUI/widgets';
+import { registerOpenedWindow } from '../../../lib/messageApi/transport';
+import { type ExternalApp, externalAppUrl } from '../../../state/externalApps.state';
+import { openExternalModal } from './externalModals.state';
+import { makeExternalPanel, newExternalPanelId } from './externalPanels';
+
+// the state's "small" is the ribbon's "mini" (3 stacked per column)
+const RIBBON_SIZE: Record<ExternalApp['size'], RibbonSize> = { big: 'big', medium: 'medium', small: 'mini' };
+
+/** The ribbon size an app's button takes. Callers pass it as the element's
+ *  `size` prop — `RibbonSection` packs columns by reading that prop off each
+ *  direct child, so a size kept inside the component would leave every button
+ *  in its own column. */
+export function externalRibbonSize(app: ExternalApp): RibbonSize {
+  return RIBBON_SIZE[app.size];
+}
+
+function defaultTooltip(a: ExternalApp): string {
+  if (a.newWindow) {
+    return `Open ${a.url} in a new browser tab`;
+  }
+  if (a.modal) {
+    return `Open ${a.url} as a modal dialog`;
+  }
+  return `Open ${a.url} as a panel${a.multiple ? ' (a new instance per click)' : ''}`;
+}
+
+/** Ribbon button that opens one external app. `size` must be
+ *  `externalRibbonSize(app)` — it is a prop only so the section can pack it. */
+export function ExternalAppButton({ app, size }: { app: ExternalApp; size: RibbonSize }) {
+  const { manager } = usePanelContext();
+
+  const handleClick = () => {
+    // WITH an opener: the tab drives this viewer through window.opener (its
+    // origin is allowlisted like every configured app's), and gets events
+    // through the opened-window registry
+    if (app.newWindow) {
+      const win = window.open(externalAppUrl(app), '_blank');
+      if (win) {
+        registerOpenedWindow(win);
+      }
+      return;
+    }
+    if (app.modal) {
+      openExternalModal(app);
+      return;
+    }
+    const id = newExternalPanelId(app);
+    manager.registerPanel(makeExternalPanel(id, app));
+    manager.openPanel(id);
+  };
+
+  return (
+    <RibbonButton
+      size={size}
+      className={size === 'big' ? '' : 'min-w-28'}
+      icon={<IconWorld />}
+      label={app.name}
+      tooltip={app.tooltip.trim() || defaultTooltip(app)}
+      onClick={handleClick}
+    />
+  );
+}
+
+/** Group usable apps by their ribbon section, keeping first-appearance order.
+ *  An app with no section lands under `fallbackTitle`. */
+export function groupAppsBySection(
+  apps: ExternalApp[],
+  fallbackTitle: string,
+): { title: string; apps: ExternalApp[] }[] {
+  const sections: { title: string; apps: ExternalApp[] }[] = [];
+  for (const a of apps) {
+    const title = a.section.trim() || fallbackTitle;
+    const found = sections.find((s) => s.title === title);
+    if (found) {
+      found.apps.push(a);
+    } else {
+      sections.push({ title, apps: [a] });
+    }
+  }
+  return sections;
+}
+
+/** Configured apps that are usable (named + addressed), split by where their
+ *  button belongs: the Home ribbon (`home`) or the External ribbon. */
+export function usableApps(apps: ExternalApp[], where: 'home' | 'external'): ExternalApp[] {
+  return apps.filter((a) => a.name.trim() && a.url.trim() && (where === 'home') === (a.home === true));
+}

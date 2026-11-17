@@ -1,0 +1,565 @@
+{
+  "shots": {
+    "f05-layout": {
+      "w": 1440,
+      "h": 900,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 6,
+          "y": 6,
+          "w": 1428,
+          "h": 124
+        },
+        {
+          "n": 2,
+          "x": 6,
+          "y": 136,
+          "w": 312.84375,
+          "h": 758
+        },
+        {
+          "n": 3,
+          "x": 324.84375,
+          "y": 136,
+          "w": 1109.15625,
+          "h": 730
+        },
+        {
+          "n": 4,
+          "x": 325.84375,
+          "y": 873,
+          "w": 79.546875,
+          "h": 22,
+          "at": "tr"
+        }
+      ],
+      "fromGpu": true
+    },
+    "f05-gizmo": {
+      "w": 304,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.078125,
+          "y": 6,
+          "w": 57.296875,
+          "h": 21.328125
+        },
+        {
+          "n": 2,
+          "x": 12.078125,
+          "y": 29.328125,
+          "w": 57.296875,
+          "h": 21.328125
+        },
+        {
+          "n": 3,
+          "x": 12.078125,
+          "y": 52.65625,
+          "w": 57.296875,
+          "h": 21.328125
+        },
+        {
+          "n": 4,
+          "x": 92.140625,
+          "y": 6,
+          "w": 94.984375,
+          "h": 33
+        },
+        {
+          "n": 5,
+          "x": 92.140625,
+          "y": 41,
+          "w": 94.984375,
+          "h": 33
+        },
+        {
+          "n": 6,
+          "x": 200.125,
+          "y": 6,
+          "w": 90.203125,
+          "h": 68
+        }
+      ]
+    },
+    "f05-pivot-setting": {
+      "w": 128,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.140625,
+          "y": 6,
+          "w": 102.59375,
+          "h": 21.328125
+        },
+        {
+          "n": 2,
+          "x": 12.140625,
+          "y": 29.328125,
+          "w": 102.59375,
+          "h": 21.328125
+        },
+        {
+          "n": 3,
+          "x": 12.140625,
+          "y": 52.65625,
+          "w": 102.59375,
+          "h": 21.328125
+        }
+      ]
+    },
+    "f05-step": {
+      "w": 257,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.328125,
+          "y": 6,
+          "w": 95.046875,
+          "h": 68
+        },
+        {
+          "n": 2,
+          "x": 165.9375,
+          "y": 6,
+          "w": 39.34375,
+          "h": 33
+        },
+        {
+          "n": 3,
+          "x": 152.609375,
+          "y": 46.5,
+          "w": 66,
+          "h": 22
+        }
+      ]
+    },
+    "f05-move": {
+      "w": 340,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.609375,
+          "y": 6,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "n": 2,
+          "x": 128.609375,
+          "y": 6,
+          "w": 87.65625,
+          "h": 33
+        },
+        {
+          "n": 3,
+          "x": 128.609375,
+          "y": 41,
+          "w": 87.65625,
+          "h": 33
+        },
+        {
+          "n": 4,
+          "x": 229.265625,
+          "y": 6,
+          "w": 48,
+          "h": 21.328125
+        }
+      ]
+    },
+    "f05-history": {
+      "w": 300,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12.265625,
+          "y": 6,
+          "w": 99.734375,
+          "h": 33
+        },
+        {
+          "n": 2,
+          "x": 12.265625,
+          "y": 41,
+          "w": 99.734375,
+          "h": 33
+        },
+        {
+          "n": 3,
+          "x": 125,
+          "y": 6,
+          "w": 64,
+          "h": 68
+        },
+        {
+          "n": 4,
+          "x": 213.046875,
+          "y": 6,
+          "w": 73.359375,
+          "h": 33
+        },
+        {
+          "n": 5,
+          "x": 213.046875,
+          "y": 41,
+          "w": 73.359375,
+          "h": 33
+        }
+      ]
+    },
+    "f05-task-move-viewport": {
+      "w": 1110,
+      "h": 730,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f05-task-rotate-viewport": {
+      "w": 1110,
+      "h": 730,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "f05-object": {
+      "w": 109,
+      "h": 103,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 12,
+          "y": 6,
+          "w": 83.078125,
+          "h": 68
+        }
+      ]
+    },
+    "f05-panel": {
+      "w": 340,
+      "h": 614,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 9,
+          "y": 32,
+          "w": 322,
+          "h": 98
+        },
+        {
+          "n": 2,
+          "x": 19,
+          "y": 172,
+          "w": 302,
+          "h": 32
+        },
+        {
+          "n": 3,
+          "x": 33,
+          "y": 212,
+          "w": 288,
+          "h": 32
+        },
+        {
+          "n": 4,
+          "x": 211,
+          "y": 216,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 41,
+          "y": 303.390625,
+          "w": 88,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 103,
+          "y": 434.171875,
+          "w": 210,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 103,
+          "y": 513.5625,
+          "w": 210,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 41,
+          "y": 545.5625,
+          "w": 118.984375,
+          "h": 24,
+          "at": "bl"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "ribbonSelectionTransform": [
+      {
+        "section": "Object",
+        "label": "New Object",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-cube-plus \"><path d=\"M21 12.5v-4.509a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.007c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0\"></path><path d=\"M12 22v-10\"></path><path d=\"M12 12l8.73 -5.04\"></path><path d=\"M3.27 6.96l8.73 5.04\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
+        "tooltip": "The selection is the object \"SX-HA86-011A\" already — the ribbon and the gizmo move it. Select other items to make another; a selection inside an object becomes its sub-object and rides on it.",
+        "keys": "ALT 131"
+      },
+      {
+        "section": "On/Off",
+        "label": "Move",
+        "icon": "",
+        "tooltip": "Show the move gizmo on the current object in the viewport (make the selection an object first: New Object)",
+        "keys": "ALT 110"
+      },
+      {
+        "section": "On/Off",
+        "label": "Rotate",
+        "icon": "",
+        "tooltip": "Show the rotate gizmo on the current object in the viewport (make the selection an object first: New Object)",
+        "keys": "ALT 111"
+      },
+      {
+        "section": "On/Off",
+        "label": "Scale",
+        "icon": "",
+        "tooltip": "Show the scale gizmo on the current object in the viewport (make the selection an object first: New Object)",
+        "keys": "ALT 112"
+      },
+      {
+        "section": "Pivot",
+        "label": "Set Pivot",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-crosshair \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path><path d=\"M9 12l6 0\"></path><path d=\"M12 9l0 6\"></path></svg>",
+        "tooltip": "Place the object's pivot by hand: drag the arrows, then Lock. Rotate and scale turn around it, the gizmo sits on it, and the Transform Objects list shows it as the Pivot offset.",
+        "keys": "ALT 120"
+      },
+      {
+        "section": "Pivot",
+        "label": "Reset",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-restore \"><path d=\"M3.06 13a9 9 0 1 0 .49 -4.087\"></path><path d=\"M3 4.001v5h5\"></path><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "Drop the hand-placed pivot: back on the side picked under Pivot in the Transform Objects list (the centre by default)",
+        "keys": "ALT 121"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Pivot",
+        "label": "Lock",
+        "tooltip": "Shown while placing the pivot: keep this position — it becomes the object's pivot."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Pivot",
+        "label": "Cancel",
+        "tooltip": "Shown while placing the pivot: discard this placement — the pivot stays where it was."
+      },
+      {
+        "icon": "",
+        "keys": "ALT 122",
+        "section": "Pivot",
+        "label": "Item Pivot",
+        "tooltip": "Shown while placing the pivot: while on, click an item in the 3D view to move the pivot to its centre."
+      },
+      {
+        "section": "Options",
+        "label": "Auto Disable",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-exchange \"><path d=\"M7 10h14l-4 -4\"></path><path d=\"M17 14h-14l4 4\"></path></svg>",
+        "tooltip": "Automatically disarm the gizmo, pivot placement and move-to-click when you leave this ribbon: switching to another ribbon tab, or changing layout via the App Layout ribbon or the F-keys. Keeps a mode that reacts to viewport clicks from staying armed while you work elsewhere. A locked pivot is kept — it is a position, not a mode. Default on.",
+        "keys": "ALT 1226"
+      },
+      {
+        "section": "Quick Move",
+        "label": "Move To Click",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-target-arrow \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M12 7a5 5 0 1 0 5 5\"></path><path d=\"M13 3.055a9 9 0 1 0 7.941 7.945\"></path><path d=\"M15 6v3h3l3 -3h-3v-3l-3 3\"></path><path d=\"M15 9l-3 3\"></path></svg>",
+        "tooltip": "Arm, then click a point in the 3D view — the current object (while animating: the selection, as a pose) moves there with its bottom aligned to the clicked point (undoable)",
+        "keys": "ALT 130"
+      },
+      {
+        "section": "Step",
+        "label": "mm",
+        "icon": "",
+        "tooltip": "Step unit: millimeters",
+        "keys": ""
+      },
+      {
+        "section": "Step",
+        "label": "cm",
+        "icon": "",
+        "tooltip": "Step unit: centimeters",
+        "keys": ""
+      },
+      {
+        "section": "Step",
+        "label": "m",
+        "icon": "",
+        "tooltip": "Step unit: meters",
+        "keys": ""
+      },
+      {
+        "section": "Step",
+        "label": "Step −",
+        "icon": "",
+        "tooltip": "Decrease the transform step",
+        "keys": "ALT 191"
+      },
+      {
+        "section": "Step",
+        "label": "Step +",
+        "icon": "",
+        "tooltip": "Increase the transform step",
+        "keys": "ALT 190"
+      },
+      {
+        "section": "Move",
+        "label": "R",
+        "icon": "",
+        "tooltip": "Move one step toward RIGHT",
+        "keys": "ALT 160"
+      },
+      {
+        "section": "Move",
+        "label": "L",
+        "icon": "",
+        "tooltip": "Move one step toward LEFT",
+        "keys": "ALT 161"
+      },
+      {
+        "section": "Move",
+        "label": "B",
+        "icon": "",
+        "tooltip": "Move one step toward BACK",
+        "keys": "ALT 162"
+      },
+      {
+        "section": "Move",
+        "label": "F",
+        "icon": "",
+        "tooltip": "Move one step toward FRONT",
+        "keys": "ALT 163"
+      },
+      {
+        "section": "Move",
+        "label": "T",
+        "icon": "",
+        "tooltip": "Move one step toward TOP",
+        "keys": "ALT 164"
+      },
+      {
+        "section": "Move",
+        "label": "Bo",
+        "icon": "",
+        "tooltip": "Move one step toward BOT",
+        "keys": "ALT 165"
+      },
+      {
+        "section": "Scale",
+        "label": "Bigger",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-zoom-in \"><path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"></path><path d=\"M7 10l6 0\"></path><path d=\"M10 7l0 6\"></path><path d=\"M21 21l-6 -6\"></path></svg>",
+        "tooltip": "Grow the object evenly: its largest side gets one step longer",
+        "keys": "ALT 150"
+      },
+      {
+        "section": "Scale",
+        "label": "Smaller",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-zoom-out \"><path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"></path><path d=\"M7 10l6 0\"></path><path d=\"M21 21l-6 -6\"></path></svg>",
+        "tooltip": "Shrink the object evenly: its largest side gets one step shorter",
+        "keys": "ALT 151"
+      },
+      {
+        "section": "Rotate",
+        "label": "T→F",
+        "icon": "",
+        "tooltip": "Rotate 90° so TOP faces FRONT",
+        "keys": "ALT 170"
+      },
+      {
+        "section": "Rotate",
+        "label": "T→B",
+        "icon": "",
+        "tooltip": "Rotate 90° so TOP faces BACK",
+        "keys": "ALT 171"
+      },
+      {
+        "section": "Rotate",
+        "label": "T→L",
+        "icon": "",
+        "tooltip": "Rotate 90° so TOP faces LEFT",
+        "keys": "ALT 172"
+      },
+      {
+        "section": "Rotate",
+        "label": "T→R",
+        "icon": "",
+        "tooltip": "Rotate 90° so TOP faces RIGHT",
+        "keys": "ALT 173"
+      },
+      {
+        "section": "Rotate",
+        "label": "F→R",
+        "icon": "",
+        "tooltip": "Rotate 90° so FRONT faces RIGHT",
+        "keys": "ALT 174"
+      },
+      {
+        "section": "Rotate",
+        "label": "F→L",
+        "icon": "",
+        "tooltip": "Rotate 90° so FRONT faces LEFT",
+        "keys": "ALT 175"
+      },
+      {
+        "section": "Reset",
+        "label": "Reset Obj",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-restore \"><path d=\"M3.06 13a9 9 0 1 0 .49 -4.087\"></path><path d=\"M3 4.001v5h5\"></path><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "Put the current transform object back where the model has it",
+        "keys": "ALT 140"
+      },
+      {
+        "section": "Reset",
+        "label": "Reset All",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-restore \"><path d=\"M3.06 13a9 9 0 1 0 .49 -4.087\"></path><path d=\"M3 4.001v5h5\"></path><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
+        "tooltip": "Put every transform object back where the model has it (the objects stay in the list)",
+        "keys": "ALT 141"
+      },
+      {
+        "section": "Objects",
+        "label": "List",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list \"><path d=\"M9 6l11 0\"></path><path d=\"M9 12l11 0\"></path><path d=\"M9 18l11 0\"></path><path d=\"M5 6l0 .01\"></path><path d=\"M5 12l0 .01\"></path><path d=\"M5 18l0 .01\"></path></svg>",
+        "tooltip": "Show / hide the Transform Objects list",
+        "keys": "ALT 134"
+      },
+      {
+        "section": "History",
+        "label": "Undo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-back-up \"><path d=\"M9 14l-4 -4l4 -4\"></path><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"></path></svg>",
+        "tooltip": "Undo the last change to the transform objects",
+        "keys": "ALT 101"
+      },
+      {
+        "section": "History",
+        "label": "Redo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-forward-up \"><path d=\"M15 14l4 -4l-4 -4\"></path><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"></path></svg>",
+        "tooltip": "Redo the last undone change to the transform objects",
+        "keys": "ALT 102"
+      }
+    ]
+  },
+  "appVersion": "0.0.155"
+}

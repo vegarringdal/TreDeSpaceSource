@@ -1,0 +1,426 @@
+// gen-api-docs.mjs — derive the docs command reference from the SDK itself, so
+// the docs cannot drift from `api/tredespace-client.ts`. Extracts, per public
+// method: its JSDoc description, its TypeScript signature, and the protocol
+// command it sends (the string in `this.send('…')`). Also pulls the exported
+// interfaces (payload/response shapes) with their field docs.
+//
+// Output: docs/generated/apiData.json — imported and rendered by docs/events.ts.
+// Run standalone (`node scripts/gen-api-docs.mjs`) or via the Vite plugin.
+
+import { readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, '..');
+const CLIENT = resolve(root, 'api/tredespace-client.ts');
+const EVENTS = resolve(root, 'EVENTS.md');
+const OUT = resolve(root, 'docs/generated/apiData.json');
+
+/** Harvest the payload/response example under each `### command` heading in
+ *  EVENTS.md, keyed by command name. Keeps examples single-sourced there
+ *  instead of hand-copied into the docs. Shared headings ('a.set / a.add')
+ *  attach the same block to every command they list. */
+function parseExamples() {
+  const md = readFileSync(EVENTS, 'utf8');
+  const byCommand = new Map();
+  // split into '### …' sections
+  const sections = md.split(/^### /m).slice(1);
+  for (const sec of sections) {
+    const heading = sec.slice(0, sec.indexOf('\n'));
+    const commands = heading.match(/[a-z][\w]*(?:\.[\w]+)+/g) ?? [];
+    if (!commands.length) continue;
+    const fence = sec.match(/```(?:js|ts|json)?\n([\s\S]*?)```/);
+    if (!fence) continue;
+    const example = fence[1].replace(/\s+$/, '');
+    for (const cmd of commands) if (!byCommand.has(cmd)) byCommand.set(cmd, example);
+  }
+  return byCommand;
+}
+
+/** Flatten a JSDoc comment (string | NodeArray) to plain text. */
+/** Plain text of a `{@link X}` target (an identifier, a qualified name or a
+ *  JSDoc member name like `Client.method`). */
+function linkName(n) {
+  if (!n) return '';
+  return ts.isIdentifier(n) ? n.text : `${linkName(n.left)}.${n.right.text}`;
+}
+
+/** A node's JSDoc comment as plain text; `{@link X}` renders as its target
+ *  name (the parts array carries the target separately from the text). */
+function jsdocText(node) {
+  const docs = ts.getJSDocCommentsAndTags?.(node) ?? [];
+  for (const d of docs) {
+    if (ts.isJSDoc(d) && d.comment) {
+      return typeof d.comment === 'string'
+        ? d.comment.trim()
+        : d.comment.map((c) => `${linkName(c.name)}${c.text ?? ''}`).join('').trim();
+    }
+  }
+  return '';
+}
+
+/** The SDK's command-sending helpers: `send` and every private wrapper
+ *  around it. A public method's command is the first string one of these is
+ *  called with. A new wrapper must be listed here — `suspectHelperOf` flags
+ *  a public method that hands a command-shaped string to anything else. */
+const SENDERS = ['send', 'loadCall'];
+const COMMAND_SHAPE = /^[a-z]+(?:\.[a-zA-Z]+)+$/;
+
+/** First command string passed to a sender inside a method body, if any. */
+function commandOf(methodText) {
+  const re = new RegExp(`\\.(?:${SENDERS.join('|')})(?:<[^>]*>)?\\(\\s*['"]([^'"]+)['"]`);
+  const m = methodText.match(re);
+  return m ? m[1] : null;
+}
+
+/** For a method with no detected command: a `this.<helper>('a.b')` call
+ *  that looks like it sends a command through an unlisted wrapper. */
+function suspectHelperOf(methodText) {
+  const skip = new Set([...SENDERS, 'on', 'emit', 'note']);
+  for (const m of methodText.matchAll(/this\.([a-zA-Z]+)\(\s*['"]([^'"]+)['"]/g)) {
+    if (!skip.has(m[1]) && COMMAND_SHAPE.test(m[2])) return `${m[1]}('${m[2]}')`;
+  }
+  return null;
+}
+
+/** Strip block comments and collapse whitespace (signature source often has
+ *  inline /** …*​/ JSDoc from the interface fields). */
+function cleanText(t) {
+  return t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Split on `sep` only at bracket depth 0. Tracks ()[]{} but NOT <> (so `=>`
+ *  and generics don't confuse a `;` split). */
+function splitTopLevel(str, sep) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of str) {
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    if (ch === sep && depth === 0) {
+      out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+
+/** Pretty-print the first (outermost) inline object literal in `str` across
+ *  indented lines, recursing into nested objects. `indent` is the column the
+ *  closing brace lands on. Strings without a `{` come back unchanged. */
+function expandObject(str, indent) {
+  const s = str.indexOf('{');
+  if (s === -1) return str;
+  let depth = 0;
+  let e = -1;
+  for (let i = s; i < str.length; i++) {
+    if (str[i] === '{') depth++;
+    else if (str[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        e = i;
+        break;
+      }
+    }
+  }
+  if (e === -1) return str;
+  const head = str.slice(0, s);
+  const tail = str.slice(e + 1);
+  const pad = ' '.repeat(indent);
+  const padIn = ' '.repeat(indent + 2);
+  const members = splitTopLevel(str.slice(s + 1, e), ';')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  const inner = members.map((m) => `${padIn}${expandObject(m, indent + 2)};`).join('\n');
+  return `${head}{\n${inner}\n${pad}}${tail}`;
+}
+
+/** One line when short; otherwise break params AND the return type, expanding
+ *  any inline object literals for readability. */
+function formatSignature(name, params, ret) {
+  const oneLine = `${name}(${params.join(', ')}): ${ret}`;
+  if (oneLine.length <= 76) return oneLine;
+  const lines = params.map((p, i) => `  ${expandObject(p, 2)}${i < params.length - 1 ? ',' : ''}`);
+  return `${name}(\n${lines.join('\n')}\n): ${expandObject(ret, 0)}`;
+}
+
+/** Split an EVENTS.md example into its payload / response object text.
+ *  Line comments (` // …`) are stripped from the payload so brace matching and
+ *  key parsing aren't confused by notes like `// or {} to just query`. */
+function splitExample(ex) {
+  const r = ex.match(/(^|\n)\s*response\s*:\s*([\s\S]*)$/);
+  let payloadText = r ? ex.slice(0, r.index) : ex;
+  const responseText = r ? r[2].trim() : '';
+  payloadText = payloadText
+    .replace(/^\s*payload\s*:\s*/, '')
+    .replace(/\s+\/\/[^\n]*/g, '') // drop trailing line comments (keeps http:// etc.)
+    .trim();
+  return { payloadText, responseText };
+}
+
+/** Split on `sep` at depth 0, skipping string contents. */
+function splitAware(str, sep) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  let q = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (q) {
+      cur += ch;
+      if (ch === q && str[i - 1] !== '\\') q = '';
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      q = ch;
+      cur += ch;
+      continue;
+    }
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    if (ch === sep && depth === 0) {
+      out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+
+/** Top-level key → raw-value-text pairs of an object literal (comments stripped). */
+function objectPairs(objText) {
+  const s = objText.indexOf('{');
+  const e = objText.lastIndexOf('}');
+  if (s === -1 || e < s) return [];
+  // whitespace-guarded line-comment strip so `https://…` in a value survives
+  const inner = objText.slice(s + 1, e).replace(/\s+\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const pairs = [];
+  for (const raw of splitAware(inner, ',')) {
+    const m = raw.trim();
+    if (!m) continue;
+    const ci = m.indexOf(':');
+    if (ci === -1) continue;
+    pairs.push([m.slice(0, ci).trim().replace(/^['"]|['"]$/g, ''), m.slice(ci + 1).trim()]);
+  }
+  return pairs;
+}
+
+function paramInfo(p) {
+  const ci = p.indexOf(':');
+  const namePart = (ci === -1 ? p : p.slice(0, ci)).trim();
+  const type = ci === -1 ? '' : p.slice(ci + 1).trim();
+  return { name: namePart.replace(/\?$/, '').trim(), optional: namePart.endsWith('?'), isObject: type.startsWith('{'), type };
+}
+
+/** Build an accurate `client.method(args)` from the method's params and the
+ *  wire payload — first named params, remaining keys → the trailing opts
+ *  object. A lone object param takes the whole payload (bytes injected). */
+function buildCall(name, params, payloadText) {
+  const pinfos = params.map(paramInfo);
+  if (!pinfos.length) return `client.${name}()`;
+  if (pinfos.length === 1 && pinfos[0].isObject) {
+    let obj = payloadText.trim() || '{}';
+    if (/\bbytes\b/.test(pinfos[0].type) && !/\bbytes\b/.test(obj)) obj = obj.replace(/^\{\s*/, '{ bytes, ');
+    return `client.${name}(${obj})`;
+  }
+  const pairs = objectPairs(payloadText);
+  const map = new Map(pairs.map(([k, v]) => [k, v]));
+  const consumed = new Set();
+  const args = [];
+  for (const pi of pinfos) {
+    if (pi.isObject) {
+      const rest = pairs.filter(([k]) => !consumed.has(k));
+      rest.forEach(([k]) => consumed.add(k));
+      if (rest.length) args.push(`{ ${rest.map(([k, v]) => `${k}: ${v}`).join(', ')} }`);
+      else if (!pi.optional) args.push('{}');
+    } else if (map.has(pi.name)) {
+      args.push(map.get(pi.name));
+      consumed.add(pi.name);
+    } else if (!pi.optional) {
+      args.push('…');
+    }
+  }
+  return `client.${name}(${args.join(', ')})`;
+}
+
+/** Turn an EVENTS.md payload/response example into a runnable call sample. */
+function toSample(name, params, exampleText) {
+  try {
+    const { payloadText, responseText } = splitExample(exampleText);
+    if (!responseText) return null;
+    // Some sections show the raw postMessage envelope (e.g. sql.import, to
+    // illustrate transferables) rather than a plain payload — leave those as-is.
+    if (/postMessage|tredespace\s*:/.test(payloadText) || !/^[[{]/.test(payloadText)) return null;
+    const call = buildCall(name, params, payloadText);
+    return `const res = await ${call};\n// res.data →\n${responseText}`;
+  } catch {
+    return null;
+  }
+}
+
+export function generateApiDocs() {
+  const src = readFileSync(CLIENT, 'utf8');
+  const sf = ts.createSourceFile('tredespace-client.ts', src, ts.ScriptTarget.Latest, true);
+  const examples = parseExamples();
+
+  const methods = [];
+  const types = [];
+  let protocol = null;
+
+  const visit = (node) => {
+    // protocol constant
+    if (ts.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        if (decl.name.getText(sf) === 'TREDESPACE_PROTOCOL' && decl.initializer) {
+          protocol = decl.initializer.getText(sf);
+        }
+      }
+    }
+
+    // exported interfaces → payload/response shapes
+    if (ts.isInterfaceDeclaration(node) && node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
+      types.push({
+        name: node.name.getText(sf),
+        kind: 'interface',
+        doc: jsdocText(node),
+        fields: node.members.map((mem) => ({
+          text: mem.getText(sf).replace(/\s+/g, ' ').trim(),
+          doc: jsdocText(mem),
+        })),
+      });
+    }
+
+    // exported type aliases (e.g. ImportFormat unions) → linkable named types
+    if (ts.isTypeAliasDeclaration(node) && node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
+      types.push({
+        name: node.name.getText(sf),
+        kind: 'alias',
+        doc: jsdocText(node),
+        def: cleanText(node.type.getText(sf)),
+      });
+    }
+
+    // TredespaceClient public methods. An overloaded method is several
+    // declarations: the first overload carries the JSDoc and the signature
+    // hosts see, the implementation (the one with a body) is where a command
+    // would be sent — merged into ONE entry.
+    if (ts.isClassDeclaration(node) && node.name?.getText(sf) === 'TredespaceClient') {
+      const byName = new Map();
+      for (const mem of node.members) {
+        if (!ts.isMethodDeclaration(mem)) continue;
+        const mods = mem.modifiers ?? [];
+        const isPrivate = mods.some(
+          (m) => m.kind === ts.SyntaxKind.PrivateKeyword || m.kind === ts.SyntaxKind.ProtectedKeyword,
+        );
+        const name = mem.name.getText(sf);
+        if (isPrivate || name === 'send') continue;
+        if (!byName.has(name)) byName.set(name, []);
+        byName.get(name).push(mem);
+      }
+      for (const [name, decls] of byName) {
+        const shown = decls[0];
+        const impl = decls.find((d) => d.body) ?? shown;
+        const params = shown.parameters.map((p) => cleanText(p.getText(sf)));
+        const ret = shown.type ? cleanText(shown.type.getText(sf)) : 'void';
+        const text = impl.getText(sf);
+        const command = commandOf(text);
+        const example = command ? (examples.get(command) ?? null) : null;
+        methods.push({
+          name,
+          command,
+          suspect: command ? null : suspectHelperOf(text),
+          signature: formatSignature(name, params, ret),
+          doc: decls.map(jsdocText).find((d) => d.trim()) ?? '',
+          example,
+          sample: example ? toSample(name, params, example) : null,
+        });
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+
+  // group methods by command namespace (prefix before the first dot). A
+  // method with no command (a convenience wrapper like assetsImportAndLoad)
+  // joins the namespace its name starts with when that is one; the rest
+  // (ready, dispose, relay, on*) go under 'client'.
+  const knownNs = new Set(methods.filter((m) => m.command).map((m) => m.command.split('.')[0]));
+  const groupsMap = new Map();
+  for (const m of methods) {
+    const lead = m.name.match(/^[a-z]+/)?.[0] ?? '';
+    const ns = m.command ? m.command.split('.')[0] : knownNs.has(lead) ? lead : 'client';
+    if (!groupsMap.has(ns)) groupsMap.set(ns, []);
+    groupsMap.get(ns).push(m);
+  }
+  const groups = [...groupsMap.entries()].map(([ns, ms]) => ({ ns, methods: ms }));
+
+  // STRICT: a command-bearing method must carry JSDoc (feeds the docs) AND have
+  // a payload/response example in EVENTS.md. This is what enforces "changing the
+  // SDK requires updating EVENTS.md + docs" — the build fails otherwise.
+  const problems = [];
+  for (const m of methods) {
+    if (!m.command) continue;
+    if (!m.doc.trim()) problems.push(`${m.command} (${m.name}): no JSDoc in api/tredespace-client.ts`);
+    if (!m.example) problems.push(`${m.command}: no payload/response example in EVENTS.md`);
+  }
+  for (const m of methods) {
+    if (m.suspect) {
+      problems.push(
+        `${m.name}: sends through ${m.suspect} — add that helper to SENDERS in scripts/gen-api-docs.mjs so the command is documented`,
+      );
+    }
+  }
+
+  return {
+    protocol,
+    generatedFrom: 'api/tredespace-client.ts',
+    groups,
+    types,
+    methodCount: methods.length,
+    problems,
+  };
+}
+
+/** The product page's "API namespaces" count + command-surface grid, kept
+ *  honest against the generated data: every `{{apiNamespaceCount}}` in the
+ *  HTML becomes the namespace count, and every namespace must have a tile
+ *  (`data-ns="<ns>"`) in the grid — a missing or unknown tile is a problem
+ *  (build error, dev warning — same discipline as the JSDoc/EVENTS check). */
+export function applyApiNamespaces(html, data) {
+  const nss = data.groups.map((g) => g.ns);
+  const tiles = [...html.matchAll(/data-ns="([^"]+)"/g)].map((m) => m[1]);
+  const problems = [];
+  for (const ns of nss) {
+    if (!tiles.includes(ns)) problems.push(`namespace '${ns}' has no tile in the command-surface grid (docs/index.html)`);
+  }
+  for (const t of tiles) {
+    if (!nss.includes(t)) problems.push(`grid tile '${t}' is not an API namespace (docs/index.html)`);
+  }
+  return { html: html.replaceAll('{{apiNamespaceCount}}', String(nss.length)), problems };
+}
+
+export function writeApiDocs() {
+  const data = generateApiDocs();
+  mkdirSync(dirname(OUT), { recursive: true });
+  writeFileSync(OUT, `${JSON.stringify(data, null, 2)}\n`);
+  return data;
+}
+
+// CLI — compared as real file paths: comparing URLs silently skipped the run
+// (and left the build without its generated data) whenever the checkout path
+// had a space or other URL-escaped character, went through a symlink, or was
+// a Windows path.
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const d = writeApiDocs();
+  console.log(`wrote ${OUT} — ${d.methodCount} methods, ${d.groups.length} namespaces, ${d.types.length} types`);
+  if (d.problems.length) {
+    console.error(`\n✗ ${d.problems.length} undocumented command(s):`);
+    for (const p of d.problems) console.error(`  - ${p}`);
+    process.exit(1);
+  }
+}

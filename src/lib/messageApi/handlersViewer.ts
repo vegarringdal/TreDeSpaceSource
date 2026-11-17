@@ -1,0 +1,343 @@
+// Viewer-control commands: MultiColor rules, view state (sketch/screenshot),
+// clipping and navigation. See EVENTS.md for the payload contracts.
+import { multiColorActions, specsForRules } from '../../components/panels/multi-color/multiColor.actions';
+import {
+  type ColorRulesMode,
+  isPristineRuleSet,
+  multiColorState,
+} from '../../components/panels/multi-color/multiColor.state';
+import { ribbonClippingBoxActions } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.actions';
+import { ribbonClippingBoxState } from '../../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
+import { ribbonHomeActions } from '../../components/panels/ribbon-home/ribbonHome.actions';
+import { sqlReportsActions } from '../../state/sqlReports/sqlReports.actions';
+import { transformActions } from '../../state/transform/transform.actions';
+import { clipShapesActions } from '../../state/viewer/clipShapes.actions';
+import type { ClipShape } from '../../state/viewer/clipShapes.state';
+import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
+import { viewerState } from '../../state/viewer/viewer.state';
+import { packedFromBytes } from '../color/packedNames';
+import { obbWorldBounds } from '../math/obb';
+import { apiRules, colorNameTable, parseColorMode } from './colorMode';
+import {
+  ApiError,
+  type ApiHandler,
+  boolOpt,
+  nameListBytes,
+  numOpt,
+  oneOf,
+  quatOpt,
+  records,
+  strOpt,
+  vec3Opt,
+} from './protocol';
+import { withTransfer } from './wire';
+
+/** Run mode from a set/add payload: an explicit 'reset' | 'append' | 'hide'
+ *  wins, 'keep' returns the panel's current mode, anything else the
+ *  command's default. */
+function runMode(v: unknown, current: ColorRulesMode, fallback: ColorRulesMode): ColorRulesMode {
+  if (v === 'keep') {
+    return current;
+  }
+  if (v === 'reset' || v === 'append' || v === 'hide') {
+    return v;
+  }
+  return fallback;
+}
+
+// colours are normalised to hex and store scopes checked by apiRules.
+// colorRules.set swaps the panel's rule list unless `replaceRules: false`,
+// which appends like colorRules.add; an append onto the panel's untouched
+// starter rule drops that blank placeholder (as a viewpoint restore does).
+// `mode: 'keep'` leaves the run mode as the user has it.
+const setOrAddColorRules: ApiHandler = async ({ type, p }) => {
+  const incoming = apiRules(p.rules, 'rules');
+  if (!incoming.length) {
+    throw new ApiError('bad-payload', 'rules must be a non-empty rule[]');
+  }
+  const cur = multiColorState.get();
+  const replace = type === 'colorRules.set' && p.replaceRules !== false;
+  const base = isPristineRuleSet(cur.rules) ? [] : cur.rules;
+  const rules = replace ? incoming : [...base, ...incoming];
+  const mode = runMode(p.mode, cur.mode, type === 'colorRules.add' ? cur.mode : 'reset');
+  multiColorState.set({ mode, rules, counts: [] });
+  let ran = false;
+  if (p.run === true) {
+    await multiColorActions.run();
+    ran = true;
+  }
+  return { rules: rules.length, ran, matches: multiColorState.get().counts.map((c) => c ?? 0) };
+};
+
+// -----------------------------------------------------------------------------
+// camera
+// -----------------------------------------------------------------------------
+
+/** The camera is ORBIT-based (Z-up): a pivot `target`, plus `azimuth` /
+ *  `elevation` (radians) and the `distance` from the pivot. Hosts usually
+ *  think in eye positions, so a payload may give `position` + `target`
+ *  instead and this converts. Fields left out keep their current value. */
+type CameraPose = { target: [number, number, number]; azimuth: number; elevation: number; distance: number };
+
+function vec3(v: unknown): [number, number, number] | null {
+  if (!Array.isArray(v) || v.length !== 3) {
+    return null;
+  }
+  const n = v.map(Number);
+  return n.every((x) => Number.isFinite(x)) ? [n[0], n[1], n[2]] : null;
+}
+
+function poseFromPayload(p: Record<string, unknown>): CameraPose | null {
+  const cam = getRenderer()?.camera;
+  if (!cam) {
+    return null;
+  }
+  const target = vec3(p.target) ?? [cam.target[0], cam.target[1], cam.target[2]];
+  const position = vec3(p.position);
+  if (position) {
+    // forward runs eye → target: distance is its length, azimuth/elevation
+    // its spherical angles (elevation +Z up, matching the render camera)
+    const d: [number, number, number] = [target[0] - position[0], target[1] - position[1], target[2] - position[2]];
+    const distance = Math.hypot(d[0], d[1], d[2]);
+    if (distance < 1e-6) {
+      throw new ApiError('bad-payload', 'position and target must not be the same point');
+    }
+    return { target, azimuth: Math.atan2(d[1], d[0]), elevation: Math.asin(d[2] / distance), distance };
+  }
+  const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+  return {
+    target,
+    azimuth: num(p.azimuth, cam.azimuth),
+    elevation: num(p.elevation, cam.elevation),
+    distance: Math.max(num(p.distance, cam.orbitDistance), 0.05),
+  };
+}
+
+/** Move the camera per a payload and resolve once it has ARRIVED (the move
+ *  is an animation the render loop drives — resolving earlier let a load
+ *  start, or a command respond, mid-flight). Returns the applied pose, or null
+ *  when the renderer is not up yet. `animate: false` snaps instead of
+ *  gliding. Shared with the asset-load commands, where a `camera` replaces
+ *  their `fit`; marking the view as chosen keeps the first-model default view
+ *  from overriding it. */
+export async function applyCameraPayload(p: Record<string, unknown>): Promise<CameraPose | null> {
+  const r = getRenderer();
+  const cam = r?.camera;
+  const pose = poseFromPayload(p);
+  if (!r || !cam || !pose) {
+    return null;
+  }
+  if (typeof p.orthographic === 'boolean') {
+    viewerActions.setProjection(p.orthographic);
+  }
+  r.markViewChosen();
+  cam.goToPose(pose.target, pose.azimuth, pose.elevation, pose.distance, p.animate === false ? 0.01 : 0.5);
+  await cam.settled();
+  return pose;
+}
+
+const CLIP_SHAPE_KINDS = ['sphere', 'cylinder', 'box'] as const;
+
+/** One `clip.shapes.add` entry, fully validated. Every field is checked here
+ *  rather than defaulted downstream: a `center: 'x'` or a `radius: '5'` used to
+ *  land in the state and reach the clip uniforms as NaN, which silently clips
+ *  the whole scene away. Omitted fields keep the same defaults as before. */
+function readClipShape(x: Record<string, unknown>): Partial<ClipShape> {
+  return {
+    kind: oneOf(x.kind, 'shapes[].kind', CLIP_SHAPE_KINDS),
+    label: strOpt(x.label, 'shapes[].label', '', 256),
+    center: vec3Opt(x.center, 'shapes[].center', [0, 0, 0]),
+    axis: vec3Opt(x.axis, 'shapes[].axis', [0, 0, 1]),
+    radius: numOpt(x.radius, 'shapes[].radius', 5, { min: 0 }),
+    height: numOpt(x.height, 'shapes[].height', 10, { min: 0 }),
+    halfExtents: vec3Opt(x.halfExtents, 'shapes[].halfExtents', [1, 1, 1]),
+    rotation: quatOpt(x.rotation, 'shapes[].rotation', [0, 0, 0, 1]),
+    enabled: boolOpt(x.enabled, 'shapes[].enabled', true),
+    inverted: boolOpt(x.inverted, 'shapes[].inverted', false),
+    showHelper: boolOpt(x.showHelper, 'shapes[].showHelper', true),
+  };
+}
+
+export const viewerHandlers: Record<string, ApiHandler> = {
+  'colorRules.set': setOrAddColorRules,
+  'colorRules.add': setOrAddColorRules,
+
+  // run a rule set directly — the Set Color panel's own rules are untouched
+  'colorRules.apply': async ({ p }) => {
+    const rules = apiRules(p.rules, 'rules');
+    const mode = p.mode === 'append' || p.mode === 'hide' ? p.mode : 'reset';
+    const matches = await viewerActions.applyColorRules(await specsForRules(rules), mode);
+    return { ran: true, matches };
+  },
+
+  // Colour a list the HOST computed: the fullnames ride in `bytes` (UTF-8,
+  // one `fullname[<sep>color[:opacity]]` per line) and are packed viewer-side,
+  // so a million rows cost no per-row JSON. `mode` picks the same treatments
+  // the SQL editor's buttons give a query result.
+  'colorRules.applyList': async ({ p, bytes }) => {
+    const mode = parseColorMode(p.mode);
+    const packed = packedFromBytes(await nameListBytes(bytes, 'colorRules.applyList'));
+    await sqlReportsActions.colorPackedMode(packed, mode, { quiet: true });
+    return { mode: mode.type, names: packed.count };
+  },
+
+  // Every colour NAME the viewer accepts wherever a colour token is read —
+  // `fullname_color`, Multi rows, a mode's `color`. Hex always works too.
+  'colors.names': () => ({ names: colorNameTable() }),
+
+  'colorRules.run': async () => {
+    await multiColorActions.run();
+    return { matches: multiColorState.get().counts.map((c) => c ?? 0) };
+  },
+
+  'colorRules.clear': () => {
+    multiColorState.set({ rules: [], counts: [] });
+    return {};
+  },
+
+  // the Alt+R "reset colors" action
+  'colorRules.resetModel': async () => {
+    await viewerActions.clearAllOverrides();
+    return {};
+  },
+
+  // Toggle when `on` is omitted; set explicitly when a boolean is given.
+  'view.sketch': ({ p }) => {
+    const on = typeof p.on === 'boolean' ? p.on : !viewerState.get().sketch;
+    viewerActions.update({ sketch: on });
+    return { sketch: on };
+  },
+
+  // Capture the converged frame + overlays. The PNG rides back as raw
+  // TRANSFERRED bytes (zero copy, and no base64 — which inflated it by a third
+  // and built a multi-megabyte JS string on both sides). `dataUrl: true` keeps
+  // the old string form for hosts that want an <img> src directly.
+  'view.screenshot': async ({ p }) => {
+    const shot = await ribbonHomeActions.captureScreenshotBlob();
+    if (!shot) {
+      throw new ApiError('internal', 'no renderer to capture');
+    }
+    if (p.dataUrl === true) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result as string);
+        fr.onerror = () => reject(fr.error ?? new Error('failed to encode PNG'));
+        fr.readAsDataURL(shot.blob);
+      });
+      return { dataUrl, mime: shot.blob.type, width: shot.width, height: shot.height };
+    }
+    const bytes = await shot.blob.arrayBuffer();
+    return withTransfer({ bytes, mime: shot.blob.type, width: shot.width, height: shot.height }, [bytes]);
+  },
+
+  // the default clipping box; `enabled` is what the renderer honours (global
+  // clip switch AND the box itself on). min/max = world AABB of the possibly
+  // rotated box, center/size/rotation the exact oriented box.
+  'clip.box.get': () => {
+    const s = ribbonClippingBoxState.get();
+    const { min, max } = obbWorldBounds(s.center, s.size, s.rotation);
+    return {
+      enabled: s.enabled && s.boxOn,
+      inverted: s.inverted,
+      min,
+      max,
+      center: [...s.center],
+      size: [...s.size],
+      rotation: [...s.rotation],
+    };
+  },
+
+  'clip.box.fitSelected': async ({ p }) => {
+    // offset margin is per-call only — it does NOT change the panel's stored
+    // Fit-Sel offset
+    const offset = typeof p.offset === 'number' ? p.offset : 0;
+    await ribbonClippingBoxActions.fitSel(offset);
+    return { offset };
+  },
+
+  'clip.shapes.add': ({ p }) => {
+    const shapes = records(p.shapes, 'shapes').map(readClipShape);
+    return { added: clipShapesActions.addShapes(shapes) };
+  },
+
+  'clip.box.disable': () => {
+    ribbonClippingBoxActions.disable();
+    return {};
+  },
+
+  // disable box clipping AND remove every clip shape
+  'clip.reset': () => {
+    ribbonClippingBoxActions.disable();
+    clipShapesActions.clear();
+    return {};
+  },
+
+  'camera.get': () => {
+    const cam = getRenderer()?.camera;
+    if (!cam) {
+      throw new ApiError('not-found', 'the renderer is not up yet');
+    }
+    return {
+      target: [cam.target[0], cam.target[1], cam.target[2]],
+      position: cam.eye(),
+      azimuth: cam.azimuth,
+      elevation: cam.elevation,
+      distance: cam.orbitDistance,
+      orthographic: viewerState.get().orthographic,
+    };
+  },
+
+  'camera.set': async ({ p }) => {
+    const pose = await applyCameraPayload(p);
+    if (!pose) {
+      throw new ApiError('not-found', 'the renderer is not up yet');
+    }
+    return pose;
+  },
+
+  'nav.flyTo': async ({ p }) => {
+    const fullname = typeof p.fullname === 'string' ? p.fullname : '';
+    if (!fullname) {
+      throw new ApiError('bad-payload', 'fullname is required');
+    }
+    const opts = { select: p.select === true, wait: p.wait === true };
+    return { matched: await viewerActions.flyToFullname(fullname, opts) };
+  },
+
+  'nav.orbit': async ({ p }) => {
+    const fullname = typeof p.fullname === 'string' ? p.fullname : '';
+    if (!fullname) {
+      throw new ApiError('bad-payload', 'fullname is required');
+    }
+    const opts = { select: p.select === true, wait: p.wait === true };
+    return { matched: await viewerActions.orbitFullname(fullname, opts) };
+  },
+
+  // frame everything not hidden under the clipping in force — the Fit-visible
+  // button over the API; `bounds: 'bbox'` frames the clip volumes themselves
+  'nav.fitVisible': async ({ p }) => {
+    const bounds = p.bounds === 'visible' || p.bounds === 'bbox' ? p.bounds : undefined;
+    if (p.bounds !== undefined && bounds === undefined) {
+      throw new ApiError('bad-payload', "bounds must be 'visible' or 'bbox'");
+    }
+    const fitted = await viewerActions.fitVisible({ wait: p.wait === true, bounds });
+    return { fitted };
+  },
+
+  // Reset the model's overrides. Naming a kind resets ONLY the named ones;
+  // an empty payload resets all four. Colour/opacity/hidden share the state
+  // undo domain (one step); transforms have their own.
+  'model.reset': async ({ p }) => {
+    const named = ['color', 'opacity', 'hidden', 'transform'].some((k) => typeof p[k] === 'boolean');
+    const want = (key: string): boolean => (named ? p[key] === true : true);
+    const kinds = { color: want('color'), opacity: want('opacity'), hidden: want('hidden') };
+    const transform = want('transform');
+    if (kinds.color || kinds.opacity || kinds.hidden) {
+      await viewerActions.clearOverrides(kinds);
+    }
+    if (transform) {
+      await transformActions.resetAll();
+    }
+    return { ...kinds, transform };
+  },
+};

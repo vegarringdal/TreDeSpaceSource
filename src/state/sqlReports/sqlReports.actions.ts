@@ -1,0 +1,588 @@
+// SQL Reports actions: load/save (one SQL_Reports.json per store), run a report
+// in read-only mode, and dispatch its result to the table / coloring / detail
+// consumers.
+
+import { dialogs } from '../../components/dialogs/dialogs.actions';
+import { consoleActions } from '../../components/panels/console/console.actions';
+import { ruleToSpec } from '../../components/panels/multi-color/multiColor.actions';
+import {
+  type ColorRule,
+  type ColorRulesMode,
+  multiColorState,
+} from '../../components/panels/multi-color/multiColor.state';
+import { setTablePayload } from '../../components/panels/sql-table/sqlTablePanel';
+import { parseColor } from '../../lib/color/hexColor';
+import type { PackedNames } from '../../lib/color/packedNames';
+import type { ColorRuleSpec } from '../../lib/modeldb/modeldbWorker';
+import { readJson, sqlStoreDir, writeJson } from '../../lib/opfs/opfs';
+import { withJsonLock } from '../../lib/opfs/sharedJson';
+import { sqliteClient, sqlOptions } from '../../lib/sqlite/client';
+import { parseAttachPaths, splitSqlStatements, stripSqlComments } from '../../lib/sqlite/sqlAttach';
+import {
+  buildReportStatements,
+  filterArgsStatements,
+  pickDropdownColumns,
+  treeViewArgsStatements,
+} from '../../lib/sqlite/sqlReport';
+import type { Statement } from '../../lib/sqlite/types';
+import { killHint } from '../sqlAssets/sqlKillHint';
+import { viewerActions } from '../viewer/viewer.actions';
+import { type ReportDef, type ReportFilter, type ReportType, sqlReportsState } from './sqlReports.state';
+
+/** A rule matching EVERYTHING (blank Contains) with a given color/opacity — the
+ *  base coat for White (white/1) and Hidden (default/0). */
+function everythingRule(o: { color: string | null; opacity: number }): ColorRule {
+  return {
+    comment: '',
+    enabled: true,
+    filters: [{ op: 'append', mode: 'contains', value: '', comment: '', level: 0 }],
+    color: o.color,
+    opacity: o.opacity,
+    store: '',
+  };
+}
+
+/** The sql result as ONE appended rule: a `packed` filter carrying the flat
+ *  fullname list with its per-row colors/opacity. Rows without a color get
+ *  the rule color — yellow, as the two-column Multi paste defaults. The
+ *  worker reads it exactly like a Multi filter + perNameColor, minus the
+ *  strings. */
+function packedSpec(p: PackedNames, color = 'yellow', opacity?: number): ColorRuleSpec {
+  return {
+    filters: [{ op: 'append', mode: 'packed', value: '', packed: p, level: 0 }],
+    colorRGBA8: parseColor(color) ?? parseColor('yellow'),
+    opacityPct: opacity == null ? null : Math.max(0, Math.min(100, Math.round(opacity * 100))),
+  };
+}
+
+/** How a packed result is painted. The four `default-*` types are the app's
+ *  own buttons; the `custom-*` ones let a host pick the highlight colour, and
+ *  bring their own base coat / Set Color config (e.g. one it stores itself).
+ *  Opacity is 0-1 throughout, like a Set Color rule's. */
+export type PackedColorMode =
+  | { type: 'default-white' }
+  | { type: 'default-hidden' }
+  /** white base at `opacity` (default 0.1) — the model shows through */
+  | { type: 'default-transparent'; opacity?: number }
+  /** the Set Color panel's LIVE rules as the base (its state is only read) */
+  | { type: 'default-set' }
+  | {
+      type: 'custom-color';
+      color: string;
+      opacity?: number;
+      /** what to paint first; 'none' layers the hits over the model as it is */
+      base?: 'white' | 'transparent' | 'hidden' | 'none';
+      /** 'transparent' base only (default 0.1) */
+      baseOpacity?: number;
+    }
+  | {
+      type: 'custom-set';
+      color?: string;
+      opacity?: number;
+      setConfig: { rules: ColorRule[]; mode?: ColorRulesMode };
+    };
+
+const DEFAULT_BASE_OPACITY = 0.1;
+
+/** The base coat a `custom-color` mode paints first, or null for 'none'. */
+/** A base coat as the rule that paints it plus the run mode it needs.
+ *
+ *  `hidden` is no longer a coat at all: it used to paint everything at
+ *  opacity 0, and opacity 0 now means the hide flag rather than a 0 %
+ *  override (withOpacityOverride), so the coat would set a flag the hit rule
+ *  below could not clear. An isolate is instead the `hide` run mode, which is
+ *  what it always meant — hide everything, then let the rules unhide exactly
+ *  what they match. */
+function baseCoat(
+  kind: 'white' | 'transparent' | 'hidden' | 'none',
+  opacity?: number,
+): { rule: ColorRule | null; mode: ColorRulesMode } {
+  if (kind === 'hidden') {
+    return { rule: null, mode: 'hide' };
+  }
+  if (kind === 'none') {
+    return { rule: null, mode: 'append' }; // nothing to clear — layer over the model
+  }
+
+  return {
+    rule: everythingRule({ color: '#ffffff', opacity: kind === 'white' ? 1 : (opacity ?? DEFAULT_BASE_OPACITY) }),
+    mode: 'reset',
+  };
+}
+
+/** Run LOCAL (unsaved) rule specs the same way the panel's Run does:
+ *  applyColorRules (reset clears overrides first, append layers). Behind the
+ *  "please wait" dialog unless the caller is quiet (host API). Never touches
+ *  panel state. */
+async function runColorSpecs(
+  label: string,
+  specs: ColorRuleSpec[],
+  mode: 'reset' | 'append' | 'hide',
+  opts: SqlRunOpts = {},
+) {
+  await timedApply(
+    { title: 'Set Color', message: 'Applying to the model… please wait', log: `Set Color: ${label}` },
+    () => viewerActions.applyColorRules(specs, mode),
+    opts,
+  );
+}
+
+/** Run a model apply (a coloring, a selection) behind a "please wait" dialog
+ *  and log how long it took — the model worker can churn over hundreds of
+ *  thousands of items, so the UI says what it is waiting for. Quiet callers
+ *  (host API) get the log line only. */
+async function timedApply<T>(
+  ui: { title: string; message: string; log: string },
+  run: () => Promise<T>,
+  opts: SqlRunOpts = {},
+): Promise<T> {
+  const t0 = performance.now();
+  if (!opts.quiet) {
+    dialogs.loading(ui.message, ui.title);
+  }
+  try {
+    return await run();
+  } finally {
+    if (!opts.quiet) {
+      dialogs.hideLoading();
+    }
+    consoleActions.log('info', `${ui.log} in ${(performance.now() - t0).toFixed(0)} ms`);
+  }
+}
+
+/** How a run reports itself. The in-app buttons take the defaults (progress
+ *  and error dialogs); a host-API run passes `quiet` — no dialogs at all, the
+ *  error travels back to the caller — and may take row ticks as events. */
+export interface SqlRunOpts {
+  quiet?: boolean;
+  onRows?: (rows: number) => void;
+}
+
+/** Turn a colour mode into the rule specs to run, plus the run mode. The hit
+ *  rule is always LAST so it wins over the base coat. */
+function colorModeSpecs(
+  p: PackedNames,
+  mode: PackedColorMode,
+): { specs: ColorRuleSpec[]; runMode: ColorRulesMode; label: string } {
+  switch (mode.type) {
+    case 'default-hidden':
+      // an isolate: `hide` blanks the scene and the rule unhides its matches
+      return { specs: [packedSpec(p)], runMode: 'hide', label: 'hidden' };
+    case 'default-transparent':
+      return {
+        specs: [
+          ruleToSpec(everythingRule({ color: '#ffffff', opacity: mode.opacity ?? DEFAULT_BASE_OPACITY })),
+          packedSpec(p),
+        ],
+        runMode: 'reset',
+        label: 'transparent base + highlight',
+      };
+    case 'default-set': {
+      const config = multiColorState.get();
+      return {
+        specs: [...config.rules.filter((r) => r.enabled).map(ruleToSpec), packedSpec(p)],
+        runMode: config.mode,
+        label: 'set color',
+      };
+    }
+    case 'custom-color': {
+      const { rule, mode: runMode } = baseCoat(mode.base ?? 'white', mode.baseOpacity);
+      return {
+        specs: [...(rule ? [ruleToSpec(rule)] : []), packedSpec(p, mode.color, mode.opacity)],
+        runMode,
+        label: `custom ${mode.color}`,
+      };
+    }
+    case 'custom-set':
+      return {
+        specs: [
+          ...mode.setConfig.rules.filter((r) => r.enabled).map(ruleToSpec),
+          packedSpec(p, mode.color, mode.opacity),
+        ],
+        runMode: mode.setConfig.mode ?? 'reset',
+        label: 'custom set color',
+      };
+    default:
+      return {
+        specs: [ruleToSpec(everythingRule({ color: '#ffffff', opacity: 1 })), packedSpec(p)],
+        runMode: 'reset',
+        label: 'white base + highlight',
+      };
+  }
+}
+
+/** One file per store holds all of that store's reports. */
+const REPORTS_FILE = 'SQL_Reports.json';
+
+async function readStoreReports(store: string): Promise<ReportDef[]> {
+  const dir = await sqlStoreDir(store);
+  const list = (await readJson<ReportDef[]>(dir, REPORTS_FILE)) ?? [];
+  // stamp the store in case of a hand-edited file, and default missing fields
+  return list.map((r) => ({ ...r, store, db: r.db ?? '', databases: r.databases ?? [] }));
+}
+
+/** Change a store's reports on disk — read, edit and write under one lock —
+ *  and show the result. Only the edited report is touched, so a report
+ *  another tab saved since this one read the file is kept. */
+function updateStoreReports(store: string, edit: (reports: ReportDef[]) => ReportDef[]): Promise<void> {
+  return withJsonLock(`sql-reports:${store}`, async () => {
+    const reports = edit(await readStoreReports(store));
+    await writeJson(await sqlStoreDir(store), REPORTS_FILE, reports);
+    sqlReportsState.set((s) => ({ reports: [...s.reports.filter((r) => r.store !== store), ...reports] }));
+  });
+}
+
+/** The report's own ATTACH statements — prepended before a filter's dropdown
+ *  SQL so it can see the attached databases even when the report has no main db. */
+function attachSetup(sql: string): Statement[] {
+  return splitSqlStatements(sql)
+    .filter((s) => /^\s*attach\b/i.test(stripSqlComments(s).trimStart()))
+    .map((s) => ({ sql: s, useStatementInLog: false }));
+}
+
+/** The last SELECTION's tree-view path (folders, then root → leaf), or []
+ *  with nothing selected — what TREE_VIEW_ARGS is seeded from for every
+ *  non-DETAIL run. Follows tree clicks, viewport picks and U / P alike. */
+export async function lastSelectedTree(): Promise<string[]> {
+  return viewerActions.lastSelectedTree();
+}
+
+/** The last (collected) statement's result. */
+interface RunResult {
+  columns: string[];
+  rows: unknown[][];
+  /** the flat fullname list when the statement collected `packedNames` */
+  packed: PackedNames | null;
+  error?: string;
+}
+
+async function execReport(
+  report: ReportDef,
+  type: ReportType,
+  extra: {
+    loadAll?: boolean;
+    tree?: string[];
+    hasColorColumn?: boolean;
+    colorProbe?: boolean;
+    progress?: boolean;
+  } & SqlRunOpts,
+): Promise<RunResult> {
+  // TREE_VIEW_ARGS: DETAIL brings the clicked hierarchy; every other run
+  // gets the last viewport pick's, so As Table / the color buttons see the
+  // same table a detail query would
+  const tree = extra.tree ?? (await lastSelectedTree());
+  const statements = buildReportStatements({
+    filters: report.filters,
+    sql: report.sql,
+    type,
+    loadAll: extra.loadAll,
+    hasColorColumn: extra.hasColorColumn,
+    colorProbe: extra.colorProbe,
+    treeFullnames: tree,
+  });
+  if (type !== 'DETAIL' && tree.length && !extra.colorProbe) {
+    consoleActions.log(
+      'info',
+      `SQL: ${report.name} — TREE_VIEW_ARGS seeded with ${tree.length} level(s) from the last selection`,
+    );
+  }
+  // report.db may be '' (None) → an in-memory scratch main; every real db is in
+  // report.databases (never contains ''), so additional = databases minus main.
+  const additionalDbPaths = report.databases.filter((p) => p !== report.db);
+  const t0 = performance.now();
+  const hint = killHint();
+  const showDialog = !!extra.progress && !extra.quiet;
+  const ticking = !!extra.progress || !!extra.onRows;
+  if (showDialog) {
+    dialogs.loading(`Running query…${hint}`, `Report: ${report.name}`);
+  }
+  try {
+    const result = await sqliteClient().execute(
+      sqlOptions({
+        mainDbPath: report.db,
+        additionalDbPaths,
+        lockmode: 'shared',
+        statements,
+        progressSize: ticking ? 2000 : 0,
+      }),
+      // live row counter — the worker emits every 2000 collected rows
+      ticking
+        ? (kind, no) => {
+            if (kind !== 'ROW') {
+              return;
+            }
+            if (showDialog) {
+              dialogs.loading(`Collected ${no.toLocaleString()} rows…${hint}`, `Report: ${report.name}`);
+            }
+            extra.onRows?.(no);
+          }
+        : undefined,
+    );
+    return finishExec(result, performance.now() - t0);
+  } finally {
+    if (showDialog) {
+      dialogs.hideLoading();
+    }
+  }
+}
+
+function finishExec(result: Awaited<ReturnType<ReturnType<typeof sqliteClient>['execute']>>, _ms: number): RunResult {
+  if (result.err) {
+    const detail = result.err.err instanceof Error ? result.err.err.message : String(result.err.err ?? '');
+    return { columns: [], rows: [], packed: null, error: `${result.err.msg}${detail ? ` — ${detail}` : ''}` };
+  }
+  const last = (result.data?.length ?? 0) - 1;
+  const rows = (last >= 0 ? (result.data?.[last] as unknown[][]) : []) ?? [];
+  const columns = (last >= 0 ? result.columns?.[last] : null) ?? [];
+  const packed = (last >= 0 ? result.packed?.[last] : null) ?? null;
+  return { columns, rows, packed };
+}
+
+export const sqlReportsActions = {
+  /** Load the selected store's reports (SQL_Reports.json). No store → empty. */
+  async refresh(store: string | null = sqlReportsState.get().store) {
+    if (!store) {
+      sqlReportsState.set({ reports: [], ready: true });
+      return;
+    }
+    const reports = await readStoreReports(store);
+    sqlReportsState.set({ reports, ready: true });
+  },
+
+  /** Switch the panel to a store (or none) and load its reports. */
+  async setStore(store: string | null) {
+    sqlReportsState.set({ store, openId: null, editId: null, query: '' });
+    await this.refresh(store);
+  },
+
+  setQuery(query: string) {
+    sqlReportsState.set({ query });
+  },
+  setOpen(openId: string | null) {
+    sqlReportsState.set({ openId });
+  },
+  setEdit(editId: string | null) {
+    sqlReportsState.set({ editId });
+  },
+
+  /** Insert/replace a report and persist its store's SQL_Reports.json. */
+  async save(report: ReportDef) {
+    const databases = [...new Set([report.db, ...parseAttachPaths(report.sql)].filter(Boolean))];
+    const next: ReportDef = { ...report, databases };
+    await updateStoreReports(next.store, (reports) =>
+      reports.some((r) => r.id === next.id) ? reports.map((r) => (r.id === next.id ? next : r)) : [...reports, next],
+    );
+    consoleActions.log('info', `Reports: saved "${next.name}"`);
+  },
+
+  async remove(id: string) {
+    const report = sqlReportsState.get().reports.find((r) => r.id === id);
+    if (!report) {
+      return;
+    }
+    sqlReportsState.set({ editId: null, openId: null });
+    await updateStoreReports(report.store, (reports) => reports.filter((r) => r.id !== id));
+    consoleActions.log('warn', `Reports: deleted "${report.name}"`);
+  },
+
+  /** Options for a DROPDOWN `filter`: its `dropdownSql` (≤25 rows; the id and
+   *  the shown text picked by {@link pickDropdownColumns} — named `id` /
+   *  `label` columns in any order, else the first two positionally) with `?`
+   *  bound to the search term — `query`, or the
+   *  filter's `searchValue` (usually '%') while the box is empty. Runs with
+   *  the same scratch tables a report run gets, rebuilt on every call:
+   *  FILTER_ARGS from the report's current filter values (the editor's draft
+   *  or the live inputs) with this filter's OWN key holding the search term
+   *  instead of its selection, and TREE_VIEW_ARGS from the last selection —
+   *  so a dropdown can cascade on the other filters and read its own term
+   *  from FILTER_ARGS, in the Test/selected box as much as in the report. The
+   *  report's ATTACH statements run first, so it works with a main db or
+   *  None. TEMP tables live per batch, so they are created here, not left
+   *  over from an earlier run. */
+  async dropdownOptions(
+    report: ReportDef,
+    filter: ReportFilter,
+    query: string,
+  ): Promise<{ value: string; label: string }[]> {
+    const sql = filter.dropdownSql ?? '';
+    const bind = query.trim() ? query : filter.searchValue || '%';
+    const additionalDbPaths = report.databases.filter((p) => p !== report.db);
+    const result = await sqliteClient().execute(
+      sqlOptions({
+        mainDbPath: report.db,
+        additionalDbPaths,
+        lockmode: 'shared',
+        statements: [
+          ...filterArgsStatements(report.filters, { key: filter.key, value: bind }),
+          ...treeViewArgsStatements(await lastSelectedTree()),
+          ...attachSetup(report.sql),
+          { sql: `SELECT * FROM (${sql.replace(/;\s*$/, '')}) LIMIT 25`, binding: [[bind]], collect: true },
+        ],
+      }),
+    );
+    if (result.err) {
+      throw new Error(result.err.msg);
+    }
+    // the dropdown select is the LAST statement (setup ATTACHes precede it)
+    const last = (result.data?.length ?? 0) - 1;
+    const rows = (last >= 0 ? (result.data?.[last] as unknown[][]) : []) ?? [];
+    const { idIdx, labelIdx } = pickDropdownColumns(last >= 0 ? result.columns?.[last] : null);
+    return rows.map((r) => ({ value: String(r[idIdx]), label: String(r[labelIdx] ?? r[idIdx]) }));
+  },
+
+  // -----------------------------------------------------------------------------
+  // consumers
+  // -----------------------------------------------------------------------------
+
+  /** TABLE: run and push into the SQL Table panel. Returns what landed there
+   *  (the host API answers with the counts; the panel keeps the rows). */
+  async runTable(report: ReportDef, loadAll = false, opts: SqlRunOpts = {}): Promise<RunResult> {
+    sqlReportsState.set({ busy: true });
+    try {
+      const res = await execReport(report, 'TABLE', { loadAll, progress: true, ...opts });
+      if (res.error) {
+        if (!opts.quiet) {
+          dialogs.error(res.error, 'Report failed');
+        }
+        return res;
+      }
+      setTablePayload({
+        title: report.name,
+        columns: res.columns,
+        rows: res.rows,
+        truncated: !loadAll && res.rows.length >= 50,
+        reload: loadAll ? null : () => void sqlReportsActions.runTable(report, true),
+      });
+      return res;
+    } finally {
+      sqlReportsState.set({ busy: false });
+    }
+  },
+
+  /** COLORING: run and return the result as a PackedNames list for the color
+   *  buttons — the rows never exist as strings here. A cheap column probe
+   *  (temp view + pragma) runs first so the real query projects
+   *  `fullname, fullname_color` only when the color column exists — never
+   *  `SELECT *` — and a query without it (or a NULL cell) defaults to yellow. */
+  async runColoring(report: ReportDef): Promise<PackedNames | null> {
+    const r = await sqlReportsActions.runColoringResult(report);
+    if (r.error) {
+      dialogs.error(r.error, 'Report failed');
+      return null;
+    }
+    return r.packed;
+  },
+
+  /** The coloring run itself — probe, then the packed run — REPORTING its
+   *  error instead of showing it, so the host API can answer the caller.
+   *  `quiet` also drops the progress dialog. */
+  async runColoringResult(
+    report: ReportDef,
+    opts: SqlRunOpts = {},
+  ): Promise<{ packed: PackedNames | null; error?: string }> {
+    sqlReportsState.set({ busy: true });
+    try {
+      // 1) probe the query's output columns (temp view + pragma_table_info)
+      const meta = await execReport(report, 'COLORING', { colorProbe: true, ...opts });
+      if (meta.error) {
+        return { packed: null, error: meta.error };
+      }
+      const cols = meta.rows.map((r) => String(r[0] ?? '').toLowerCase());
+      if (!cols.includes('fullname')) {
+        return { packed: null, error: 'The coloring query must return a "fullname" column.' };
+      }
+      const hasColorColumn = cols.includes('fullname_color');
+
+      // 2) run for real, projecting fullname[, fullname_color] per the probe —
+      // the worker packs them straight into flat buffers
+      const res = await execReport(report, 'COLORING', { hasColorColumn, progress: true, ...opts });
+      if (res.error) {
+        return { packed: null, error: res.error };
+      }
+      if (!res.packed) {
+        return { packed: null, error: 'The coloring query returned no packed result.' };
+      }
+      return { packed: res.packed };
+    } finally {
+      sqlReportsState.set({ busy: false });
+    }
+  },
+
+  /** DETAIL: run against the clicked fullname hierarchy, return the one row. */
+  async runDetail(report: ReportDef, tree: string[]): Promise<RunResult> {
+    return execReport(report, 'DETAIL', { tree });
+  },
+
+  /** ALT+click on a Detail button — print the SQL just bound to SQL Detail, so
+   *  it's clear WHAT got set (and whether it's the query you expect). */
+  logDetailSql(report: ReportDef) {
+    consoleActions.log('info', `SQL Detail bound "${report.name}" on ${report.databases.join(', ')}`);
+    consoleActions.log('info', `  SQL: ${report.sql}`);
+  },
+
+  // -----------------------------------------------------------------------------
+  // coloring apply (the 4 buttons)
+  // -----------------------------------------------------------------------------
+  // Each builds a LOCAL Set Color config (ColorRule[] + mode) in memory and runs
+  // it through the very pipeline the Set Color panel uses (ruleToSpec →
+  // applyColorRules). The panel's own state is never touched.
+
+  /** White base coat + the result as a colored highlight. Fresh reset-mode
+   *  run: rule 1 appends white (opacity 1) over everything, rule 2 appends
+   *  the packed result. */
+  async colorWhite(p: PackedNames, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-white' }, opts);
+  },
+
+  /** Paint a packed result per a colour MODE — the one entry every consumer
+   *  goes through (the app's buttons and the host API alike). Returns how
+   *  many names were painted. */
+  async colorPackedMode(p: PackedNames, mode: PackedColorMode, opts: SqlRunOpts = {}): Promise<number> {
+    if (!p.count) {
+      return 0;
+    }
+    const { specs, runMode, label } = colorModeSpecs(p, mode);
+    await runColorSpecs(label, specs, runMode, opts);
+    return p.count;
+  },
+
+  /** Isolate the result. Same as colorWhite but the base rule fades everything
+   *  to opacity 0 (default color) instead of white; the packed result (opacity
+   *  restored) then re-shows the hits with their own colors. */
+  async colorHidden(p: PackedNames, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-hidden' }, opts);
+  },
+
+  /** White base at 10% (or `opacity`) + the hits: the model stays readable
+   *  behind the highlight instead of going flat white. */
+  async colorTransparent(p: PackedNames, opacity?: number, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-transparent', opacity }, opts);
+  },
+
+  /** Layer the result ON TOP of the LIVE Set Color config: the panel's
+   *  enabled rules as specs (its state is only read), the packed result
+   *  appended as one extra rule, run in the panel's own reset/append mode.
+   *  Nothing is saved back to the panel. */
+  async colorSetColor(p: PackedNames, opts: SqlRunOpts = {}) {
+    await sqlReportsActions.colorPackedMode(p, { type: 'default-set' }, opts);
+  },
+
+  /** Select a packed result in the viewer instead of painting it — only the
+   *  names are used (fullname_color is ignored). `append` adds to the current
+   *  selection. The model worker resolves the names, so the wait sits behind
+   *  a "Setting selection" dialog like the coloring applies (unless `quiet`).
+   *  Returns how many names resolved and how many were unknown. */
+  async colorSelection(
+    p: PackedNames,
+    opts: { append?: boolean } & SqlRunOpts = {},
+  ): Promise<{ matched: number; missed: number }> {
+    if (!p.count) {
+      return { matched: 0, missed: 0 };
+    }
+    return timedApply(
+      { title: 'Selection', message: 'Setting selection… please wait', log: 'Selection: set from SQL' },
+      () => viewerActions.selectByPacked(p, { append: opts.append }),
+      opts,
+    );
+  },
+};

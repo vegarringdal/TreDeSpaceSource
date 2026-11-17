@@ -1,0 +1,46 @@
+@import "tailwindcss";
+/* Library-owned styles (theme palette, scrollbar skin) — see that file. */
+@import "./treDeSpaceUI/styles.css";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-slate-950);
+  color: var(--color-slate-200);
+  font:
+    12px / 1.45 ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.studio {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+}
+
+/* --- panel content --- */
+
+/* The one app-level panel rule left: a "strip" panel (the status bar) lays its
+   content out in a row. Every other panel styles itself with Tailwind
+   utilities or @treDeSpaceUI widgets — nothing in src/components may depend on
+   a class defined here, or it renders unstyled in the widget gallery and in
+   the published @tredespace/ui package. */
+.panel-body.strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
+  padding: 0 14px;
+  font-size: 12px;
+}
+.panel-body.strip b {
+  color: var(--color-slate-100);
+  font-weight: 600;
+}

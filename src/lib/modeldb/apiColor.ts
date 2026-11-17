@@ -1,0 +1,242 @@
+// Coloring domain: color/opacity overrides on the selection. The MultiColor
+// rule engine lives in colorRules; the shared STATE undo stack (color,
+// opacity AND visibility — one band) lives in colorUndo. Every mutation here
+// pushes a step through those helpers so one undo press reverts one action.
+
+import { applyColorRules } from './colorRules';
+import {
+  type ColorUndoRecord,
+  captureColorRuns,
+  colorRedoDepth,
+  colorUndoDepth,
+  pushColorUndo,
+  redoColorStep,
+  undoColorStep,
+} from './colorUndo';
+import {
+  HAS_COLOR_OVERRIDE,
+  HAS_OPACITY_OVERRIDE,
+  IS_HIDDEN,
+  modelHasTransparency,
+  models,
+  OPACITY_MASK,
+  type StateUpdate,
+  withOpacityOverride,
+} from './dbState';
+import { packStates, transferUpdates } from './hierarchyIndex';
+
+export const colorApi = {
+  /** Opacity override 0-100 on the selection (native flag bits 25-31).
+   *  0 hides instead of writing a 0 % override — see withOpacityOverride.
+   *  Undoable (state domain). */
+  setOpacityOnSelection(pct: number): StateUpdate[] {
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      if (m.selected.length === 0) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (const it of m.selected) {
+        m.states[it * 2] = withOpacityOverride(m.states[it * 2], pct);
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return transferUpdates(updates);
+  },
+
+  resetOpacityOnSelection(): StateUpdate[] {
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      if (m.selected.length === 0) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (const it of m.selected) {
+        m.states[it * 2] = (m.states[it * 2] & ~(OPACITY_MASK | HAS_OPACITY_OVERRIDE)) >>> 0;
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return transferUpdates(updates);
+  },
+
+  resetAllOpacity(): StateUpdate[] {
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      let any = false;
+      for (let i = 0; i < m.itemCount; i++) {
+        if (m.states[i * 2] & HAS_OPACITY_OVERRIDE) {
+          any = true;
+          break;
+        }
+      }
+      if (!any) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (let i = 0; i < m.itemCount; i++) {
+        m.states[i * 2] = (m.states[i * 2] & ~(OPACITY_MASK | HAS_OPACITY_OVERRIDE)) >>> 0;
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return transferUpdates(updates);
+  },
+
+  /** Clear the chosen override kinds EVERYWHERE as ONE undo step: `color`
+   *  drops color overrides, `opacity` the opacity band, `hidden` unhides.
+   *  All three together is the "Clear all" action. */
+  clearOverrides(kinds: { color?: boolean; opacity?: boolean; hidden?: boolean }): StateUpdate[] {
+    let mask = 0;
+    if (kinds.color) {
+      mask |= HAS_COLOR_OVERRIDE;
+    }
+    if (kinds.opacity) {
+      mask |= HAS_OPACITY_OVERRIDE | OPACITY_MASK;
+    }
+    if (kinds.hidden) {
+      mask |= IS_HIDDEN;
+    }
+    mask = mask >>> 0;
+    if (mask === 0) {
+      return [];
+    }
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      let any = false;
+      for (let i = 0; i < m.itemCount; i++) {
+        if (m.states[i * 2] & mask) {
+          any = true;
+          break;
+        }
+      }
+      if (!any) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (let i = 0; i < m.itemCount; i++) {
+        m.states[i * 2] = (m.states[i * 2] & ~mask) >>> 0;
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return transferUpdates(updates);
+  },
+
+  /** "Clear all": unhide everything + reset every color and opacity override,
+   *  as ONE undo step (the whole state band is cleared in one pass). */
+  clearAllOverrides(): StateUpdate[] {
+    return colorApi.clearOverrides({ color: true, opacity: true, hidden: true });
+  },
+
+  applyColorRules,
+
+  /** Anything that needs the blend pass: a baked-transparent color group, an
+   *  opacity override strictly between 0 and 100, or a color override whose
+   *  packed alpha is strictly between 0 and 255. Opacity 0 is invisible and
+   *  culled like a hidden item (isEffectivelyHidden), 100 / alpha 255 draws
+   *  opaque — neither may switch the whole-scene blend replay on. */
+  hasTransparency(): boolean {
+    return models.some((m) => !m.removed && modelHasTransparency(m));
+  },
+
+  /** Apply a packed RGBA8 color override to the current selection.
+   * Pushes onto the COLORING undo stack (per-domain — never global). */
+  applyColorToSelection(colorRGBA8: number): StateUpdate[] {
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      if (m.selected.length === 0) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (const it of m.selected) {
+        m.states[it * 2] |= HAS_COLOR_OVERRIDE;
+        m.states[it * 2 + 1] = colorRGBA8;
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return transferUpdates(updates);
+  },
+
+  clearColorOnSelection(): StateUpdate[] {
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      if (m.selected.length === 0) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (const it of m.selected) {
+        m.states[it * 2] &= ~HAS_COLOR_OVERRIDE;
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return transferUpdates(updates);
+  },
+
+  /** Clear every color override everywhere (undoable, coloring domain). */
+  resetAllColors(): StateUpdate[] {
+    const updates: StateUpdate[] = [];
+    const step: ColorUndoRecord[] = [];
+    models.forEach((m, idx) => {
+      if (m.removed) {
+        return;
+      }
+      let any = false;
+      for (let i = 0; i < m.itemCount; i++) {
+        if (m.states[i * 2] & HAS_COLOR_OVERRIDE) {
+          any = true;
+          break;
+        }
+      }
+      if (!any) {
+        return;
+      }
+      step.push(captureColorRuns(idx));
+      for (let i = 0; i < m.itemCount; i++) {
+        m.states[i * 2] &= ~HAS_COLOR_OVERRIDE;
+      }
+      updates.push(packStates(m, idx));
+    });
+    pushColorUndo(step);
+    return transferUpdates(updates);
+  },
+
+  undoColor(): StateUpdate[] {
+    return transferUpdates(undoColorStep().map((model) => packStates(models[model], model)));
+  },
+
+  redoColor(): StateUpdate[] {
+    return transferUpdates(redoColorStep().map((model) => packStates(models[model], model)));
+  },
+
+  colorUndoDepth,
+
+  colorRedoDepth,
+};

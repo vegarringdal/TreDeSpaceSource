@@ -1,0 +1,137 @@
+// The app's dock workspace, shared by App.tsx (first-load / Reset panel layout)
+// and the default Layout slots (Settings → Layouts, App Layout ribbon F1–F12). One
+// builder so every preset stays in sync with the real panel/ribbon ids.
+import { type DockState, type LayoutNode, split, tabs } from '@treDeSpaceUI/dockable';
+
+/** Ribbon tabs in the fixed top strip (order = tab order). */
+const RIBBONS = [
+  'ribbonHome',
+  'ribbonClippingPlane',
+  'ribbonClippingBox',
+  'ribbonSelectionColor',
+  'ribbonSelectionTransform',
+  'ribbonMeasurements',
+  'ribbonExternal',
+  'ribbonPanels',
+  'ribbonPad',
+  'ribbonAnimation',
+  'ribbonLayout',
+];
+
+const ribbonStrip = (activeRibbon: string): LayoutNode =>
+  tabs(RIBBONS, { id: 'top', fixedSize: 124, locked: true, collapsible: true, activePanel: activeRibbon });
+
+/** Home (F1, and the first-load layout): Settings in front, with Set Color
+ *  and Label loaded as tabs behind it. */
+export const HOME_RIGHT_PANELS: readonly string[] = ['settings', 'multiColor', 'labels'];
+
+/**
+ * A full workspace snapshot: the ribbon strip over `hierarchy | viewport+console`
+ * plus an optional right-hand tab group. `rightPanels` = one panel id or several
+ * (tabs, the first one shown); null closes the right region (two columns);
+ * `collapseConsole` minimizes the bottom console to its tab strip. Used both as
+ * the base layout and for the named Layout slots.
+ */
+export function workspace(
+  activeRibbon: string,
+  rightPanels: string | readonly string[] | null,
+  collapseConsole = false,
+): DockState {
+  const consoleTabs = tabs(['console'], { id: 'bottom', fixedSize: 170, collapsed: collapseConsole || undefined });
+  const center = split('column', [tabs(['viewport']), consoleTabs]);
+  const right = typeof rightPanels === 'string' ? [rightPanels] : rightPanels;
+  const row = right
+    ? split('row', [tabs(['hierarchy'], { id: 'left' }), center, tabs([...right], { id: 'right' })], [20, 58, 22])
+    : split('row', [tabs(['hierarchy'], { id: 'left' }), center], [22, 78]);
+  return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
+}
+
+/** The "Viewpoint" slot (F11): the presentation/authoring workspace —
+ *  Hierarchy | Viewpoint Viewer | viewport | the Viewpoint Editor and the
+ *  three viewpoint editors as tabs of ONE group, so its chevron hides them
+ *  all at once (and the Hierarchy and Viewer each hide with their own). */
+export function viewpointWorkspace(activeRibbon: string): DockState {
+  const hierarchy = tabs(['hierarchy'], { id: 'left' });
+  const viewer = tabs(['viewpointViewer']);
+  const editors = tabs(['viewpoints', 'multiColorViewpoint', 'labelsViewpoint', 'measurementsViewpoint'], {
+    id: 'right',
+  });
+  const row = split('row', [hierarchy, viewer, tabs(['viewport']), editors], [11, 11, 46, 32]);
+  return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
+}
+
+/** The "SQL Editor" slot (F12): Hierarchy | SQL Reports | SQL Editor |
+ *  (viewport over SQL Table over console) | SQL Detail. */
+export function sqlWorkspace(activeRibbon: string): DockState {
+  const center = split(
+    'column',
+    [tabs(['viewport']), tabs(['sqlTable']), tabs(['console'], { id: 'bottom', fixedSize: 150 })],
+    [68, 32, 1],
+  );
+  const row = split(
+    'row',
+    [
+      tabs(['hierarchy'], { id: 'left' }),
+      tabs(['sqlReports']),
+      tabs(['sqlEditor']),
+      center,
+      tabs(['sqlDetail'], { id: 'right' }),
+    ],
+    [12, 11, 15, 46, 16],
+  );
+  return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
+}
+
+/** The "Assets" slot (CTRL+F1): the asset-management workspace — Hierarchy |
+ *  (Model Assets over SQL Assets) | (viewport over console) | Import Manager |
+ *  Export. */
+export function assetsWorkspace(activeRibbon: string): DockState {
+  const center = split('column', [tabs(['viewport']), tabs(['console'], { id: 'bottom', fixedSize: 150 })]);
+  const assetsCol = split('column', [tabs(['modelAssets']), tabs(['sqlAssets'])]);
+  const row = split(
+    'row',
+    [
+      tabs(['hierarchy'], { id: 'left' }),
+      assetsCol,
+      center,
+      tabs(['importManager'], { id: 'right' }),
+      tabs(['export']),
+    ],
+    [14, 18, 38, 15, 15],
+  );
+  return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
+}
+
+/** The "Animate" workspace (DESIGN.md › Animation): Hierarchy |
+ *  viewport over the Timeline (+ Overlay Preview) | the Key panel, Overlay
+ *  Editor and Set Color. */
+export function animateWorkspace(activeRibbon: string): DockState {
+  const center = split('column', [
+    tabs(['viewport']),
+    tabs(['animationTimeline', 'overlayPreview'], {
+      id: 'bottom',
+      fixedSize: 300,
+    }),
+  ]);
+  const row = split(
+    'row',
+    [tabs(['hierarchy'], { id: 'left' }), center, tabs(['animation', 'overlayEditor', 'multiColor'], { id: 'right' })],
+    [16, 58, 26],
+  );
+  return { root: split('column', [ribbonStrip(activeRibbon), row]), windows: [] };
+}
+
+/** The "Present" workspace: the viewport alone — the floating play bar
+ *  plays the animation. */
+export function presentWorkspace(activeRibbon: string): DockState {
+  return { root: split('column', [ribbonStrip(activeRibbon), tabs(['viewport'], { id: 'right' })]), windows: [] };
+}
+
+/** A bare workspace: the ribbon strip over just the viewport — no side panels
+ *  or console. Used by the blank-scene fallback. */
+export function viewportOnly(activeRibbon: string): DockState {
+  return { root: split('column', [ribbonStrip(activeRibbon), tabs(['viewport'])]), windows: [] };
+}
+
+/** First-load layout + what "Reset panel layout" restores (Home ribbon + Settings). */
+export const defaultLayout: LayoutNode = workspace('ribbonHome', HOME_RIGHT_PANELS).root;

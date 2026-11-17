@@ -1,0 +1,116 @@
+import {
+  IconArrowBigDown,
+  IconArrowBigUp,
+  IconArrowsMaximize,
+  IconCurrentLocation,
+  IconDeselect,
+  IconEraser,
+  IconEyeOff,
+  IconFocus2,
+  IconFocusCentered,
+  IconLayoutDistributeVertical,
+  IconPlaneTilt,
+} from '@tabler/icons-react';
+import { usePanelContext } from '@treDeSpaceUI/dockable';
+import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
+import { useSyncExternalStore } from 'react';
+import { viewerActions } from '../../../state/viewer/viewer.actions';
+import { toggleSoloPanels } from '../ribbon-home/soloPanels';
+
+/** View helpers (fly/focus/solo) and tree navigation with pad-sized targets. */
+export function PadViewGroups() {
+  const { manager } = usePanelContext();
+  // re-render on layout changes so the Solo button tracks manager.isSolo()
+  useSyncExternalStore(
+    (cb) => manager.subscribe(cb),
+    () => manager.version,
+  );
+
+  return (
+    <>
+      <RibbonSection title="View">
+        <RibbonButton
+          icon={<IconPlaneTilt />}
+          label="Fly To"
+          tooltip="Fly to the selection (fit its bounding box)"
+          shortcut="camera.flyTo"
+          onClick={() => void viewerActions.flyToSelection()}
+        />
+        <RibbonButton
+          icon={<IconFocus2 />}
+          label="Focus Click"
+          tooltip="Re-pivot on the last clicked point (same as Alt+click) — camera stays put"
+          shortcut="camera.focusClick"
+          onClick={() => viewerActions.focusLastClick()}
+        />
+        <RibbonButton
+          icon={<IconCurrentLocation />}
+          label="Go To Click"
+          tooltip="Fly to the last clicked point and pivot there — the Space+click move, after the fact"
+          shortcut="camera.gotoClick"
+          onClick={() => viewerActions.flyToLastClick()}
+        />
+        <RibbonButton
+          icon={<IconFocusCentered />}
+          label="Focus Sel."
+          tooltip="Re-pivot on the selection center — camera stays put"
+          shortcut="camera.focusSelection"
+          onClick={() => void viewerActions.focusSelection()}
+        />
+        <RibbonButton
+          icon={<IconArrowsMaximize />}
+          label="Fit Visible"
+          tooltip="Frame everything that is not hidden, cut to the clipping in force — hide, isolate or clip first to zoom onto a set"
+          shortcut="camera.fitVisible"
+          onClick={() => void viewerActions.fitVisible()}
+        />
+        <RibbonButton
+          icon={<IconLayoutDistributeVertical />}
+          label="Solo"
+          selected={manager.isSolo()}
+          tooltip="Close every panel except the main one — click again to restore the layout"
+          shortcut="view.soloPanels"
+          onClick={() => toggleSoloPanels()}
+        />
+        <RibbonButton
+          icon={<IconEyeOff />}
+          label="Hide"
+          tooltip="Hide the selected items"
+          shortcut="selection.hide"
+          onClick={() => void viewerActions.hideSelection()}
+        />
+        <RibbonButton
+          icon={<IconEraser />}
+          label="Reset All"
+          tooltip="Unhide all + reset every color and opacity override (whole model)"
+          shortcut="selection.clearOverrides"
+          onClick={() => void viewerActions.clearAllOverrides()}
+        />
+        <RibbonButton
+          icon={<IconDeselect />}
+          label="Clear Sel."
+          tooltip="Deselect everything"
+          shortcut="selection.clear"
+          onClick={() => void viewerActions.clearSelection()}
+        />
+      </RibbonSection>
+
+      <RibbonSection title="Tree">
+        <RibbonButton
+          icon={<IconArrowBigUp />}
+          label="Up"
+          tooltip="Select the parent of the active item (same as U)"
+          shortcut="hierarchy.navUp"
+          onClick={() => void viewerActions.navUp()}
+        />
+        <RibbonButton
+          icon={<IconArrowBigDown />}
+          label="Down"
+          tooltip="Select back down into the previous child (same as P)"
+          shortcut="hierarchy.navDown"
+          onClick={() => void viewerActions.navDown()}
+        />
+      </RibbonSection>
+    </>
+  );
+}

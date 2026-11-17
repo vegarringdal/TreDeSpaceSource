@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F5 Transform</title>
+  <meta name="description" content="Guide to the F5 Transform layout: make transform objects from the selection, move, rotate and scale them, sub-objects, the object list, undo and reset." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F5</p>
+      <h1>Transform</h1>
+      <p class="lede">
+        Move, turn and resize parts of the model, for example to try out where a new piece of equipment fits. You make the items a <b>transform object</b> first; the app then keeps track of how far each object has been moved. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F5</p>
+          <h2>The Transform layout</h2>
+          <p>
+            Press <kbd>F5</kbd> (or pick <b>Transform</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the transform workspace. Everything on its ribbon works on a <b>transform object</b>:
+            select items in the tree or the 3D view, press <b>New Object</b>, then move, turn or resize the object with
+            the buttons, or drag it with the handles in the 3D view. The list on the right shows every object and how
+            far it has been moved. The model files themselves are never changed; see
+            <a href="#saved">what is kept</a>.
+          </p>
+          <figure class="shot" data-shot="f05-layout">
+            <figcaption>The F5 layout with one loudspeaker made an object and the Move handles on. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Transform ribbon</b> — described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree. Click a row to select that item and everything under it.</li>
+            <li><b>3D view</b> — click an item to select it; the handles appear when the selection is an object.</li>
+            <li><b>Console</b> — minimised. Click its tab to see a line for each mode you switch on or off.</li>
+            <li><b>Transform Objects</b> — the list of objects; see <a href="#panel">The Transform Objects panel</a>.</li>
+          </ol>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Transform ribbon</h2>
+          <p>
+            The move, turn and resize buttons are greyed out until the selection is a <b>transform object</b>. Every
+            change can be undone with <b>Undo</b> (<kbd>ALT 101</kbd>). This undo is separate from the colour Undo on the
+            <a href="f04-selection-color.html">Selection Color</a> ribbon.
+          </p>
+
+          <h3 id="ribbon-object">Object</h3>
+          <figure class="shot" data-shot="f05-object"></figure>
+          <ol class="legend-list">
+            <li><b>New Object</b> (<kbd>ALT 131</kbd>) — makes the selected items a transform object, named after the
+              selected node. While the selection is an object the button is greyed out: that object is the
+              <b>current object</b>, the one the rest of the ribbon moves. Its row is outlined in the list. A selection <i>inside</i> another
+              object becomes its <b>sub-object</b>; see <a href="#task-sub">Move a part of something you have moved</a>.</li>
+          </ol>
+          <p class="note">
+            You can select something large in the tree and then deselect a few parts of it before pressing
+            <b>New Object</b>: the object is then the large node without those parts, and its row says so
+            (<i>1 node(s), 3 left out</i>). On a very large selection a short "working" message is shown while the
+            object is made.
+          </p>
+          <p class="note">
+            Selecting an object's items again, in the tree, the 3D view or with the select button on its row in the
+            list, makes it the current object again. With a selection that is not an object nothing moves; press
+            <b>New Object</b> first.
+          </p>
+
+          <h3 id="ribbon-gizmo">On/Off, Pivot and Options</h3>
+          <figure class="shot" data-shot="f05-gizmo"></figure>
+          <ol class="legend-list">
+            <li><b>Move</b> (<kbd>ALT 110</kbd>) — shows arrows on the current object in the 3D view. Drag an arrow to move the
+              object along it.</li>
+            <li><b>Rotate</b> (<kbd>ALT 111</kbd>) — shows three rings. Drag a ring to turn the object around it. Hold
+              <kbd>Shift</kbd> to turn in 15° steps.</li>
+            <li><b>Scale</b> (<kbd>ALT 112</kbd>) — shows a square handle on each arrow. Drag one to stretch or squeeze the
+              object in that direction only.</li>
+            <li><b>Set Pivot</b> (<kbd>ALT 120</kbd>) — places the object's <b>pivot</b> by hand: the point that Rotate and Scale turn and
+              resize around, and where the handles sit. It is the same pivot as on the object's row in the list: placing it
+              here fills in the <b>Pivot offset</b> there. See <a href="#pivot">Use a pivot</a>.
+              Once a pivot has been placed by hand, the button reads <b>Adjust</b>.</li>
+            <li><b>Reset</b> (<kbd>ALT 121</kbd>) — drops the hand-placed pivot: it goes back to the side picked under
+              <b>Pivot</b> in the list, the centre unless you chose another.</li>
+            <li><b>Auto Disable</b> (<kbd>ALT 1226</kbd>, on at the start) — when you leave this ribbon (another ribbon tab,
+              or another layout), the handles, pivot placing and Move To Click are switched off, so a later click in the
+              3D view does not move anything by accident. The app remembers this choice.</li>
+          </ol>
+          <p class="note">
+            Press the lit Move, Rotate or Scale button again to hide the handles. The handles always point along the
+            model's X (red), Y (green) and Z (blue) directions, even after you have turned the item. A drag counts as one step
+            for Undo.
+          </p>
+
+          <h3 id="ribbon-pivot">Placing the pivot</h3>
+          <figure class="shot" data-shot="f05-pivot-setting">
+            <figcaption>While you place the pivot, the Pivot group shows these three buttons.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Lock</b> — keeps the pivot where it is now, as the object's pivot. The object does not move.</li>
+            <li><b>Cancel</b> — leaves the pivot where it was before you started.</li>
+            <li><b>Item Pivot</b> (<kbd>ALT 122</kbd>) — while it is on, click any item in the 3D view to put the pivot at
+              that item's centre. The selection does not change.</li>
+          </ol>
+
+          <h3 id="ribbon-step">Quick Move and Step</h3>
+          <figure class="shot" data-shot="f05-step"></figure>
+          <ol class="legend-list">
+            <li><b>Move To Click</b> (<kbd>ALT 130</kbd>) — press it, then click a point on the model: the current object moves
+              so that the middle of its <b>underside</b> sits on that point. Handy for putting equipment on a floor. It works
+              once; clicking empty space cancels it.</li>
+            <li><b>Unit</b> — mm, cm or m for the step.</li>
+            <li><b>Step</b> (<kbd>ALT 190</kbd> / <kbd>ALT 191</kbd>) — how far the Move buttons go, and how much Bigger / Smaller
+              changes the size. − / + change it by 0.25.</li>
+          </ol>
+
+          <h3 id="ribbon-move">Move, Scale and Rotate</h3>
+          <figure class="shot" data-shot="f05-move"></figure>
+          <ol class="legend-list">
+            <li><b>R</b>, <b>L</b>, <b>B</b>, <b>F</b>, <b>T</b>, <b>Bo</b> (<kbd>ALT 160</kbd> … <kbd>ALT 165</kbd>) — move the current object one
+              step towards the right, left, back, front, top or bottom, the faces of the view cube. If you rename the cube's
+              faces in Settings, the letters follow.</li>
+            <li><b>Bigger</b> (<kbd>ALT 150</kbd>) — makes the object bigger in all directions, so that its longest side grows
+              by one step.</li>
+            <li><b>Smaller</b> (<kbd>ALT 151</kbd>) — the same, smaller.</li>
+            <li><b>T→F</b> and the other turn buttons (<kbd>ALT 170</kbd> … <kbd>ALT 175</kbd>) — turn the object 90° so that the
+              side that was on top faces front (T→F), back, left or right, or so that the front faces right (F→R) or left (F→L).</li>
+          </ol>
+          <p class="note">
+            Bigger, Smaller and the turn buttons work around the object's pivot.
+          </p>
+
+          <h3 id="ribbon-history">Reset, Objects and History</h3>
+          <figure class="shot" data-shot="f05-history"></figure>
+          <ol class="legend-list">
+            <li><b>Reset Obj</b> (<kbd>ALT 140</kbd>) — puts the current object back where it was in the model file. The
+              object stays in the list.</li>
+            <li><b>Reset All</b> (<kbd>ALT 141</kbd>) — puts every object back. The objects stay in the list.</li>
+            <li><b>List</b> (<kbd>ALT 134</kbd>) — shows or hides the <a href="#panel">Transform Objects panel</a>. The button is lit while the panel is open.</li>
+            <li><b>Undo</b> (<kbd>ALT 101</kbd>) — undoes the last change: a move, turn, resize or reset, but also a new
+              or deleted object and a number typed in the list.</li>
+            <li><b>Redo</b> (<kbd>ALT 102</kbd>) — does it again.</li>
+          </ol>
+        </section>
+
+        <section id="panel" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>The Transform Objects panel</h2>
+          <p>
+            The list of every transform object. It opens with the F5 layout, from <b>List</b> on the ribbon, or with
+            <kbd>ALT 694</kbd>. Objects are shown as a tree: a sub-object sits indented under the object it rides on.
+          </p>
+          <figure class="shot" data-shot="f05-panel">
+            <figcaption>A container object with one sub-object. The sub-object is the current object, so its row is outlined and open.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Objects &amp; files</b> — <b>New Object</b> (the same as on the ribbon), <b>Save…</b> (<kbd>ALT 135</kbd>) and
+              <b>Load…</b> (<kbd>ALT 136</kbd>) for the whole list as a file, and <b>Delete all</b> (<kbd>ALT 137</kbd>). The two
+              arrow buttons close (<kbd>ALT 138</kbd>) or open (<kbd>ALT 139</kbd>) every row of the list at once. This section
+              stays in view; the list under it scrolls on its own.</li>
+            <li><b>A row</b> — the object's name and, in orange, how far it stands from its place in the model: the
+              distance moved, the angle turned and the scale. <i>at rest</i> means it has not been moved.</li>
+            <li><b>A sub-object</b> — indented under its container. Its numbers are counted from the container, so they
+              do not change when the container moves.</li>
+            <li><b>Row buttons</b> — select the object's items (which makes it the current object), mute it
+              (<kbd>ALT 132</kbd>: show it where the model has it, keeping its numbers), reset it, and delete it
+              (<kbd>ALT 133</kbd>). The keys work on the current object. A container also has a first button
+              (<kbd>ALT 142</kbd>) that closes the rows of all its sub-objects, or opens them when none is open.</li>
+            <li><b>Move, Rotate, Scale</b> — the same numbers, to read or to type. Move is in metres, Rotate in degrees
+              around X, Y and Z, Scale is a factor along the object's own length, width and height.</li>
+            <li><b>Pivot</b> — the point the numbers are counted around, and where the handles sit: the centre or the
+              middle of one side of the object, plus an offset in metres. Changing it does not move the object.</li>
+            <li><b>Rides on</b> — the object this one follows. It is filled in when you make an object inside another.
+              Clear it to make the object stand on its own, or pick any other object. Changing it does not move the
+              object.</li>
+            <li><b>Add selection</b> (<kbd>ALT 143</kbd>) and <b>Remove selection</b> (<kbd>ALT 144</kbd>) — change what the
+              object holds; see <a href="#task-fix">Fix what an object holds</a>. <b>To animation</b> copies the object
+              into the animation; see <a href="#task-animation">Use an object in an animation</a>. On a container, the two arrow buttons at the
+              right end of this line close (<kbd>ALT 145</kbd>) or open (<kbd>ALT 146</kbd>) the rows of all its
+              sub-objects, like the pair in the top section does for the whole list.</li>
+          </ol>
+          <p class="note">
+            Deleting an object puts its items back where the model has them. Its sub-objects stay where they are and
+            ride on the object above it instead.
+          </p>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-move">Move an item by an exact distance</h3>
+          <ol class="steps">
+            <li>Select it, here the loudspeaker <code class="inline">/SX-HA86-011A</code>, and press <b>New Object</b>.</li>
+            <li>Set the <b>Step</b>, for example <b>m</b> and <b>1.00</b>.</li>
+            <li>Press <b>T</b> under <b>Move</b> to lift it one metre. Press again to go further, or <b>Undo</b> to take a step back.
+              Its row in the list shows the total, and you can type an exact number there instead.
+              <figure class="shot" data-shot="f05-task-move-viewport">
+                <figcaption>The loudspeaker lifted one metre, with the Move handles.</figcaption>
+              </figure>
+            </li>
+          </ol>
+
+          <h3 id="task-drag">Drag an item into place</h3>
+          <ol class="steps">
+            <li>Select it, press <b>New Object</b>, then <b>Move</b> under <b>On/Off</b>. Arrows appear on the object.</li>
+            <li>Drag an arrow. The item follows while you drag and stays where you let go.</li>
+            <li>To set it down on a floor or a beam instead, press <b>Move To Click</b> and click the spot.</li>
+          </ol>
+
+          <h3 id="task-rotate">Turn an item</h3>
+          <ol class="steps">
+            <li>Select it, press <b>New Object</b>, then <b>Rotate</b> under <b>On/Off</b>.</li>
+            <li>Drag a ring. Hold <kbd>Shift</kbd> to turn in 15° steps. For exact quarter turns, use the buttons under
+              <b>Rotate</b> instead.
+              <figure class="shot" data-shot="f05-task-rotate-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="task-sub">Move a part of something you have moved</h3>
+          <p>
+            Objects can sit inside each other. Move a whole skid, then adjust one valve on it:
+          </p>
+          <ol class="steps">
+            <li>Select the container, here the group <code class="inline">/HA-TELE-PA</code>, press <b>New Object</b> and move it.</li>
+            <li>Select one part inside it, here <code class="inline">/SX-HA86-011A</code>, and press <b>New Object</b> again. In the
+              list the part appears indented under the container: it is a sub-object.</li>
+            <li>Move the part. Only the part moves.</li>
+            <li>Select the container's row in the list and move it. The part follows, keeping its own offset.</li>
+          </ol>
+          <p class="note">
+            The order does not matter: an object made around a part you have already moved takes that part as its
+            sub-object, without moving it. A selection that is half inside an object and half outside cannot be made an
+            object; select inside the object, or all of it.
+          </p>
+
+          <h3 id="task-fix">Fix what an object holds</h3>
+          <p>
+            If the first selection missed a part, or took one too many, you do not have to start again:
+          </p>
+          <ol class="steps">
+            <li>Select only the items that are missing, or that should not be in the object.</li>
+            <li>Open the object's row in the list and press <b>Add selection</b> or <b>Remove selection</b>.</li>
+            <li>Added items take the object's place and numbers at once; removed items go back where the model has
+              them. The object is selected again afterwards, ready to be moved.</li>
+          </ol>
+          <p class="note">
+            The two keys work on the object you had selected last, so you can pick the object, select the extra items
+            and press <kbd>ALT 143</kbd> without opening the list. A change that would leave an item half in one object
+            and half in another is refused.
+          </p>
+
+          <h3 id="task-animation">Use an object in an animation</h3>
+          <p>
+            An object you have placed and given a pivot here can start an animation, so you do not set it up twice:
+          </p>
+          <ol class="steps">
+            <li>Open the object's row in the list and press <b>To animation</b> (<kbd>ALT 147</kbd>).</li>
+            <li>For a container, tick <b>with sub-objects</b> (<kbd>ALT 148</kbd>) to bring everything that rides on it
+              along as sub-objects, or untick it to send the container alone — what rides on it is then left out of it.</li>
+            <li>Switch to the <a href="f10-animation.html">Animation</a> layout. The object is on the Timeline with the
+              same items, pivot and parent, and one key at 0 s holding where you placed it. Add keys after it.</li>
+          </ol>
+          <p class="note">
+            It is a copy: changing the transform object afterwards does not change the animation. A scale is not taken
+            along, because animations do not scale. <b>Brief for AI</b> on the Animation ribbon lists your transform
+            objects too, so an AI writing the animation uses the objects you picked instead of guessing them.
+          </p>
+
+          <h3 id="pivot">Use a pivot</h3>
+          <p>
+            By default an object turns around its own middle. To turn a valve around its flange, or a hatch around its hinge,
+            either pick a side under <b>Pivot</b> on its row in the list, or place a pivot by hand:
+          </p>
+          <ol class="steps">
+            <li>Select the object and press <b>Set Pivot</b>. Dashed arrows and an orange marker appear on the object's pivot.</li>
+            <li>Drag the arrows to move the marker to where the item should turn. Or switch on <b>Item Pivot</b> and click another
+              item to put the pivot at its centre.</li>
+            <li>Press <b>Lock</b>. Rotate, Scale, Bigger, Smaller and the 90° buttons now work around the pivot, and the object's row in the list shows it as the <b>Pivot offset</b>.</li>
+            <li>The pivot belongs to the object and is kept, also when you select something else and come back. Press <b>Reset</b> in the Pivot group to drop it.</li>
+          </ol>
+
+          <h3 id="task-undo">Put everything back</h3>
+          <p>
+            <b>Undo</b> steps back one change at a time. <b>Reset Obj</b> puts the current object back in its original
+            place in one go, and <b>Reset All</b> does that for every object. Resets can be undone too. To see an
+            object in its original place for a moment without losing its numbers, mute it in the list.
+          </p>
+        </section>
+
+        <section id="saved" class="g-sec">
+          <p class="sec-kick">Good to know</p>
+          <h2>What is kept, and what is exported</h2>
+          <ul>
+            <li>Moves only change what you see in TreDeSpace. The model files are not changed.</li>
+            <li>Moves are <b>not</b> kept when you reload the page, and viewpoints do not store them.</li>
+            <li>To keep the objects, press <b>Save…</b> in the Transform Objects panel. The file holds every object: its
+              items by name, its numbers and what it rides on. <b>Load…</b> brings them back, also after the model has
+              been imported again.</li>
+            <li>The objects stay when a model is unloaded and loaded again; they find their items by name.</li>
+            <li>While you animate (the <a href="f10-animation.html">Animation</a> layout) every object is shown in its
+              original place and cannot be moved or edited: the panel shows a notice and its fields are greyed out, and
+              so are New Object and the step buttons on the ribbon. Everything comes back when you leave the
+              animation.</li>
+            <li>To keep only where the items are, save a <b>state snapshot</b> in the <b>Export</b> panel (open it from the <b>Panel</b> tab of the
+              ribbon or with <kbd>CTRL+E</kbd>) with <b>Save transforms</b> ticked. Loading the snapshot later puts the items
+              back where you moved them, but as loose items: it replaces the placement and empties the object list.</li>
+            <li>Exports from the <b>Export</b> panel (GLB, IFC and TDP) write the items where they are now, moved, turned and
+              resized.</li>
+            <li>Selecting, and measuring afterwards, work on the items where they are now. Labels and measurements you made
+              before the move stay where they were.</li>
+          </ul>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control on the ribbon</h2>
+          <div class="ref-table" data-ref="ribbonSelectionTransform"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

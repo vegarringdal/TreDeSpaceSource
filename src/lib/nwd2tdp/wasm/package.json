@@ -1,0 +1,20 @@
+{
+  "name": "nwd-wasm",
+  "type": "module",
+  "collaborators": [
+    "Vegar Ringdal"
+  ],
+  "description": "WebAssembly shell for nwd-core: NWD → .tdp in the browser (Worker + OPFS)",
+  "version": "0.1.0",
+  "license": "LicenseRef-TreDeSpace",
+  "files": [
+    "nwd_wasm_bg.wasm",
+    "nwd_wasm.js",
+    "nwd_wasm.d.ts"
+  ],
+  "main": "nwd_wasm.js",
+  "types": "nwd_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

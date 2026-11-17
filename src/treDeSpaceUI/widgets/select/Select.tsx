@@ -1,0 +1,227 @@
+import { useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '../../lib/cn';
+import { Labelled, type LabelledProps } from '../fieldChrome';
+import { SelectChips } from './SelectChips';
+import { SelectList } from './SelectList';
+import { useSelectDropdown } from './useSelectDropdown';
+
+export interface SelectOption<T extends string = string> {
+  /** What onChange hands back for this option. */
+  value: T;
+  /** Text in the list and the trigger — what the search box matches. */
+  label: string;
+  /** Dimmed text after the label — a unit, a path, a shortcut. */
+  hint?: string;
+  /** Shown dimmed; cannot be picked. */
+  disabled?: boolean;
+}
+
+interface BaseProps<T extends string> extends LabelledProps {
+  /** The choices. With `loadOptions` the list shows its results instead; these still name already-picked values. */
+  options?: readonly SelectOption<T>[];
+  /** Trigger text while nothing is picked (default "Select…"). */
+  placeholder?: string;
+  /** Show a filter box at the top of the list. Implied by loadOptions. */
+  searchable?: boolean;
+  /**
+   * Async search: called (debounced) with the current query; resolve with the
+   * matching options or throw/reject to show the error in the list. Replaces
+   * local filtering of `options`.
+   */
+  loadOptions?: (query: string) => Promise<SelectOption<T>[]>;
+  /** Styled tooltip (data-tooltip). */
+  tooltip?: string;
+  /** Hotkey id (data-shortcut) — the tooltip gets a combo footer. */
+  shortcut?: string;
+  /**
+   * Show the in-trigger × that clears the selection (default true). Turn it
+   * off for a fixed choice that can never be empty — a mode, an operator —
+   * so the label gets the × column back.
+   */
+  clearable?: boolean;
+}
+
+export interface SingleSelectProps<T extends string = string> extends BaseProps<T> {
+  /** Omit (or false) for single mode: a pick closes the list. */
+  multiple?: false;
+  /** The picked value, or null for none. */
+  value: T | null;
+  /** Receives null when the user clears the selection. */
+  onChange: (value: T | null) => void;
+}
+
+export interface MultiSelectProps<T extends string = string> extends BaseProps<T> {
+  /** Multi mode: the list stays open with checkboxes; picks show as removable chips. */
+  multiple: true;
+  /** The picked values, in the order they were picked. */
+  value: readonly T[];
+  /** Receives the whole new selection ([] when cleared). */
+  onChange: (value: T[]) => void;
+}
+
+export type SelectProps<T extends string = string> = SingleSelectProps<T> | MultiSelectProps<T>;
+
+/**
+ * A dropdown in the dock's visual language. Single or multi select, optional
+ * search and clear, full keyboard support (Enter / Space / ↓ open, arrows
+ * move, Enter picks, Escape closes; typing filters when searchable).
+ * Multi-select keeps the list open and shows checkmarks; the trigger sums up.
+ * Generic over the value union, so `onChange` hands back the caller's own
+ * string-literal type instead of a bare string.
+ */
+export function Select<T extends string = string>(props: SelectProps<T>) {
+  const {
+    options = [],
+    placeholder = 'Select…',
+    loadOptions,
+    tooltip,
+    shortcut,
+    clearable = true,
+    disabled = false,
+    className = '',
+    label,
+    labelPosition,
+    labelWidth,
+    fieldWidth,
+  } = props;
+  const searchable = props.searchable || loadOptions != null;
+
+  const selected = useMemo(
+    () => new Set<string>(props.multiple ? props.value : props.value != null ? [props.value] : []),
+    [props.multiple, props.value],
+  );
+  const dd = useSelectDropdown<T>(options, loadOptions, searchable, selected);
+
+  const pick = (opt: SelectOption<T>) => {
+    if (opt.disabled) {
+      return;
+    }
+    if (props.multiple) {
+      const next = new Set<T>(props.value);
+      if (next.has(opt.value)) {
+        next.delete(opt.value);
+      } else {
+        next.add(opt.value);
+      }
+      props.onChange([...next]);
+    } else {
+      props.onChange(opt.value);
+      dd.setOpen(false);
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!dd.open && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      dd.setOpen(true);
+      return;
+    }
+    if (!dd.open) {
+      return;
+    }
+    if (e.key === 'Escape') {
+      dd.setOpen(false);
+    } else if (e.key === 'ArrowDown') {
+      dd.setHot((h) => Math.min(h + 1, dd.filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      dd.setHot((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter' && dd.filtered[dd.hot]) {
+      pick(dd.filtered[dd.hot]);
+    } else {
+      return;
+    }
+    e.preventDefault();
+  };
+
+  const summary = props.multiple ? (
+    props.value.length === 0 ? null : (
+      <SelectChips
+        values={props.value}
+        known={dd.known}
+        onRemove={(v) => props.onChange(props.value.filter((x) => x !== v))}
+      />
+    )
+  ) : props.value != null ? (
+    dd.known(props.value).label
+  ) : null;
+
+  const clear = () => {
+    if (props.multiple) {
+      props.onChange([]);
+    } else {
+      props.onChange(null);
+    }
+  };
+
+  return (
+    <Labelled
+      label={label}
+      labelPosition={labelPosition}
+      labelWidth={labelWidth}
+      fieldWidth={fieldWidth}
+      disabled={disabled}
+      className={className}
+    >
+      <div ref={dd.rootRef} className="relative text-xs" onKeyDown={onKeyDown}>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={dd.open}
+          data-tooltip={tooltip}
+          data-shortcut={shortcut}
+          className={cn(
+            'group flex min-h-6 w-full cursor-pointer items-center gap-1.5 border px-2 py-0.5 text-left text-slate-200',
+            dd.open ? 'border-blue-400 bg-slate-900' : 'border-slate-700 bg-slate-900 hover:border-slate-600',
+            disabled && 'cursor-not-allowed opacity-50',
+          )}
+          onClick={() => dd.setOpen((o) => !o)}
+        >
+          {summary == null ? (
+            <span className="min-w-0 flex-1 truncate text-slate-400">{placeholder}</span>
+          ) : props.multiple ? (
+            summary
+          ) : (
+            <span className="min-w-0 flex-1 truncate">{summary}</span>
+          )}
+          {clearable && summary != null && !disabled && (
+            <span
+              role="button"
+              aria-label="Clear selection"
+              data-tooltip="Clear"
+              className="shrink-0 cursor-pointer px-0.5 text-slate-400 leading-none opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                clear();
+              }}
+            >
+              ×
+            </span>
+          )}
+          <svg
+            viewBox="0 0 8 8"
+            className={cn('h-2 w-2 shrink-0 fill-slate-500 transition-transform', dd.open && 'rotate-180')}
+          >
+            <path d="M0 2l4 4 4-4z" />
+          </svg>
+        </button>
+
+        {dd.open &&
+          createPortal(
+            <SelectList
+              dd={dd}
+              multiple={props.multiple === true}
+              searchable={searchable}
+              hasAsync={loadOptions != null}
+              selected={selected}
+              pick={pick}
+              onKeyDown={onKeyDown}
+            />,
+            document.body,
+          )}
+      </div>
+    </Labelled>
+  );
+}

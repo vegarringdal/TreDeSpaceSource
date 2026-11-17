@@ -1,0 +1,173 @@
+TREDESPACE LICENSE
+
+TreDeSpace Web Viewer
+Copyright (c) 2026 Vegar Ringdal <vegar.ringdal@postboxen.no>
+
+This software is licensed under the Elastic License 2.0, reproduced below in
+full, with the following Additional Terms. In case of any conflict between
+the Elastic License 2.0 and the Additional Terms, the Additional Terms
+prevail.
+
+ADDITIONAL TERMS
+
+1. Prominent attribution. The "About" dialog of the application user
+interface, including the application name "TreDeSpace Web Viewer" and the
+creator attribution "Made by Vegar Ringdal", must be preserved, remain
+functional, and remain clearly accessible to the end user in all copies,
+modifications, and derivative works of the software.
+
+2. Additions alongside. You may add your own notices, translations, or
+branding alongside the original attribution, but you may not remove, alter,
+or obscure it.
+
+3. Public improvements. If you modify or improve the source code of the
+software and use, distribute, or make available the modified software, you
+must make the source code of your changes publicly available and offer
+them back to the licensor by submitting a pull request (or an equivalent
+patch submission) to the software's official source code repository
+(currently https://github.com/vegarringdal/TreDeSpaceSource) within a
+reasonable time. What you build into the software is a modification of
+it. What you build around it, such as an application that embeds the
+software or an application you supply to it as an iframe, is your own
+work, not a modification, and this term does not apply to it. The
+licensor may, at the licensor's sole discretion, accept, reject, or ignore
+any submission. By submitting, you grant the
+licensor a perpetual, worldwide, irrevocable, royalty-free license to use,
+modify, sublicense, relicense, and distribute your submitted changes as
+part of the software or otherwise.
+
+4. Trademarks. This license grants no rights to the "TreDeSpace" name or
+logo beyond the attribution required above.
+
+5. Components under separate licenses. Components that the licensor
+publishes under their own licenses remain governed by those licenses. The
+following are under the MIT license, each with its notice in a LICENSE
+file in its folder or in a header in the file: the @tredespace/ui widget
+library (the src/treDeSpaceUI/ folder), the host SDK file
+api/tredespace-client.ts, the API playground (the demo/ folder), and the
+widget gallery and live demo pages (the docs/gallery/ folder and the files
+docs/widgets.html, docs/widgets.tsx, docs/widgets.css, docs/demo.html,
+docs/demo.ts, and docs/theme.ts). Under its MIT license the SDK may be
+freely copied, modified, and embedded in host applications. Third-party
+libraries, crates, and other dependencies bundled with or vendored into
+this software remain under their respective licenses; see the
+application's third-party notices for the full list. The sample models in
+the convertSamples/ and samples/ folders are third-party data under the
+terms in each folder. The licensor claims no ownership over them.
+
+6. Governing law. This license is governed by the laws of Norway, without
+regard to its conflict-of-law rules. The ordinary courts of Norway have
+exclusive jurisdiction over any dispute arising from this license, with the
+licensor's home venue as the agreed legal venue.
+
+7. Project collaboration. Giving clients, contractors, vendors, or other
+project partners access to your own deployment of the software, so they
+can view or work on projects in which you take part, is not providing the
+software as a hosted or managed service under the Limitations. This
+applies only where you (a) own or operate the facility, installation, or
+other asset the project concerns, or (b) contribute substantial work of
+your own to the project, such as engineering, construction, or
+operations, other than providing access to the software. Each partner's
+access must be limited to the projects in which that partner takes part.
+This exception does not cover offering the software, or access to it, as
+a hosted or managed service in its own right, whether paid or free.
+
+8. Contractors. Your contractors may install, configure, and operate your
+deployment of the software for you, on servers or cloud accounts that you
+control; that is your use of the software, not a hosted or managed service
+provided by the contractor.
+
+ELASTIC LICENSE 2.0
+
+URL: https://www.elastic.co/licensing/elastic-license
+
+ACCEPTANCE
+
+By using the software, you agree to all of the terms and conditions below.
+
+COPYRIGHT LICENSE
+
+The licensor grants you a non-exclusive, royalty-free, worldwide,
+non-sublicensable, non-transferable license to use, copy, distribute, make
+available, and prepare derivative works of the software, in each case
+subject to the limitations and conditions below.
+
+LIMITATIONS
+
+You may not provide the software to third parties as a hosted or managed
+service, where the service provides users with access to any substantial
+set of the features or functionality of the software.
+
+You may not move, change, disable, or circumvent the license key
+functionality in the software, and you may not remove or obscure any
+functionality in the software that is protected by the license key.
+
+You may not alter, remove, or obscure any licensing, copyright, or other
+notices of the licensor in the software. Any use of the licensor's
+trademarks is subject to applicable law.
+
+PATENTS
+
+The licensor grants you a license, under any patent claims the licensor can
+license, or becomes able to license, to make, have made, use, sell, offer
+for sale, import and have imported the software, in each case subject to
+the limitations and conditions in this license. This license does not cover
+any patent claims that you cause to be infringed by modifications or
+additions to the software. If you or your company make any written claim
+that the software infringes or contributes to infringement of any patent,
+your patent license for the software granted under these terms ends
+immediately. If your company makes such a claim, your patent license ends
+immediately for work on behalf of your company.
+
+NOTICES
+
+You must ensure that anyone who gets a copy of any part of the software
+from you also gets a copy of these terms.
+
+If you modify the software, you must include in any modified copies of the
+software prominent notices stating that you have modified the software.
+
+NO OTHER RIGHTS
+
+These terms do not imply any licenses other than those expressly granted in
+these terms.
+
+TERMINATION
+
+If you use the software in violation of these terms, such use is not
+licensed, and your licenses will automatically terminate. If the licensor
+provides you with a notice of your violation, and you cease all violation
+of this license no later than 30 days after you receive that notice, your
+licenses will be reinstated retroactively. However, if you violate these
+terms after such reinstatement, any additional violation of these terms
+will cause your licenses to terminate automatically and permanently.
+
+NO LIABILITY
+
+As far as the law allows, the software comes as is, without any warranty or
+condition, and the licensor will not be liable to you for any damages
+arising out of these terms or the use or nature of the software, under any
+kind of legal claim.
+
+DEFINITIONS
+
+The "licensor" is the entity offering these terms, and the "software" is
+the software the licensor makes available under these terms, including any
+portion of it.
+
+"you" refers to the individual or entity agreeing to these terms.
+
+"your company" is any legal entity, sole proprietorship, or other kind of
+organization that you work for, plus all organizations that have control
+over, are under the control of, or are under common control with that
+organization. "control" means ownership of substantially all the assets of
+an entity, or the power to direct its management and policies by vote,
+contract, or otherwise. Control can be direct or indirect.
+
+"your licenses" are all the licenses granted to you for the software under
+these terms.
+
+"use" means anything you do with the software requiring one of your
+licenses.
+
+"trademark" means trademarks, service marks, and similar rights.

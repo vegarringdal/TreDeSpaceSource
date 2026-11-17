@@ -1,0 +1,1119 @@
+import { sph } from '../../../lib/math/clipPlane';
+import { projectToScreen } from '../../../lib/math/project';
+import { ClipGizmo, type GizmoTargets } from '../../../lib/overlay/ClipGizmo';
+import { LabelOverlay } from '../../../lib/overlay/LabelOverlay';
+import { MeasureOverlay } from '../../../lib/overlay/MeasureOverlay';
+import { ResidencyBoxOverlay } from '../../../lib/overlay/ResidencyBoxOverlay';
+import { isMobileDevice } from '../../../lib/render/device';
+import type { MeasureProbe } from '../../../lib/render/renderer';
+import { measurementsActions } from '../../../state/viewer/measurements.actions';
+import { type MeasureHit, measurementsState } from '../../../state/viewer/measurements.state';
+import { setClipShapeSeed } from '../clip-shapes/ribbonClipShapes.actions';
+import { buildClip } from './clipPack';
+import { attachMeasureAim, type MeasureAim } from './measureAim';
+import { attachMeasureBar } from './measureBar';
+import { traceMeasureProbe } from './measureTrace';
+import { shapeGizmoTarget } from './shapeGizmo';
+
+/** Adapt the renderer's probe (null fields) to the state's MeasureHit (optional). */
+function toHit(p: MeasureProbe | null): MeasureHit | null {
+  return p ? { point: p.point, normal: p.normal ?? undefined, edgeDir: p.edgeDir ?? undefined, kind: p.kind } : null;
+}
+
+/** Snap config for the measure probe — the Face tool needs a face hit (its
+ *  reference plane comes from the surface normal), so corner/edge snap is
+ *  bypassed while it is active.
+ *
+ *  The radii are NOT widened for touch, however tempting that looks: they are
+ *  compared in RENDER pixels (renderer.worldToPixel projects into canvas.width),
+ *  and a tablet renders at pixelRatio 1 while a desktop renders at its native
+ *  ratio — so the same configured number already covers 2-3x more glass on a
+ *  tablet. Widening it there made the probe snap to a vertex up to 24 CSS px
+ *  from the crosshair. */
+function measureSnap() {
+  const s = measurementsState.get();
+  return s.activeKind === 'face' ? { ...s.snap, corner: false, edge: false } : s.snap;
+}
+
+/** Tap tolerance between pointerdown and click: a mouse barely moves, a finger
+ *  routinely wanders ~10px on a deliberate tap. The old single 4px gate silently
+ *  swallowed a large share of touch taps. */
+function tapSlop(pointerType: string): number {
+  return pointerType === 'touch' ? 14 : 4;
+}
+
+import type { PanelDefinition } from '@treDeSpaceUI/dockable';
+import { emitApiEvent, setGpuState } from '../../../lib/messageApi/transport';
+import { ViewGizmo } from '../../../lib/overlay/ViewGizmo';
+import { Renderer } from '../../../lib/render/renderer';
+import { buildViewCubeGeometry } from '../../../lib/render/viewCubeGpu';
+import { animationDocState } from '../../../state/animation/animationDoc.state';
+import { animationUiState } from '../../../state/animation/animationUi.state';
+import { animationHelperLines } from '../../../state/animation/helperLines';
+import { playerState } from '../../../state/animation/player.state';
+import { attachAnimationViewport, postFrameAnimation, tickAnimation } from '../../../state/animation/runtime';
+import { markerInFront, mergeMarkerInstances } from '../../../state/scans/scanMarkers';
+import { scanPhoto } from '../../../state/scans/scanPhoto';
+import { scanPoints } from '../../../state/scans/scanPoints';
+import { scansActions } from '../../../state/scans/scans.actions';
+import { scansState } from '../../../state/scans/scans.state';
+import { currentPivotWorld } from '../../../state/transform/transform.actions';
+import { transformState } from '../../../state/transform/transform.state';
+import { clipShapesState } from '../../../state/viewer/clipShapes.state';
+import { db } from '../../../state/viewer/db';
+import { gizmoLabelsState } from '../../../state/viewer/gizmoLabels.state';
+import { onGpuDeviceLost, registerViewportRemount } from '../../../state/viewer/gpuRecovery';
+import { labelsActions } from '../../../state/viewer/labels.actions';
+import { labelsState } from '../../../state/viewer/labels.state';
+import { navActions, navState } from '../../../state/viewer/nav.state';
+import { residency } from '../../../state/viewer/residency';
+import { selectionState } from '../../../state/viewer/selection.state';
+import { collectStats, formatOverlay } from '../../../state/viewer/statsRows';
+import { gizmoCommitIntercepted, registerRenderer, viewerActions } from '../../../state/viewer/viewer.actions';
+import { viewerState } from '../../../state/viewer/viewer.state';
+import { vramBudgetMb } from '../../../state/viewer/vramBudget';
+import { mountPlayBar } from '../animation-playbar/mountPlayBar';
+import { consoleActions } from '../console/console.actions';
+import { ribbonClippingBoxState } from '../ribbon-clipping-box/ribbonClippingBox.state';
+import { ribbonClippingPlaneActions } from '../ribbon-clipping-plane/ribbonClippingPlane.actions';
+import { ribbonClippingPlaneState } from '../ribbon-clipping-plane/ribbonClippingPlane.state';
+import { ribbonSelectionTransformActions } from '../ribbon-selection-transform/ribbonSelectionTransform.actions';
+import { ribbonSelectionTransformState } from '../ribbon-selection-transform/ribbonSelectionTransform.state';
+import { settingsState } from '../settings/settings.state';
+import { concatLines, MarkerCache } from './markerLines';
+
+// GPU recovery: the remount promise settles with the renderer the NEXT boot
+// registers (null when WebGPU init failed)
+let settleBoot: ((r: Renderer | null) => void) | null = null;
+
+function hexRgb(hex: string): [number, number, number] {
+  return [
+    parseInt(hex.slice(1, 3), 16) / 255,
+    parseInt(hex.slice(3, 5), 16) / 255,
+    parseInt(hex.slice(5, 7), 16) / 255,
+  ];
+}
+
+/** Camera world-orientation quaternion (columns right/up/back) for the gizmo. */
+function cameraQuat(fwd: [number, number, number]): { x: number; y: number; z: number; w: number } {
+  const rl = Math.hypot(fwd[0], fwd[1]) || 1;
+  const r = [fwd[1] / rl, -fwd[0] / rl, 0];
+  const u = [r[1] * fwd[2], -r[0] * fwd[2], r[0] * fwd[1] - r[1] * fwd[0]];
+  const b = [-fwd[0], -fwd[1], -fwd[2]];
+  const m00 = r[0],
+    m01 = u[0],
+    m02 = b[0];
+  const m10 = r[1],
+    m11 = u[1],
+    m12 = b[1];
+  const m20 = r[2],
+    m21 = u[2],
+    m22 = b[2];
+  const tr = m00 + m11 + m22;
+  let x: number, y: number, z: number, w: number;
+  if (tr > 0) {
+    const s = Math.sqrt(tr + 1) * 2;
+    w = s / 4;
+    x = (m21 - m12) / s;
+    y = (m02 - m20) / s;
+    z = (m10 - m01) / s;
+  } else if (m00 > m11 && m00 > m22) {
+    const s = Math.sqrt(1 + m00 - m11 - m22) * 2;
+    w = (m21 - m12) / s;
+    x = s / 4;
+    y = (m01 + m10) / s;
+    z = (m02 + m20) / s;
+  } else if (m11 > m22) {
+    const s = Math.sqrt(1 + m11 - m00 - m22) * 2;
+    w = (m02 - m20) / s;
+    x = (m01 + m10) / s;
+    y = s / 4;
+    z = (m12 + m21) / s;
+  } else {
+    const s = Math.sqrt(1 + m22 - m00 - m11) * 2;
+    w = (m10 - m01) / s;
+    x = (m02 + m20) / s;
+    y = (m12 + m21) / s;
+    z = s / 4;
+  }
+  return { x, y, z, w };
+}
+
+/**
+ * The WebGPU viewport: no React inside — the dock reparents the host element,
+ * so the WebGPU context and every GPU buffer survive dock/split/float/tab
+ * moves without re-initialising.
+ */
+export const viewport: PanelDefinition = {
+  id: 'viewport',
+  title: 'Viewport',
+  minWidth: 260,
+  minHeight: 180,
+  closable: false,
+
+  render(host, ctx) {
+    host.style.position = 'relative';
+    // GPU recovery restarts this panel in place (fresh adapter/device/Renderer,
+    // same host); the promise settles when the new boot registers its renderer
+    registerViewportRemount(
+      () =>
+        new Promise<Renderer | null>((resolve) => {
+          settleBoot = resolve;
+          ctx.manager.remountPanel(ctx.id);
+        }),
+    );
+
+    const canvas = document.createElement('canvas');
+    canvas.style.display = 'block';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    host.appendChild(canvas);
+
+    // HUD is two stacked divs: the GPU error is its OWN div (selectable +
+    // copyable, since the stats below it re-render every frame and would
+    // otherwise clobber a text selection); stats stay pointer-events:none.
+    const hudWrap = document.createElement('div');
+    hudWrap.style.cssText =
+      'position:absolute;top:6px;left:8px;display:flex;flex-direction:column;gap:6px;' +
+      'max-width:calc(100% - 16px);z-index:5;';
+    const errHud = document.createElement('div');
+    errHud.style.cssText =
+      'font:11px monospace;color:#ff8a8a;white-space:pre-wrap;word-break:break-word;' +
+      'pointer-events:auto;user-select:text;cursor:text;display:none;' +
+      'background:rgba(30,10,10,0.85);border:1px solid #7f1d1d;border-radius:3px;padding:4px 6px;';
+    errHud.title = 'GPU error — select to copy';
+    const hud = document.createElement('div');
+    hud.style.cssText =
+      'font:11px monospace;color:#dfe3ea;white-space:pre;pointer-events:none;text-shadow:0 1px 2px #000;';
+    hudWrap.append(errHud, hud);
+    host.appendChild(hudWrap);
+
+    // VRAM-budget activity chip (top-right; the view cube sits bottom-right).
+    // Dimmed backdrop so the text reads against any scene; hidden while empty.
+    const vramHud = document.createElement('div');
+    vramHud.style.cssText =
+      'position:absolute;top:6px;right:8px;font:11px monospace;pointer-events:none;' +
+      'text-shadow:0 1px 2px #000;z-index:5;display:none;padding:2px 7px;' +
+      'background:rgba(15,23,42,0.65);border:1px solid rgba(148,163,184,0.25);backdrop-filter:blur(2px);';
+    host.appendChild(vramHud);
+
+    // Two on-screen joysticks (tablet): LEFT = move (feeds padMove, leaves orbit
+    // like WASD), RIGHT = look/direction (feeds padLook). They mirror: both sit
+    // joystickY% from the top and joystickX% IN FROM THEIR OWN SIDE, so one pair
+    // of numbers positions both. (Direct canvas touch still looks; two fingers pan.)
+    type Pad = { el: HTMLDivElement; reset: () => void; place: (hw: number, hh: number) => void };
+    const makePad = (kind: 'move' | 'look', side: 'left' | 'right'): Pad => {
+      const el = document.createElement('div');
+      // position (left/top of its CENTRE) is set from viewer state each frame
+      el.style.cssText =
+        'position:absolute;width:224px;height:224px;border-radius:50%;transform:translate(-50%,-50%);' +
+        'border:1px solid rgba(148,163,184,0.5);background:rgba(15,23,42,0.35);z-index:6;' +
+        'display:none;touch-action:none;backdrop-filter:blur(2px);' +
+        // stop the long-press selection / iOS callout / context menu on touch
+        'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
+      const knob = document.createElement('div');
+      knob.style.cssText =
+        'position:absolute;left:50%;top:50%;width:88px;height:88px;border-radius:50%;' +
+        'transform:translate(-50%,-50%);background:rgba(148,163,184,0.55);border:1px solid rgba(203,213,225,0.7);';
+      el.appendChild(knob);
+      host.appendChild(el);
+      let pointer = -1;
+      const setKnob = (nx: number, ny: number) => {
+        knob.style.transform = `translate(calc(-50% + ${nx * 68}px), calc(-50% + ${ny * 68}px))`;
+      };
+      const apply = (nx: number, ny: number) => {
+        if (kind === 'move') {
+          renderer.camera.padMove = [nx, -ny]; // up = forward
+          // like WASD: pushing the stick leaves orbit for fly/walk (per settings)
+          if (Math.hypot(nx, ny) > 0.05) {
+            renderer.camera.onMoveKey?.();
+          }
+        } else {
+          renderer.camera.padLook = [nx, ny]; // right = turn right, down = look down
+        }
+      };
+      const input = (e: PointerEvent) => {
+        const r = el.getBoundingClientRect();
+        const dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+        const dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+        const len = Math.hypot(dx, dy);
+        const nx = len > 1 ? dx / len : dx;
+        const ny = len > 1 ? dy / len : dy;
+        apply(nx, ny);
+        setKnob(nx, ny);
+      };
+      const reset = () => {
+        pointer = -1;
+        if (kind === 'move') {
+          renderer.camera.padMove = [0, 0];
+        } else {
+          renderer.camera.padLook = [0, 0];
+        }
+        setKnob(0, 0);
+      };
+      el.addEventListener('pointerdown', (e) => {
+        pointer = e.pointerId;
+        el.setPointerCapture(e.pointerId);
+        input(e);
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      el.addEventListener('pointermove', (e) => {
+        if (e.pointerId === pointer) {
+          input(e);
+        }
+      });
+      el.addEventListener('pointerup', reset);
+      el.addEventListener('pointercancel', reset);
+      // a held touch would otherwise pop the browser context menu
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
+      const place = (hw: number, hh: number) => {
+        const vp = viewerState.get();
+        const inset = (vp.joystickX / 100) * hw; // distance in from this pad's side
+        const cx = side === 'left' ? inset : hw - inset;
+        const cy = (vp.joystickY / 100) * hh;
+        el.style.left = `${Math.min(Math.max(cx, 112), hw - 112)}px`;
+        el.style.top = `${Math.min(Math.max(cy, 112), hh - 112)}px`;
+      };
+      return { el, reset, place };
+    };
+    const pads: Pad[] = [makePad('move', 'left'), makePad('look', 'right')];
+
+    /** Set the error div's text (and show/hide it) only when it changes, so a
+     *  selection inside it survives the per-frame stats updates. */
+    const setError = (msg: string) => {
+      if (errHud.textContent === msg) {
+        return;
+      }
+      errHud.textContent = msg;
+      errHud.style.display = msg ? 'block' : 'none';
+    };
+
+    const renderer = new Renderer();
+    let frame = 0;
+    let disposed = false;
+    let gizmo: ViewGizmo | null = null;
+    let clipGizmo: ClipGizmo | null = null;
+    let measureOverlay: MeasureOverlay | null = null;
+    let labelOverlay: LabelOverlay | null = null;
+    let measureAim: MeasureAim | null = null;
+    let measureBar: { dispose(): void } | null = null;
+    let residencyBoxes: ResidencyBoxOverlay | null = null;
+    let detachAnimation: (() => void) | null = null;
+    let unmountPlayBar: (() => void) | null = null;
+    let removeMeasureKeys: (() => void) | null = null;
+    let unsubLabels: (() => void) | null = null;
+    // selection-gizmo drag bookkeeping: the live preview matrix (gizmo rides
+    // along) and the pivot position frozen at pivot-drag start
+    let liveMatrix: Float32Array | null = null;
+    let pivotDragBase: [number, number, number] = [0, 0, 0];
+    let selCenterBase: [number, number, number] = [0, 0, 0];
+    const clipGizmoDragging = () => clipGizmo?.dragging ?? false;
+    // the gizmo moves something only when the selection is an object: while
+    // animating an animation object owning selected items (a drag poses
+    // it), else the current transform object
+    const selectionMovable = () =>
+      gizmoCommitIntercepted()
+        ? animationUiState.get().objectSelection.length > 0
+        : transformState.get().currentId !== null;
+
+    const gizmoTargets = (): GizmoTargets => {
+      const box = ribbonClippingBoxState.get();
+      const planes = ribbonClippingPlaneState.get();
+      const { min, max } = renderer.sceneBounds;
+      const center: [number, number, number] = Number.isFinite(min[0])
+        ? [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2]
+        : [0, 0, 0];
+      // first enabled plane in rotate mode gets the normal handle
+      const AXES = ['x', 'y', 'z'] as const;
+      const COLORS = ['#ef4444', '#16a34a', '#3b82f6'];
+      // every enabled plane whose Gizmo toggle is on gets its own handles:
+      // move arrows normally, rotation rings when rotate mode is active
+      const planeTargets: GizmoTargets['planes'] = [];
+      AXES.forEach((axis, i) => {
+        const pl = planes[axis];
+        if (!pl.enabled || !pl.gizmo) {
+          return;
+        }
+        const base = pl.anchor ?? center;
+        const n = sph(pl.el, pl.az);
+        planeTargets.push({
+          mode: pl.rotateMode ? 'rotate' : 'move',
+          anchor: [base[0] + n[0] * pl.position, base[1] + n[1] * pl.position, base[2] + n[2] * pl.position],
+          normal: n,
+          color: COLORS[i],
+          onRotate: (el, az) => {
+            ribbonClippingPlaneActions.setEl(axis, el);
+            ribbonClippingPlaneActions.setAz(axis, az);
+          },
+          onMove: (p) => {
+            // new plane point -> back out the anchor (point = anchor + n*position)
+            ribbonClippingPlaneActions.setAnchor(axis, [
+              p[0] - n[0] * pl.position,
+              p[1] - n[1] * pl.position,
+              p[2] - n[2] * pl.position,
+            ]);
+          },
+        });
+      });
+      // selection transform gizmo (Transform ribbon): world axes at the
+      // selection center (or the locked pivot for rotate/scale); drags
+      // preview via model_global and bake on release. In pivot-placement
+      // mode the same arrows move the PIVOT instead of the geometry.
+      const tr = ribbonSelectionTransformState.get();
+      const selSt = selectionState.get();
+      let sel: GizmoTargets['sel'] = null;
+      if (tr.pivotSetting && tr.pivot) {
+        const base: [number, number, number] = [...tr.pivot];
+        sel = {
+          mode: 'pivot',
+          center: base,
+          // g is a pure translation relative to drag start; the gizmo
+          // captured `center` at pointerdown so base+g is the new pivot
+          onDrag: (g) =>
+            ribbonSelectionTransformActions.movePivot([
+              pivotDragBase[0] + g[12],
+              pivotDragBase[1] + g[13],
+              pivotDragBase[2] + g[14],
+            ]),
+          // nothing to bake — the base re-syncs to the pivot once the drag ends
+          onCommit: () => {},
+        };
+        if (!clipGizmoDragging()) {
+          pivotDragBase = base;
+        }
+      } else if (tr.gizmoMode !== 'none' && selSt.count > 0 && selSt.bounds && selectionMovable()) {
+        const { min: bmin, max: bmax } = selSt.bounds;
+        // where the gizmo rests: the locked pivot (rotate / scale), else the
+        // current transform object's own pivot, else the selection center.
+        // Frozen while a drag is previewed or being committed — the object's
+        // pose lands a moment before the preview is dropped.
+        if (!liveMatrix) {
+          const objectPivot = gizmoCommitIntercepted() ? null : currentPivotWorld();
+          selCenterBase =
+            tr.pivot && tr.gizmoMode !== 'move'
+              ? [...tr.pivot]
+              : objectPivot
+                ? [...objectPivot]
+                : [(bmin[0] + bmax[0]) / 2, (bmin[1] + bmax[1]) / 2, (bmin[2] + bmax[2]) / 2];
+        }
+        let center: [number, number, number] = [...selCenterBase];
+        // live drag: the gizmo rides along with the previewed group transform
+        if (liveMatrix) {
+          const g = liveMatrix;
+          center = [
+            g[0] * center[0] + g[4] * center[1] + g[8] * center[2] + g[12],
+            g[1] * center[0] + g[5] * center[1] + g[9] * center[2] + g[13],
+            g[2] * center[0] + g[6] * center[1] + g[10] * center[2] + g[14],
+          ];
+        }
+        sel = {
+          mode: tr.gizmoMode,
+          center,
+          onDrag: (g) => {
+            liveMatrix = g;
+            viewerActions.liveSelectionTransform(g);
+          },
+          onCommit: (g) =>
+            void viewerActions.bakeSelectionTransform(g).then(() => {
+              liveMatrix = null; // bounds are refreshed; drop the preview offset
+            }),
+        };
+      }
+      // armed clip SHAPE takes the box-gizmo slot; the default box is fallback
+      const shapeTarget = shapeGizmoTarget();
+      return {
+        sel,
+        box:
+          shapeTarget ??
+          (box.enabled && box.boxOn && box.helper && box.gizmoMode !== 'none'
+            ? {
+                mode: box.gizmoMode === 'scale' && box.sixAxis ? 'faces' : box.gizmoMode,
+                center: [...box.center],
+                size: [...box.size],
+                rotation: [...box.rotation],
+                onChange: (c, sz) => ribbonClippingBoxState.set({ center: c, size: sz }),
+                onRotate: (q) => ribbonClippingBoxState.set({ rotation: q }),
+              }
+            : null),
+        planes: planeTargets,
+      };
+    };
+
+    // marker spheres for labels / measurement points, merged into the clip
+    // helper line list (one depth-tested draw); rebuilt only on change
+    const markerLines = new MarkerCache();
+    const applyOptions = () => {
+      const s = viewerState.get();
+      const o = renderer.options;
+      o.orthographic = s.orthographic;
+      o.vertexPull = s.vertexPull;
+      o.meshletVis = s.meshletVis;
+      o.pxCut = s.pxCutEnabled ? s.pxCut : 0;
+      o.pxCutAlways = s.pxCutAlways;
+      o.newMeshletCap = s.newMeshletCap;
+      o.settleFrames = s.settleFrames;
+      o.protectDist = s.protectDist;
+      o.pickOpacityPct = s.pickOpacityPct;
+      o.fastAA = s.fastAA;
+      o.msaa4x = s.msaa4x;
+      // smart wins over both manual fields: mobile = 1, desktop = native DPR
+      o.pixelRatio = s.smartPixelRatio ? (isMobileDevice() ? 1 : null) : s.useDevicePixelRatio ? null : s.pixelRatio;
+      o.freezeCull = s.freezeCull;
+      o.cullMoved = s.cullMoved;
+      o.geoEdges = s.geoEdges;
+      o.itemEdges = s.itemEdges;
+      o.sketch = s.sketch;
+      // sketch mode swaps in its own edge tuning (Settings → Edges → Sketch edges)
+      o.edgeColor = hexRgb(s.sketch ? s.sketchEdgeColor : s.edgeColor);
+      // …and its own view-cube palette (Settings → Gizmo / Sketch edges)
+      renderer.setViewCubeColors(
+        hexRgb(s.sketch ? s.sketchCubeFaceColor : s.cubeFaceColor),
+        hexRgb(s.sketch ? s.sketchCubeLineColor : s.cubeLineColor),
+        hexRgb(s.sketch ? s.sketchCubeHoverColor : s.cubeHoverColor),
+        s.sketch ? s.sketchCubeTextColor : s.cubeTextColor,
+      );
+      o.fadeExp = s.sketch ? s.sketchFadeExp : s.fadeExp;
+      o.depthThr = s.sketch ? s.sketchDepthThr : s.depthThr;
+      o.normalThr = s.sketch ? s.sketchNormalThr : s.normalThr;
+      o.whiteOnDark = s.whiteOnDark;
+      o.darkThr = s.darkThr;
+      o.darkFloor = s.darkLift ? s.darkLiftPct / 100 : 0;
+      // sketch mode overrides BOTH threshold sets for one uniform line look
+      o.smoothFadeExp = s.sketch ? s.sketchFadeExp : s.smoothFadeExp;
+      o.smoothDepthThr = s.sketch ? s.sketchDepthThr : s.smoothDepthThr;
+      o.smoothNormalThr = s.sketch ? s.sketchNormalThr : s.smoothNormalThr;
+      o.flatMeshEdges = s.flatMeshEdges;
+      o.smoothMeshEdges = s.smoothMeshEdges;
+      o.sketchRespectsEdgesOff = s.sketchRespectsEdgesOff;
+      o.sketchColorMode = s.sketchColorMode;
+      o.sketchFillStrength = s.sketchFillPct / 100;
+      o.aoMode = s.aoMode;
+      o.aoRadius = s.aoRadius;
+      o.aoStrength = s.aoStrength;
+      o.aoSlices = s.aoSlices;
+      o.aoSamples = s.aoSamples;
+      o.debugBuf = s.debugBuf;
+      o.traceKey = s.trace;
+      const clip = buildClip(renderer);
+      renderer.setClip(clip.data);
+      const labels = labelsState.get();
+      const measures = measurementsState.get();
+      const markers = markerLines.update(labels.items, labels.muted, measures.items, measures.muted);
+      // animation authoring: motion paths + the pull-out ghost box
+      const anim = animationHelperLines();
+      const lineKey = `${clip.lines.join(',')}|${markerLines.version}|${anim.key}`;
+      if (!renderer.hasHelperLines(lineKey)) {
+        renderer.setHelperLines(concatLines(concatLines(clip.lines, markers), anim.verts), lineKey);
+      }
+      // laser-scan setup markers ride along as opaque filled spheres
+      const scanMarkers = scansActions.markerInstances();
+      const spheres = mergeMarkerInstances(
+        markerLines.instances,
+        markerLines.opaqueCount,
+        scanMarkers.data,
+        scanMarkers.opaque,
+      );
+      renderer.setMarkerSpheres(spheres.data, spheres.opaqueCount, `${markerLines.version}|${scanMarkers.key}`);
+      // Seed a new clip shape at the scene centre with a scene-scaled radius.
+      const { min, max } = renderer.sceneBounds;
+      if (Number.isFinite(min[0])) {
+        setClipShapeSeed(
+          [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2],
+          Math.max(0.5, Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) * 0.15),
+        );
+      }
+      o.bgColor = hexRgb(s.bgColor);
+      o.selectionColor = hexRgb(s.selectionColor);
+      o.suppressTintOnOverride = s.suppressTintOnOverride;
+      o.gpuTimings = s.gpuTimings;
+      o.transparencyBlend = s.transparencyBlend;
+      o.transparencyBackdrop = s.transparencyBackdrop;
+      o.backdropFade = s.backdropFadePct / 100;
+      o.hasTransparency = s.hasTransparency;
+      o.aaSamples = s.aaSamples;
+      // sketch mode has its own lights (Settings → Lighting → Sketch lighting)
+      o.ambientColor = hexRgb(s.sketch ? s.sketchAmbientColor : s.ambientColor);
+      o.ambientIntensity = s.sketch ? s.sketchAmbientIntensity : s.ambientIntensity;
+      o.headlightColor = hexRgb(s.sketch ? s.sketchHeadlightColor : s.headlightColor);
+      o.headlightIntensity = s.sketch ? s.sketchHeadlightIntensity : s.headlightIntensity;
+      // outline effect (selection style: tint / outline / both)
+      o.outlineHover = s.outlineHover;
+      o.outlineSelection = s.selectionStyle !== 'tint';
+      o.selectionTint = s.selectionStyle !== 'outline';
+      o.outlineStrength = s.outlineStrength;
+      o.outlineGlow = s.outlineGlow;
+      o.outlineThickness = s.outlineThickness;
+      o.outlinePulse = s.outlinePulse;
+      o.outlineVisibleColor = hexRgb(s.outlineVisibleColor);
+      o.outlineHiddenColor = hexRgb(s.outlineHiddenColor);
+      o.outlineHiddenWhenStill = s.outlineHiddenWhenStill;
+      o.outlineSelectionActive = selectionState.get().count > 0;
+      // camera navigation (walk/fly + speeds) from the nav settings store
+      const nav = navState.get();
+      const cam = renderer.camera;
+      cam.navMode = nav.mode;
+      cam.onMoveKey = navActions.keysActivate;
+      cam.onOrbitIntent = navActions.orbitActivate;
+      cam.flySpeed = nav.flySpeed;
+      cam.flyShift = nav.flyShift;
+      cam.walkSpeed = nav.walkSpeed;
+      cam.walkShift = nav.walkShift;
+      cam.orbitSens = nav.orbitSens;
+      cam.panSens = nav.panSens;
+      cam.keyPanSens = nav.keyPanSens;
+      renderer.fitDense = viewerState.get().fitDense;
+      const showPads = viewerState.get().touchPads;
+      const hw = host.clientWidth || 1;
+      const hh = host.clientHeight || 1;
+      for (const p of pads) {
+        if ((p.el.style.display === 'none') === showPads) {
+          p.el.style.display = showPads ? 'block' : 'none';
+          if (!showPads) {
+            p.reset();
+          }
+        }
+        if (showPads) {
+          p.place(hw, hh);
+        }
+      }
+    };
+
+    // applyOptions reads a handful of stores and the host size; re-running it
+    // every tick cost more at rest than the (idle) renderer itself, so it runs
+    // only after one of its inputs changed
+    let optionsDirty = true;
+    const markOptionsDirty = () => {
+      optionsDirty = true;
+    };
+    const unsubOptions = [
+      viewerState,
+      navState,
+      selectionState,
+      clipShapesState,
+      ribbonClippingBoxState,
+      ribbonClippingPlaneState,
+      labelsState,
+      measurementsState,
+      scansState,
+      animationDocState,
+      animationUiState,
+    ].map((store) => store.subscribe(markOptionsDirty));
+    // the player store ticks while playing — only its status matters here
+    let lastAnimStatus = playerState.get().status;
+    unsubOptions.push(
+      playerState.subscribe(() => {
+        if (playerState.get().status !== lastAnimStatus) {
+          lastAnimStatus = playerState.get().status;
+          markOptionsDirty();
+        }
+      }),
+    );
+    const hostResize = new ResizeObserver(markOptionsDirty);
+    hostResize.observe(host);
+
+    const boot = async () => {
+      try {
+        renderer.gpuPreference = settingsState.get().gpu;
+        await renderer.init(canvas);
+      } catch (e) {
+        setError(String(e));
+        consoleActions.log('error', String(e));
+        consoleActions.markStartupDone();
+        // the API is up regardless (SQL, assets…) — hosts learn here that the
+        // viewport is not, app.info says `gpu: 'failed'` from now on
+        setGpuState('failed');
+        emitApiEvent('app.error', { code: 'gpu-init', message: String(e) });
+        settleBoot?.(null);
+        settleBoot = null;
+        return;
+      }
+      if (disposed) {
+        renderer.dispose(); // unmounted while init was in flight
+        return;
+      }
+      registerRenderer(renderer);
+      setGpuState('ok');
+      renderer.onLost = (message) => {
+        cancelAnimationFrame(frame);
+        setError(`GPU ERROR: ${message}`);
+        void onGpuDeviceLost(renderer, message);
+      };
+      settleBoot?.(renderer);
+      settleBoot = null;
+      if (!renderer.multiDraw) {
+        // no MDI: vertex-pull culling is the only GPU-driven path — default on
+        viewerState.set({ vertexPull: true });
+      }
+      consoleActions.log('info', `WebGPU: ${renderer.adapterInfo}`);
+      consoleActions.log(
+        renderer.multiDraw ? 'info' : 'warn',
+        renderer.multiDraw
+          ? 'multi-draw indirect + GPU culling active'
+          : 'no chromium-experimental-multi-draw-indirect — using vertex-pull culling',
+      );
+      // the GPU checks close the startup block: from here the console rotates
+      consoleActions.markStartupDone();
+
+      clipGizmo = new ClipGizmo(host, renderer, gizmoTargets);
+      measureOverlay = new MeasureOverlay(host, renderer);
+      labelOverlay = new LabelOverlay(host, renderer);
+      residencyBoxes = new ResidencyBoxOverlay(host, renderer);
+      // animation player: band writes + the 2D overlay layer (DESIGN.md › Animation)
+      detachAnimation = attachAnimationViewport(host, renderer);
+      unmountPlayBar = mountPlayBar(host);
+      measureBar = attachMeasureBar(host);
+      // measure-probe trace (Settings → Stats → verbose trace → Console)
+      const traceDeps = { host, canvas, renderer };
+      renderer.onTrace = (line) => consoleActions.log('info', line);
+      measureAim = attachMeasureAim({
+        host,
+        canvas,
+        camera: renderer.camera,
+        probe: (x, y) => {
+          const done = traceMeasureProbe(traceDeps, 'loupe', x, y);
+          return renderer.probeMeasureAsync(x, y, measureSnap()).then((p) => {
+            const hit = toHit(p);
+            done?.(hit);
+            return hit;
+          });
+        },
+      });
+      // The cube is DRAWN by the renderer (GPU overlay — so canvas captures
+      // include it); the DOM ViewGizmo stays as invisible hit zones + handle.
+      const cubeZones = buildViewCubeGeometry().zoneIds; // pick.id → zone id
+      let cubeHover = -1;
+      gizmo = new ViewGizmo(host, {
+        visual: false,
+        // bottom-right by default (it stays draggable via its handle)
+        position: { right: 12, bottom: 12 },
+        onPick({ direction: [dx, dy, dz] }) {
+          // position the camera along +direction, looking back at the pivot:
+          // forward (camera -> target) = -direction. Straight up/down (top/
+          // bottom face) has no azimuth of its own — keep the current one so
+          // the camera just pitches instead of also yawing to 0.
+          const az = Math.hypot(dx, dy) < 1e-3 ? renderer.camera.azimuth : Math.atan2(-dy, -dx);
+          renderer.camera.snapView(az, Math.asin(Math.max(-1, Math.min(1, -dz))), 0.35);
+        },
+        onHover(pick) {
+          cubeHover = pick ? (cubeZones[pick.id] ?? -1) : -1;
+        },
+      });
+      renderer.setViewCubeLabels({ ...gizmoLabelsState.get().labels });
+      unsubLabels = gizmoLabelsState.subscribe(() => {
+        renderer.setViewCubeLabels({ ...gizmoLabelsState.get().labels });
+      });
+      const cubeHoverId = () => cubeHover;
+
+      // The laser-scan setup marker SEEN at a canvas pixel, or null: the ray
+      // test alone would also take a sphere behind a wall, so the hit is
+      // checked against what the depth buffer holds there.
+      const visibleScanMarker = async (x: number, y: number): Promise<string | null> => {
+        const ray = renderer.screenRay(x, y);
+        const hit = ray ? scansActions.pickMarker(ray) : null;
+        if (!ray || !hit) {
+          return null;
+        }
+        const surface = await renderer.probeWorldAsync(x, y);
+        return markerInFront(ray, hit, surface) ? hit.key : null;
+      };
+
+      // plain click (no drag, no modifier) -> pick the item under the cursor
+      let downAt = { x: 0, y: 0, type: 'mouse' };
+      let heldDigit = 0; // 1-9 while held (digit+click level select)
+      canvas.addEventListener('pointerdown', (e) => {
+        downAt = { x: e.clientX, y: e.clientY, type: e.pointerType };
+      });
+      canvas.addEventListener('click', (e) => {
+        if (e.altKey) {
+          return; // alt+click re-pivots the camera
+        }
+        if (renderer.camera.spaceHeld) {
+          return; // space+click flies the camera
+        }
+        if (measureAim?.consumedClick()) {
+          return; // the press-and-hold loupe already placed this point
+        }
+        if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > tapSlop(downAt.type)) {
+          return;
+        }
+        // label reposition armed: consume the click, move that label's anchor
+        const repositionId = labelsState.get().repositionId;
+        if (repositionId != null) {
+          void renderer.probeWorldAsync(e.offsetX, e.offsetY).then((pt) => {
+            if (!pt) {
+              labelsState.set({ repositionId: null });
+              return;
+            }
+            // a dragged label keeps its box in place — only the anchor point
+            // (leader-line end) moves to the new click
+            const l = labelsState.get().items.find((x) => x.id === repositionId);
+            let offset: [number, number] | undefined;
+            if (l && (l.offset[0] !== 0 || l.offset[1] !== 0)) {
+              const rect = host.getBoundingClientRect();
+              const a = projectToScreen(renderer.viewProjMatrix, rect.width, rect.height, l.anchor);
+              const b = projectToScreen(renderer.viewProjMatrix, rect.width, rect.height, pt);
+              if (a && b) {
+                offset = [l.offset[0] + a[0] - b[0], l.offset[1] + a[1] - b[1]];
+              }
+            }
+            labelsActions.moveAnchor(repositionId, pt, offset);
+          });
+          return;
+        }
+        // label placement armed: consume the click, drop the label there
+        if (labelsState.get().placing) {
+          void renderer.probeWorldAsync(e.offsetX, e.offsetY).then((pt) => {
+            if (pt) {
+              labelsActions.placeAt(pt);
+            } else {
+              labelsState.set({ placing: false });
+            }
+          });
+          return;
+        }
+        // measurement tool active: consume the click, place a point at the
+        // probed surface (auto-finishes Line/Diameter). No item selection.
+        if (measurementsState.get().activeKind) {
+          measurementsActions.setPerp(e.shiftKey);
+          const target = e.target instanceof Element ? e.target.tagName : '?';
+          const done = traceMeasureProbe(
+            traceDeps,
+            'tap',
+            e.offsetX,
+            e.offsetY,
+            `client=(${e.clientX},${e.clientY}) target=${target} pointer=${downAt.type}`,
+          );
+          void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap()).then((p) => {
+            const hit = toHit(p);
+            done?.(hit);
+            if (hit) {
+              measurementsActions.addPoint(hit);
+            }
+          });
+          return;
+        }
+        // armed "move to click": consume the click, move the selection so its
+        // bounds bottom lands on the clicked point (no selection change)
+        if (ribbonSelectionTransformState.get().moveToClickArmed) {
+          void renderer.probeWorldAsync(e.offsetX, e.offsetY).then((pt) => {
+            if (pt) {
+              ribbonSelectionTransformActions.moveSelectionBottomTo(pt);
+            } else {
+              ribbonSelectionTransformState.set({ moveToClickArmed: false });
+            }
+          });
+          return;
+        }
+        // pivot placement + "item pivot" helper: consume the click and move
+        // the pivot to the clicked item's center — the selection stays put
+        // (a selection change would reset the pivot session)
+        const trs = ribbonSelectionTransformState.get();
+        if (trs.pivotSetting && trs.pivotFromItem) {
+          void renderer.pickItem(e.offsetX, e.offsetY).then(async (id) => {
+            const hit = id !== null ? renderer.itemFromGlobalId(id) : null;
+            if (!hit) {
+              return;
+            }
+            const c = await db.itemCenter(hit.model, hit.item);
+            if (c) {
+              ribbonSelectionTransformActions.setPivotFromItem(c);
+            }
+          });
+          return;
+        }
+        const { offsetX, offsetY, shiftKey } = e;
+        const additive = e.ctrlKey; // ctrl+click toggles into the selection
+        const level = heldDigit; // digit 1-9 held → select the ancestor at that level
+        const selectItem = () => {
+          renderer.probeWorld(offsetX, offsetY); // remember the click point
+          // shift inverts the pick-opacity band (select faint / through glass)
+          void renderer.pickItem(offsetX, offsetY, shiftKey).then((id) => {
+            if (level > 0) {
+              const hit = id !== null ? renderer.itemFromGlobalId(id) : null;
+              if (hit) {
+                void viewerActions.selectAtLevel(hit.model, hit.item, level, additive);
+              }
+              return;
+            }
+            void viewerActions.selectFromPick(id, additive);
+          });
+        };
+        // a laser-scan setup marker seen under the cursor takes the click
+        void visibleScanMarker(offsetX, offsetY).then((key) => {
+          if (key) {
+            scansActions.select(key);
+          } else {
+            selectItem();
+          }
+        });
+      });
+
+      // Double-click finishes an open-ended measurement (Path / Area).
+      canvas.addEventListener('dblclick', (e) => {
+        if (!measurementsState.get().activeKind) {
+          // double-click on a laser-scan setup marker enters it
+          void visibleScanMarker(e.offsetX, e.offsetY).then((key) => {
+            if (key) {
+              void scansActions.enter(key);
+            }
+          });
+          return;
+        }
+        e.preventDefault();
+        measurementsActions.finish();
+      });
+
+      // Live rubber-band: probe the surface under the cursor while a tool is
+      // active (one probe in flight at a time). Cleared when off-surface.
+      //
+      // Touch has no cursor, so the preview only exists while a finger is down:
+      // `hoverGen` is bumped when one lifts, dropping the probe still in flight
+      // — otherwise its result pinned a phantom rubber-band and snap glyph to
+      // the last place the finger happened to be.
+      let hoverBusy = false;
+      let hoverGen = 0;
+      canvas.addEventListener('pointermove', (e) => {
+        if (!measurementsState.get().activeKind || measureAim?.aiming()) {
+          return;
+        }
+        measurementsActions.setPerp(e.shiftKey);
+        if (hoverBusy) {
+          return;
+        }
+        hoverBusy = true;
+        const gen = hoverGen;
+        void renderer.probeMeasureAsync(e.offsetX, e.offsetY, measureSnap()).then((p) => {
+          hoverBusy = false;
+          if (gen !== hoverGen || measureAim?.aiming()) {
+            return;
+          }
+          measurementsActions.setHover(toHit(p));
+        });
+      });
+      const endTouchHover = (e: PointerEvent) => {
+        if (e.pointerType !== 'touch') {
+          return;
+        }
+        hoverGen++;
+        measurementsActions.setHover(null);
+      };
+      canvas.addEventListener('pointerup', endTouchHover);
+      canvas.addEventListener('pointercancel', endTouchHover);
+
+      // Hover outline: throttled item pick under the cursor (one in flight,
+      // ~30 Hz). Only when enabled, no buttons held, and no measure tool —
+      // the converged renderer serves these via the cheap hold path.
+      let outlineHoverBusy = false;
+      let outlineHoverLast = 0;
+      canvas.addEventListener('pointermove', (e) => {
+        if (!viewerState.get().outlineHover) {
+          return;
+        }
+        if (e.buttons !== 0 || measurementsState.get().activeKind) {
+          return;
+        }
+        const now = performance.now();
+        if (outlineHoverBusy || now - outlineHoverLast < 33) {
+          return;
+        }
+        outlineHoverBusy = true;
+        outlineHoverLast = now;
+        void renderer.pickItem(e.offsetX, e.offsetY).then((id) => {
+          outlineHoverBusy = false;
+          renderer.setHoverItem(id);
+        });
+      });
+      canvas.addEventListener('pointerleave', () => renderer.setHoverItem(null));
+
+      // Enter finishes, Escape cancels, Backspace removes the last point — but
+      // only while placing points, and we stop the event so the global ESC
+      // (clear selection) / other hotkeys don't also fire. Capture phase beats
+      // the window-level hotkey engine.
+      const measureShift = (e: KeyboardEvent) => {
+        if (measurementsState.get().activeKind) {
+          measurementsActions.setPerp(e.shiftKey);
+        }
+      };
+      window.addEventListener('keydown', measureShift);
+      window.addEventListener('keyup', measureShift);
+
+      const measureKeys = (e: KeyboardEvent) => {
+        const ms = measurementsState.get();
+        if (!ms.activeKind || ms.inProgress.length === 0) {
+          return;
+        }
+        if (e.key === 'Enter') {
+          measurementsActions.finish();
+        } else if (e.key === 'Escape') {
+          measurementsActions.cancel();
+        } else if (e.key === 'Backspace') {
+          measurementsActions.undoPoint();
+        } else {
+          return;
+        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      };
+      window.addEventListener('keydown', measureKeys, true);
+
+      // held digit 1-9 + click → select the picked item's ancestor at that
+      // hierarchy level (1 = directly under the model root; deeper than the
+      // item's path clamps to its leaf entry)
+      const digitDown = (e: KeyboardEvent) => {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+          return;
+        }
+        if (e.key >= '1' && e.key <= '9') {
+          heldDigit = Number(e.key);
+        }
+      };
+      const digitUp = (e: KeyboardEvent) => {
+        if (e.key === String(heldDigit)) {
+          heldDigit = 0;
+        }
+      };
+      const digitBlur = () => {
+        heldDigit = 0;
+      };
+      window.addEventListener('keydown', digitDown);
+      window.addEventListener('keyup', digitUp);
+      window.addEventListener('blur', digitBlur);
+
+      removeMeasureKeys = () => {
+        window.removeEventListener('keydown', measureKeys, true);
+        window.removeEventListener('keydown', measureShift);
+        window.removeEventListener('keyup', measureShift);
+        window.removeEventListener('keydown', digitDown);
+        window.removeEventListener('keyup', digitUp);
+        window.removeEventListener('blur', digitBlur);
+      };
+
+      let lastFrameT = 0;
+      const tick = (now: number) => {
+        if (renderer.lost) {
+          return; // gpuRecovery remounts the panel; nothing to draw meanwhile
+        }
+        frame = requestAnimationFrame(tick);
+        if (host.clientWidth === 0 || host.clientHeight === 0) {
+          return; // hidden tab
+        }
+        // GPU back-pressure: one frame in flight (Renderer.gpuBusy). Checked
+        // BEFORE the limiter so a skipped tick never advances the fixed step
+        // — a slow GPU must not be owed frames it can never deliver
+        if (renderer.gpuBusy) {
+          return;
+        }
+        // FPS limiter: fixed-step pacing with drift snap (Settings → Rendering)
+        const minDt = 1000 / viewerState.get().fpsLimit;
+        if (now - lastFrameT < minDt - 0.5) {
+          return;
+        }
+        lastFrameT = now - lastFrameT > minDt * 2 ? now : lastFrameT + minDt;
+        if (optionsDirty) {
+          optionsDirty = false;
+          applyOptions();
+        }
+        const cubeQ = cameraQuat(renderer.camera.forward());
+        renderer.setViewCube(gizmo ? gizmo.getRect() : null, cubeHoverId(), cubeQ);
+        tickAnimation(now); // playhead + band slots + camera follow, before the frame
+        renderer.frame(canvas);
+        residency.tick(renderer, now); // VRAM budget (no-op while disabled)
+        // laser-scan point streaming (no-op without open scans); a scan opened
+        // or closed moves the scene box the clip planes are packed around
+        if (scanPoints.tick(renderer)) {
+          optionsDirty = true;
+        }
+        // a setup's photo is a perspective view: the pinned eye shows nothing
+        // in orthographic, so switching projection inside a setup leaves it
+        if (renderer.camera.ortho && scansState.get().active) {
+          scansActions.exit();
+        }
+        scanPhoto.tick(renderer); // sharpen the entered setup's photo on zoom
+        gizmo?.update(cubeQ);
+        clipGizmo?.update();
+        measureOverlay?.update();
+        labelOverlay?.update();
+        postFrameAnimation();
+        residencyBoxes?.update();
+
+        const st = viewerState.get();
+        setError(renderer.gpuError ? `GPU ERROR: ${renderer.gpuError}` : '');
+        // the same row list as Settings → Stats, minus the rows unticked there
+        const text = st.showStats ? formatOverlay(collectStats(renderer), st.statsHidden) : '';
+        if (hud.textContent !== text) {
+          hud.textContent = text;
+        }
+        const backdrop = text && st.statsBackdrop ? 'rgba(8,10,14,0.72)' : '';
+        if (hud.style.background !== backdrop) {
+          hud.style.background = backdrop;
+          hud.style.padding = backdrop ? '4px 6px' : '';
+          hud.style.borderRadius = backdrop ? '3px' : '';
+        }
+
+        // VRAM-budget activity chip: working / settled / waiting-for-idle
+        let vText = '';
+        let vColor = '#adb5bd';
+        if (st.vramActivityHud) {
+          const act = residency.activity();
+          if (vramBudgetMb(st) === 0) {
+            // budget off: only surface the restore-to-full pass while it runs
+            if (act.inFlight > 0) {
+              vText = '⟳ restoring full detail';
+              vColor = '#4dabf7';
+            }
+          } else {
+            const pct = Math.round((renderer.vramBudgeted / 1048576 / vramBudgetMb(st)) * 100);
+            if (act.inFlight > 0) {
+              vText = `⟳ optimizing — vram ${pct}%`;
+              vColor = '#4dabf7';
+            } else if (act.settled) {
+              vText = `✓ vram ${pct}%`;
+              vColor = '#69db7c';
+            } else {
+              vText = `· vram ${pct}%`;
+            }
+          }
+        }
+        if (vramHud.textContent !== vText) {
+          vramHud.textContent = vText;
+          vramHud.style.display = vText ? 'block' : 'none';
+        }
+        if (vramHud.style.color !== vColor) {
+          vramHud.style.color = vColor;
+        }
+      };
+      tick(performance.now());
+    };
+    void boot();
+
+    return () => {
+      disposed = true;
+      registerViewportRemount(null);
+      cancelAnimationFrame(frame);
+      // the photo and the pinned camera die with this renderer (panel closed,
+      // or remounted after a GPU device loss): leave the entered setup
+      scansActions.exit();
+      registerRenderer(null);
+      gizmo?.dispose();
+      clipGizmo?.dispose();
+      measureOverlay?.dispose();
+      labelOverlay?.dispose();
+      residencyBoxes?.dispose();
+      detachAnimation?.();
+      unmountPlayBar?.();
+      measureAim?.dispose();
+      measureBar?.dispose();
+      removeMeasureKeys?.();
+      unsubLabels?.();
+      for (const off of unsubOptions) {
+        off();
+      }
+      hostResize.disconnect();
+      renderer.dispose();
+      canvas.remove();
+      hudWrap.remove();
+    };
+  },
+};

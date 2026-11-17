@@ -1,0 +1,33 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_convertresult_free: (a: number, b: number) => void;
+export const __wbg_cookedresult_free: (a: number, b: number) => void;
+export const __wbg_stepsession_free: (a: number, b: number) => void;
+export const convert_step_to_glb: (a: number, b: number) => [number, number, number];
+export const convert_step_to_tdp: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: any) => [number, number, number];
+export const convertresult_glb: (a: number) => [number, number];
+export const convertresult_info: (a: number) => [number, number];
+export const cookedresult_coarse: (a: number) => [number, number];
+export const cookedresult_info: (a: number) => [number, number];
+export const stepsession_faceCount: (a: number) => number;
+export const stepsession_finish: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => [number, number, number, number];
+export const stepsession_fromIndexFile: (a: any, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+export const stepsession_jobKind: (a: number) => number;
+export const stepsession_jobs: (a: number) => [number, number];
+export const stepsession_new: (a: any, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+export const stepsession_productCount: (a: number) => number;
+export const stepsession_statsWire: (a: number) => [number, number];
+export const stepsession_tessellate: (a: number, b: number, c: number) => [number, number, number, number];
+export const stepsession_writeIndex: (a: number, b: number, c: number) => [number, number];
+export const version: () => [number, number];
+export const start: () => void;
+export const cookedresult_tdp: (a: number) => [number, number];
+export const meshopt_wasm_alloc: (a: number) => number;
+export const meshopt_wasm_free: (a: number) => void;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_start: () => void;

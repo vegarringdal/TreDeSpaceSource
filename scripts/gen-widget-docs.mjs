@@ -1,0 +1,156 @@
+// gen-widget-docs.mjs — derive the /docs/ widget-gallery props reference from
+// the @treDeSpaceUI sources themselves, so the gallery's docs cannot drift.
+// Extracts every interface (and type alias) from the widgets folder plus the
+// dockable types, with per-member JSDoc. Non-exported base interfaces
+// (BaseProps, BaseNode…) are inlined into their children so the docs show the
+// full prop surface a caller actually sees; the base's own `extends` carries
+// over. Exported bases such as LabelledProps stay an `extends` line — list
+// them in the gallery section's props too.
+//
+// Output: docs/generated/widgetData.json — imported and rendered by
+// docs/widgets.tsx. Lenient by design (an undocumented prop just renders
+// without a description): this is an internal reference, unlike the strict
+// postMessage API docs (gen-api-docs.mjs).
+//
+// Run standalone (`node scripts/gen-widget-docs.mjs`) or via the Vite plugin.
+
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, '..');
+const WIDGETS_DIR = resolve(root, 'src/treDeSpaceUI/widgets');
+const EXTRA_FILES = [
+  resolve(root, 'src/treDeSpaceUI/dockable/types.ts'),
+  resolve(root, 'src/treDeSpaceUI/hotkeys/engine.ts'),
+  resolve(root, 'src/treDeSpaceUI/hotkeys/hotkeys.state.ts'),
+];
+const OUT = resolve(root, 'docs/generated/widgetData.json');
+
+/** Plain text of a `{@link X}` target (an identifier, a qualified name or a
+ *  JSDoc member name like `Client.method`). */
+function linkName(n) {
+  if (!n) {
+    return '';
+  }
+  return ts.isIdentifier(n) ? n.text : `${linkName(n.left)}.${n.right.text}`;
+}
+
+/** Flatten a JSDoc comment (string | NodeArray) to plain text; `{@link X}`
+ *  renders as its target name (the parts array carries the target
+ *  separately from the text). */
+function jsdocText(node) {
+  const docs = ts.getJSDocCommentsAndTags?.(node) ?? [];
+  for (const d of docs) {
+    if (ts.isJSDoc(d) && d.comment) {
+      return typeof d.comment === 'string'
+        ? d.comment.trim()
+        : d.comment
+            .map((c) => `${linkName(c.name)}${c.text ?? ''}`)
+            .join('')
+            .trim();
+    }
+  }
+  return '';
+}
+
+const isExported = (node) => node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+
+/** The `{ … }` of an object type alias — bare or wrapped in `Readonly<…>` —
+ *  so its members render as fields like an interface's; null otherwise. */
+function objectLiteral(type) {
+  if (ts.isTypeLiteralNode(type)) {
+    return type;
+  }
+  const arg = ts.isTypeReferenceNode(type) && type.typeArguments?.length === 1 ? type.typeArguments[0] : null;
+  const isReadonly = arg && ts.isIdentifier(type.typeName) && type.typeName.text === 'Readonly';
+  return isReadonly && ts.isTypeLiteralNode(arg) ? arg : null;
+}
+
+/** One member as the props card shows it: its source text and JSDoc. */
+const fieldOf = (mem, sf) => ({ text: mem.getText(sf).replace(/\s+/g, ' ').trim(), doc: jsdocText(mem) });
+
+export function generateWidgetDocs() {
+  // Widgets live either flat or one-folder-per-multi-file-widget — walk both.
+  const files = [
+    ...readdirSync(WIDGETS_DIR, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.tsx?$/.test(f) && f !== 'index.ts')
+      .map((f) => resolve(WIDGETS_DIR, f)),
+    ...EXTRA_FILES,
+  ];
+
+  /** name → { doc, exported, extends, alias?, fields: [{ text, doc }] } — an
+   *  object type alias lands here too, marked `alias`. */
+  const interfaces = new Map();
+  /** name → { doc, def } */
+  const aliases = new Map();
+
+  for (const file of files) {
+    const sf = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node) => {
+      if (ts.isInterfaceDeclaration(node)) {
+        interfaces.set(node.name.getText(sf), {
+          doc: jsdocText(node),
+          exported: isExported(node),
+          extends: node.heritageClauses?.flatMap((h) => h.types.map((t) => t.getText(sf))).join(', ') || null,
+          fields: node.members.map((mem) => fieldOf(mem, sf)),
+        });
+      }
+      const literal = ts.isTypeAliasDeclaration(node) ? objectLiteral(node.type) : null;
+      if (literal) {
+        interfaces.set(node.name.getText(sf), {
+          doc: jsdocText(node),
+          exported: isExported(node),
+          extends: null,
+          alias: true,
+          fields: literal.members.map((mem) => fieldOf(mem, sf)),
+        });
+      } else if (ts.isTypeAliasDeclaration(node)) {
+        aliases.set(node.name.getText(sf), {
+          doc: jsdocText(node),
+          def: node.type.getText(sf).replace(/\s+/g, ' ').trim(),
+        });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+
+  // Inline non-exported bases (one level is all the tree has): the reader sees
+  // the props a caller can actually pass, and the meaningless private name
+  // disappears from the heritage line.
+  for (const t of interfaces.values()) {
+    // strip any type arguments: `BaseProps<T>` inlines like `BaseProps`
+    const baseName = t.extends?.match(/^([A-Za-z_$][\w$]*)(?:<.*>)?$/)?.[1];
+    const base = baseName ? interfaces.get(baseName) : undefined;
+    if (base && !base.exported) {
+      t.fields = [...t.fields, ...base.fields];
+      t.extends = base.extends;
+    }
+  }
+
+  return {
+    generatedFrom: 'src/treDeSpaceUI',
+    types: Object.fromEntries([...interfaces].map(([name, { exported, ...t }]) => [name, t])),
+    aliases: Object.fromEntries(aliases),
+    typeCount: interfaces.size,
+  };
+}
+
+export function writeWidgetDocs() {
+  const data = generateWidgetDocs();
+  mkdirSync(dirname(OUT), { recursive: true });
+  writeFileSync(OUT, `${JSON.stringify(data, null, 2)}\n`);
+  return data;
+}
+
+// CLI — compared as real file paths: comparing URLs silently skipped the run
+// (and left the build without its generated data) whenever the checkout path
+// had a space or other URL-escaped character, went through a symlink, or was
+// a Windows path.
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const d = writeWidgetDocs();
+  console.log(`wrote ${OUT} — ${d.typeCount} types, ${Object.keys(d.aliases).length} aliases`);
+}

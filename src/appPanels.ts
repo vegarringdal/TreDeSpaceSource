@@ -1,0 +1,136 @@
+import { definePanel, type PanelDefinition } from '@treDeSpaceUI/dockable';
+import { KeyPanel } from './components/panels/animation/KeyPanel';
+import { AnimationTimeline } from './components/panels/animation-timeline/AnimationTimeline';
+import { ClipShapes } from './components/panels/clip-shapes/ClipShapes';
+import { Console } from './components/panels/console/Console';
+import { Export } from './components/panels/export/Export';
+import { Hierarchy } from './components/panels/hierarchy/Hierarchy';
+import { ImportManager } from './components/panels/import-manager/ImportManager';
+import { Labels } from './components/panels/labels/Labels';
+import { Measurements } from './components/panels/measurements/Measurements';
+import { ModelAssets } from './components/panels/model-assets/ModelAssets';
+import { MultiColor } from './components/panels/multi-color/MultiColor';
+import { OverlayEditor } from './components/panels/overlay-editor/OverlayEditor';
+import { OverlayPreviewPanel } from './components/panels/overlay-editor/OverlayPreviewPanel';
+import { QuickColors } from './components/panels/quick-colors/QuickColors';
+import { RibbonAnimation } from './components/panels/ribbon-animation/RibbonAnimation';
+import { RibbonClippingBox } from './components/panels/ribbon-clipping-box/RibbonClippingBox';
+import { RibbonClippingPlane } from './components/panels/ribbon-clipping-plane/RibbonClippingPlane';
+import { RibbonExternal } from './components/panels/ribbon-external/RibbonExternal';
+import { RibbonHome } from './components/panels/ribbon-home/RibbonHome';
+import { RibbonLayout } from './components/panels/ribbon-layout/RibbonLayout';
+import { RibbonMeasurements } from './components/panels/ribbon-measurements/RibbonMeasurements';
+import { RibbonPad } from './components/panels/ribbon-pad/RibbonPad';
+import { RibbonPanels } from './components/panels/ribbon-panels/RibbonPanels';
+import { RIBBON_TABS, ribbonTabTooltip } from './components/panels/ribbon-panels/ribbonTabs';
+import { RibbonSelectionColor } from './components/panels/ribbon-selection-color/RibbonSelectionColor';
+import { RibbonSelectionTransform } from './components/panels/ribbon-selection-transform/RibbonSelectionTransform';
+import { Scans } from './components/panels/scans/Scans';
+import { Settings } from './components/panels/settings/Settings';
+import { SqlAssets } from './components/panels/sql-assets/SqlAssets';
+import { SqlDetail } from './components/panels/sql-detail/SqlDetail';
+import { SqlEditor } from './components/panels/sql-editor/SqlEditor';
+import { SqlReports } from './components/panels/sql-reports/SqlReports';
+import { SqlTable } from './components/panels/sql-table/SqlTable';
+import { handleSqlTableClose } from './components/panels/sql-table/sqlTablePanel';
+import { TransformObjects } from './components/panels/transform-objects/TransformObjects';
+import { Viewpoints } from './components/panels/viewpoints/Viewpoints';
+import {
+  LabelsViewpoint,
+  MeasurementsViewpoint,
+  MultiColorViewpoint,
+} from './components/panels/viewpoints/ViewpointVariants';
+import { ViewpointViewer } from './components/panels/viewpoints/ViewpointViewer';
+import { viewport } from './components/panels/viewport/viewport';
+import { defaultSlotForRibbon, layoutSlotHotkeyId } from './state/layouts.state';
+
+/** A ribbon tab, by id: pinned to the top strip, titled and described from
+ *  RIBBON_TABS. A ribbon that a default app layout opens also carries that
+ *  layout's F-key, shown under the tab's tooltip. */
+function ribbon(id: string) {
+  const tab = RIBBON_TABS.find((t) => t.id === id);
+  if (!tab) {
+    throw new Error(`appPanels: ribbon tab "${id}" is missing from RIBBON_TABS`);
+  }
+  const slot = defaultSlotForRibbon(id);
+
+  return {
+    id,
+    title: tab.title,
+    dockableIn: 'top',
+    tabMinWidth: 96,
+    closable: false,
+    tooltip: ribbonTabTooltip(tab, slot !== null),
+    shortcut: slot === null ? undefined : layoutSlotHotkeyId(slot),
+  } as const;
+}
+
+/** Every dock panel the app knows: the ribbon strip, the tool panels, and the
+ *  non-React viewport. Order defines ribbon tab order. */
+export const panels: PanelDefinition[] = [
+  // The ribbon strip: pinned to the node with id 'top', reorder-only.
+  definePanel({ ...ribbon('ribbonHome'), component: RibbonHome }),
+  definePanel({ ...ribbon('ribbonClippingPlane'), component: RibbonClippingPlane }),
+  definePanel({ ...ribbon('ribbonClippingBox'), component: RibbonClippingBox }),
+  definePanel({ ...ribbon('ribbonSelectionColor'), component: RibbonSelectionColor }),
+  definePanel({ ...ribbon('ribbonSelectionTransform'), component: RibbonSelectionTransform }),
+  definePanel({ ...ribbon('ribbonMeasurements'), component: RibbonMeasurements }),
+  definePanel({ ...ribbon('ribbonAnimation'), component: RibbonAnimation }),
+  definePanel({ ...ribbon('ribbonPanels'), component: RibbonPanels }),
+  definePanel({ ...ribbon('ribbonLayout'), component: RibbonLayout }),
+  definePanel({ ...ribbon('ribbonExternal'), component: RibbonExternal }),
+  definePanel({ ...ribbon('ribbonPad'), component: RibbonPad }),
+
+  definePanel({ id: 'hierarchy', title: 'Hierarchy', home: 'left', component: Hierarchy }),
+  // opened on demand from the Selection Color ribbon (Edit) — not in the layout
+  definePanel({ id: 'quickColors', title: 'Color Panel', home: 'left', component: QuickColors }),
+  definePanel({ id: 'console', title: 'Console', home: 'bottom', component: Console }),
+  definePanel({ id: 'settings', title: 'Settings', home: 'right', component: Settings }),
+  definePanel({ id: 'measurements', title: 'Measurement List', home: 'right', component: Measurements }),
+  definePanel({ id: 'clipShapes', title: 'Clip Shape List', home: 'right', component: ClipShapes }),
+  definePanel({ id: 'transformObjects', title: 'Transform Objects', home: 'right', component: TransformObjects }),
+  definePanel({ id: 'modelAssets', title: 'Model Assets', home: 'left', component: ModelAssets }),
+  // opened on demand — not part of the default layout
+  definePanel({ id: 'sqlAssets', title: 'SQL Assets', home: 'left', component: SqlAssets }),
+  definePanel({ id: 'sqlEditor', title: 'SQL Editor', home: 'left', component: SqlEditor }),
+  definePanel({ id: 'sqlReports', title: 'SQL Report', home: 'left', component: SqlReports }),
+  // onClose (a real close, not a layout swap) drops the result unless the
+  // panel's Keep toggle is on — see sqlTablePanel.ts
+  definePanel({
+    id: 'sqlTable',
+    title: 'SQL Table',
+    home: 'bottom',
+    component: SqlTable,
+    onClose: handleSqlTableClose,
+  }),
+  definePanel({ id: 'sqlDetail', title: 'SQL Detail', home: 'right', component: SqlDetail }),
+  definePanel({ id: 'multiColor', title: 'Set Color', home: 'right', component: MultiColor }),
+  definePanel({ id: 'labels', title: 'Label', home: 'right', component: Labels }),
+  definePanel({ id: 'export', title: 'Export', home: 'right', component: Export }),
+  definePanel({ id: 'importManager', title: 'Import Manager', home: 'right', component: ImportManager }),
+  // laser-scan setups + panoramas — opened on demand
+  definePanel({ id: 'scans', title: 'Scans', home: 'right', component: Scans }),
+  definePanel({ id: 'viewpoints', title: 'Viewpoint Editor', home: 'right', component: Viewpoints }),
+  definePanel({ id: 'viewpointViewer', title: 'Viewpoint Viewer', home: 'left', component: ViewpointViewer }),
+  definePanel({ id: 'labelsViewpoint', title: 'Label (viewpoint)', home: 'right', component: LabelsViewpoint }),
+  definePanel({
+    id: 'measurementsViewpoint',
+    title: 'Measurement (viewpoint)',
+    home: 'right',
+    component: MeasurementsViewpoint,
+  }),
+  definePanel({
+    id: 'multiColorViewpoint',
+    title: 'Set Color (viewpoint)',
+    home: 'right',
+    component: MultiColorViewpoint,
+  }),
+
+  // animation tool (DESIGN.md › Animation) — opened on demand
+  definePanel({ id: 'animationTimeline', title: 'Timeline', home: 'bottom', component: AnimationTimeline }),
+  definePanel({ id: 'overlayPreview', title: 'Overlay Preview', home: 'bottom', component: OverlayPreviewPanel }),
+  definePanel({ id: 'overlayEditor', title: 'Overlay Editor', home: 'right', component: OverlayEditor }),
+  definePanel({ id: 'animation', title: 'Key', home: 'right', component: KeyPanel }),
+
+  viewport, // plain DOM + three.js, no React
+];

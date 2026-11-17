@@ -1,0 +1,3905 @@
+// WebGPU renderer: two-pass GPU occlusion culling + multi-draw indexed indirect.
+//
+// Per model: vertex/index buffers (all color groups concatenated), a MeshletCull
+// storage buffer (sphere + cone + draw-record template), three draw-record
+// buffers (one per cull pass + the depth-sorted transparent list blend mode
+// draws) and a persistent per-meshlet visibility buffer.
+// Draw counts for all models live in ONE buffer at 256-byte-aligned slots so a
+// single clearBuffer resets them and a single copy reads them all back for stats.
+//
+// Frame: clear counts -> cull pass 1 (last-frame-visible, frustum+cone) ->
+// render pass 1 -> build HZB depth pyramid -> cull pass 2 (all meshlets,
+// + occlusion, updates visibility) -> [blend mode: sort the transparent
+// candidates back-to-front] -> render pass 2 (newly visible only) -> blend pass.
+// With fast-AA/edges/MSAA the scene renders into an offscreen target and a
+// fullscreen post pass writes the swapchain. Freeze-cull skips all compute and
+// re-renders the last frozen draw records with the live camera.
+// Fallback without chromium-experimental-multi-draw-indirect: one plain
+// drawIndexed per color group, no culling.
+
+import { projectToScreen } from '../math/project';
+import type { PackedModel } from '../model/pack';
+import { SLOT_FLOATS, TRANSFORM_POOL } from '../modeldb/transformPoolLayout';
+import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
+
+/** what the GPU upload needs — the worker keeps itemBounds for itself */
+export type GpuPackedModel = Omit<PackedModel, 'itemBounds'>;
+
+/** A geometry-less pack with `itemCount` items — what reserveTombstone
+ *  uploads before tombstoning the slot (bounds neutral for the scene union). */
+function emptyPack(itemCount: number): GpuPackedModel {
+  return {
+    name: 'tombstone',
+    boundsMin: [Infinity, Infinity, Infinity],
+    boundsMax: [-Infinity, -Infinity, -Infinity],
+    denseMin: null,
+    denseMax: null,
+    meshletCount: 0,
+    triangleCount: 0,
+    itemCount,
+    cgCount: 0,
+    positionsQ: new Uint16Array(0),
+    normalsQ: null,
+    indices16: new Uint16Array(0),
+    cull: new ArrayBuffer(0),
+    meshletInfo: new ArrayBuffer(0),
+    cgColors: new Float32Array(0),
+  };
+}
+
+/** A worker StateUpdate as the renderer needs it (structural; no modeldb import). */
+/** Item states (3 words per item) from item `first` on (absent: 0). */
+export type ItemStateUpdate = { model: number; states: Uint32Array; transparent: boolean; first?: number };
+
+/** Any colour group with baked alpha below 1 — the model's initial
+ *  `transparent` before its first state update (a fresh model has no
+ *  overrides, so this is the whole answer until one arrives). */
+function hasBakedAlpha(cgColors: Float32Array): boolean {
+  for (let i = 3; i < cgColors.length; i += 4) {
+    if (cgColors[i] < 1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+import type { GizmoFace } from '../overlay/ViewGizmo';
+import { trackDeviceAllocations } from './allocationTracker';
+import { CameraController } from './camera';
+import { isMobileDevice } from './device';
+import { type DrawList, drawListOf, type GpuModel, TRANSPARENT_LIST, vpArgsOffsetOf } from './gpuModel';
+import { type AdapterFacts, adapterFacts } from './gpuProbe';
+import { GpuTimings } from './gpuTimings';
+import { ItemPickPass, type PickGbuffer } from './itemPickPass';
+import { MARKER_INSTANCE_FLOATS, MARKER_INSTANCE_LAYOUT } from './markerInstance';
+import {
+  classifySnap,
+  isTransparentItem,
+  type MeasureProbe,
+  type MeasureSnap,
+  type SnapHit,
+  seamProbe,
+} from './measureSnap';
+import { OutlinePass } from './outlinePass';
+import { PanoPass } from './panoPass';
+import { PointsLayer } from './pointsLayer';
+import {
+  cullWgsl,
+  hzbWgsl,
+  lineWgsl,
+  markerWgsl,
+  measureSnapWgsl,
+  pickDepthWgsl,
+  postWgsl,
+  renderVpWgsl,
+  renderWgsl,
+  vbaoWgsl,
+} from './shaders';
+import { SORT_CLEAR_BYTES, SORT_COUNT_WORD, SORT_STATE_WORDS, sortScanWgsl, sortScatterWgsl } from './shaders/cull';
+import { unitSphereMesh } from './sphereMesh';
+import { ViewCubePass } from './viewCubePass';
+import { type AdapterHints, readDeviceMemoryGb } from './vramHint';
+
+export type { MeasureProbe, MeasureSnap } from './measureSnap';
+
+/** A live resize (dock-splitter drag) changes the CSS size on every rAF;
+ *  the backing size — and with it every render target — follows only once
+ *  the CSS size has held still this long. */
+const RESIZE_SETTLE_MS = 80;
+
+/** Budget readbacks reporting "pass 2 drew nothing new" that end the settle
+ *  window. One is already the occlusion's fixed point; a second costs a frame
+ *  or two and covers a readback landing out of step with the frame that
+ *  armed it. */
+const SETTLE_ZERO_READS = 2;
+
+/** Wall-clock ceiling on the settle window, applied once a readback for the
+ *  current scene has actually answered. Without it the window is paid in
+ *  FRAMES, and a frame on a weak GPU is worth ten on a fast one — the same
+ *  setting then costs a fast machine half a second and a slow one several. */
+const SETTLE_CEILING_MS = 500;
+/** Hidden-edge-only-when-still: how long the camera must rest before the
+ *  hidden outline part comes back. A frame without a camera change mid-drag
+ *  (input slower than the display) must not flash it in. */
+const OUTLINE_HIDDEN_STILL_MS = 150;
+
+/** Snap raycast result words: 16 for the hit (measureSnap.ts SnapHit) plus 16
+ *  read diagnostics for the measure trace (shaders/snap.ts header). */
+const SNAP_RESULT_WORDS = 32;
+
+interface PendingPick {
+  x: number; // full-res pixel (for unprojection)
+  y: number;
+  mode: 'pivot' | 'fly' | 'probe' | 'measure'; // probe: record; measure: snap+normal
+}
+
+/** The view a pick's depth texel was rendered with: the stable (un-jittered,
+ *  absolute) view-projection and the target size. Captured when the pick is
+ *  encoded and used for everything that follows — the unprojection, the
+ *  measure raycast's sight line, the snap radii — because the readback and
+ *  the two casts land frames later, and on a slow GPU the camera is still
+ *  settling from the last swipe for seconds (update() clamps dt to 33 ms, so
+ *  a settle tail of 0.5 s at 60 fps takes ~3 s at 10 fps). Unprojecting the
+ *  texel through a LATER matrix puts the point off the surface, and a ray
+ *  through the later camera hits somewhere else entirely. Selection never
+ *  showed it: it reads an id, not a depth. `t` / `tag`: encode time and the
+ *  measure-trace label (options.traceKey). */
+type PickView = Readonly<{ vp: Float32Array; w: number; h: number; t: number; tag: string }>;
+
+// measure-trace formatting
+const fmt3 = (v: number): string => v.toFixed(3);
+const fmtV3 = (p: readonly number[]): string => `(${fmt3(p[0])}, ${fmt3(p[1])}, ${fmt3(p[2])})`;
+const fmtPx = (q: [number, number] | null): string => (q ? `(${q[0].toFixed(1)},${q[1].toFixed(1)})` : 'behind');
+const dist3 = (a: readonly number[], b: readonly number[]): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const fmtHit = (h: SnapHit | null): string =>
+  h
+    ? `hit t=${fmt3(h.t)} item=${h.item} uv=(${fmt3(h.u)},${fmt3(h.v)}) A=${fmtV3(h.A)} B=${fmtV3(h.B)} C=${fmtV3(h.C)}`
+    : 'miss';
+
+type Ray = { origin: [number, number, number]; dir: [number, number, number] };
+
+/** Unproject device pixel (fx, fy) at NDC depth d through an inverted
+ *  view-projection; null when degenerate. */
+function unprojectPixel(
+  inv: Float32Array,
+  w: number,
+  h: number,
+  fx: number,
+  fy: number,
+  d: number,
+): [number, number, number] | null {
+  const ndcX = ((fx + 0.5) / w) * 2 - 1;
+  const ndcY = 1 - ((fy + 0.5) / h) * 2;
+  const c = [ndcX, ndcY, d, 1];
+  const o = new Float64Array(4);
+  for (let r = 0; r < 4; r++) {
+    o[r] = inv[r] * c[0] + inv[4 + r] * c[1] + inv[8 + r] * c[2] + inv[12 + r] * c[3];
+  }
+  if (Math.abs(o[3]) < 1e-12) {
+    return null;
+  }
+  return [o[0] / o[3], o[1] / o[3], o[2] / o[3]];
+}
+
+/** Sight line through a device pixel of `view`: near-plane origin (correct
+ *  for perspective and ortho alike — a camera-position origin would be
+ *  oblique in ortho) and unit direction, in absolute world space. */
+function rayThroughPixel(view: PickView, px: number, py: number): Ray | null {
+  const inv = invert4(view.vp);
+  if (!inv) {
+    return null;
+  }
+  // reversed-Z: depth 1 = near, small depth = far
+  const a = unprojectPixel(inv, view.w, view.h, px, py, 1);
+  const b = unprojectPixel(inv, view.w, view.h, px, py, 0.001);
+  if (!a || !b) {
+    return null;
+  }
+  const dir: [number, number, number] = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const l = Math.hypot(...dir) || 1;
+  return { origin: a, dir: [dir[0] / l, dir[1] / l, dir[2] / l] };
+}
+
+const RECORD_STRIDE = 20; // drawIndexedIndirect: 5 x u32
+/** Fixed per-meshlet VRAM regardless of fill: cull 36 + info 32 + vis 4 +
+ *  4 × RECORD_STRIDE draw records (pass 1, pass 2, sorted transparent,
+ *  outline mask) + 8 sort candidate + 4 full-list. */
+const MESHLET_RECORD_BYTES = 164;
+const COUNT_SLOT = 256; // storage-binding offset alignment
+/** Count slots per model: pass 1, pass 2, sorted transparent list, outline list. */
+const COUNT_SLOTS = 4;
+const MAX_MODELS = 4096;
+const PARAMS_SIZE = 240; // CullParams in shaders/cull.ts
+/** Perspective sort-key span above the near plane before any model has bounds. */
+const SORT_FAR_FALLBACK_OCTAVES = 20;
+// Background transparency mode: the backdrop pass squeezes its depths into
+// (0, BACKDROP_DEPTH_MAX] through the viewport depth range, so every foreground
+// fragment beats a backdrop one while backdrop items still order among
+// themselves (a float depth keeps its relative precision when scaled). Depth at
+// or below this counts as background for picking — a click on a backdrop item
+// hits nothing, like glass in blend mode. With the camera's near plane at
+// orbit distance / 12500, a real surface only dips this low some 80 000 orbit
+// distances away.
+const BACKDROP_DEPTH_MAX = 1e-9;
+/** A measure ray-cast triangle this much farther than the depth under the
+ *  cursor (relative + metres) is hidden behind scan points. */
+const OCCLUDED_HIT_SLACK = 0.02;
+const OCCLUDED_HIT_MIN = 0.02;
+
+// General 4x4 inverse (column-major). Returns null when singular.
+function invert4(m: Float32Array): Float32Array | null {
+  const inv = new Float32Array(16);
+  inv[0] =
+    m[5] * m[10] * m[15] -
+    m[5] * m[11] * m[14] -
+    m[9] * m[6] * m[15] +
+    m[9] * m[7] * m[14] +
+    m[13] * m[6] * m[11] -
+    m[13] * m[7] * m[10];
+  inv[4] =
+    -m[4] * m[10] * m[15] +
+    m[4] * m[11] * m[14] +
+    m[8] * m[6] * m[15] -
+    m[8] * m[7] * m[14] -
+    m[12] * m[6] * m[11] +
+    m[12] * m[7] * m[10];
+  inv[8] =
+    m[4] * m[9] * m[15] -
+    m[4] * m[11] * m[13] -
+    m[8] * m[5] * m[15] +
+    m[8] * m[7] * m[13] +
+    m[12] * m[5] * m[11] -
+    m[12] * m[7] * m[9];
+  inv[12] =
+    -m[4] * m[9] * m[14] +
+    m[4] * m[10] * m[13] +
+    m[8] * m[5] * m[14] -
+    m[8] * m[6] * m[13] -
+    m[12] * m[5] * m[10] +
+    m[12] * m[6] * m[9];
+  inv[1] =
+    -m[1] * m[10] * m[15] +
+    m[1] * m[11] * m[14] +
+    m[9] * m[2] * m[15] -
+    m[9] * m[3] * m[14] -
+    m[13] * m[2] * m[11] +
+    m[13] * m[3] * m[10];
+  inv[5] =
+    m[0] * m[10] * m[15] -
+    m[0] * m[11] * m[14] -
+    m[8] * m[2] * m[15] +
+    m[8] * m[3] * m[14] +
+    m[12] * m[2] * m[11] -
+    m[12] * m[3] * m[10];
+  inv[9] =
+    -m[0] * m[9] * m[15] +
+    m[0] * m[11] * m[13] +
+    m[8] * m[1] * m[15] -
+    m[8] * m[3] * m[13] -
+    m[12] * m[1] * m[11] +
+    m[12] * m[3] * m[9];
+  inv[13] =
+    m[0] * m[9] * m[14] -
+    m[0] * m[10] * m[13] -
+    m[8] * m[1] * m[14] +
+    m[8] * m[2] * m[13] +
+    m[12] * m[1] * m[10] -
+    m[12] * m[2] * m[9];
+  inv[2] =
+    m[1] * m[6] * m[15] -
+    m[1] * m[7] * m[14] -
+    m[5] * m[2] * m[15] +
+    m[5] * m[3] * m[14] +
+    m[13] * m[2] * m[7] -
+    m[13] * m[3] * m[6];
+  inv[6] =
+    -m[0] * m[6] * m[15] +
+    m[0] * m[7] * m[14] +
+    m[4] * m[2] * m[15] -
+    m[4] * m[3] * m[14] -
+    m[12] * m[2] * m[7] +
+    m[12] * m[3] * m[6];
+  inv[10] =
+    m[0] * m[5] * m[15] -
+    m[0] * m[7] * m[13] -
+    m[4] * m[1] * m[15] +
+    m[4] * m[3] * m[13] +
+    m[12] * m[1] * m[7] -
+    m[12] * m[3] * m[5];
+  inv[14] =
+    -m[0] * m[5] * m[14] +
+    m[0] * m[6] * m[13] +
+    m[4] * m[1] * m[14] -
+    m[4] * m[2] * m[13] -
+    m[12] * m[1] * m[6] +
+    m[12] * m[2] * m[5];
+  inv[3] =
+    -m[1] * m[6] * m[11] +
+    m[1] * m[7] * m[10] +
+    m[5] * m[2] * m[11] -
+    m[5] * m[3] * m[10] -
+    m[9] * m[2] * m[7] +
+    m[9] * m[3] * m[6];
+  inv[7] =
+    m[0] * m[6] * m[11] -
+    m[0] * m[7] * m[10] -
+    m[4] * m[2] * m[11] +
+    m[4] * m[3] * m[10] +
+    m[8] * m[2] * m[7] -
+    m[8] * m[3] * m[6];
+  inv[11] =
+    -m[0] * m[5] * m[11] +
+    m[0] * m[7] * m[9] +
+    m[4] * m[1] * m[11] -
+    m[4] * m[3] * m[9] -
+    m[8] * m[1] * m[7] +
+    m[8] * m[3] * m[5];
+  inv[15] =
+    m[0] * m[5] * m[10] -
+    m[0] * m[6] * m[9] -
+    m[4] * m[1] * m[10] +
+    m[4] * m[2] * m[9] +
+    m[8] * m[1] * m[6] -
+    m[8] * m[2] * m[5];
+  const det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+  if (Math.abs(det) < 1e-30) {
+    return null;
+  }
+  for (let i = 0; i < 16; i++) {
+    inv[i] /= det;
+  }
+  return inv;
+}
+
+export class Renderer {
+  private device!: GPUDevice;
+  private context!: GPUCanvasContext;
+  private format!: GPUTextureFormat;
+  private cull1Pipeline!: GPUComputePipeline; // MDI emit
+  private cull2Pipeline!: GPUComputePipeline;
+  private cullVp1Pipeline!: GPUComputePipeline; // vertex-pull emit
+  private cullVp2Pipeline!: GPUComputePipeline;
+  private sortScanPipeline!: GPUComputePipeline; // sorted blend list: histogram scan
+  private sortScatterPipeline!: GPUComputePipeline; // MDI records
+  private sortScatterVpPipeline!: GPUComputePipeline; // vertex-pull entries
+  private hzbDownPipeline!: GPUComputePipeline;
+  private hzbFirstPipeline!: GPUComputePipeline;
+  private hzbFirstMsPipeline!: GPUComputePipeline;
+  private pickDepthPipeline!: GPUComputePipeline;
+  private pickDepthMsPipeline!: GPUComputePipeline;
+  private renderPipeline1x!: GPURenderPipeline;
+  private pickPipeline!: GPURenderPipeline; // id-only pick pass (opacity rule)
+  private pickVpPipeline!: GPURenderPipeline;
+  // outline effect: subset depth mask (MDI + VP) + fullscreen resolve chain
+  private readonly outline = new OutlinePass();
+  private renderPipeline4x!: GPURenderPipeline;
+  private renderVpPipeline1x!: GPURenderPipeline;
+  private renderVpPipeline4x!: GPURenderPipeline;
+  private renderBlend1x!: GPURenderPipeline;
+  private renderBlend4x!: GPURenderPipeline;
+  private renderVpBlend1x!: GPURenderPipeline;
+  private renderVpBlend4x!: GPURenderPipeline;
+  // background transparency: the transparent-item pass rendered SOLID (no
+  // blending) with depth writes, its depths squeezed under BACKDROP_DEPTH_MAX
+  // by the pass viewport — a backdrop layer behind everything opaque
+  private renderBackdrop1x!: GPURenderPipeline;
+  private renderBackdrop4x!: GPURenderPipeline;
+  private renderVpBackdrop1x!: GPURenderPipeline;
+  private renderVpBackdrop4x!: GPURenderPipeline;
+  private linePipeline1x!: GPURenderPipeline;
+  private linePipeline4x!: GPURenderPipeline;
+  private lineBind!: GPUBindGroup;
+  // canvas-drawn view cube overlay (visuals only — the DOM ViewGizmo keeps
+  // hit-testing; drawn after post AND into pending snapshots)
+  private readonly viewCube = new ViewCubePass();
+  private readonly pano = new PanoPass();
+  private readonly pointsLayer = new PointsLayer();
+  private lineBuf: GPUBuffer | null = null;
+  private lineCount = 0;
+  private lastLineKey = '';
+  // filled marker spheres (labels / measurement points, the "solid" option):
+  // one instanced unit sphere; opaque instances first (depth-writing), then
+  // the translucent ones blended on top
+  private markerPipelines!: {
+    opaque1x: GPURenderPipeline;
+    opaque4x: GPURenderPipeline;
+    blend1x: GPURenderPipeline;
+    blend4x: GPURenderPipeline;
+  };
+  private markerBind!: GPUBindGroup;
+  private sphereMeshBuf!: GPUBuffer;
+  private sphereIndexBuf!: GPUBuffer;
+  private sphereIndexCount = 0;
+  private markerBuf: GPUBuffer | null = null;
+  private markerCount = 0;
+  private markerOpaque = 0;
+  private lastMarkerKey = '';
+  private clipBuf!: GPUBuffer;
+  private transformsBuf!: GPUBuffer;
+  private lastClipKey = '';
+  private clipVersion = 0;
+  private clipDataVersion = 0;
+  private vpGeoBGL!: GPUBindGroupLayout;
+  private postPipeline!: GPURenderPipeline;
+  private postMsPipeline!: GPURenderPipeline;
+  private renderBGL!: GPUBindGroupLayout;
+  private frameBuf!: GPUBuffer;
+  private paramsBuf!: GPUBuffer;
+  private postParamsBuf!: GPUBuffer;
+  private countsBuf!: GPUBuffer;
+  private cull1ParamsBind!: GPUBindGroup;
+  private cullVp1ParamsBind!: GPUBindGroup;
+  private cullVp2ParamsBind: GPUBindGroup | null = null;
+  private models: GpuModel[] = [];
+  multiDraw = false;
+  adapterInfo = '';
+  /** Adapter facts a VRAM-budget suggestion can be derived from (vramHint.ts);
+   *  display is `adapterInfo`, policy reads this. */
+  adapterHints: AdapterHints | null = null;
+  /** The adapter the device was created on, field by field (`gpu.info.get`). */
+  adapterFacts: AdapterFacts | null = null;
+  /** What the adapter OFFERS (the device is created with these clamped to 2 GB). */
+  adapterLimits: { maxBufferSize: number; maxStorageBufferBindingSize: number } | null = null;
+  /** Adapter request preference — set BEFORE init() (Settings → Rendering → GPU). */
+  gpuPreference: 'high-performance' | 'low-power' | 'fallback' = 'high-performance';
+  cullMode: 'mdi' | 'vp' | 'full' = 'full'; // resolved per frame (for the HUD)
+  gpuError = ''; // first uncaptured device error, shown in the HUD
+  /** The device is gone (GPU crash, out of memory, or simulated) — frames
+   *  are pointless until the viewport boots a fresh Renderer (gpuRecovery). */
+  lost = false;
+  /** Fires once when the device is lost for real (not on dispose()). */
+  onLost: ((message: string) => void) | null = null;
+  private simulatingLoss = false;
+
+  // GPU memory we allocated (WebGPU has no real VRAM query — this tracks our
+  // own createBuffer/createTexture, decremented on destroy())
+  vramBuffers = 0;
+  vramTextures = 0;
+
+  /** GPU bytes of the laser scans: streamed points and the entered setup's
+   *  photo. They have their own limit (the Scans panel's point budget and
+   *  cache), which the model VRAM budget knows nothing about. */
+  get scanBytes(): number {
+    return this.pointsLayer.bytes + this.pano.bytes;
+  }
+
+  /** What the model VRAM budget is measured against: everything tracked
+   *  except the scans. Counting them would make a loaded scan push models to
+   *  their coarse variant — the budget can only shrink models. */
+  get vramBudgeted(): number {
+    return Math.max(0, this.vramBuffers + this.vramTextures - this.scanBytes);
+  }
+
+  /** Tracked GPU bytes held by live model slots — the part of `vramBuffers`
+   *  the residency manager can move; the rest is render targets and shared
+   *  buffers. */
+  get modelBytesTotal(): number {
+    let sum = 0;
+    for (const m of this.models) {
+      if (!m.dead) {
+        sum += m.bytes;
+      }
+    }
+    return sum;
+  }
+
+  // -----------------------------------------------------------------------------
+  // residency measurement + burst hold (DESIGN.md "VRAM budget & residency")
+  // -----------------------------------------------------------------------------
+
+  /** Monotonic counters the residency manager diffs across a swap burst: frames
+   *  that ran `frame()` past the idle skip, frames that re-rendered the scene
+   *  (not the hold path), TAA/AO accumulation restarts, and scene frames drawn
+   *  while `holdAccumulation` was set. */
+  frameCounter = 0;
+  sceneFrames = 0;
+  accumResets = 0;
+  heldFrames = 0;
+  /** Sum of raw per-frame GPU ms from timestamp queries (0 while timing is off). */
+  get gpuMsTotal(): number {
+    return this.timings.totalMs;
+  }
+  /** While set, every scene frame is sample 0: no TAA history, no AO — the
+   *  residency manager holds this during a swap burst so the renderer does
+   *  not converge a picture the next commit throws away. Clearing it forces
+   *  one full convergence. */
+  holdAccumulation = false;
+  private wasHoldingAccum = false;
+  /** `heldFrames` when the current hold began — a hold that rendered
+   *  nothing (every commit was quiet) releases without a re-convergence. */
+  private heldAtHoldStart = 0;
+
+  /** Effective device pixel ratio (options.pixelRatio, or the real one when null). */
+  private get dpr(): number {
+    return this.options.pixelRatio ?? window.devicePixelRatio;
+  }
+
+  // UI-driven options (read every frame)
+  options = {
+    // render scale: canvas pixels per CSS px; null = follow window.devicePixelRatio
+    pixelRatio: 1 as number | null,
+    meshletVis: false, // per-meshlet debug colors
+    pxCut: 0, // while moving, cull meshlets with projected radius < this many px (0 = off)
+    pxCutAlways: 0, // floor for the above, applied at rest as well (0 = off)
+    // max meshlets pass 2 may newly draw in ONE frame (0 = no cap): bounds the
+    // frame after a mass unhide, which would otherwise draw the whole model
+    // against an empty HZB in a single unpreemptible submit
+    newMeshletCap: 0,
+    // ceiling on the frames kept rendering after everything settles (camera
+    // stop, state change) so a capped backlog finishes arriving — the window
+    // normally ends earlier, when the cull reports pass 2 drew nothing new.
+    // AA frames count toward it — they are real scene frames, not extra ones.
+    settleFrames: 0,
+    // pick rule (native mesh_pick): items at/above this opacity %% are clickable
+    // and block clicks; below it clicks pass through. Shift inverts the band.
+    pickOpacityPct: 10.1,
+    protectDist: 0, // never px-cut geometry closer than this (world units)
+    fastAA: false, // accumulation TAA (native taa.slang scheme): jitter + running average
+    msaa4x: false,
+    geoEdges: false, // depth + normal discontinuity edges (native edge.slang port)
+    itemEdges: false, // id-boundary edges
+    sketch: false, // technical-drawing mode: white background, black edge lines only
+    edgeColor: [0, 0, 0] satisfies [number, number, number],
+    fadeExp: 0.3,
+    depthThr: 0.01,
+    normalThr: 0.25,
+    // separate edge tuning for meshes with authored normals (smooth shading)
+    smoothFadeExp: 0.3,
+    smoothDepthThr: 0.01,
+    smoothNormalThr: 0.25,
+    flatMeshEdges: true, // edge lines on flat-shaded meshes
+    smoothMeshEdges: true, // edge lines on meshes with authored normals
+    sketchRespectsEdgesOff: false, // sketch honors the edge-off switches
+    // sketch colour-from-mesh: 'fill' washes coloured surfaces onto the paper,
+    // 'edges' draws the ink in the mesh colour; colourless meshes always stay
+    // plain paper + ink
+    sketchColorMode: 'off' as 'off' | 'fill' | 'edges',
+    sketchFillStrength: 1, // 'fill': how far the paper moves toward the hue
+    whiteOnDark: true, // white edge color on items darker than darkThr (unlit luma)
+    darkThr: 0.07,
+    darkFloor: 0, // render pure-black material colours at this unlit luma (0 = off)
+    freezeCull: false, // keep last cull results, camera stays live
+    cullMoved: false, // rigid-transformed meshlets keep cone + HZB tests (DESIGN.md › Animation, D21)
+    debugBuf: 0, // 0 off, 1 normal, 2 depth, 3 item id, 4 raw edge, 5 ao
+    aoMode: 0, // 0 off, 1 motion (every frame), 2 static (accumulate at rest)
+    aoRadius: 0.8, // world-space sampling radius (m)
+    aoStrength: 0.15,
+    aoSlices: 6,
+    aoSamples: 6,
+    orthographic: false,
+    vertexPull: false, // cull + draw via vertex pulling (core WebGPU, no MDI)
+    bgColor: [0.224, 0.224, 0.224] satisfies [number, number, number], // #393939
+    ambientColor: [1, 1, 1] satisfies [number, number, number],
+    ambientIntensity: 0.45, // native LightingSettings defaults
+    headlightColor: [1, 1, 1] satisfies [number, number, number],
+    headlightIntensity: 0.65,
+    selectionColor: [0.13, 0.2, 1.0] satisfies [number, number, number],
+    transparencyBlend: false, // false = alpha hash (TAA), true = unsorted blend pass
+    transparencyBackdrop: false, // blend variant: transparent items render SOLID, behind everything opaque
+    backdropFade: 0.7, // Background mode: how far backdrop colours move toward the canvas (0..1)
+    hasTransparency: false, // any opacity overrides exist (worker-reported)
+    aaSamples: 32, // TAA/AO accumulation target (was a fixed 64)
+    // true right after a color apply: overridden items show their color, not
+    // the selection tint; any new selection turns it off again
+    suppressTintOnOverride: false,
+    gpuTimings: false, // per-pass GPU times via timestamp-query (Stats tab)
+    // dev diagnostic (Settings → Stats → trace): log which render-key segment
+    // changed whenever the scene re-renders with the camera at rest
+    traceKey: false,
+    // -----------------------------------------------------------------------------
+    // outline effect (three.js OutlinePass port on the native hover_xray mask)
+    // -----------------------------------------------------------------------------
+    outlineHover: false, // outline the item under the cursor (viewport feeds hover picks)
+    outlineSelection: false, // outline selected items
+    selectionTint: true, // false = selection shows as outline only, no color tint
+    outlineStrength: 3, // edge intensity multiplier (three.js edgeStrength)
+    outlineGlow: 0, // 0-1: adds the half-res wide blur (three.js edgeGlow)
+    outlineThickness: 1, // blur radius 1-4 px (three.js edgeThickness)
+    outlinePulse: 0, // pulse period in seconds, 0 = off (three.js pulsePeriod)
+    outlineVisibleColor: [1, 1, 1] satisfies [number, number, number],
+    outlineHiddenColor: [0.098, 0.039, 0.02] satisfies [number, number, number], // #190a05
+    // draw the hidden (occluded) outline part only while the camera is still:
+    // a moving frame then draws no occluded meshlets into the outline mask
+    outlineHiddenWhenStill: true,
+    outlineSelectionActive: false, // viewport hint: any items currently selected
+  };
+  private nextItemBase = 1; // 0 = background in the id buffer
+  /** bumped on item-state uploads so the idle check re-renders */
+  private stateVersion = 0;
+  private wasMoving = false;
+  /** performance.now() of the last frame whose viewport key changed (camera /
+   *  resize / model count) — residency idle gate; `idle` alone is false during
+   *  TAA accumulation so it cannot serve as "camera at rest". */
+  lastMoveT = 0;
+
+  // TAA accumulation: 0 = reset frame, grows while the camera is still.
+  private accumIdx = 0;
+  accumCount = 0; // for the HUD
+  get aaMax(): number {
+    return Math.max(1, Math.min(256, this.options.aaSamples));
+  }
+
+  // VBAO temporal accumulation (independent of TAA: AO can run without it)
+  private aoAccum = 0;
+  private aoRanLastFrame = false;
+  private vbaoPipeline!: GPUComputePipeline;
+  private vbaoMsPipeline!: GPUComputePipeline;
+  // measurement snap compute (port of the native measure_snap.slang)
+  private snapBGL!: GPUBindGroupLayout;
+  private snapMinPipeline!: GPUComputePipeline;
+  private snapWritePipeline!: GPUComputePipeline;
+  private snapResultBuf!: GPUBuffer;
+  private snapStagingBuf!: GPUBuffer;
+  private snapParamsBuf!: GPUBuffer;
+  private snapInFlight = false;
+  private aoParamsBuf!: GPUBuffer;
+  private aoTex: GPUTexture | null = null;
+  private aoHist: GPUTexture | null = null;
+  private aoBind: GPUBindGroup | null = null;
+
+  // Render targets — rebuilt on resize or MSAA toggle.
+  private depth: GPUTexture | null = null;
+  private sceneColor: GPUTexture | null = null; // post-pass input
+  private msColor: GPUTexture | null = null; // 4x target, resolves into sceneColor
+  private normalTex: GPUTexture | null = null; // G-buffer (4x under MSAA — edges read it per sample)
+  private idTex: GPUTexture | null = null;
+  private histA: GPUTexture | null = null; // TAA accumulation sums (RGBA16F ping-pong)
+  private histB: GPUTexture | null = null;
+  private postBindEven: GPUBindGroup | null = null; // reads histA (writes histB)
+  private postBindOdd: GPUBindGroup | null = null; // reads histB (writes histA)
+  private targetsMsaa = false;
+  private targetsPost = false;
+  private targetsAo = false;
+
+  // HZB pyramid
+  private hzb: GPUTexture | null = null;
+  private hzbMipCount = 0;
+  private hzbBinds: GPUBindGroup[] = [];
+  private hzbMipSizes: [number, number][] = [];
+  private cull2ParamsBind: GPUBindGroup | null = null;
+
+  // alt-click / Space pick: a one-workgroup compute reads the cursor texel of
+  // the scene depth target (MSAA or not) — see encodeDepthPick. Never the HZB:
+  // its mip 0 keeps the farthest surface of each 2×2 block, so silhouette
+  // clicks would land on what is behind.
+  private pickBuf: GPUBuffer | null = null;
+  /** Cursor pixel for the pick shader (vec4u) and its one-word result. */
+  private pickParamsBuf!: GPUBuffer;
+  private pickOutBuf!: GPUBuffer;
+  /** Depth target + pick buffers; rebuilt with the targets. */
+  private pickDepthBind: GPUBindGroup | null = null;
+  private pendingPick: PendingPick | null = null;
+  private pickInFlight = false;
+  /** Measure-probe trace sink (Settings → Stats → verbose trace): one line per
+   *  stage of every depth pick — encode, depth, unprojection, sight line, each
+   *  raycast, and the result re-projected through the pick's own view and the
+   *  current one. The viewport routes it to the Console panel, so a device
+   *  without DevTools can still show where a measurement goes wrong. */
+  onTrace: ((line: string) => void) | null = null;
+  private pickSeq = 0;
+  /** raw words of the last snap cast, for the trace's read cross-check */
+  private lastCastWords = new Uint32Array(SNAP_RESULT_WORDS);
+  /** Last CSS-derived backing size seen and when it last changed (4.4). */
+  private pendingW = 0;
+  private pendingH = 0;
+  private pendingSizeT = 0;
+  private lastVP = new Float32Array(16);
+  /** world position of the last successful click pick (native last_click_world) */
+  lastClickWorld: [number, number, number] | null = null;
+
+  /** Current view-projection matrix (column-major, as rendered last frame). */
+  get viewProjMatrix(): Float32Array {
+    return this.lastVP;
+  }
+
+  /** The init() canvas, guarded — these paths only run after init(). */
+  private get hostCanvas(): HTMLCanvasElement {
+    if (!this.canvasEl) {
+      throw new Error('renderer not initialized');
+    }
+    return this.canvasEl;
+  }
+
+  /** World-space ray through a canvas CSS pixel (for gizmo interaction). */
+  screenRay(cssX: number, cssY: number): Ray | null {
+    return rayThroughPixel(this.currentView(), cssX * this.dpr, cssY * this.dpr);
+  }
+
+  /** The view of the last rendered frame — what a pick encoded now is bound
+   *  to (PickView). */
+  private currentView(tag = ''): PickView {
+    const canvas = this.hostCanvas;
+    return { vp: Float32Array.from(this.lastVP), w: canvas.width, h: canvas.height, t: performance.now(), tag };
+  }
+
+  /** Record the world position under a canvas pixel without moving the camera. */
+  probeWorld(cssX: number, cssY: number) {
+    this.queuePick(cssX, cssY, 'probe');
+  }
+
+  // one-shot promise variant: resolves with the clicked world point (null on
+  // background) — used by "move selection to click" and similar tools
+  private probeResolve: ((p: [number, number, number] | null) => void) | null = null;
+  probeWorldAsync(cssX: number, cssY: number): Promise<[number, number, number] | null> {
+    return new Promise((resolve) => {
+      this.probeResolve?.(null);
+      this.probeResolve = resolve;
+      this.queuePick(cssX, cssY, 'probe');
+    });
+  }
+
+  // Measurement hover probe: reads a small depth window around the cursor,
+  // unprojects it, computes a geometric normal, and classifies face/edge/corner
+  // from depth discontinuities (the native's screen-space baseline; precise
+  // per-vertex snap would need a GPU mesh raycast). One in flight at a time.
+  private measureResolve: ((p: MeasureProbe | null) => void) | null = null;
+  private measureSnap: MeasureSnap = { enabled: true, corner: true, edge: true, seam: true, cornerPx: 12, edgePx: 8 };
+  probeMeasureAsync(cssX: number, cssY: number, snap: MeasureSnap): Promise<MeasureProbe | null> {
+    return new Promise((resolve) => {
+      this.measureResolve?.(null);
+      this.measureResolve = resolve;
+      this.measureSnap = snap;
+      this.queuePick(cssX, cssY, 'measure');
+    });
+  }
+
+  private queuePick(cssX: number, cssY: number, mode: PendingPick['mode']) {
+    const canvas = this.hostCanvas;
+    this.pendingPick = {
+      x: Math.min(canvas.width - 1, Math.max(0, Math.floor(cssX * this.dpr))),
+      y: Math.min(canvas.height - 1, Math.max(0, Math.floor(cssY * this.dpr))),
+      mode,
+    };
+  }
+
+  // one-shot frame capture: resolves with RGBA pixels of the CONVERGED frame.
+  // A pending snapshot blocks the idle skip, so the renderer keeps rendering
+  // until TAA/AO have fully accumulated — only then is the presented swapchain
+  // (post output: edges, AA, AO, view cube) copied. What you see is what you get.
+  private pendingSnap: ((img: { w: number; h: number; rgba: Uint8ClampedArray }) => void) | null = null;
+  /** the pending snapshot takes the next presented frame, converged or not */
+  private snapAnyFrame = false;
+  /** `anyFrame`: capture the next presented frame without waiting for
+   *  TAA / AO to converge (draft video frames). */
+  snapshot(opts: { anyFrame?: boolean } = {}): Promise<{ w: number; h: number; rgba: Uint8ClampedArray }> {
+    this.snapAnyFrame = !!opts.anyFrame;
+    return new Promise((res) => (this.pendingSnap = res));
+  }
+
+  /** Leave the view cube out of the presented frame (video export). */
+  hideViewCube = false;
+
+  // Extra render-resolution multiplier for a hi-res snapshot, applied ON TOP of
+  // dpr in frame(). Kept OUT of `options` on purpose — viewport.ts's per-frame
+  // applyOptions() rewrites options.pixelRatio every frame and would clobber it.
+  private captureScale = 1;
+
+  /** Higher-resolution snapshot: temporarily raise the render scale so the long
+   *  edge reaches ~`targetLongEdge` px (4K by default, capped to the GPU's max
+   *  texture size), let TAA/AO reconverge at that size, capture, then restore.
+   *  This drives the SAME pixel-tuned post pipeline (edges, AA, AO) as a retina
+   *  render — just more pixels — so the result stays anti-aliased. Never
+   *  downscales below the current render resolution. The continuous rAF loop
+   *  resizes to the new scale next frame and back once it's restored. */
+  /** Render so the long edge has ~`longEdge` px until called with null
+   *  (video export: one size for every frame instead of a resize per
+   *  snapshot). Never below the current render resolution. */
+  holdCaptureSize(longEdge: number | null): void {
+    if (longEdge === null) {
+      this.captureScale = 1;
+      return;
+    }
+    const canvas = this.hostCanvas;
+    const longCss = Math.max(canvas.clientWidth, canvas.clientHeight) || 1;
+    const target = Math.min(longEdge, this.device.limits.maxTextureDimension2D);
+    this.captureScale = Math.max(1, target / (longCss * this.dpr));
+  }
+
+  async snapshotHiRes(targetLongEdge = 3840): Promise<{ w: number; h: number; rgba: Uint8ClampedArray }> {
+    const canvas = this.hostCanvas;
+    const longCss = Math.max(canvas.clientWidth, canvas.clientHeight) || 1;
+    const target = Math.min(targetLongEdge, this.device.limits.maxTextureDimension2D);
+    const base = longCss * this.dpr; // current render px on the long edge
+    this.captureScale = Math.max(1, target / base);
+    try {
+      return await this.snapshot();
+    } finally {
+      this.captureScale = 1;
+    }
+  }
+
+  // click item-picking from the id G-buffer (rgba8unorm -> packed global id)
+  private readonly itemPick = new ItemPickPass();
+
+  /** Read the item id under a canvas pixel (CSS px). Resolves null on background. */
+  pickItem(cssX: number, cssY: number, shift = false): Promise<number | null> {
+    return this.itemPick.request(Math.floor(cssX * this.dpr), Math.floor(cssY * this.dpr), shift);
+  }
+
+  // -----------------------------------------------------------------------------
+  // outline effect state (viewport feeds hover ids from throttled picks)
+  // -----------------------------------------------------------------------------
+  private hoverItemId = 0; // global item id under the cursor, 0 = none
+  private drawnHoverId = 0; // hover id the last encoded frame outlined
+  /** Set the hover-outlined item (global id; null/0 = none). Cheap to call —
+   *  a change only breaks the idle skip, converged frames use the hold path. */
+  setHoverItem(id: number | null) {
+    this.hoverItemId = id ?? 0;
+  }
+  // First-load flag: the default top/front-right view is applied once.
+  private hadFirstFit = false;
+
+  // idle skip: re-render only when something changed
+  private lastKey = '';
+  private lastVpKey = '';
+  idle = false;
+  /** A submitted command buffer the GPU has not finished executing. The
+   *  viewport tick skips while this is set, so at most ONE frame is ever in
+   *  flight. Without it a GPU slower than the FPS limit accumulated a queue
+   *  of stale frames: input lag, the scene still redrawing after the camera
+   *  stopped, picks answering only after the whole queue, and a settle
+   *  window held open by budget readbacks that trailed the queue (a dozen
+   *  full redraws after every camera stop). Cost: up to one vsync of GPU
+   *  idle per frame, since the next frame waits for the next tick —
+   *  latency over throughput, deliberately. */
+  gpuBusy = false;
+  /** the frame uniform block of the last encoded frame — a pick-only submit
+   *  replays the scene from it (transparent scenes) without rebuilding it */
+  private lastFrameData = new ArrayBuffer(FRAME_SIZE);
+
+  // periodic draw-count readback for the HUD
+  private statsBuf!: GPUBuffer;
+  private statsInFlight = false;
+  private newBudgetBuf!: GPUBuffer;
+  private newBudgetReadBuf!: GPUBuffer;
+  private capReadInFlight = false;
+  /** meshlets pass 2 wanted to draw last resolved frame (>= the cap means the
+   *  budget turned some away and more frames are needed) */
+  newVisibleWanted = 0;
+  /** the cap deferred geometry: keep rendering until the backlog is drawn */
+  private capBacklog = false;
+  /** frameCounter the in-flight budget readback was armed on — a readback
+   *  resolving from before the last key change describes the OLD scene and
+   *  must not count toward convergence */
+  private capReadFrame = 0;
+  /** consecutive budget readbacks (from the current scene state) reporting
+   *  that pass 2 drew nothing new — the occlusion has reached its fixed point */
+  private zeroNewReads = 0;
+  /** a budget readback for the CURRENT scene state has answered: until it
+   *  has, the settle window's time ceiling stays shut, so the renderer can
+   *  never idle on a stale "nothing owed" from the previous state */
+  private capReadFresh = false;
+  /** frameCounter when the scene last changed (camera included) — the settle
+   *  window's frame ceiling is measured from here */
+  private keyChangeFrame = 0;
+  /** wall clock of the same moment, for the settle window's time ceiling */
+  private keyChangeT = 0;
+  private lastCountRead = 0;
+  /** Per-slot drawn-meshlet counts from the last readback (~2 Hz, plus the
+   *  first still frame after any scene change) — 0 means the model was
+   *  frustum-culled or fully HiZ-occluded that frame (the residency manager
+   *  treats such zones as "not seen"). */
+  drawnPerModel: Uint32Array = new Uint32Array(0);
+  /** `performance.now()` of the frame whose counts `drawnPerModel` holds —
+   *  residency compares it against its last loud commit to know the counts
+   *  describe the current scene. */
+  drawnResolvedT = 0;
+  /** Whether `drawnPerModel` is maintained at all: never in the no-cull
+   *  path (no MDI and vertex-pull off) or while the cull is frozen. */
+  get drawCountsUsable(): boolean {
+    return this.cullMode !== 'full' && !this.options.freezeCull;
+  }
+  drawnPass1 = 0;
+  drawnPass2 = 0;
+  /** Meshlets in the sorted transparent list (blend mode with culling). */
+  drawnBlend = 0;
+
+  // GPU pass timings (timestamp-query, enabled from the Stats tab)
+  private readonly timings = new GpuTimings();
+
+  get gpuTimingSupported(): boolean {
+    return this.timings.supported;
+  }
+
+  /** smoothed per-pass ms from the last resolved frame, insertion-ordered */
+  get gpuTimes(): { label: string; ms: number }[] {
+    return this.timings.times;
+  }
+
+  // perf stats
+  private frames = 0;
+  private lastStat = performance.now();
+  private lastFrame = performance.now();
+  fps = 0;
+  cpuMs = 0;
+
+  readonly camera = new CameraController();
+  private sceneMin = [Infinity, Infinity, Infinity];
+  private sceneMax = [-Infinity, -Infinity, -Infinity];
+  /** Union box of the open laser-scan point clouds (setPointBounds). */
+  private pointMin = [Infinity, Infinity, Infinity];
+  private pointMax = [-Infinity, -Infinity, -Infinity];
+  private denseMin = [Infinity, Infinity, Infinity];
+  private denseMax = [-Infinity, -Infinity, -Infinity];
+  /** Frame the v8 percentile dense bounds instead of the full AABB (setting). */
+  fitDense = true;
+
+  /** Models + open point clouds (fit, ortho depth slab, clip-box seeds). */
+  get sceneBounds(): { min: number[]; max: number[] } {
+    if (!Number.isFinite(this.pointMin[0])) {
+      return { min: this.sceneMin, max: this.sceneMax };
+    }
+    return {
+      min: this.sceneMin.map((v, i) => Math.min(v, this.pointMin[i])),
+      max: this.sceneMax.map((v, i) => Math.max(v, this.pointMax[i])),
+    };
+  }
+
+  /** Bounds of the open point clouds; null when none is open. */
+  setPointBounds(box: { min: readonly number[]; max: readonly number[] } | null) {
+    this.pointMin = box ? [...box.min] : [Infinity, Infinity, Infinity];
+    this.pointMax = box ? [...box.max] : [-Infinity, -Infinity, -Infinity];
+  }
+
+  /** The box the camera should frame: dense union when enabled + available. */
+  get fitTarget(): { min: number[]; max: number[] } {
+    if (this.fitDense && Number.isFinite(this.denseMin[0])) {
+      return { min: this.denseMin, max: this.denseMax };
+    }
+    return this.sceneBounds;
+  }
+
+  /** Fit the camera to an arbitrary box (assets batch-load fit). */
+  fitBounds(min: number[], max: number[]) {
+    this.camera.fit(min, max);
+  }
+
+  /** A caller has placed the camera deliberately (postMessage `camera.set`, or
+   *  a `camera` on a load): the first-model default view must NOT override
+   *  it — that reset also cancels an in-flight move. Later loads never touch
+   *  the camera here anyway; the assets loader decides. */
+  markViewChosen() {
+    this.hadFirstFit = true;
+  }
+
+  /** Upload the clip uniform (260 floats, ClipData layout) when it changed.
+   * The last data is kept CPU-side for the residency manager's clip test. */
+  setClip(data: Float32Array) {
+    const key = data.join(',');
+    if (key === this.lastClipKey) {
+      return;
+    }
+    this.lastClipKey = key;
+    this.clipData = data;
+    this.clipDataU32 = new Uint32Array(data.buffer, data.byteOffset, data.length);
+    this.device.queue.writeBuffer(this.clipBuf, 0, data);
+    this.clipVersion++;
+    this.clipDataVersion++;
+  }
+
+  /** Changes whenever the clip planes / shapes do — and only then
+   *  (`clipVersion` also counts helper-line and marker uploads, which would
+   *  re-run the point LOD selection on every measure rubber-band update). */
+  get clipRevision(): number {
+    return this.clipDataVersion;
+  }
+
+  /** Last uploaded ClipData floats (null before the first setClip). */
+  clipData: Float32Array | null = null;
+  clipDataU32: Uint32Array | null = null;
+
+  /** Helper line list: [x, y, z, colorBits(f32-bitcast)] per vertex, pairs.
+   *  `key` identifies the content (default: the joined values — pass a cheap
+   *  one for big lists); an unchanged key skips the upload and keeps AA. */
+  /** Are these helper lines (by key) already uploaded? — lets a caller skip
+   *  building the vertex array every frame. */
+  hasHelperLines(key: string): boolean {
+    return key === this.lastLineKey;
+  }
+
+  setHelperLines(verts: Float32Array, key = verts.join(',')) {
+    if (key === this.lastLineKey) {
+      return;
+    }
+    this.lastLineKey = key;
+    this.lineCount = verts.length / 4;
+    if (this.lineCount === 0) {
+      this.clipVersion++;
+      return;
+    }
+    if (!this.lineBuf || this.lineBuf.size < verts.byteLength) {
+      this.lineBuf?.destroy();
+      this.lineBuf = this.device.createBuffer({
+        label: 'lineBuf',
+        size: Math.max(256, verts.byteLength),
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+    }
+    this.device.queue.writeBuffer(this.lineBuf, 0, verts);
+    this.clipVersion++;
+  }
+
+  /** Filled marker spheres — MARKER_INSTANCE_FLOATS per instance, packed by
+   *  writeMarkerInstance, the opaque ones (a = 1) FIRST so they write depth before the
+   *  translucent ones blend on top. `key` as in setHelperLines. */
+  setMarkerSpheres(inst: Float32Array, opaqueCount: number, key: string) {
+    if (key === this.lastMarkerKey) {
+      return;
+    }
+    this.lastMarkerKey = key;
+    this.markerCount = inst.length / MARKER_INSTANCE_FLOATS;
+    this.markerOpaque = Math.min(opaqueCount, this.markerCount);
+    if (this.markerCount === 0) {
+      this.clipVersion++;
+      return;
+    }
+    if (!this.markerBuf || this.markerBuf.size < inst.byteLength) {
+      this.markerBuf?.destroy();
+      this.markerBuf = this.device.createBuffer({
+        label: 'markerBuf',
+        size: Math.max(256, inst.byteLength),
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+    }
+    this.device.queue.writeBuffer(this.markerBuf, 0, inst);
+    this.clipVersion++;
+  }
+
+  /** The laser-scan photo pass: the photo manager (state/scans/scanPhoto.ts)
+   *  uploads cube faces or a spherical image through it. */
+  get photo(): PanoPass {
+    return this.pano;
+  }
+
+  /** Finds the scan point nearest a sight line within `radius` (world units)
+   *  of `near` — set by the point streamer; used by the measure probe when
+   *  the cursor is on points. */
+  pointSnapper:
+    | ((ray: Ray, near: readonly [number, number, number], radius: number) => Promise<[number, number, number] | null>)
+    | null = null;
+
+  /** Laser-scan point clouds: node buffers, the drawn set and the style
+   *  (driven by state/scans/scanPoints.ts). */
+  get points(): PointsLayer {
+    return this.pointsLayer;
+  }
+
+  /** The canvas init() was called with — screenshot composition needs its host. */
+  canvasEl: HTMLCanvasElement | null = null;
+
+  async init(canvas: HTMLCanvasElement) {
+    this.canvasEl = canvas;
+    if (!navigator.gpu) {
+      throw new Error('WebGPU not available in this browser');
+    }
+    let adapter = await navigator.gpu.requestAdapter({
+      powerPreference: this.gpuPreference === 'fallback' ? undefined : this.gpuPreference,
+      forceFallbackAdapter: this.gpuPreference === 'fallback',
+    });
+    // the preference is only a hint — if it resolves to nothing, take any adapter
+    adapter ??= await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      throw new Error('no WebGPU adapter');
+    }
+
+    const info = adapter.info;
+    this.adapterInfo = `${info.vendor} ${info.architecture} ${info.device} ${info.description}`.trim();
+    this.adapterFacts = adapterFacts(adapter, this.gpuPreference === 'fallback');
+    this.adapterLimits = {
+      maxBufferSize: adapter.limits.maxBufferSize,
+      maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
+    };
+    this.adapterHints = {
+      vendor: info.vendor,
+      architecture: info.architecture,
+      maxBufferSize: adapter.limits.maxBufferSize,
+      deviceMemoryGb: readDeviceMemoryGb(),
+      isMobile: isMobileDevice(),
+    };
+
+    const wanted: string[] = [];
+    if (adapter.features.has('chromium-experimental-multi-draw-indirect')) {
+      wanted.push('chromium-experimental-multi-draw-indirect');
+      this.multiDraw = true;
+    }
+    const hasTimestamps = adapter.features.has('timestamp-query');
+    if (hasTimestamps) {
+      wanted.push('timestamp-query');
+    }
+    this.device = await adapter.requestDevice({
+      requiredFeatures: wanted as GPUFeatureName[],
+      requiredLimits: {
+        maxBufferSize: Math.min(adapter.limits.maxBufferSize, 2147483648),
+        maxStorageBufferBindingSize: Math.min(adapter.limits.maxStorageBufferBindingSize, 2147483648),
+        // the vertex-pull path binds 9 vertex-stage storage buffers since the
+        // authored-normal stream landed (default limit is 8) — clamped to the
+        // adapter's own max so the request itself can never fail
+        maxStorageBuffersPerShaderStage: Math.min(adapter.limits.maxStorageBuffersPerShaderStage, 16),
+      },
+    });
+
+    this.timings.attach(this.device, hasTimestamps);
+    trackDeviceAllocations(
+      this.device,
+      (delta) => {
+        this.vramBuffers += delta;
+      },
+      (delta) => {
+        this.vramTextures += delta;
+      },
+    );
+
+    this.device.lost.then((info) => {
+      // "destroyed" is the expected result of dispose() (e.g. React StrictMode
+      // double-mount tearing down the first instance) — not an error, unless
+      // simulateDeviceLoss() destroyed it on purpose
+      if (info.reason === 'destroyed' && !this.simulatingLoss) {
+        return;
+      }
+      this.lost = true;
+      this.gpuError = `device lost: ${info.reason} ${info.message}`;
+      console.error('WebGPU device lost:', info.reason, info.message);
+      this.onLost?.(this.gpuError);
+    });
+    this.device.addEventListener('uncapturederror', (e) => {
+      const msg = (e as GPUUncapturedErrorEvent).error.message;
+      if (!this.gpuError) {
+        this.gpuError = msg;
+      }
+      console.error('WebGPU:', msg);
+    });
+
+    this.context = canvas.getContext('webgpu')!;
+    this.format = navigator.gpu.getPreferredCanvasFormat();
+    this.context.configure({
+      device: this.device,
+      format: this.format,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+    });
+
+    const dev = this.device;
+    this.frameBuf = dev.createBuffer({
+      label: 'frameBuf',
+      // four Frame slots (opaque @0, blend pass @256, pick pass @512,
+      // outline mask @768) selected per draw via a dynamic offset on binding 0
+      size: 1024,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    this.paramsBuf = dev.createBuffer({
+      label: 'paramsBuf',
+      size: PARAMS_SIZE,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    this.postParamsBuf = dev.createBuffer({
+      label: 'postParamsBuf',
+      size: 80, // PostParams in shaders/post.ts (incl. smooth-mesh edge tuning)
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    this.clipBuf = dev.createBuffer({
+      label: 'clipBuf',
+      size: 1040, // ClipData in shaders/cull.ts + scene.ts (planes + mask + 8 tagged-union shapes; slot 0 = default box)
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    // item-transform pool (mat4 slots, transformPoolLayout.ts — committed
+    // edits below the animation band, animation playback inside it); slot 0 =
+    // identity, shared by every model's render + cull bind groups
+    this.transformsBuf = dev.createBuffer({
+      label: 'transformsBuf',
+      size: TRANSFORM_POOL * SLOT_FLOATS * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(this.transformsBuf, 0, new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
+    this.countsBuf = dev.createBuffer({
+      label: 'countsBuf',
+      size: MAX_MODELS * COUNT_SLOT * COUNT_SLOTS,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+    });
+    this.statsBuf = dev.createBuffer({
+      label: 'statsBuf',
+      size: MAX_MODELS * COUNT_SLOT * COUNT_SLOTS,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    // newly-visible budget: one counter for the whole frame (every model's
+    // pass-2 dispatch shares it), plus its readback staging buffer
+    this.newBudgetBuf = dev.createBuffer({
+      label: 'newBudgetBuf',
+      size: 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+    });
+    this.newBudgetReadBuf = dev.createBuffer({
+      label: 'newBudgetReadBuf',
+      size: 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+
+    const compute = (code: string) =>
+      dev.createComputePipeline({
+        label: 'computePipeline',
+        layout: 'auto',
+        compute: { module: dev.createShaderModule({ label: 'computeModule', code }), entryPoint: 'main' },
+      });
+    this.cull1Pipeline = compute(cullWgsl(false, false));
+    this.cull2Pipeline = compute(cullWgsl(true, false));
+    this.cullVp1Pipeline = compute(cullWgsl(false, true));
+    this.cullVp2Pipeline = compute(cullWgsl(true, true));
+    this.sortScanPipeline = compute(sortScanWgsl());
+    this.sortScatterPipeline = compute(sortScatterWgsl(false));
+    this.sortScatterVpPipeline = compute(sortScatterWgsl(true));
+    this.hzbDownPipeline = compute(hzbWgsl(false));
+    this.hzbFirstPipeline = this.hzbDownPipeline; // non-MS depth binds as texture_2d<f32>
+    this.hzbFirstMsPipeline = compute(hzbWgsl(true));
+    this.pickDepthPipeline = compute(pickDepthWgsl(false));
+    this.pickDepthMsPipeline = compute(pickDepthWgsl(true));
+    this.itemPick.init(dev);
+    this.pickParamsBuf = dev.createBuffer({
+      label: 'pickParamsBuf',
+      size: 16,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    this.pickOutBuf = dev.createBuffer({
+      label: 'pickOutBuf',
+      size: 16,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+    this.vbaoPipeline = compute(vbaoWgsl(false));
+    this.vbaoMsPipeline = compute(vbaoWgsl(true));
+    // measurement snap (native measure_snap.slang port): one module, two passes
+    // sharing an explicit layout so both bind the same per-model group
+    const snapModule = dev.createShaderModule({ label: 'snapModule', code: measureSnapWgsl() });
+    const sbuf = (binding: number, type: GPUBufferBindingType): GPUBindGroupLayoutEntry => ({
+      binding,
+      visibility: GPUShaderStage.COMPUTE,
+      buffer: { type },
+    });
+    this.snapBGL = dev.createBindGroupLayout({
+      entries: [
+        sbuf(0, 'storage'),
+        sbuf(1, 'read-only-storage'),
+        sbuf(2, 'read-only-storage'),
+        sbuf(3, 'read-only-storage'),
+        sbuf(4, 'read-only-storage'),
+        sbuf(5, 'read-only-storage'),
+        sbuf(6, 'read-only-storage'),
+        sbuf(7, 'uniform'),
+        sbuf(8, 'uniform'),
+      ],
+    });
+    const snapLayout = dev.createPipelineLayout({ bindGroupLayouts: [this.snapBGL] });
+    this.snapMinPipeline = dev.createComputePipeline({
+      label: 'snapMinPipeline',
+      layout: snapLayout,
+      compute: { module: snapModule, entryPoint: 'snapMin' },
+    });
+    this.snapWritePipeline = dev.createComputePipeline({
+      label: 'snapWritePipeline',
+      layout: snapLayout,
+      compute: { module: snapModule, entryPoint: 'snapWrite' },
+    });
+    this.snapResultBuf = dev.createBuffer({
+      label: 'snapResultBuf',
+      size: SNAP_RESULT_WORDS * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    this.snapStagingBuf = dev.createBuffer({
+      label: 'snapStagingBuf',
+      size: SNAP_RESULT_WORDS * 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    this.snapParamsBuf = dev.createBuffer({
+      label: 'snapParamsBuf',
+      size: 48, // SnapParams: ray_origin + ray_dir
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    this.aoParamsBuf = dev.createBuffer({
+      label: 'aoParamsBuf',
+      size: 64, // AoParams in shaders/post.ts
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+
+    this.cull1ParamsBind = dev.createBindGroup({
+      label: 'cull1ParamsBind',
+      layout: this.cull1Pipeline.getBindGroupLayout(1),
+      entries: [
+        { binding: 0, resource: { buffer: this.paramsBuf } },
+        { binding: 3, resource: { buffer: this.clipBuf } },
+      ],
+    });
+    this.cullVp1ParamsBind = dev.createBindGroup({
+      label: 'cullVp1ParamsBind',
+      layout: this.cullVp1Pipeline.getBindGroupLayout(1),
+      entries: [
+        { binding: 0, resource: { buffer: this.paramsBuf } },
+        { binding: 3, resource: { buffer: this.clipBuf } },
+      ],
+    });
+
+    // Explicit layout so one per-model bind group serves both sample counts.
+    this.renderBGL = dev.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: FRAME_SIZE },
+        },
+        {
+          binding: 1,
+          visibility: GPUShaderStage.VERTEX,
+          buffer: { type: 'read-only-storage' },
+        },
+        {
+          binding: 2,
+          visibility: GPUShaderStage.VERTEX,
+          buffer: { type: 'read-only-storage' },
+        },
+        {
+          binding: 3, // item states: [flags, color] per dense item (FS: outline mask)
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'read-only-storage' },
+        },
+        {
+          binding: 4, // per-model uniform: {item_base} (FS: outline mask)
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        },
+        {
+          binding: 5, // clip planes + box
+          visibility: GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        },
+        {
+          binding: 6, // committed item transforms (global pool)
+          visibility: GPUShaderStage.VERTEX,
+          buffer: { type: 'read-only-storage' },
+        },
+        {
+          binding: 7, // optional authored normals (oct u32/vertex; dummy when absent)
+          visibility: GPUShaderStage.VERTEX,
+          buffer: { type: 'read-only-storage' },
+        },
+      ],
+    });
+    const renderLayout = dev.createPipelineLayout({ bindGroupLayouts: [this.renderBGL] });
+    // Both sample counts render the full G-buffer (normal + packed item id).
+    // Positions stay quantized u16, dequantized per meshlet in the VS.
+    const renderModule = dev.createShaderModule({ label: 'renderModule', code: renderWgsl(true) });
+    // blend variant: unsorted transparency pass — alpha blend on the color
+    // target, G-buffer masked (transparent items don't get edges/ids, matching
+    // native), depth-tested but not written. The destination alpha is KEPT:
+    // scene alpha is the unlit luma of the opaque surface underneath, which the
+    // edge pass reads for white-on-dark — replacing it with the fragment's
+    // opacity turned every edge seen through a faint (< dark threshold) item
+    // white, whatever the surface's own colour.
+    // backdrop: the same pass but solid — no blending, G-buffer still masked
+    const blendTargets = (blend: boolean, backdrop = false): GPUColorTargetState[] => [
+      blend && !backdrop
+        ? {
+            format: this.format,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+              alpha: { srcFactor: 'zero', dstFactor: 'one' },
+            },
+          }
+        : { format: this.format },
+      { format: 'rgba8unorm', writeMask: blend ? 0 : 0xf },
+      { format: 'rgba8unorm', writeMask: blend ? 0 : 0xf },
+    ];
+    const makeRender = (sampleCount: number, blend = false, backdrop = false) =>
+      dev.createRenderPipeline({
+        label: 'renderPipeline',
+        layout: renderLayout,
+        vertex: {
+          module: renderModule,
+          entryPoint: 'vs',
+          buffers: [
+            {
+              arrayStride: 8,
+              attributes: [{ shaderLocation: 0, offset: 0, format: 'uint16x4' as const }],
+            },
+          ],
+        },
+        fragment: { module: renderModule, entryPoint: 'fs', targets: blendTargets(blend, backdrop) },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: {
+          format: 'depth32float',
+          // the backdrop layer writes depth so its own items occlude each
+          // other — squeezed under every foreground depth by the pass viewport
+          depthWriteEnabled: !blend || backdrop,
+          depthCompare: 'greater', // reversed-Z
+        },
+        multisample: { count: sampleCount },
+      });
+    this.renderPipeline1x = makeRender(1);
+    this.renderPipeline4x = makeRender(4);
+    this.renderBlend1x = makeRender(1, true);
+    this.renderBlend4x = makeRender(4, true);
+    this.renderBackdrop1x = makeRender(1, true, true);
+    this.renderBackdrop4x = makeRender(4, true, true);
+    // pick pass (native mesh_pick): ids only, opacity-threshold rule in fs_pick
+    this.pickPipeline = dev.createRenderPipeline({
+      label: 'pickPipeline',
+      layout: renderLayout,
+      vertex: {
+        module: renderModule,
+        entryPoint: 'vs',
+        buffers: [
+          {
+            arrayStride: 8,
+            attributes: [{ shaderLocation: 0, offset: 0, format: 'uint16x4' as const }],
+          },
+        ],
+      },
+      fragment: { module: renderModule, entryPoint: 'fs_pick', targets: [{ format: 'rgba8unorm' }] },
+      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'greater' },
+    });
+
+    // vertex-pull path: geometry comes from storage buffers (group 1)
+    this.vpGeoBGL = dev.createBindGroupLayout({
+      entries: [0, 1, 2, 3].map((binding) => ({
+        binding,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: 'read-only-storage' as const },
+      })),
+    });
+    const vpLayout = dev.createPipelineLayout({
+      bindGroupLayouts: [this.renderBGL, this.vpGeoBGL],
+    });
+    const vpModule = dev.createShaderModule({ label: 'vpModule', code: renderVpWgsl() });
+    const makeRenderVp = (sampleCount: number, blend = false, backdrop = false) =>
+      dev.createRenderPipeline({
+        label: 'renderVpPipeline',
+        layout: vpLayout,
+        vertex: { module: vpModule, entryPoint: 'vs' },
+        fragment: { module: vpModule, entryPoint: 'fs', targets: blendTargets(blend, backdrop) },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: {
+          format: 'depth32float',
+          depthWriteEnabled: !blend || backdrop,
+          depthCompare: 'greater',
+        },
+        multisample: { count: sampleCount },
+      });
+    this.renderVpPipeline1x = makeRenderVp(1);
+    this.renderVpPipeline4x = makeRenderVp(4);
+    this.renderVpBlend1x = makeRenderVp(1, true);
+    this.renderVpBlend4x = makeRenderVp(4, true);
+    this.renderVpBackdrop1x = makeRenderVp(1, true, true);
+    this.renderVpBackdrop4x = makeRenderVp(4, true, true);
+    this.pickVpPipeline = dev.createRenderPipeline({
+      label: 'pickVpPipeline',
+      layout: vpLayout,
+      vertex: { module: vpModule, entryPoint: 'vs' },
+      fragment: { module: vpModule, entryPoint: 'fs_pick', targets: [{ format: 'rgba8unorm' }] },
+      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'greater' },
+    });
+
+    // clip helper lines: drawn at the end of the last scene pass (same
+    // attachments — G-buffer targets masked off), depth-tested, no writes
+    const lineBGL = dev.createBindGroupLayout({
+      entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }],
+    });
+    const lineModule = dev.createShaderModule({ label: 'lineModule', code: lineWgsl() });
+    // Helper overlays (lines, marker spheres) stamp the G-buffer normal's
+    // ALPHA with the helper tag bit — `max` blend, rgb masked — so sketch mode
+    // can keep their colour; the normal itself and the id target stay untouched
+    // and edge detection never sees them. At an overlay sample the scene's own
+    // tag bits are replaced (the helper owns that sample).
+    const helperTagTarget: GPUColorTargetState = {
+      format: 'rgba8unorm',
+      writeMask: GPUColorWrite.ALPHA,
+      blend: {
+        color: { operation: 'add', srcFactor: 'zero', dstFactor: 'one' },
+        alpha: { operation: 'max', srcFactor: 'one', dstFactor: 'one' },
+      },
+    };
+    const makeLine = (sampleCount: number) =>
+      dev.createRenderPipeline({
+        label: 'linePipeline',
+        layout: dev.createPipelineLayout({ bindGroupLayouts: [lineBGL] }),
+        vertex: {
+          module: lineModule,
+          entryPoint: 'vs',
+          buffers: [
+            {
+              arrayStride: 16,
+              attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x4' as const }],
+            },
+          ],
+        },
+        fragment: {
+          module: lineModule,
+          entryPoint: 'fs',
+          targets: [{ format: this.format }, helperTagTarget, { format: 'rgba8unorm', writeMask: 0 }],
+        },
+        primitive: { topology: 'line-list' },
+        depthStencil: {
+          format: 'depth32float',
+          depthWriteEnabled: false,
+          depthCompare: 'greater',
+        },
+        multisample: { count: sampleCount },
+      });
+    this.linePipeline1x = makeLine(1);
+    this.linePipeline4x = makeLine(4);
+    this.lineBind = dev.createBindGroup({
+      label: 'lineBind',
+      layout: lineBGL,
+      entries: [{ binding: 0, resource: { buffer: this.frameBuf } }],
+    });
+
+    // filled marker spheres: a unit sphere mesh instanced per marker (centre,
+    // radius, rgba); same frame binding and targets as the helper lines
+    const sphere = unitSphereMesh(12, 24);
+    this.sphereMeshBuf = dev.createBuffer({
+      label: 'sphereMesh',
+      size: sphere.positions.byteLength,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(this.sphereMeshBuf, 0, sphere.positions);
+    this.sphereIndexBuf = dev.createBuffer({
+      label: 'sphereIndex',
+      size: sphere.indices.byteLength,
+      usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(this.sphereIndexBuf, 0, sphere.indices);
+    this.sphereIndexCount = sphere.indices.length;
+    const markerModule = dev.createShaderModule({ label: 'markerModule', code: markerWgsl() });
+    // unlike the lines, the marker FRAGMENT stage reads the frame too (eye /
+    // headlight for shading) — so its own layout with both stages visible
+    const markerBGL = dev.createBindGroupLayout({
+      label: 'markerBGL',
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        },
+      ],
+    });
+    this.markerBind = dev.createBindGroup({
+      label: 'markerBind',
+      layout: markerBGL,
+      entries: [{ binding: 0, resource: { buffer: this.frameBuf } }],
+    });
+    const makeMarker = (sampleCount: number, blend: boolean) =>
+      dev.createRenderPipeline({
+        label: 'markerPipeline',
+        layout: dev.createPipelineLayout({ bindGroupLayouts: [markerBGL] }),
+        vertex: {
+          module: markerModule,
+          entryPoint: 'vs',
+          buffers: [
+            { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' as const }] },
+            {
+              arrayStride: MARKER_INSTANCE_LAYOUT.stride,
+              stepMode: 'instance',
+              attributes: [
+                { shaderLocation: 1, offset: MARKER_INSTANCE_LAYOUT.center, format: 'float32x3' as const },
+                { shaderLocation: 2, offset: MARKER_INSTANCE_LAYOUT.radius, format: 'float32' as const },
+                { shaderLocation: 3, offset: MARKER_INSTANCE_LAYOUT.color, format: 'float32x4' as const },
+                { shaderLocation: 4, offset: MARKER_INSTANCE_LAYOUT.centerLow, format: 'float32x3' as const },
+              ],
+            },
+          ],
+        },
+        fragment: {
+          module: markerModule,
+          entryPoint: 'fs',
+          targets: [
+            blend
+              ? {
+                  format: this.format,
+                  // the scene alpha carries unlit luma for post — leave it alone
+                  blend: {
+                    color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+                    alpha: { srcFactor: 'zero', dstFactor: 'one' },
+                  },
+                }
+              : { format: this.format },
+            helperTagTarget,
+            { format: 'rgba8unorm', writeMask: 0 },
+          ],
+        },
+        primitive: { topology: 'triangle-list', cullMode: 'back' },
+        depthStencil: { format: 'depth32float', depthWriteEnabled: !blend, depthCompare: 'greater' },
+        multisample: { count: sampleCount },
+      });
+    this.markerPipelines = {
+      opaque1x: makeMarker(1, false),
+      opaque4x: makeMarker(4, false),
+      blend1x: makeMarker(1, true),
+      blend4x: makeMarker(4, true),
+    };
+
+    this.viewCube.init(dev, this.format);
+    this.pano.init(dev, this.format);
+    this.pointsLayer.init(dev, this.format, this.frameBuf, this.clipBuf);
+
+    const makePost = (msaa: boolean) => {
+      const m = dev.createShaderModule({ label: 'postModule', code: postWgsl(msaa) });
+      return dev.createRenderPipeline({
+        label: 'postPipeline',
+        layout: 'auto',
+        vertex: { module: m, entryPoint: 'vs' },
+        fragment: {
+          module: m,
+          entryPoint: 'fs',
+          targets: [{ format: this.format }, { format: 'rgba16float' }],
+        },
+        primitive: { topology: 'triangle-list' },
+      });
+    };
+    this.postPipeline = makePost(false);
+    this.postMsPipeline = makePost(true);
+
+    this.outline.init(dev, this.format, renderLayout, renderModule, vpLayout, vpModule);
+
+    this.camera.attach(canvas, (x, y, goto) => {
+      this.queuePick(x, y, goto ? 'fly' : 'pivot');
+    });
+  }
+
+  /** Create the full per-model GPU resource set (13 buffers + 8 bind groups)
+   * for the given packed geometry, bound to a caller-chosen itemBase and
+   * counts-buffer slot. Shared by first upload and slot revive — revive passes
+   * the tombstone's preserved itemBase/countOffsets so item ids and the
+   * per-slot draw-count sub-allocation stay stable across variant swaps. */
+  private buildModelResources(
+    packed: GpuPackedModel,
+    opts: { edges?: boolean },
+    itemBase: number,
+    countOffset1: number,
+    countOffset2: number,
+    countOffsetT: number,
+    countOffsetO: number,
+  ): GpuModel {
+    const dev = this.device;
+    const { positionsQ, indices16, cull, meshletInfo, cgColors } = packed;
+    const totalMeshlets = packed.meshletCount;
+    const triangleCount = packed.triangleCount;
+
+    const mkBuf = (data: ArrayBufferView | ArrayBuffer, usage: number) => {
+      const bytes = data instanceof ArrayBuffer ? data : (data.buffer as ArrayBuffer);
+      const len = data instanceof ArrayBuffer ? data.byteLength : data.byteLength;
+      const off = data instanceof ArrayBuffer ? 0 : data.byteOffset;
+      const buf = dev.createBuffer({
+        label: 'modelBuf',
+        // floor 64 B: near-empty coarse variants (1-2 triangles) must still
+        // satisfy every pipeline's minimum binding size (largest stride 48 B)
+        size: Math.max(64, Math.ceil(len / 4) * 4),
+        usage: usage | GPUBufferUsage.COPY_DST,
+      });
+      dev.queue.writeBuffer(buf, 0, bytes, off, len);
+      return buf;
+    };
+
+    // STORAGE lets the vertex-pull path read the same buffers the MDI path
+    // consumes as vertex/index buffers. COPY_SRC lets the GLB export read the
+    // geometry back — the packed arrays only exist on the GPU after upload.
+    const vertexBuf = mkBuf(positionsQ, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
+    const indexBuf = mkBuf(indices16, GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
+    const cgColorBuf = mkBuf(cgColors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
+    const meshletCullBuf = mkBuf(cull, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
+    // visibility starts at 0: the first frame's pass 2 discovers the model
+    // against the HZB the OTHER models built (pass 2 tests every meshlet and
+    // draws those pass 1 did not, vis != 1), so a swapped-in zone costs at most the
+    // meshlets other geometry does not hide — a seed of 1 made pass 1 draw
+    // every in-frustum meshlet of the zone first. Same picture either way.
+    const visBuf = dev.createBuffer({
+      label: 'modelBuf',
+      size: Math.max(64, totalMeshlets * 4),
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+
+    const mkRecords = () =>
+      dev.createBuffer({
+        label: 'modelRecordBuf',
+        size: Math.max(RECORD_STRIDE, totalMeshlets * RECORD_STRIDE),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+      });
+    const recordBuf1 = mkRecords();
+    const recordBuf2 = mkRecords();
+    // sorted transparent list (DESIGN.md "Sorted blend pass"): the record
+    // stride covers both MDI records and the doubled vertex-pull entries
+    const recordBufT = mkRecords();
+    // outline mask list (outlinePass.ts): the outlined items' in-view meshlets
+    const recordBufO = mkRecords();
+    const candBuf = dev.createBuffer({
+      label: 'modelCandBuf',
+      size: Math.max(8, totalMeshlets * 8),
+      usage: GPUBufferUsage.STORAGE,
+    });
+    const sortBuf = dev.createBuffer({
+      label: 'modelSortBuf',
+      size: SORT_STATE_WORDS * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    // the scatter's dispatch args: written by the scan pass, read as indirect
+    // by the scatter pass — a buffer may not be writable storage and an
+    // indirect source within one pass, hence its own buffer and two passes
+    const sortArgsBuf = dev.createBuffer({
+      label: 'modelSortArgsBuf',
+      size: 16,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+    });
+
+    // args size differs: MDI binds a bare 4-byte atomic counter, the vertex-pull
+    // emit binds the full 16-byte drawIndirect args block at the same offset.
+    const mkCullBind = (pipeline: GPUComputePipeline, recordBuf: GPUBuffer, countOffset: number, argsSize: number) =>
+      dev.createBindGroup({
+        label: 'cullBind',
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: meshletCullBuf } },
+          { binding: 1, resource: { buffer: recordBuf } },
+          { binding: 2, resource: { buffer: this.countsBuf, offset: countOffset, size: argsSize } },
+          { binding: 3, resource: { buffer: visBuf } },
+          { binding: 4, resource: { buffer: meshletInfoBuf } },
+          { binding: 5, resource: { buffer: itemStateBuf } },
+          { binding: 6, resource: { buffer: this.transformsBuf } },
+          { binding: 7, resource: { buffer: modelUniBuf } },
+          { binding: 8, resource: { buffer: cgColorBuf } },
+          { binding: 9, resource: { buffer: candBuf } },
+          { binding: 10, resource: { buffer: sortBuf } },
+        ],
+      });
+    // the scan publishes the transparent draw slot: vertex-pull args at the
+    // slot start, the plain count (MDI multi-draw count, stats) after them
+    const sortScanBind = dev.createBindGroup({
+      label: 'sortScanBind',
+      layout: this.sortScanPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: sortBuf } },
+        { binding: 1, resource: { buffer: this.countsBuf, offset: countOffsetT, size: (SORT_COUNT_WORD + 1) * 4 } },
+        { binding: 2, resource: { buffer: sortArgsBuf } },
+      ],
+    });
+    const mkScatterBind = (pipeline: GPUComputePipeline, vp: boolean) =>
+      dev.createBindGroup({
+        label: 'sortScatterBind',
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: candBuf } },
+          { binding: 1, resource: { buffer: sortBuf } },
+          { binding: 2, resource: { buffer: recordBufT } },
+          ...(vp ? [] : [{ binding: 3, resource: { buffer: meshletCullBuf } }]),
+        ],
+      });
+
+    const meshletInfoBuf = mkBuf(meshletInfo, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
+
+    // per-item [flags, colorRGBA8, transform_idx] (native 12-byte MeshItem);
+    // zero = no selection, no override, identity transform
+    const itemStateBuf = dev.createBuffer({
+      label: 'itemStateBuf',
+      size: Math.max(12, packed.itemCount * 12),
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    // ModelUni: info vec4u {item_base, live_active, 0, 0} + live mat4
+    // (the live gizmo-drag group matrix; see setSelectionTransform)
+    // ModelUni info.z = has authored normals (shader picks stream vs flat);
+    // info.w = edge lines OFF for this model (asset import option)
+    const modelUniInit = new ArrayBuffer(80);
+    new Uint32Array(modelUniInit, 0, 4).set([itemBase, 0, packed.normalsQ ? 1 : 0, opts.edges === false ? 1 : 0]);
+    new Float32Array(modelUniInit, 16, 16).set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    const modelUniBuf = mkBuf(modelUniInit, GPUBufferUsage.UNIFORM);
+    // authored normals (oct u32/vertex) — 1-word dummy keeps the layout bound
+    const normalBuf = mkBuf(packed.normalsQ ?? new Uint32Array(1), GPUBufferUsage.STORAGE);
+
+    const renderBind = dev.createBindGroup({
+      label: 'renderBind',
+      layout: this.renderBGL,
+      entries: [
+        { binding: 0, resource: { buffer: this.frameBuf, size: FRAME_SIZE } },
+        { binding: 1, resource: { buffer: cgColorBuf } },
+        { binding: 2, resource: { buffer: meshletInfoBuf } },
+        { binding: 3, resource: { buffer: itemStateBuf } },
+        { binding: 4, resource: { buffer: modelUniBuf } },
+        { binding: 5, resource: { buffer: this.clipBuf } },
+        { binding: 6, resource: { buffer: this.transformsBuf } },
+        { binding: 7, resource: { buffer: normalBuf } },
+      ],
+    });
+
+    // static full-draw inputs for the no-cull fallback (all meshlets, one draw)
+    const iota = new Uint32Array(totalMeshlets);
+    for (let i = 0; i < totalMeshlets; i++) {
+      iota[i] = i;
+    }
+    const fullListBuf = mkBuf(iota, GPUBufferUsage.STORAGE);
+    const fullArgsBuf = mkBuf(new Uint32Array([372, totalMeshlets, 0, 0]), GPUBufferUsage.INDIRECT);
+
+    const mkVpGeoBind = (listBuf: GPUBuffer) =>
+      dev.createBindGroup({
+        label: 'vpGeoBind',
+        layout: this.vpGeoBGL,
+        entries: [
+          { binding: 0, resource: { buffer: listBuf } },
+          { binding: 1, resource: { buffer: meshletCullBuf } },
+          { binding: 2, resource: { buffer: indexBuf } },
+          { binding: 3, resource: { buffer: vertexBuf } },
+        ],
+      });
+
+    const buffers = [
+      vertexBuf,
+      indexBuf,
+      cgColorBuf,
+      meshletCullBuf,
+      recordBuf1,
+      recordBuf2,
+      recordBufT,
+      recordBufO,
+      candBuf,
+      sortBuf,
+      sortArgsBuf,
+      visBuf,
+      meshletInfoBuf,
+      itemStateBuf,
+      normalBuf,
+      modelUniBuf,
+      fullListBuf,
+      fullArgsBuf,
+    ];
+
+    return {
+      name: packed.name,
+      meshletCount: totalMeshlets,
+      triangleCount,
+      bytes: buffers.reduce((sum, b) => sum + b.size, 0),
+      vertexBuf,
+      indexBuf,
+      cgColorBuf,
+      meshletCullBuf,
+      recordBuf1,
+      recordBuf2,
+      recordBufT,
+      recordBufO,
+      candBuf,
+      sortBuf,
+      sortArgsBuf,
+      visBuf,
+      meshletInfoBuf,
+      itemStateBuf,
+      normalBuf,
+      modelUniBuf,
+      itemBase,
+      itemCount: packed.itemCount,
+      cullBind1: mkCullBind(this.cull1Pipeline, recordBuf1, countOffset1, 4),
+      cullBind2: mkCullBind(this.cull2Pipeline, recordBuf2, countOffset2, 4),
+      cullVpBind1: mkCullBind(this.cullVp1Pipeline, recordBuf1, countOffset1, 16),
+      cullVpBind2: mkCullBind(this.cullVp2Pipeline, recordBuf2, countOffset2, 16),
+      sortScanBind,
+      sortScatterBind: mkScatterBind(this.sortScatterPipeline, false),
+      sortScatterVpBind: mkScatterBind(this.sortScatterVpPipeline, true),
+      renderBind,
+      vpGeoBind1: mkVpGeoBind(recordBuf1),
+      vpGeoBind2: mkVpGeoBind(recordBuf2),
+      vpGeoBindT: mkVpGeoBind(recordBufT),
+      vpGeoBindO: mkVpGeoBind(recordBufO),
+      outlineListBind: this.outline.createListBind(dev, {
+        meshletCull: meshletCullBuf,
+        records: recordBufO,
+        counts: this.countsBuf,
+        countOffset: countOffsetO,
+        vis: visBuf,
+        meshletInfo: meshletInfoBuf,
+        itemState: itemStateBuf,
+        modelUni: modelUniBuf,
+      }),
+      vpGeoBindFull: mkVpGeoBind(fullListBuf),
+      fullListBuf,
+      fullArgsBuf,
+      countOffset1,
+      countOffset2,
+      countOffsetT,
+      countOffsetO,
+      transparent: hasBakedAlpha(cgColors),
+    };
+  }
+
+  /** Upload a new model into a fresh slot. Returns the slot index. */
+  uploadModel(packed: GpuPackedModel, opts: { edges?: boolean } = {}): number {
+    if (this.models.length >= MAX_MODELS) {
+      throw new Error('model limit reached');
+    }
+    const modelIdx = this.models.length;
+    const countOffset1 = modelIdx * COUNT_SLOT * COUNT_SLOTS;
+    const countOffset2 = countOffset1 + COUNT_SLOT;
+    const countOffsetT = countOffset1 + 2 * COUNT_SLOT;
+    const countOffsetO = countOffset1 + 3 * COUNT_SLOT;
+    const itemBase = this.nextItemBase;
+    this.nextItemBase += packed.itemCount;
+    this.models.push(
+      this.buildModelResources(packed, opts, itemBase, countOffset1, countOffset2, countOffsetT, countOffsetO),
+    );
+
+    for (let i = 0; i < 3; i++) {
+      this.sceneMin[i] = Math.min(this.sceneMin[i], packed.boundsMin[i]);
+      this.sceneMax[i] = Math.max(this.sceneMax[i], packed.boundsMax[i]);
+      this.denseMin[i] = Math.min(this.denseMin[i], (packed.denseMin ?? packed.boundsMin)[i]);
+      this.denseMax[i] = Math.max(this.denseMax[i], (packed.denseMax ?? packed.boundsMax)[i]);
+    }
+
+    // First load ONLY: default view from the top, halfway between FRONT
+    // (az π/2) and RIGHT (az π), framing the dense bounds when enabled.
+    // Later loads never move the camera here — the assets loader decides
+    // (fit-to-batch unless "Keep camera" is on).
+    if (!this.hadFirstFit) {
+      this.hadFirstFit = true;
+      this.camera.setView((3 * Math.PI) / 4, -0.61); // ~35° down
+      const t = this.fitTarget;
+      this.camera.fit(t.min, t.max);
+    }
+    return modelIdx;
+  }
+
+  /** Rebuild a tombstoned slot in place with fresh packed geometry (variant
+   * swap / reload). Preserves the slot's itemBase and counts-buffer offsets so
+   * global item ids, selections, and worker indices stay valid. Throws WITHOUT
+   * allocating anything if the slot is live or the item count differs — the
+   * caller falls back to a fresh uploadModel in that case. Scene bounds are
+   * not re-unioned (they were on first upload and never shrink). */
+  reviveModel(slot: number, packed: GpuPackedModel, opts: { edges?: boolean; quiet?: boolean } = {}): void {
+    const m = this.models[slot];
+    if (!m?.dead) {
+      throw new Error(`reviveModel: slot ${slot} is not a tombstone`);
+    }
+    if (packed.itemCount !== m.itemCount) {
+      throw new Error(`itemcount-mismatch: slot ${slot} has ${m.itemCount}, packed has ${packed.itemCount}`);
+    }
+    this.models[slot] = this.buildModelResources(
+      packed,
+      opts,
+      m.itemBase,
+      m.countOffset1,
+      m.countOffset2,
+      m.countOffsetT,
+      m.countOffsetO,
+    );
+    // quiet: the caller proved the slot draws nothing from this viewpoint, so
+    // the converged picture stays valid — no re-render, no accumulation reset.
+    // Its zeroed record buffers replay as no-op draws until the next real cull.
+    if (!opts.quiet) {
+      this.lastKey = ''; // force a re-render with the new geometry
+      this.stateVersion++;
+    }
+  }
+
+  /** Name the first render-key segment that differs — the reason a frame
+   *  rendered while the camera stood still (`options.traceKey`). */
+  private traceKeyChange(prev: string, next: string): void {
+    const a = prev.split(';');
+    const b = next.split(';');
+    const i = a.findIndex((seg, k) => seg !== b[k]);
+    const at = i < 0 ? '(length)' : `#${i}`;
+    console.debug(`[render] re-render at rest — key segment ${at}: ${a[i] ?? ''} → ${b[i] ?? ''}`);
+  }
+
+  /** GPU bytes held by one model slot (0 for tombstones). */
+  modelBytes(slot: number): number {
+    const m = this.models[slot];
+    return !m || m.dead ? 0 : m.bytes;
+  }
+
+  /** Resident meshlets in one model slot (0 for tombstones AND for packs that
+   * ended up empty — such a slot can never report draws). */
+  modelMeshletCount(slot: number): number {
+    const m = this.models[slot];
+    return !m || m.dead ? 0 : m.meshletCount;
+  }
+
+  get stats() {
+    let meshlets = 0,
+      tris = 0;
+    for (const m of this.models) {
+      if (m.dead) {
+        continue;
+      }
+      meshlets += m.meshletCount;
+      tris += m.triangleCount;
+    }
+    return { models: this.models.filter((m) => !m.dead).length, meshlets, tris };
+  }
+
+  /** Tear down the GPU device (panel unmount). The instance is dead after this. */
+  dispose() {
+    this.device?.destroy();
+  }
+
+  /** Debug: destroy the device so the loss handler runs exactly as after a
+   *  real GPU crash (Settings → GPU → "Simulate GPU crash"). */
+  simulateDeviceLoss() {
+    this.simulatingLoss = true;
+    this.device.destroy();
+  }
+
+  /** GPU recovery: occupy the next slot with a tombstone of `itemCount` items
+   *  so a fresh renderer's slot indices and item-id ranges line up with the
+   *  worker's model array (which keeps its removed models as tombstones). */
+  reserveTombstone(itemCount: number): number {
+    this.hadFirstFit = true; // a tombstone never frames the camera
+    const slot = this.uploadModel(emptyPack(itemCount));
+    this.removeModels([slot], { quiet: true });
+    return slot;
+  }
+
+  /** Upload fresh per-item state for one model (from the worker). Dead slots
+   * are skipped — state producers keep emitting for unloaded-but-live DbModels. */
+  writeItemStates(u: ItemStateUpdate, quiet = false) {
+    const m = this.models[u.model];
+    if (!m || m.dead) {
+      return;
+    }
+    // the per-model blend gate travels WITH the states, so it can never lag
+    // what the GPU sees (a lagging gate would route glass to a list nobody
+    // scans — one frame of vanished items)
+    m.transparent = u.transparent;
+    const first = u.first ?? 0;
+    if (first >= m.itemCount) {
+      return;
+    }
+    const words = Math.min(u.states.length, (m.itemCount - first) * 3);
+    this.device.queue.writeBuffer(m.itemStateBuf, first * 12, u.states, 0, words);
+    if (!quiet) {
+      this.stateVersion++; // re-render even when idle
+    }
+  }
+
+  /** Live selection transform (gizmo drag preview): one UBO write per model,
+   * the shaders apply it to SELECTED items only. null = drag ended. */
+  setSelectionTransform(matrix: Float32Array | null) {
+    for (const m of this.models) {
+      if (m.dead) {
+        continue;
+      }
+      this.device.queue.writeBuffer(m.modelUniBuf, 4, new Uint32Array([matrix ? 1 : 0]));
+      if (matrix) {
+        this.device.queue.writeBuffer(m.modelUniBuf, 16, matrix, 0, 16);
+      }
+    }
+    this.stateVersion++;
+  }
+
+  /** Upload the used region of the worker's transform pool (mat4 slots). The
+   *  worker's snapshot never reaches the animation band, but the hook still
+   *  fires so the animation player can re-assert its slots after any upload. */
+  writeTransforms(pool: Float32Array) {
+    this.device.queue.writeBuffer(this.transformsBuf, 0, pool, 0, Math.min(pool.length, TRANSFORM_POOL * SLOT_FLOATS));
+    this.stateVersion++;
+    this.onTransformsUploaded?.();
+  }
+
+  /** Partial upload: `data.length / 16` slots starting at `firstSlot` (the
+   *  animation band, written every playback frame). */
+  writeTransformSlots(firstSlot: number, data: Float32Array) {
+    const first = Math.max(0, Math.min(firstSlot, TRANSFORM_POOL));
+    const count = Math.min(data.length, (TRANSFORM_POOL - first) * SLOT_FLOATS);
+    if (count <= 0) {
+      return;
+    }
+    this.device.queue.writeBuffer(this.transformsBuf, first * SLOT_FLOATS * 4, data, 0, count);
+    this.stateVersion++;
+  }
+
+  /** Called after every writeTransforms() — the animation player re-applies
+   *  its band here (DESIGN.md › Animation › Engine). */
+  onTransformsUploaded: (() => void) | null = null;
+
+  /** Live (non-tombstoned) models for export UIs — indices align with the worker. */
+  liveModels(): { index: number; name: string }[] {
+    return this.models.map((m, index) => ({ index, name: m.name, dead: m.dead })).filter((m) => !m.dead);
+  }
+
+  /** Read a model's packed geometry back from the GPU (GLB export) — the
+   *  arrays were transferred to VRAM at upload and exist nowhere else.
+   *  Layouts are the pack.ts ones (positionsQ u16x4, cull 36 B packed records
+   *  with the draw template, meshletInfo 8 words, cgColors f32x4). */
+  async readModelGeometry(index: number): Promise<{
+    name: string;
+    meshletCount: number;
+    positionsQ: ArrayBuffer;
+    indices16: ArrayBuffer;
+    cull: ArrayBuffer;
+    meshletInfo: ArrayBuffer;
+    cgColors: ArrayBuffer;
+  } | null> {
+    const m = this.models[index];
+    if (!m || m.dead) {
+      return null;
+    }
+    const dev = this.device;
+    const sources = [m.vertexBuf, m.indexBuf, m.meshletCullBuf, m.meshletInfoBuf, m.cgColorBuf];
+    const staging = sources.map((src) =>
+      dev.createBuffer({
+        label: 'modelReadbackStaging',
+        size: src.size,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      }),
+    );
+    const enc = dev.createCommandEncoder();
+    sources.forEach((src, i) => {
+      enc.copyBufferToBuffer(src, 0, staging[i], 0, src.size);
+    });
+    dev.queue.submit([enc.finish()]);
+    await Promise.all(staging.map((b) => b.mapAsync(GPUMapMode.READ)));
+    const [positionsQ, indices16, cull, meshletInfo, cgColors] = staging.map((b) => {
+      const copy = b.getMappedRange().slice(0);
+      b.unmap();
+      b.destroy();
+      return copy;
+    });
+    return { name: m.name, meshletCount: m.meshletCount, positionsQ, indices16, cull, meshletInfo, cgColors };
+  }
+
+  /** Debug: per-model meshlet fill statistics, read back from the GPU cull/info
+   *  records. Geometry bytes are packed to content, but every meshlet pays
+   *  MESHLET_RECORD_BYTES no matter how full it is — low fill shows up as the
+   *  gap between the actual record count and the two repack bounds. */
+  async readMeshletFill(): Promise<
+    {
+      name: string;
+      meshlets: number;
+      tris: number;
+      /** Meshlet counts bucketed by fill: [1–15, 16–31, … 96–111, ≥112] tris. */
+      hist: number[];
+      /** Items owning at least one meshlet. */
+      items: number;
+      /** Records if every item packed its own meshlets full — the achievable
+       *  bound (meshlets never span items in this pipeline). */
+      idealPerItem: number;
+      /** Records if meshlets could also span items — the hard floor. */
+      idealCrossItem: number;
+      /** Vertex + index + authored-normal buffer bytes (packed to content). */
+      geoBytes: number;
+      recordBytes: number;
+    }[]
+  > {
+    const dev = this.device;
+    const out = [];
+    for (const m of this.models) {
+      if (m.dead || m.meshletCount === 0) {
+        continue;
+      }
+      const staging = [m.meshletCullBuf, m.meshletInfoBuf].map((src) =>
+        dev.createBuffer({
+          label: 'fillStatsStaging',
+          size: src.size,
+          usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        }),
+      );
+      const enc = dev.createCommandEncoder();
+      enc.copyBufferToBuffer(m.meshletCullBuf, 0, staging[0], 0, m.meshletCullBuf.size);
+      enc.copyBufferToBuffer(m.meshletInfoBuf, 0, staging[1], 0, m.meshletInfoBuf.size);
+      dev.queue.submit([enc.finish()]);
+      await Promise.all(staging.map((b) => b.mapAsync(GPUMapMode.READ)));
+      const cullU = new Uint32Array(staging[0].getMappedRange());
+      const infoU = new Uint32Array(staging[1].getMappedRange());
+      const hist = new Array<number>(8).fill(0);
+      const itemTris = new Uint32Array(m.itemCount);
+      let tris = 0;
+      for (let i = 0; i < m.meshletCount; i++) {
+        const t = cullU[i * 9 + 5] / 3; // index_count word of the packed cull record
+        tris += t;
+        hist[Math.min(7, Math.floor(t / 16))]++;
+        const item = infoU[i * 8 + 7];
+        if (item < m.itemCount) {
+          itemTris[item] += t;
+        }
+      }
+      let items = 0;
+      let idealPerItem = 0;
+      for (let i = 0; i < m.itemCount; i++) {
+        if (itemTris[i] === 0) {
+          continue;
+        }
+        items++;
+        idealPerItem += Math.ceil(itemTris[i] / 124);
+      }
+      for (const b of staging) {
+        b.unmap();
+        b.destroy();
+      }
+      out.push({
+        name: m.name,
+        meshlets: m.meshletCount,
+        tris,
+        hist,
+        items,
+        idealPerItem,
+        idealCrossItem: Math.ceil(tris / 124),
+        geoBytes: m.vertexBuf.size + m.indexBuf.size + m.normalBuf.size,
+        recordBytes: m.meshletCount * MESHLET_RECORD_BYTES,
+      });
+    }
+    return out;
+  }
+
+  /** Global id-buffer value -> (model index, dense local item). null = background. */
+  itemFromGlobalId(id: number): { model: number; item: number } | null {
+    if (id === 0) {
+      return null;
+    }
+    for (let i = 0; i < this.models.length; i++) {
+      const m = this.models[i];
+      if (id >= m.itemBase && id < m.itemBase + m.itemCount) {
+        return { model: i, item: id - m.itemBase };
+      }
+    }
+    return null;
+  }
+
+  /** Tombstone + free specific models (worker indices stay aligned). `quiet`
+   *  skips the forced re-render (see reviveModel). */
+  removeModels(indices: number[], opts: { quiet?: boolean } = {}) {
+    for (const i of indices) {
+      const m = this.models[i];
+      if (!m || m.dead) {
+        continue;
+      }
+      m.vertexBuf.destroy();
+      m.indexBuf.destroy();
+      m.cgColorBuf.destroy();
+      m.meshletCullBuf.destroy();
+      m.recordBuf1.destroy();
+      m.recordBuf2.destroy();
+      m.recordBufT.destroy();
+      m.recordBufO.destroy();
+      m.candBuf.destroy();
+      m.sortBuf.destroy();
+      m.sortArgsBuf.destroy();
+      m.visBuf.destroy();
+      m.meshletInfoBuf.destroy();
+      m.fullListBuf.destroy();
+      m.fullArgsBuf.destroy();
+      m.itemStateBuf.destroy();
+      m.normalBuf.destroy();
+      m.modelUniBuf.destroy();
+      m.dead = true;
+      m.meshletCount = 0;
+      m.triangleCount = 0;
+    }
+    if (!opts.quiet) {
+      this.lastKey = ''; // force re-render without the removed geometry
+    }
+  }
+
+  /** Unload every model and release its GPU buffers. */
+  clearModels() {
+    for (const m of this.models) {
+      if (m.dead) {
+        continue;
+      }
+      m.vertexBuf.destroy();
+      m.indexBuf.destroy();
+      m.cgColorBuf.destroy();
+      m.meshletCullBuf.destroy();
+      m.recordBuf1.destroy();
+      m.recordBuf2.destroy();
+      m.recordBufT.destroy();
+      m.recordBufO.destroy();
+      m.candBuf.destroy();
+      m.sortBuf.destroy();
+      m.sortArgsBuf.destroy();
+      m.visBuf.destroy();
+      m.meshletInfoBuf.destroy();
+      m.fullListBuf.destroy();
+      m.fullArgsBuf.destroy();
+      m.itemStateBuf.destroy();
+      m.normalBuf.destroy();
+      m.modelUniBuf.destroy();
+    }
+    this.models = [];
+    this.nextItemBase = 1;
+    this.hadFirstFit = false;
+    this.sceneMin = [Infinity, Infinity, Infinity];
+    this.sceneMax = [-Infinity, -Infinity, -Infinity];
+    this.drawnPass1 = 0;
+    this.drawnPass2 = 0;
+    this.lastKey = ''; // force a re-render (clears the viewport)
+  }
+
+  private trace(line: () => string) {
+    if (this.options.traceKey && this.onTrace) {
+      this.onTrace(line());
+    }
+  }
+
+  // Read back the picked depth (the nearest sample under the full-res cursor
+  // pixel), unproject it through the view it was rendered with (PickView),
+  // then answer the requester / re-pivot / fly.
+  private async resolvePick(p: PendingPick, view: PickView) {
+    const buf = this.pickBuf!;
+    await buf.mapAsync(GPUMapMode.READ);
+    const depth = new Float32Array(buf.getMappedRange())[0];
+    buf.unmap();
+    this.pickInFlight = false;
+    this.trace(() => `${view.tag} depth=${depth.toExponential(3)} +${(performance.now() - view.t).toFixed(0)}ms`);
+    const probeDone = (pt: [number, number, number] | null) => {
+      this.probeResolve?.(pt);
+      this.probeResolve = null;
+    };
+    const measureDone = (m: MeasureProbe | null) => {
+      this.measureResolve?.(m);
+      this.measureResolve = null;
+    };
+    const inv = invert4(view.vp);
+    if (depth <= BACKDROP_DEPTH_MAX || !inv) {
+      this.trace(() => `${view.tag} ${inv ? 'background' : 'degenerate view'} → null`);
+      probeDone(null);
+      measureDone(null);
+      return; // reversed-Z: 0 = background, nothing hit; a backdrop item counts as none
+    }
+    const point = unprojectPixel(inv, view.w, view.h, p.x, p.y, depth);
+    if (!point) {
+      this.trace(() => `${view.tag} unproject degenerate → null`);
+      probeDone(null);
+      measureDone(null);
+      return;
+    }
+    this.trace(() => `${view.tag} unproject=${fmtV3(point)}`);
+    this.lastClickWorld = point; // every successful pick remembers its point
+
+    if (p.mode === 'measure') {
+      // True mesh ray-cast (port of the native measure_snap compute): exact,
+      // view-independent corner/edge/face. Face fallback on a miss/failure.
+      const probe = await this.raycastMeasure(p.x, p.y, view, point).catch((e: unknown) => {
+        this.trace(() => `${view.tag} raycast threw: ${String(e)}`);
+        return null;
+      });
+      const onPoint = probe ? null : await this.snapToScanPoint(p.x, p.y, view, point);
+      const result: MeasureProbe =
+        probe ??
+        (onPoint
+          ? { point: onPoint, normal: null, edgeDir: null, kind: 'corner' }
+          : { point, normal: null, edgeDir: null, kind: 'face' });
+      this.trace(() => {
+        const canvas = this.hostCanvas;
+        const atEncode = projectToScreen(view.vp, view.w, view.h, result.point);
+        const atNow = projectToScreen(this.lastVP, canvas.width, canvas.height, result.point);
+        const off = (q: [number, number] | null) =>
+          q ? Math.hypot(q[0] - p.x - 0.5, q[1] - p.y - 0.5).toFixed(1) : '-';
+        return (
+          `${view.tag} result ${result.kind}${probe ? '' : ' (depth fallback)'} point=${fmtV3(result.point)} ` +
+          `Δdepth=${fmt3(dist3(result.point, point))}m reproj@encode=${fmtPx(atEncode)} Δ${off(atEncode)}px ` +
+          `reproj@now=${fmtPx(atNow)} Δ${off(atNow)}px total=${(performance.now() - view.t).toFixed(0)}ms ` +
+          `gpuError=${this.gpuError || 'none'}`
+        );
+      });
+      measureDone(result);
+    } else {
+      probeDone(point);
+      if (p.mode === 'fly') {
+        this.camera.flyTo(point); // Space+LMB
+      } else if (p.mode === 'pivot') {
+        this.camera.rePivot(point); // Alt+LMB
+      }
+    }
+  }
+
+  // Measurement snap — port of the native measure_snap compute + CPU classify:
+  // cast the cursor sight-line against every model's triangles on the GPU
+  // (Möller–Trumbore, two-pass atomic arg-min), then classify the closest hit as
+  // corner / edge / face from screen-space pixel distances to the triangle's
+  // vertices / edges. Returns null on a miss (caller falls back to Face).
+  //
+  // Seams: when the hit is not a real corner, a second cast along the same
+  // sight line skips the hit item (and every item with an opacity override —
+  // transparent counts as not there) to find the surface just behind; where
+  // the two triangle planes meet within the edge radius, the seam wins over a
+  // face hit (seamProbe). Priority: corner > seam corner > edge > seam edge > face.
+  private async raycastMeasure(
+    px: number,
+    py: number,
+    view: PickView,
+    seen: readonly [number, number, number],
+  ): Promise<MeasureProbe | null> {
+    if (this.snapInFlight || this.models.length === 0) {
+      this.trace(() => `${view.tag} raycast skipped: ${this.snapInFlight ? 'a cast is still in flight' : 'no models'}`);
+      return null;
+    }
+    // sight line through the cursor pixel OF THE FRAME THE DEPTH CAME FROM
+    const ray = rayThroughPixel(view, px, py);
+    if (!ray) {
+      this.trace(() => `${view.tag} raycast skipped: degenerate view`);
+      return null;
+    }
+    this.trace(() => `${view.tag} ray origin=${fmtV3(ray.origin)} dir=${fmtV3(ray.dir)}`);
+    this.snapInFlight = true;
+    try {
+      const a = await this.castSnapRay(ray, 0, false);
+      this.trace(() => `${view.tag} cast1 ${fmtHit(a)} +${(performance.now() - view.t).toFixed(0)}ms`);
+      if (a && this.options.traceKey && this.onTrace) {
+        await this.traceCastReads(view.tag, a);
+      }
+      if (!a) {
+        return null; // no triangle hit
+      }
+      // scan points in front of the nearest triangle: the eye sees a point,
+      // not that surface — leave it to the depth / point-snap fallback
+      const seenT = dist3(seen, ray.origin);
+      if (this.pointsLayer.active && a.t > seenT * (1 + OCCLUDED_HIT_SLACK) + OCCLUDED_HIT_MIN) {
+        this.trace(() => `${view.tag} triangle at ${fmt3(a.t)}m is behind the visible point at ${fmt3(seenT)}m`);
+        return null;
+      }
+      const snap = this.measureSnap;
+      const w2p = (p: [number, number, number]) => projectToScreen(view.vp, view.w, view.h, p);
+      const base = classifySnap(a.A, a.B, a.C, a.u, a.v, ray.dir, px, py, snap, w2p);
+      this.trace(() => `${view.tag} classify ${base.kind} point=${fmtV3(base.point)} snap=${JSON.stringify(snap)}`);
+      if (!snap.enabled || !snap.seam || base.kind === 'corner' || isTransparentItem(a.flags, a.color)) {
+        return base;
+      }
+      const b = await this.castSnapRay(ray, a.item, true);
+      this.trace(() => `${view.tag} cast2 ${fmtHit(b)}`);
+      const seam = b ? seamProbe(a, b, ray, px, py, snap, w2p, (t) => this.pixelFootprint(t)) : null;
+      if (!seam) {
+        return base;
+      }
+      this.trace(() => `${view.tag} seam ${seam.kind} point=${fmtV3(seam.point)}`);
+      if (seam.kind === 'corner' || base.kind === 'face') {
+        return seam;
+      }
+      return base;
+    } finally {
+      this.snapInFlight = false;
+    }
+  }
+
+  /** The scan point nearest the cursor's sight line around the depth-picked
+   *  position (the streamer's `pointSnapper` finds it); null without one. */
+  private async snapToScanPoint(
+    px: number,
+    py: number,
+    view: PickView,
+    seen: [number, number, number],
+  ): Promise<[number, number, number] | null> {
+    const ray = rayThroughPixel(view, px, py);
+    if (!ray || !this.pointSnapper || !this.pointsLayer.active || !this.measureSnap.enabled) {
+      return null;
+    }
+    const footprint = this.pixelFootprint(dist3(seen, ray.origin));
+    return this.pointSnapper(ray, seen, footprint * this.measureSnap.cornerPx).catch(() => null);
+  }
+
+  /** World size of one screen pixel at sight-line distance `t`. */
+  private pixelFootprint(t: number): number {
+    const h = this.hostCanvas.height;
+    const halfTan = Math.tan(this.camera.fovY / 2);
+    return this.options.orthographic ? (2 * this.camera.focusDist * halfTan) / h : (2 * t * halfTan) / h;
+  }
+
+  /** Measure-trace cross-check for the winning triangle: what the snap
+   *  shader READ (meshlet, triangle, local indices, raw vertex words, AABB
+   *  scale) next to a CPU readback of the same GPU buffers decoded the same
+   *  way. A driver that misreads one of them shows it as the first column
+   *  that differs. Trace only — it reads the whole model back. */
+  private async traceCastReads(tag: string, hit: SnapHit) {
+    const w = this.lastCastWords;
+    const loc = this.itemFromGlobalId(hit.item - 1) ?? this.itemFromGlobalId(hit.item);
+    const mi = w[16];
+    const tri = w[17];
+    const hex = (v: number) => v.toString(16).padStart(8, '0');
+    const sc4 = (v: readonly number[]) => `(${v.map((x) => x.toPrecision(4)).join(', ')})`;
+    const gScale = Array.from(new Float32Array(w.buffer, 27 * 4, 3));
+    this.trace(
+      () =>
+        `${tag} gpu read: model=${loc?.model ?? '?'} mi=${mi} tri=${tri} idx=(${w[18]},${w[19]},${w[20]}) ` +
+        `base_vertex=${w[30]} first_index=${w[31]} scale=${sc4(gScale)} ` +
+        `rawv A=${hex(w[21])}/${hex(w[22])} B=${hex(w[23])}/${hex(w[24])} C=${hex(w[25])}/${hex(w[26])}`,
+    );
+    if (!loc) {
+      return;
+    }
+    const g = await this.readModelGeometry(loc.model);
+    if (!g) {
+      return;
+    }
+    const cull = new Uint32Array(g.cull);
+    const infoU = new Uint32Array(g.meshletInfo);
+    const infoF = new Float32Array(g.meshletInfo);
+    const idx16 = new Uint16Array(g.indices16);
+    const pos = new Uint16Array(g.positionsQ);
+    const indexCount = cull[mi * 9 + 5];
+    const firstIndex = cull[mi * 9 + 6];
+    const baseVertex = cull[mi * 9 + 8];
+    const min = [infoF[mi * 8], infoF[mi * 8 + 1], infoF[mi * 8 + 2]];
+    const sc = [infoF[mi * 8 + 4], infoF[mi * 8 + 5], infoF[mi * 8 + 6]];
+    const li = [0, 1, 2].map((c) => idx16[firstIndex + tri * 3 + c]);
+    const q = li.map((l) => [pos[(baseVertex + l) * 4], pos[(baseVertex + l) * 4 + 1], pos[(baseVertex + l) * 4 + 2]]);
+    const p = q.map((v) => [min[0] + v[0] * sc[0], min[1] + v[1] * sc[1], min[2] + v[2] * sc[2]]);
+    this.trace(
+      () =>
+        `${tag} cpu read: meshlets=${g.meshletCount} mi=${mi} item=${infoU[mi * 8 + 7]} index_count=${indexCount} ` +
+        `first_index=${firstIndex} base_vertex=${baseVertex} idx=(${li.join(',')}) min=${fmtV3(min)} ` +
+        `scale=${sc4(sc)} q=${q.map((v) => `(${v.join(',')})`).join(' ')} ` +
+        `A=${fmtV3(p[0])} B=${fmtV3(p[1])} C=${fmtV3(p[2])}`,
+    );
+  }
+
+  /** One snap cast: the closest triangle along `ray` over every model.
+   *  `excludeItem` (global id + 1, 0 = none) and `skipTransparent` are the
+   *  seam cast's filters. Null on a miss. */
+  private async castSnapRay(
+    ray: { origin: [number, number, number]; dir: [number, number, number] },
+    excludeItem: number,
+    skipTransparent: boolean,
+  ): Promise<SnapHit | null> {
+    const dev = this.device;
+    const params = new ArrayBuffer(48);
+    const pf = new Float32Array(params);
+    pf.set(ray.origin, 0);
+    pf.set(ray.dir, 4);
+    new Uint32Array(params, 32, 4).set([excludeItem, skipTransparent ? 1 : 0, 0, 0]);
+    dev.queue.writeBuffer(this.snapParamsBuf, 0, params);
+    // clear: t = 0xFFFFFFFF for the atomicMin, everything else 0
+    const clear = new Uint32Array(SNAP_RESULT_WORDS);
+    clear[0] = 0xffffffff;
+    dev.queue.writeBuffer(this.snapResultBuf, 0, clear);
+
+    const enc = dev.createCommandEncoder();
+    const pass = enc.beginComputePass();
+    // pass 1 (min) over all models, then pass 2 (write) — WebGPU's implicit
+    // barriers between dispatches make result[0] the global minimum first
+    for (const pipeline of [this.snapMinPipeline, this.snapWritePipeline]) {
+      pass.setPipeline(pipeline);
+      for (const m of this.models) {
+        if (m.dead || m.meshletCount === 0) {
+          continue;
+        }
+        m.snapBind ??= dev.createBindGroup({
+          label: 'modelSnapBind',
+          layout: this.snapBGL,
+          entries: [
+            { binding: 0, resource: { buffer: this.snapResultBuf } },
+            { binding: 1, resource: { buffer: m.meshletCullBuf } },
+            { binding: 2, resource: { buffer: m.meshletInfoBuf } },
+            { binding: 3, resource: { buffer: m.indexBuf } },
+            { binding: 4, resource: { buffer: m.vertexBuf } },
+            { binding: 5, resource: { buffer: m.itemStateBuf } },
+            { binding: 6, resource: { buffer: this.transformsBuf } },
+            { binding: 7, resource: { buffer: this.snapParamsBuf } },
+            { binding: 8, resource: { buffer: m.modelUniBuf } },
+          ],
+        });
+        pass.setBindGroup(0, m.snapBind);
+        pass.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
+      }
+    }
+    pass.end();
+    enc.copyBufferToBuffer(this.snapResultBuf, 0, this.snapStagingBuf, 0, SNAP_RESULT_WORDS * 4);
+    dev.queue.submit([enc.finish()]);
+
+    await this.snapStagingBuf.mapAsync(GPUMapMode.READ);
+    const words = new Uint32Array(this.snapStagingBuf.getMappedRange()).slice();
+    this.snapStagingBuf.unmap();
+    this.lastCastWords = words;
+    if (words[1] === 0) {
+      return null; // no triangle hit
+    }
+    const f = new Float32Array(words.buffer);
+    return {
+      t: f[0],
+      u: f[2],
+      v: f[3],
+      A: [f[4], f[5], f[6]],
+      B: [f[7], f[8], f[9]],
+      C: [f[10], f[11], f[12]],
+      item: words[13],
+      flags: words[14],
+      color: words[15],
+    };
+  }
+
+  /** Far end of the perspective sort-key range (cull.ts sort_bucket): the
+   *  farthest scene-bounds corner from the eye, so the log buckets span
+   *  exactly what can be seen; a fixed span of octaves above the near plane
+   *  before any model has reported bounds. */
+  private sortFar(eye: ArrayLike<number>): number {
+    const near = this.camera.near;
+    if (!Number.isFinite(this.sceneMin[0])) {
+      return near * 2 ** SORT_FAR_FALLBACK_OCTAVES;
+    }
+    let far = 0;
+    for (let i = 0; i < 3; i++) {
+      const d = Math.max(Math.abs(this.sceneMin[i] - eye[i]), Math.abs(this.sceneMax[i] - eye[i]));
+      far += d * d;
+    }
+    return Math.max(Math.sqrt(far), near * 2);
+  }
+
+  private async resolveStats(bytes: number, word: number) {
+    await this.statsBuf.mapAsync(GPUMapMode.READ, 0, bytes);
+    const counts = new Uint32Array(this.statsBuf.getMappedRange(0, bytes));
+    if (this.drawnPerModel.length < this.models.length) {
+      this.drawnPerModel = new Uint32Array(this.models.length);
+    }
+    let p1 = 0,
+      p2 = 0,
+      pt = 0;
+    for (let i = 0; i < this.models.length; i++) {
+      const slot = (i * COUNT_SLOT * COUNT_SLOTS) / 4;
+      const m1 = counts[slot + word];
+      const m2 = counts[slot + COUNT_SLOT / 4 + word];
+      const mt = counts[slot + (2 * COUNT_SLOT) / 4 + SORT_COUNT_WORD];
+      this.drawnPerModel[i] = m1 + m2 + mt;
+      p1 += m1;
+      p2 += m2;
+      pt += mt;
+    }
+    this.statsBuf.unmap();
+    this.statsInFlight = false;
+    this.drawnPass1 = p1;
+    this.drawnPass2 = p2;
+    this.drawnBlend = pt;
+    this.drawnResolvedT = this.lastCountRead;
+  }
+
+  /** Read back how many meshlets pass 2 WANTED to draw, which answers two
+   *  questions. At or above the cap the budget turned some away, so the
+   *  backlog keeps the renderer out of idle until a frame comes in under it.
+   *  At exactly zero the pass found nothing new: pass 1 already drew
+   *  everything visible, so the next frame's depth — and therefore its HZB —
+   *  is identical and cannot disocclude anything further. That fixed point is
+   *  the real "the scene is complete" signal the settle window waits for.
+   *
+   *  The readback trails the frame that armed it by a frame or two, so a
+   *  result from before the last key change describes the previous scene and
+   *  is discarded rather than counted. */
+  private async resolveCapBudget() {
+    await this.newBudgetReadBuf.mapAsync(GPUMapMode.READ, 0, 4);
+    this.newVisibleWanted = new Uint32Array(this.newBudgetReadBuf.getMappedRange(0, 4))[0];
+    this.newBudgetReadBuf.unmap();
+    const armedOn = this.capReadFrame;
+    this.capReadInFlight = false;
+    const cap = Math.max(0, Math.floor(this.options.newMeshletCap));
+    this.capBacklog = cap > 0 && this.newVisibleWanted >= cap;
+    if (armedOn <= this.keyChangeFrame) {
+      this.zeroNewReads = 0;
+      return;
+    }
+
+    this.capReadFresh = true;
+    this.zeroNewReads = this.newVisibleWanted === 0 ? this.zeroNewReads + 1 : 0;
+  }
+
+  // (Re)create depth / offscreen color / MSAA targets, the HZB pyramid and the
+  // dependent bind groups for the current canvas size and MSAA setting. The
+  // post-side targets (AO, TAA history) come along via rebuildPostTargets,
+  // which frame() also calls ALONE when only a post option flipped.
+  private rebuildTargets(w: number, h: number, msaa: boolean, wantPost: boolean, wantAo: boolean) {
+    const dev = this.device;
+    this.depth?.destroy();
+    this.sceneColor?.destroy();
+    this.msColor?.destroy();
+    this.normalTex?.destroy();
+    this.idTex?.destroy();
+    this.msColor = null;
+    this.normalTex = null;
+    this.idTex = null;
+    this.targetsMsaa = msaa;
+
+    this.depth = dev.createTexture({
+      label: 'depthTex',
+      size: [w, h],
+      format: 'depth32float',
+      sampleCount: msaa ? 4 : 1,
+      usage:
+        GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | (msaa ? 0 : GPUTextureUsage.COPY_SRC),
+    });
+    this.sceneColor = dev.createTexture({
+      label: 'sceneColorTex',
+      size: [w, h],
+      format: this.format,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+    });
+    if (msaa) {
+      this.msColor = dev.createTexture({
+        label: 'msColorTex',
+        size: [w, h],
+        format: this.format,
+        sampleCount: 4,
+        // TEXTURE_BINDING: the post pass reads helper-overlay samples from it
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      });
+    }
+    // G-buffer matches the scene sample count; the edge pass reads it
+    // per sample under MSAA (id packed in rgba8unorm — no integer MSAA).
+    const mkGbuf = (copySrc: boolean) =>
+      dev.createTexture({
+        label: 'gbufTex',
+        size: [w, h],
+        format: 'rgba8unorm',
+        sampleCount: msaa ? 4 : 1,
+        usage:
+          GPUTextureUsage.RENDER_ATTACHMENT |
+          GPUTextureUsage.TEXTURE_BINDING |
+          (copySrc && !msaa ? GPUTextureUsage.COPY_SRC : 0),
+      });
+    this.normalTex = mkGbuf(false);
+    this.idTex = mkGbuf(true); // item picking reads single pixels back
+
+    this.pickDepthBind = dev.createBindGroup({
+      label: 'pickDepthBind',
+      layout: (msaa ? this.pickDepthMsPipeline : this.pickDepthPipeline).getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: this.depth.createView() },
+        { binding: 1, resource: { buffer: this.pickParamsBuf } },
+        { binding: 2, resource: { buffer: this.pickOutBuf } },
+      ],
+    });
+
+    this.rebuildPostTargets(w, h, msaa, wantPost, wantAo);
+    this.rebuildHzb(w, h, msaa); // used by both the MDI and vertex-pull cull
+  }
+
+  // The post-side targets only: VBAO output + history and the TAA history
+  // pair, plus the bind groups that read them together with the scene
+  // targets. Toggling AO / edges / debug used to recreate depth, MSAA colour,
+  // the G-buffer and the HZB as well, although none of those change.
+  private rebuildPostTargets(w: number, h: number, msaa: boolean, wantPost: boolean, wantAo: boolean) {
+    const dev = this.device;
+    this.histA?.destroy();
+    this.histB?.destroy();
+    this.targetsPost = wantPost;
+    this.targetsAo = wantAo;
+    this.accumIdx = 0;
+
+    // VBAO output + temporal history (always single-sample; reads depth sample 0)
+    this.aoTex?.destroy();
+    this.aoHist?.destroy();
+    // aoTex/aoHist are storage+sampled only (never attachments): 1×1 dummies
+    // keep every bind group valid while VBAO is off — 8 B/px reclaimed
+    const mkAo = () =>
+      dev.createTexture({
+        label: 'aoTex',
+        size: wantAo ? [w, h] : [1, 1],
+        format: 'r32float',
+        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+      });
+    this.aoTex = mkAo();
+    this.aoHist = mkAo();
+    this.aoAccum = 0;
+    this.aoBind = dev.createBindGroup({
+      label: 'aoBind',
+      layout: (msaa ? this.vbaoMsPipeline : this.vbaoPipeline).getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: this.depth!.createView() },
+        { binding: 1, resource: this.aoTex.createView() },
+        { binding: 2, resource: this.aoHist.createView() },
+        { binding: 3, resource: { buffer: this.aoParamsBuf } },
+      ],
+    });
+
+    // the post pass renders into the history pair (attachment sizes must match
+    // the pass), so they are full-size exactly when post runs — 16 B/px back
+    // in the plain no-AA/no-edges/no-AO path
+    const mkHist = () =>
+      dev.createTexture({
+        label: 'histTex',
+        size: wantPost ? [w, h] : [1, 1],
+        format: 'rgba16float',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      });
+    this.histA = mkHist();
+    this.histB = mkHist();
+
+    const mkPostBind = (history: GPUTexture) => {
+      return dev.createBindGroup({
+        label: 'postBind',
+        layout: (msaa ? this.postMsPipeline : this.postPipeline).getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: this.sceneColor!.createView() },
+          { binding: 1, resource: this.depth!.createView() },
+          { binding: 2, resource: { buffer: this.postParamsBuf } },
+          { binding: 3, resource: history.createView() },
+          { binding: 4, resource: this.normalTex!.createView() },
+          { binding: 5, resource: this.idTex!.createView() },
+          { binding: 6, resource: this.aoTex!.createView() },
+          // MSAA: the unresolved colour, read per sample for the helper overlays
+          ...(msaa ? [{ binding: 7, resource: this.msColor!.createView() }] : []),
+        ],
+      });
+    };
+    this.postBindEven = mkPostBind(this.histA);
+    this.postBindOdd = mkPostBind(this.histB);
+  }
+
+  private rebuildHzb(w: number, h: number, msaa: boolean) {
+    const dev = this.device;
+    this.hzb?.destroy();
+    const pw = Math.max(1, w >> 1);
+    const ph = Math.max(1, h >> 1);
+    this.hzbMipCount = Math.floor(Math.log2(Math.max(pw, ph))) + 1;
+    this.hzb = dev.createTexture({
+      label: 'hzbTex',
+      size: [pw, ph],
+      format: 'r32float',
+      mipLevelCount: this.hzbMipCount,
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+    });
+
+    this.hzbBinds = [];
+    this.hzbMipSizes = [];
+    for (let i = 0; i < this.hzbMipCount; i++) {
+      const firstPipeline = msaa ? this.hzbFirstMsPipeline : this.hzbFirstPipeline;
+      const src = i === 0 ? this.depth!.createView() : this.hzb.createView({ baseMipLevel: i - 1, mipLevelCount: 1 });
+      this.hzbBinds.push(
+        dev.createBindGroup({
+          label: 'hzbBind',
+          layout: (i === 0 ? firstPipeline : this.hzbDownPipeline).getBindGroupLayout(0),
+          entries: [
+            { binding: 0, resource: src },
+            { binding: 1, resource: this.hzb.createView({ baseMipLevel: i, mipLevelCount: 1 }) },
+          ],
+        }),
+      );
+      this.hzbMipSizes.push([Math.max(1, pw >> i), Math.max(1, ph >> i)]);
+    }
+
+    this.cull2ParamsBind = dev.createBindGroup({
+      label: 'cull2ParamsBind',
+      layout: this.cull2Pipeline.getBindGroupLayout(1),
+      entries: [
+        { binding: 0, resource: { buffer: this.paramsBuf } },
+        { binding: 1, resource: this.hzb.createView() },
+        { binding: 2, resource: { buffer: this.newBudgetBuf } },
+        { binding: 3, resource: { buffer: this.clipBuf } },
+      ],
+    });
+    this.cullVp2ParamsBind = dev.createBindGroup({
+      label: 'cullVp2ParamsBind',
+      layout: this.cullVp2Pipeline.getBindGroupLayout(1),
+      entries: [
+        { binding: 0, resource: { buffer: this.paramsBuf } },
+        { binding: 1, resource: this.hzb.createView() },
+        { binding: 2, resource: { buffer: this.newBudgetBuf } },
+        { binding: 3, resource: { buffer: this.clipBuf } },
+      ],
+    });
+  }
+
+  frame(canvas: HTMLCanvasElement) {
+    const t0 = performance.now();
+    const dev = this.device;
+    const opt = this.options;
+    this.timings.enabled = !!opt.gpuTimings;
+
+    const w = (canvas.clientWidth * this.dpr * this.captureScale) | 0;
+    const h = (canvas.clientHeight * this.dpr * this.captureScale) | 0;
+    // Live resize: hold the backing size (and every target) until the CSS
+    // size has been stable for RESIZE_SETTLE_MS — the canvas is 100% wide
+    // and high, so it stretches meanwhile. The first frame and a rebuild
+    // after device loss apply at once. This sits above the idle skip, so a
+    // pending size is applied on a later tick even after the loop went idle.
+    if (w !== this.pendingW || h !== this.pendingH) {
+      this.pendingW = w;
+      this.pendingH = h;
+      this.pendingSizeT = t0;
+    }
+    const sizeSettled = !this.depth || t0 - this.pendingSizeT >= RESIZE_SETTLE_MS;
+    const sizeChanged = sizeSettled && (canvas.width !== w || canvas.height !== h);
+    if (sizeChanged) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    // post is needed by AA/edges/AO/debug/sketch — and it is what makes the
+    // hold path possible (it re-presents the offscreen scene into the swapchain)
+    const anyEdges = opt.geoEdges || opt.itemEdges || opt.sketch;
+    const usePost = opt.fastAA || anyEdges || opt.msaa4x || opt.debugBuf > 0 || opt.aoMode !== 0;
+    // debug view 5 dispatches VBAO for display even with aoMode off
+    const needAo = opt.aoMode !== 0 || opt.debugBuf === 5;
+    if (sizeChanged || !this.depth || this.targetsMsaa !== opt.msaa4x) {
+      this.rebuildTargets(canvas.width, canvas.height, opt.msaa4x, usePost, needAo);
+    } else if (this.targetsPost !== usePost || this.targetsAo !== needAo) {
+      this.rebuildPostTargets(canvas.width, canvas.height, opt.msaa4x, usePost, needAo);
+    }
+
+    const now0 = performance.now();
+    this.camera.update(Math.min(0.1, (now0 - this.lastFrame) / 1000));
+    this.lastFrame = now0;
+
+    this.camera.ortho = opt.orthographic;
+    if (opt.orthographic) {
+      // per-frame depth slab: scene AABB corners projected onto the view axis
+      // (native frame.rs ortho setup)
+      const eye = this.camera.eye();
+      const fwd = this.camera.forward();
+      let dMin = Infinity,
+        dMax = -Infinity;
+      const sb = this.sceneBounds;
+      for (let c = 0; c < 8; c++) {
+        const x = (c & 1 ? sb.max : sb.min)[0] - eye[0];
+        const y = (c & 2 ? sb.max : sb.min)[1] - eye[1];
+        const z = (c & 4 ? sb.max : sb.min)[2] - eye[2];
+        const d = x * fwd[0] + y * fwd[1] + z * fwd[2];
+        dMin = Math.min(dMin, d);
+        dMax = Math.max(dMax, d);
+      }
+      if (!Number.isFinite(dMin)) {
+        dMin = 0.1;
+        dMax = 100;
+      }
+      const margin = Math.max(dMax - dMin, 1) * 0.05 + 0.5;
+      this.camera.orthoNear = dMin - margin;
+      this.camera.orthoFar = dMax + margin;
+    }
+
+    const vp = this.camera.viewProj(canvas.width / canvas.height);
+
+    // px cut only applies while the camera is moving; the first still frame
+    // re-renders at full quality (pxCut change alters the key), then goes idle.
+    const vpKey = `${vp.join(',')};${canvas.width}x${canvas.height};${this.models.length}`;
+    const moving = vpKey !== this.lastVpKey;
+    this.lastVpKey = vpKey;
+    if (moving) {
+      this.lastMoveT = performance.now();
+    }
+    // the always-on cut is a FLOOR: at rest it is the whole cut, while moving
+    // the (larger) movement cut takes over — never less than the floor, or
+    // coming to a stop would draw MORE than the moving frames did
+    const pxCut = moving || this.wasMoving ? Math.max(opt.pxCut, opt.pxCutAlways) : opt.pxCutAlways;
+    this.wasMoving = moving;
+    // The idle skip renders only when this key changes: every option that
+    // changes the picture belongs in it, or changing it waits for a camera move.
+    const key =
+      `${vpKey};${pxCut};${opt.meshletVis};${opt.protectDist};` +
+      `${opt.fastAA};${opt.msaa4x};${opt.freezeCull};${opt.cullMoved};` +
+      `${opt.geoEdges};${opt.itemEdges};${opt.sketch};${opt.edgeColor.join(',')};${opt.fadeExp};` +
+      `${opt.depthThr};${opt.normalThr};${opt.whiteOnDark};${opt.darkThr};${opt.darkFloor};${opt.debugBuf};` +
+      `${opt.smoothDepthThr};${opt.smoothNormalThr};${opt.smoothFadeExp};` +
+      `${opt.flatMeshEdges};${opt.smoothMeshEdges};${opt.sketchRespectsEdgesOff};` +
+      `${opt.sketchColorMode};${opt.sketchFillStrength};` +
+      `${opt.aoMode};${opt.aoRadius};${opt.aoStrength};${opt.aoSlices};${opt.aoSamples};` +
+      `${opt.bgColor.join(',')};${opt.ambientColor.join(',')};${opt.ambientIntensity};` +
+      `${opt.headlightColor.join(',')};${opt.headlightIntensity};${opt.vertexPull};` +
+      `${opt.selectionColor.join(',')};${opt.suppressTintOnOverride};${this.stateVersion};${this.clipVersion};` +
+      `${opt.transparencyBlend};${opt.transparencyBackdrop};${opt.backdropFade};${opt.hasTransparency};${opt.aaSamples};` +
+      // outline: static options only — the hover id and pulse phase go through
+      // the hold path instead so they never reset TAA/AO accumulation
+      `${opt.outlineHover};${opt.outlineSelection};${opt.selectionTint};${opt.outlineStrength};` +
+      `${opt.outlineGlow};${opt.outlineThickness};${opt.outlinePulse};${opt.outlineSelectionActive};` +
+      `${opt.outlineVisibleColor.join(',')};${opt.outlineHiddenColor.join(',')};${opt.outlineHiddenWhenStill};` +
+      // view cube hover/position/palette must break the idle skip or the
+      // overlay freezes once TAA converges (hover highlight, handle drags,
+      // Settings colour changes)
+      this.viewCube.stateKey +
+      // likewise the scan panorama (setup, faces, opacity, mode) and the
+      // streamed scan points (drawn set, style)
+      this.pano.stateKey +
+      this.pointsLayer.stateKey;
+
+    // outline effect: is anything outlined, and does it need frames beyond
+    // convergence (hover changed, or the pulse animation is running)?
+    const effHover = opt.outlineHover ? this.hoverItemId : 0;
+    const outlineOn =
+      this.models.length > 0 && (effHover !== 0 || (opt.outlineSelection && opt.outlineSelectionActive));
+    // hidden-when-still: the hidden part waits until the camera has rested;
+    // keep rendering until the outline shows it, even once the scene itself
+    // would go idle
+    const outlineHidden = !opt.outlineHiddenWhenStill || performance.now() - this.lastMoveT >= OUTLINE_HIDDEN_STILL_MS;
+    const outlineWork =
+      (opt.outlineHover && effHover !== this.drawnHoverId) ||
+      (outlineOn && opt.outlinePulse > 0) ||
+      (outlineOn && !this.outline.showsHidden);
+
+    // Idle / TAA accumulation. While the scene is unchanged, TAA keeps
+    // rendering jittered frames into the running average until converged;
+    // only then (or immediately without TAA) does the renderer go idle.
+    // Converged frames forced anyway (outline hover/pulse, snapshots) take
+    // the HOLD path: skip the scene re-render, re-present the converged
+    // accumulation, and draw only the overlays — so animated overlays never
+    // corrupt or restart the accumulated image (native hover-fast-path idea).
+    // Picks alone need not even that: a complete scene answers them from the
+    // last frame's targets (submitPicksOnly), the swapchain untouched.
+    // Burst hold (residency): every scene frame is sample 0 — converged at
+    // once, no AO. Releasing the hold breaks the key once so exactly one full
+    // convergence follows the burst.
+    const holdAccum = this.holdAccumulation;
+    if (holdAccum && !this.wasHoldingAccum) {
+      this.heldAtHoldStart = this.heldFrames;
+    } else if (!holdAccum && this.wasHoldingAccum && this.heldFrames !== this.heldAtHoldStart) {
+      this.lastKey = '';
+    }
+    this.wasHoldingAccum = holdAccum;
+
+    if (opt.traceKey && !moving && this.lastKey !== '' && key !== this.lastKey) {
+      this.traceKeyChange(this.lastKey, key);
+    }
+
+    // Has everything the cap deferred arrived? The budget readback answers it
+    // directly: pass 2 reporting nothing new is the occlusion's fixed point
+    // (resolveCapBudget). Waiting on that instead of on a frame count is what
+    // keeps a weak GPU from paying a fixed toll of full-cost redraws after
+    // every camera stop — the camera coming to rest changes the pixel cut, so
+    // the window opens on EVERY stop whether or not anything was deferred.
+    //
+    // settleFrames is the ceiling for the case where the readback never
+    // settles (a meshlet oscillating across the occlusion boundary keeps the
+    // count off zero forever), not a floor every change has to pay. The wall
+    // clock caps it as well, but only once a readback for this scene has
+    // answered — never idle on a stale count from the previous state.
+    // Without culling nothing can be deferred in the first place.
+    const cullConverges = this.drawCountsUsable && this.models.length > 0;
+    const settleCeiling =
+      this.frameCounter - this.keyChangeFrame >= Math.max(0, Math.floor(opt.settleFrames)) ||
+      (this.capReadFresh && performance.now() - this.keyChangeT >= SETTLE_CEILING_MS);
+    const settled = !cullConverges || this.zeroNewReads >= SETTLE_ZERO_READS || settleCeiling;
+    let hold = false;
+    if (key === this.lastKey) {
+      const taaConverged = holdAccum || !opt.fastAA || this.accumIdx >= this.aaMax - 1;
+      const aoConverged = holdAccum || opt.aoMode === 0 || this.aoAccum >= this.aaMax - 1;
+      // the scene is complete: accumulation done, nothing owed by the cap (a
+      // late readback re-arms capBacklog and the next tick renders), no
+      // snapshot waiting on it and no outline animating
+      const complete = taaConverged && aoConverged && settled && !this.pendingSnap && !outlineWork && !this.capBacklog;
+      if (complete) {
+        if (this.pendingPick || this.itemPick.hasPending) {
+          this.submitPicksOnly(canvas);
+        }
+        this.idle = true;
+        this.frames = 0;
+        this.lastStat = performance.now();
+        return;
+      }
+      if (!taaConverged && opt.fastAA) {
+        this.accumIdx++;
+      }
+      if (!aoConverged && opt.aoMode !== 0) {
+        this.aoAccum++;
+      }
+      // a held frame re-presents the accumulation and encodes NOTHING
+      // scene-side, so it can neither drain a capped backlog nor advance the
+      // settle window — both keep the full path
+      hold = usePost && taaConverged && aoConverged && settled && !this.capBacklog;
+    } else {
+      this.accumIdx = 0; // scene changed: restart accumulation
+      this.aoAccum = 0;
+      this.accumResets++;
+      this.keyChangeFrame = this.frameCounter;
+      this.keyChangeT = performance.now();
+      this.zeroNewReads = 0;
+      this.capReadFresh = false;
+    }
+    this.lastKey = key;
+    this.idle = false;
+    this.frameCounter++;
+    if (!hold) {
+      this.sceneFrames++;
+      if (holdAccum) {
+        this.heldFrames++;
+      }
+    }
+    this.accumCount = opt.fastAA ? this.accumIdx + 1 : 0;
+    // this frame completes accumulation → it's the one a snapshot may capture
+    // (same convergence terms as the idle check above)
+    const snapReady =
+      (!opt.fastAA || this.accumIdx >= this.aaMax - 1) && (opt.aoMode === 0 || this.aoAccum >= this.aaMax - 1);
+
+    // lastVP holds the STABLE (un-jittered) matrix. The label overlay (boxes +
+    // leader lines), picking and world→screen projection all read it via
+    // viewProjMatrix — the TAA jitter below must NOT leak into that host-side
+    // math, or labels and leader lines shimmer sub-pixel while AA accumulates.
+    // Only the GPU frame buffer gets the jittered copy.
+    this.lastVP.set(vp);
+
+    // Sub-pixel projection jitter (Halton 2,3) while accumulating. Applied
+    // after the change check so jitter itself never counts as camera motion.
+    let jx = 0;
+    let jy = 0;
+    if (opt.fastAA) {
+      const halton = (i: number, b: number) => {
+        let f = 1,
+          r = 0;
+        while (i > 0) {
+          f /= b;
+          r += f * (i % b);
+          i = Math.floor(i / b);
+        }
+        return r;
+      };
+      jx = ((halton(this.accumIdx + 1, 2) - 0.5) * 2) / canvas.width;
+      jy = ((halton(this.accumIdx + 1, 3) - 0.5) * 2) / canvas.height;
+      for (let c = 0; c < 4; c++) {
+        vp[c * 4 + 0] += jx * vp[c * 4 + 3];
+        vp[c * 4 + 1] += jy * vp[c * 4 + 3];
+      }
+    }
+
+    const eye = this.camera.eye();
+    // CAMERA-RELATIVE RENDERING: the GPU gets the world rebased on a per-frame
+    // origin near the camera, because an absolute f32 coordinate resolves only
+    // ~1 mm at 10 km — enough to z-fight coincident faces AND to wreck the
+    // screen-space derivative the flat shading takes its face normal from.
+    // The origin is the eye ROUNDED, so it only changes when the camera has
+    // moved a whole unit (a stable basis frame to frame, which keeps TAA
+    // accumulation from seeing the rebase as motion). lastVP / lastView stay
+    // ABSOLUTE — host-side picking, the label overlay and the cull pass all
+    // work in world space.
+    const origin: [number, number, number] = [Math.round(eye[0]), Math.round(eye[1]), Math.round(eye[2])];
+    const vpRel = this.camera.viewProjRelative(canvas.width / canvas.height, origin);
+    for (let c = 0; c < 4; c++) {
+      vpRel[c * 4 + 0] += jx * vpRel[c * 4 + 3];
+      vpRel[c * 4 + 1] += jy * vpRel[c * 4 + 3];
+    }
+    const frameData = new ArrayBuffer(FRAME_SIZE);
+    const ff = new Float32Array(frameData);
+    ff.set(vpRel, FRAME_SLOT.viewProj);
+    ff.set([...origin, 0], FRAME_SLOT.origin);
+    ff[FRAME_SLOT.darkFloor] = opt.darkFloor;
+    ff.set([eye[0] - origin[0], eye[1] - origin[1], eye[2] - origin[2], 1], FRAME_SLOT.eye);
+    const fu = new Uint32Array(frameData);
+    fu[FRAME_SLOT.flags] = opt.meshletVis ? 1 : 0;
+    fu[FRAME_SLOT.flags + 1] = opt.suppressTintOnOverride ? 1 : 0;
+    fu[FRAME_SLOT.flags + 2] = opt.transparencyBlend ? 1 : 0; // bit1 (blend pass) set in slot 2
+    fu[FRAME_SLOT.flags + 3] = this.accumIdx; // alpha-hash seed
+    // ortho: directional headlight along the view axis (surface -> light = -fwd)
+    const fwd = this.camera.forward();
+    ff.set([-fwd[0], -fwd[1], -fwd[2], opt.orthographic ? 1 : 0], FRAME_SLOT.light);
+    ff.set([...opt.ambientColor, opt.ambientIntensity], FRAME_SLOT.ambient);
+    ff.set([...opt.headlightColor, opt.headlightIntensity], FRAME_SLOT.headlight);
+    // selection REPLACES the color (a = blend); outline-only style zeroes the
+    // blend so selected items keep their true color (outline shows instead)
+    ff.set([...opt.selectionColor, opt.selectionTint ? 1.0 : 0.0], FRAME_SLOT.selColor);
+    ff.set([...opt.bgColor, opt.backdropFade], FRAME_SLOT.backdrop);
+    dev.queue.writeBuffer(this.frameBuf, 0, frameData);
+    this.pointsLayer.prepare(origin, canvas.width, canvas.height, this.camera.lastP11, this.dpr * this.captureScale);
+    // vp = vertex pulling (core WebGPU); mdi = multi-draw indirect (feature);
+    // full = no culling, static all-meshlets vertex-pull draw
+    const cullMode: 'mdi' | 'vp' | 'full' = opt.vertexPull ? 'vp' : this.multiDraw ? 'mdi' : 'full';
+    this.cullMode = cullMode;
+    // blend mode with culling: the cull routes transparent meshlets into a
+    // depth-sorted list the blend pass draws with the facing split (DESIGN.md
+    // "Sorted blend pass"); the no-cull fallback keeps the vertex-shader
+    // routing over its static full list
+    const sortActive = opt.transparencyBlend && opt.hasTransparency && cullMode !== 'full';
+    // blend-pass slot: bit1 blend pass, bit2 Background mode, bit3 sorted list
+    fu[FRAME_SLOT.flags + 2] |= (opt.transparencyBackdrop ? 6 : 2) | (sortActive ? 8 : 0);
+    dev.queue.writeBuffer(this.frameBuf, 256, frameData);
+    this.lastFrameData = frameData;
+    const cullActive = cullMode !== 'full' && this.models.length > 0 && !opt.freezeCull && !hold;
+
+    if (cullActive) {
+      // (cull params below are only consumed by the cull dispatches)
+      const params = new ArrayBuffer(PARAMS_SIZE);
+      const pf = new Float32Array(params);
+      pf.set(this.frustumPlanes(vp), 0); // 0..24
+      pf.set(this.camera.lastView, 24); // 24..40
+      pf.set([...eye, 1], 40); // 40..44
+      pf[44] = this.camera.lastP00;
+      pf[45] = this.camera.lastP11;
+      pf[46] = this.camera.near;
+      pf[47] = this.hzbMipCount;
+      pf[48] = this.hzbMipSizes[0]?.[0] ?? 1;
+      pf[49] = this.hzbMipSizes[0]?.[1] ?? 1;
+      pf[50] = pxCut;
+      pf[51] = opt.protectDist;
+      pf[52] = canvas.height;
+      new Uint32Array(params)[53] = opt.orthographic ? 1 : 0;
+      pf[54] = this.camera.orthoNear;
+      pf[55] = this.camera.orthoFar;
+      new Uint32Array(params)[56] = sortActive ? 1 : 0;
+      pf[57] = this.sortFar(eye);
+      new Uint32Array(params)[58] = Math.max(0, Math.floor(opt.newMeshletCap));
+      new Uint32Array(params)[59] = opt.cullMoved ? 1 : 0;
+      dev.queue.writeBuffer(this.paramsBuf, 0, params);
+    }
+
+    // AO runs in Motion mode every frame, in Static mode only while the camera
+    // is still. Static+moving neither computes NOR applies AO (a stale buffer
+    // would ghost old-viewpoint shadows onto new geometry), and when the
+    // dispatch resumes the accumulator restarts so blend=1 overwrites history.
+    const aoActive = !holdAccum && (opt.aoMode === 1 || (opt.aoMode === 2 && !moving && this.models.length > 0));
+    if (aoActive && !this.aoRanLastFrame) {
+      this.aoAccum = 0;
+    }
+    this.aoRanLastFrame = aoActive;
+
+    if (usePost) {
+      const pp = new ArrayBuffer(80);
+      const pu = new Uint32Array(pp);
+      const pf = new Float32Array(pp);
+      pu[0] = this.accumIdx;
+      pu[1] = this.accumIdx + 1;
+      // the raw-edge debug view needs both edge signals computed
+      const dbgEdges = opt.debugBuf === 4;
+      pu[2] =
+        (opt.geoEdges || dbgEdges || opt.sketch ? 1 : 0) |
+        (opt.itemEdges || dbgEdges || opt.sketch ? 2 : 0) |
+        (opt.fastAA ? 4 : 0) |
+        (opt.whiteOnDark ? 8 : 0) |
+        ((opt.debugBuf & 7) << 4) |
+        (aoActive || opt.debugBuf === 5 ? 256 : 0) |
+        (opt.orthographic ? 512 : 0) |
+        (hold && opt.fastAA ? 1024 : 0) | // re-present the sum, don't accumulate
+        (opt.sketch ? 2048 : 0) | // white paper, black edge lines
+        (opt.smoothMeshEdges ? 0 : 4096) | // smooth-mesh edge lines OFF
+        (opt.flatMeshEdges ? 0 : 8192) | // flat-mesh edge lines OFF
+        (opt.sketchRespectsEdgesOff ? 16384 : 0) |
+        (opt.sketch && opt.sketchColorMode === 'fill' ? 32768 : 0) |
+        (opt.sketch && opt.sketchColorMode === 'edges' ? 65536 : 0);
+      pf[3] = this.camera.near;
+      pf.set([...opt.edgeColor, 1], 4);
+      pf[8] = opt.depthThr;
+      pf[9] = opt.normalThr;
+      pf[10] = opt.fadeExp;
+      pf[11] = opt.darkThr;
+      pf[12] = opt.debugBuf === 5 ? 0 : opt.aoStrength; // debug view shows raw buffer
+      pf[13] = this.camera.orthoNear;
+      pf[14] = this.camera.orthoFar;
+      pf[15] = this.camera.focusDist;
+      // smooth-mesh (authored normals) edge tuning
+      pf[16] = opt.smoothDepthThr;
+      pf[17] = opt.smoothNormalThr;
+      pf[18] = opt.smoothFadeExp;
+      pf[19] = opt.sketchFillStrength;
+      dev.queue.writeBuffer(this.postParamsBuf, 0, pp);
+    }
+
+    if (aoActive || opt.debugBuf === 5) {
+      const ap = new ArrayBuffer(64);
+      const af = new Float32Array(ap);
+      const au = new Uint32Array(ap);
+      af[0] = 1 / canvas.width;
+      af[1] = 1 / canvas.height;
+      af[2] = opt.aoRadius;
+      af[3] = 0.1; // ao_bias: min elevation above tangent plane
+      au[4] = this.aoAccum; // seed: fixed while moving -> stable noise pattern
+      au[5] = Math.max(1, opt.aoSlices);
+      au[6] = Math.max(1, Math.min(12, opt.aoSamples));
+      af[7] = 1 / (this.aoAccum + 1); // blend: running average like native
+      af[8] = this.camera.near;
+      af[9] = 0.5; // thickness_m: occluder slab depth
+      af[10] = this.camera.lastP00;
+      af[11] = this.camera.lastP11;
+      au[12] = opt.orthographic ? 1 : 0;
+      af[13] = this.camera.orthoHalfH;
+      af[14] = this.camera.orthoNear;
+      af[15] = this.camera.orthoFar;
+      dev.queue.writeBuffer(this.aoParamsBuf, 0, ap);
+    }
+
+    const enc = dev.createCommandEncoder();
+    const swapTex = this.context.getCurrentTexture();
+    const swapView = swapTex.createView();
+    const sceneView = usePost ? this.sceneColor!.createView() : swapView;
+    const clearColor = { r: opt.bgColor[0], g: opt.bgColor[1], b: opt.bgColor[2], a: 1 };
+    const renderPipeline = opt.msaa4x ? this.renderPipeline4x : this.renderPipeline1x;
+
+    // The blend pass is the last scene pass when it runs; the same predicate
+    // gates its early return below so `resolve` and the pass agree.
+    const hasBlendPass = opt.transparencyBlend && opt.hasTransparency && this.models.length > 0 && !opt.sketch;
+    // Scene pass attachments: with MSAA render into the 4x target and resolve
+    // into the post input; without MSAA also write the G-buffer (normal + id)
+    // consumed by the edge pass. `resolve` is set on the LAST scene pass only:
+    // the 4x target is kept ('store') between passes and nothing reads
+    // sceneColor before the post pass, so earlier resolves were pure cost.
+    const sceneAttachments = (clear: boolean, resolve: boolean): GPURenderPassColorAttachment[] => {
+      const load: GPULoadOp = clear ? 'clear' : 'load';
+      const color: GPURenderPassColorAttachment = opt.msaa4x
+        ? {
+            view: this.msColor!.createView(),
+            ...(resolve ? { resolveTarget: sceneView } : {}),
+            clearValue: clearColor,
+            loadOp: load,
+            storeOp: 'store',
+          }
+        : { view: sceneView, clearValue: clearColor, loadOp: load, storeOp: 'store' };
+      return [
+        color,
+        {
+          view: this.normalTex!.createView(),
+          clearValue: { r: 0, g: 0, b: 0, a: 0 },
+          loadOp: load,
+          storeOp: 'store',
+        },
+        {
+          view: this.idTex!.createView(),
+          clearValue: { r: 0, g: 0, b: 0, a: 0 },
+          loadOp: load,
+          storeOp: 'store',
+        },
+      ];
+    };
+    const depthAttachment = (clear: boolean): GPURenderPassDepthStencilAttachment => ({
+      view: this.depth!.createView(),
+      depthClearValue: 0, // reversed-Z
+      depthLoadOp: clear ? 'clear' : 'load',
+      depthStoreOp: 'store',
+    });
+
+    const vpPipeline = opt.msaa4x ? this.renderVpPipeline4x : this.renderVpPipeline1x;
+    const pick4 = (p1: GPURenderPipeline, p4: GPURenderPipeline) => (opt.msaa4x ? p4 : p1);
+    const blendPipeline = opt.transparencyBackdrop
+      ? pick4(this.renderBackdrop1x, this.renderBackdrop4x)
+      : pick4(this.renderBlend1x, this.renderBlend4x);
+    const vpBlendPipeline = opt.transparencyBackdrop
+      ? pick4(this.renderVpBackdrop1x, this.renderVpBackdrop4x)
+      : pick4(this.renderVpBlend1x, this.renderVpBlend4x);
+    // draw all models' draw list (pass 1, pass 2 or the sorted transparent
+    // list) with the mode's submission; blend=true selects the transparency
+    // pipeline and the blend-pass frame slot
+    const drawScene = (pass: GPURenderPassEncoder, list: DrawList, blend = false) => {
+      const frameOffset = [blend ? 256 : 0];
+      if (cullMode === 'mdi') {
+        pass.setPipeline(blend ? blendPipeline : renderPipeline);
+        for (const m of this.models) {
+          // meshletCount 0 also covers a fully-cut coarse variant, whose
+          // minimum-sized geometry buffers would fail draw-time binding checks.
+          // The blend pass skips a model with nothing transparent: its sorted
+          // list is empty (and the no-cull full list would only degenerate).
+          if (m.dead || m.meshletCount === 0 || (blend && !m.transparent)) {
+            continue;
+          }
+          pass.setBindGroup(0, m.renderBind, frameOffset);
+          pass.setVertexBuffer(0, m.vertexBuf);
+          pass.setIndexBuffer(m.indexBuf, 'uint16');
+          const { buf, offset } = drawListOf(m, list);
+          (
+            pass as unknown as {
+              multiDrawIndexedIndirect(b: GPUBuffer, o: number, max: number, cb: GPUBuffer, co: number): void;
+            }
+          ).multiDrawIndexedIndirect(buf, 0, m.meshletCount, this.countsBuf, offset);
+        }
+      } else {
+        pass.setPipeline(blend ? vpBlendPipeline : vpPipeline);
+        for (const m of this.models) {
+          if (m.dead || m.meshletCount === 0 || (blend && !m.transparent)) {
+            continue;
+          }
+          pass.setBindGroup(0, m.renderBind, frameOffset);
+          if (cullMode === 'vp') {
+            pass.setBindGroup(1, drawListOf(m, list).vpBind);
+            pass.drawIndirect(this.countsBuf, vpArgsOffsetOf(m, list));
+          } else {
+            // full: static all-meshlets list, no culling
+            pass.setBindGroup(1, m.vpGeoBindFull);
+            pass.drawIndirect(m.fullArgsBuf, 0);
+          }
+        }
+      }
+    };
+    // transparency pass (blend mode only): the cull's depth-sorted transparent
+    // list, back-to-front with the facing split (no-cull fallback: the static
+    // full list, routed in the vertex shader).
+    // Sketch mode skips the pass outright: blend mode routes every transparent
+    // item here, and on the white paper they would only smear colour (the
+    // opaque pass already leaves them out in blend mode) — so they are simply
+    // not drawn, edges included
+    const drawBlendPass = (enc2: GPUCommandEncoder) => {
+      if (!hasBlendPass) {
+        return;
+      }
+      const pass = enc2.beginRenderPass({
+        colorAttachments: sceneAttachments(false, true),
+        depthStencilAttachment: depthAttachment(false),
+        timestampWrites: this.timings.writes(6),
+      });
+      if (opt.transparencyBackdrop) {
+        // background mode: the depth range squeezes every fragment of this
+        // pass under BACKDROP_DEPTH_MAX, below any foreground depth, so the
+        // `greater` test hides them wherever something opaque was drawn while
+        // they still occlude each other. The items render solid: a backdrop
+        // layer behind everything opaque, the transparency itself gone.
+        pass.setViewport(0, 0, canvas.width, canvas.height, 0, BACKDROP_DEPTH_MAX);
+      }
+      drawScene(pass, cullMode === 'full' ? 1 : TRANSPARENT_LIST, true);
+      pass.end();
+    };
+
+    if (hold) {
+      // hold path: the scene, G-buffer, depth, HZB, AO and history all still
+      // hold the converged frame — nothing scene-side is encoded at all. Post
+      // (below) re-presents the accumulation; only overlays render fresh.
+    } else if (cullMode !== 'full' && this.models.length > 0) {
+      const vp = cullMode === 'vp';
+      if (cullActive) {
+        enc.clearBuffer(this.countsBuf, 0, this.models.length * COUNT_SLOT * COUNT_SLOTS);
+        enc.clearBuffer(this.newBudgetBuf);
+        if (sortActive) {
+          for (const m of this.models) {
+            if (!m.dead && m.meshletCount > 0 && m.transparent) {
+              enc.clearBuffer(m.sortBuf, 0, SORT_CLEAR_BYTES);
+            }
+          }
+        }
+
+        // cull pass 1: meshlets visible last frame, frustum + cone
+        const cull1 = enc.beginComputePass({ timestampWrites: this.timings.writes(0) });
+        cull1.setPipeline(vp ? this.cullVp1Pipeline : this.cull1Pipeline);
+        cull1.setBindGroup(1, vp ? this.cullVp1ParamsBind : this.cull1ParamsBind);
+        for (const m of this.models) {
+          if (m.dead || m.meshletCount === 0) {
+            continue;
+          }
+          cull1.setBindGroup(0, vp ? m.cullVpBind1 : m.cullBind1);
+          cull1.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
+        }
+        cull1.end();
+      }
+
+      // render pass 1 (frozen: replay last frozen records)
+      const pass1 = enc.beginRenderPass({
+        colorAttachments: sceneAttachments(true, false),
+        depthStencilAttachment: depthAttachment(true),
+        timestampWrites: this.timings.writes(1),
+      });
+      drawScene(pass1, 1);
+      pass1.end();
+
+      if (cullActive) {
+        // HZB build: min-reduce depth into the pyramid chain
+        const hzbPass = enc.beginComputePass({ timestampWrites: this.timings.writes(2) });
+        for (let i = 0; i < this.hzbMipCount; i++) {
+          hzbPass.setPipeline(
+            i === 0 ? (opt.msaa4x ? this.hzbFirstMsPipeline : this.hzbFirstPipeline) : this.hzbDownPipeline,
+          );
+          hzbPass.setBindGroup(0, this.hzbBinds[i]);
+          const [mw, mh] = this.hzbMipSizes[i];
+          hzbPass.dispatchWorkgroups(Math.ceil(mw / 8), Math.ceil(mh / 8));
+        }
+        hzbPass.end();
+
+        // cull pass 2: all meshlets, frustum + cone + occlusion; updates visibility
+        const cull2 = enc.beginComputePass({ timestampWrites: this.timings.writes(3) });
+        cull2.setPipeline(vp ? this.cullVp2Pipeline : this.cull2Pipeline);
+        cull2.setBindGroup(1, vp ? this.cullVp2ParamsBind! : this.cull2ParamsBind!);
+        for (const m of this.models) {
+          if (m.dead || m.meshletCount === 0) {
+            continue;
+          }
+          cull2.setBindGroup(0, vp ? m.cullVpBind2 : m.cullBind2);
+          cull2.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
+        }
+        cull2.end();
+
+        if (sortActive) {
+          // sorted blend list: per model WITH transparency, scan the bucket
+          // histogram into scatter bases (one workgroup), then scatter the
+          // candidates into recordBufT back-to-front (indirect dispatch, one
+          // thread each). Two passes: the scan WRITES the dispatch args the
+          // scatter reads as indirect, and one pass may not use a buffer both
+          // ways. A model without glass is skipped outright — its transparent
+          // count slot stays at the frame's clear (0), so every pass that
+          // replays the list draws nothing for it.
+          const scan = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'begin') });
+          scan.setPipeline(this.sortScanPipeline);
+          for (const m of this.models) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent) {
+              continue;
+            }
+            scan.setBindGroup(0, m.sortScanBind);
+            scan.dispatchWorkgroups(1);
+          }
+          scan.end();
+          const scatter = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'end') });
+          scatter.setPipeline(vp ? this.sortScatterVpPipeline : this.sortScatterPipeline);
+          for (const m of this.models) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent) {
+              continue;
+            }
+            scatter.setBindGroup(0, vp ? m.sortScatterVpBind : m.sortScatterBind);
+            scatter.dispatchWorkgroupsIndirect(m.sortArgsBuf, 0);
+          }
+          scatter.end();
+        }
+      }
+
+      // render pass 2: newly visible meshlets on top of pass 1
+      const pass2 = enc.beginRenderPass({
+        colorAttachments: sceneAttachments(false, !hasBlendPass),
+        depthStencilAttachment: depthAttachment(false),
+        timestampWrites: this.timings.writes(5),
+      });
+      drawScene(pass2, 2);
+      this.pointsLayer.draw(pass2, opt.msaa4x);
+      this.drawHelperLines(pass2, opt.msaa4x);
+      this.drawMarkerSpheres(pass2, opt.msaa4x);
+      pass2.end();
+
+      drawBlendPass(enc);
+    } else {
+      // no culling available: one static full vertex-pull draw per model
+      const pass = enc.beginRenderPass({
+        colorAttachments: sceneAttachments(true, !hasBlendPass),
+        depthStencilAttachment: depthAttachment(true),
+        timestampWrites: this.timings.writes(1),
+      });
+      drawScene(pass, 1);
+      this.pointsLayer.draw(pass, opt.msaa4x);
+      this.drawHelperLines(pass, opt.msaa4x);
+      this.drawMarkerSpheres(pass, opt.msaa4x);
+      pass.end();
+
+      drawBlendPass(enc);
+    }
+
+    if (!hold && (aoActive || (opt.debugBuf === 5 && this.aoAccum === 0))) {
+      // VBAO after the final scene pass (depth complete), before the post pass
+      const aoPass = enc.beginComputePass({ timestampWrites: this.timings.writes(7) });
+      aoPass.setPipeline(opt.msaa4x ? this.vbaoMsPipeline : this.vbaoPipeline);
+      aoPass.setBindGroup(0, this.aoBind!);
+      aoPass.dispatchWorkgroups(Math.ceil(canvas.width / 8), Math.ceil(canvas.height / 8));
+      aoPass.end();
+    }
+
+    if (usePost) {
+      // history ping-pong: even accumIdx reads histA and writes histB. Hold
+      // frames flip the parity so they READ the buffer the converged frame
+      // just wrote (the latest sum) and re-write the other — after the first
+      // hold frame both buffers carry the final sum, so this stays stable.
+      const even = (this.accumIdx % 2 === 0) !== hold;
+      const post = enc.beginRenderPass({
+        timestampWrites: this.timings.writes(8),
+        colorAttachments: [
+          { view: swapView, loadOp: 'clear', storeOp: 'store' },
+          {
+            view: (even ? this.histB! : this.histA!).createView(),
+            loadOp: 'clear',
+            storeOp: 'store',
+          },
+        ],
+      });
+      post.setPipeline(opt.msaa4x ? this.postMsPipeline : this.postPipeline);
+      post.setBindGroup(0, even ? this.postBindEven! : this.postBindOdd!);
+      post.draw(3);
+      post.end();
+    }
+
+    // laser-scan panorama after post (outside the TAA history), under the
+    // outline and view cube; redrawn on hold frames like them
+    if (this.pano.active) {
+      this.pano.draw(
+        enc,
+        swapView,
+        this.depth!,
+        this.targetsMsaa,
+        this.camera,
+        canvas.width / canvas.height,
+        this.timings,
+      );
+    }
+
+    // outline overlay AFTER post (never enters the TAA history — the same
+    // reason the native renderer composites its hover outline inside TAA).
+    // It runs its OWN running average on the jittered edge signal, keyed to
+    // accumIdx, so it converges with the scene instead of hopping with the
+    // jitter; a hold frame only re-composites it.
+    this.drawnHoverId = effHover;
+    if (outlineOn) {
+      this.outline.encode(
+        enc,
+        dev,
+        canvas,
+        opt,
+        cullMode,
+        frameData,
+        this.frameBuf,
+        this.countsBuf,
+        this.models,
+        this.depth!,
+        swapView,
+        effHover,
+        this.accumIdx,
+        hold,
+        outlineHidden,
+        this.timings,
+      );
+    } else {
+      this.outline.dropHistory();
+    }
+
+    // view cube on top of the finished frame (after post so TAA never smears it)
+    if (!this.hideViewCube) {
+      this.viewCube.draw(
+        enc,
+        swapView,
+        canvas,
+        this.format,
+        this.dpr * this.captureScale,
+        !!(this.options.msaa4x || this.options.fastAA),
+        this.timings,
+      );
+    }
+
+    const pickJob = this.encodeDepthPick(enc, dev);
+
+    // the first still frame after any scene change reads counts too, so a
+    // residency commit's effect is known before the next decision
+    let statsBytes = 0;
+    const countsDue = t0 - this.lastCountRead > 500 || (this.accumIdx === 0 && !moving);
+    if (cullActive && !this.statsInFlight && countsDue) {
+      this.statsInFlight = true;
+      this.lastCountRead = t0;
+      statsBytes = this.models.length * COUNT_SLOT * COUNT_SLOTS;
+      enc.copyBufferToBuffer(this.countsBuf, 0, this.statsBuf, 0, statsBytes);
+    }
+    // the budget readback is NOT throttled like the stats: it decides both
+    // whether meshlets are still owed and whether the scene has converged at
+    // all, so it runs every culled frame — with the cap off as well, where
+    // only the convergence half is in play. Four bytes.
+    let capRead = false;
+    if (cullActive && !this.capReadInFlight) {
+      this.capReadInFlight = true;
+      this.capReadFrame = this.frameCounter;
+      capRead = true;
+      enc.copyBufferToBuffer(this.newBudgetBuf, 0, this.newBudgetReadBuf, 0, 4);
+    }
+
+    const itemPickJob = this.itemPick.encode(
+      enc,
+      dev,
+      canvas,
+      opt,
+      cullMode,
+      frameData,
+      this.frameBuf,
+      this.countsBuf,
+      this.models,
+      this.pickPipeline,
+      this.pickVpPipeline,
+      this.timings,
+      this.pickGbuffer(),
+    );
+
+    // snapshots copy the presented swapchain (post output + view cube), and
+    // only once accumulation has converged — before that the pending snap
+    // just keeps the renderer out of idle so it converges
+    const snapJob = this.encodeSnapshot(enc, dev, canvas, snapReady, swapTex);
+    const tsJob = this.timings.resolve(enc);
+
+    dev.queue.submit([enc.finish()]);
+    this.awaitGpu(dev);
+    pickJob?.();
+    snapJob?.();
+    itemPickJob?.();
+    tsJob?.();
+    if (capRead) {
+      this.resolveCapBudget().catch(() => (this.capReadInFlight = false));
+    } else if (!cullActive) {
+      // held or unculled frames encode no cull, so the counter says nothing
+      this.capBacklog = false;
+      this.newVisibleWanted = 0;
+    }
+    if (statsBytes > 0) {
+      // vp mode: the counter is instanceCount, word 1 of the args block
+      this.resolveStats(statsBytes, cullMode === 'vp' ? 1 : 0).catch(() => (this.statsInFlight = false));
+    }
+
+    this.cpuMs = this.cpuMs * 0.9 + (performance.now() - t0) * 0.1;
+    this.frames++;
+    const now = performance.now();
+    if (now - this.lastStat > 500) {
+      this.fps = (this.frames * 1000) / (now - this.lastStat);
+      this.frames = 0;
+      this.lastStat = now;
+    }
+  }
+
+  /** Hold the loop until everything submitted so far has executed — the one
+   *  frame in flight (see `gpuBusy`). A lost device rejects; the flag clears
+   *  either way so a recovering loop is never stuck. */
+  private awaitGpu(dev: GPUDevice) {
+    this.gpuBusy = true;
+    const clear = () => {
+      this.gpuBusy = false;
+    };
+    dev.queue.onSubmittedWorkDone().then(clear, clear);
+  }
+
+  /** The last scene frame's G-buffer + depth for the fast item pick, or null
+   *  before the first frame. */
+  private pickGbuffer(): PickGbuffer | null {
+    return this.idTex && this.depth ? { id: this.idTex, depth: this.depth, msaa: this.targetsMsaa } : null;
+  }
+
+  /** Answer queued picks on a COMPLETE scene without drawing it again: the
+   *  depth target, the G-buffer and the cull lists of the last scene frame
+   *  are all still valid, so only the pick passes encode and the swapchain
+   *  is never acquired (the canvas keeps showing the last presented frame).
+   *  Before this, every hover or click pick on a converged scene cost a hold
+   *  frame with post on and a FULL scene draw without — the whole model
+   *  redrawn to read one texel. */
+  private submitPicksOnly(canvas: HTMLCanvasElement) {
+    const dev = this.device;
+    const enc = dev.createCommandEncoder({ label: 'picksOnly' });
+    const pickJob = this.encodeDepthPick(enc, dev);
+    const itemPickJob = this.itemPick.encode(
+      enc,
+      dev,
+      canvas,
+      this.options,
+      this.cullMode,
+      this.lastFrameData,
+      this.frameBuf,
+      this.countsBuf,
+      this.models,
+      this.pickPipeline,
+      this.pickVpPipeline,
+      this.timings,
+      this.pickGbuffer(),
+    );
+    if (!pickJob && !itemPickJob) {
+      return; // both readbacks still in flight — the next tick retries
+    }
+    const tsJob = this.timings.resolve(enc);
+    dev.queue.submit([enc.finish()]);
+    this.awaitGpu(dev);
+    pickJob?.();
+    itemPickJob?.();
+    tsJob?.();
+  }
+
+  /** Encode the depth pick (Space/Alt/probe/measure aim): one compute
+   *  workgroup reads the cursor texel of the scene depth target — MSAA or not,
+   *  culling or not — into pickOutBuf, copied to the readback buffer. Returns
+   *  the post-submit resolve job, or null. Only that ONE texel crosses to the
+   *  CPU. */
+  private encodeDepthPick(enc: GPUCommandEncoder, dev: GPUDevice): (() => void) | null {
+    if (!this.pendingPick || this.pickInFlight || !this.pickDepthBind) {
+      return null;
+    }
+    const pick = this.pendingPick;
+    this.pendingPick = null;
+    // pick.x/y were clamped against the canvas at queue time; the shader
+    // clamps again against the target, which a resize since may have shrunk
+    dev.queue.writeBuffer(this.pickParamsBuf, 0, new Uint32Array([pick.x, pick.y, 0, 0]));
+    const pass = enc.beginComputePass({ label: 'pickDepth' });
+    pass.setPipeline(this.targetsMsaa ? this.pickDepthMsPipeline : this.pickDepthPipeline);
+    pass.setBindGroup(0, this.pickDepthBind);
+    pass.dispatchWorkgroups(1);
+    pass.end();
+    this.pickBuf ??= dev.createBuffer({
+      label: 'pickBuf',
+      size: 256, // one f32; 256 keeps the copy/map alignment rules trivial
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    enc.copyBufferToBuffer(this.pickOutBuf, 0, this.pickBuf, 0, 4);
+    this.pickInFlight = true;
+    // bind the pick to the view its depth texel was rendered with — lastVP is
+    // this frame's (or, from submitPicksOnly, the last frame's) matrix
+    const view = this.currentView(`pick#${++this.pickSeq}`);
+    this.trace(
+      () =>
+        `${view.tag} encode ${pick.mode} px=(${pick.x},${pick.y}) target=${view.w}x${view.h} dpr=${this.dpr} ` +
+        `msaa=${this.targetsMsaa} cull=${this.cullMode} models=${this.models.length} gpuError=${this.gpuError || 'none'}`,
+    );
+    return () => this.resolvePick(pick, view).catch(() => (this.pickInFlight = false));
+  }
+
+  /** Encode the one-shot frame snapshot copy — the presented swapchain, once
+   *  `ready` (accumulation converged). Returns the post-submit resolve job,
+   *  or null. An unconsumed pendingSnap keeps blocking the idle skip, so the
+   *  renderer converges and a later frame captures. */
+  private encodeSnapshot(
+    enc: GPUCommandEncoder,
+    dev: GPUDevice,
+    canvas: HTMLCanvasElement,
+    ready: boolean,
+    swapTex: GPUTexture,
+  ): (() => void) | null {
+    let snapJob: (() => void) | null = null;
+    if (this.pendingSnap && (ready || this.snapAnyFrame)) {
+      const resolve = this.pendingSnap;
+      this.pendingSnap = null;
+      this.snapAnyFrame = false;
+      const rowBytes = Math.ceil((canvas.width * 4) / 256) * 256;
+      const snapBuf = dev.createBuffer({
+        label: 'snapBuf',
+        size: rowBytes * canvas.height,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
+      // the swapchain (configured COPY_SRC) holds the finished frame here:
+      // post ran into it and the view cube is drawn — WYSIWYG
+      enc.copyTextureToBuffer({ texture: swapTex }, { buffer: snapBuf, bytesPerRow: rowBytes }, [
+        canvas.width,
+        canvas.height,
+      ]);
+      const w = canvas.width,
+        h = canvas.height;
+      const bgra = this.format.startsWith('bgra');
+      snapJob = async () => {
+        await snapBuf.mapAsync(GPUMapMode.READ);
+        const src = new Uint8Array(snapBuf.getMappedRange());
+        const rgba = new Uint8ClampedArray(w * h * 4);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const s = y * rowBytes + x * 4;
+            const d = (y * w + x) * 4;
+            rgba[d + 0] = src[s + (bgra ? 2 : 0)];
+            rgba[d + 1] = src[s + 1];
+            rgba[d + 2] = src[s + (bgra ? 0 : 2)];
+            rgba[d + 3] = 255;
+          }
+        }
+        snapBuf.destroy();
+        resolve({ w, h, rgba });
+      };
+    }
+
+    return snapJob;
+  }
+
+  /** Position/hover/orientation of the canvas view cube for this frame.
+   *  `rect` = the DOM gizmo's stage box in CSS px (null hides the cube);
+   *  `q` = the same camera quaternion the DOM gizmo gets. */
+  setViewCube(
+    rect: { x: number; y: number; size: number } | null,
+    hover: number,
+    q: { x: number; y: number; z: number; w: number },
+  ) {
+    this.viewCube.setPlacement(rect, hover, q);
+  }
+
+  /** Change the cube's face labels (rebuilds the label atlas lazily). */
+  setViewCubeLabels(labels: Partial<Record<GizmoFace, string>>) {
+    this.viewCube.setLabels(labels);
+  }
+
+  /** Cube palette (settings-driven; sketch mode passes its own set). The bevel
+   *  plates take the face colour slightly lifted, like the original two-tone. */
+  setViewCubeColors(
+    face: [number, number, number],
+    line: [number, number, number],
+    hover: [number, number, number],
+    text: string,
+  ) {
+    this.viewCube.setColors(face, line, hover, text);
+  }
+
+  private drawHelperLines(pass: GPURenderPassEncoder, msaa: boolean) {
+    if (this.lineCount === 0 || !this.lineBuf) {
+      return;
+    }
+    pass.setPipeline(msaa ? this.linePipeline4x : this.linePipeline1x);
+    pass.setBindGroup(0, this.lineBind);
+    pass.setVertexBuffer(0, this.lineBuf);
+    pass.draw(this.lineCount);
+  }
+
+  private drawMarkerSpheres(pass: GPURenderPassEncoder, msaa: boolean) {
+    if (this.markerCount === 0 || !this.markerBuf) {
+      return;
+    }
+    const p = this.markerPipelines;
+    pass.setBindGroup(0, this.markerBind);
+    pass.setVertexBuffer(0, this.sphereMeshBuf);
+    pass.setVertexBuffer(1, this.markerBuf);
+    pass.setIndexBuffer(this.sphereIndexBuf, 'uint16');
+    if (this.markerOpaque > 0) {
+      pass.setPipeline(msaa ? p.opaque4x : p.opaque1x);
+      pass.drawIndexed(this.sphereIndexCount, this.markerOpaque);
+    }
+    const translucent = this.markerCount - this.markerOpaque;
+    if (translucent > 0) {
+      pass.setPipeline(msaa ? p.blend4x : p.blend1x);
+      pass.drawIndexed(this.sphereIndexCount, translucent, 0, 0, this.markerOpaque);
+    }
+  }
+
+  // Extract world-space frustum planes from a column-major view-proj matrix.
+  private frustumPlanes(m: Float32Array): Float32Array {
+    const p = new Float32Array(24);
+    const row = (r: number) => [m[r], m[4 + r], m[8 + r], m[12 + r]];
+    const w = row(3);
+    const set = (i: number, a: number[], sign: number) => {
+      const px = w[0] + sign * a[0],
+        py = w[1] + sign * a[1],
+        pz = w[2] + sign * a[2],
+        pw = w[3] + sign * a[3];
+      const l = Math.hypot(px, py, pz) || 1;
+      p[i * 4] = px / l;
+      p[i * 4 + 1] = py / l;
+      p[i * 4 + 2] = pz / l;
+      p[i * 4 + 3] = pw / l;
+    };
+    set(0, row(0), 1);
+    set(1, row(0), -1);
+    set(2, row(1), 1);
+    set(3, row(1), -1);
+    // reversed-Z infinite far: near plane is z<=w, "far" plane z>=0
+    set(4, row(2), 1);
+    set(5, row(2), -1);
+    return p;
+  }
+}

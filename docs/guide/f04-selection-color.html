@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreDeSpace — F4 Selection Color</title>
+  <meta name="description" content="Guide to the F4 Selection Color layout: colour, ghost, hide and isolate the selected items from the Selection Color ribbon." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="./guide.css" />
+</head>
+<body>
+  <nav class="topbar" aria-label="Docs navigation">
+    <a class="navlink" href="../index.html">Product</a>
+    <a class="navlink" href="../events.html">API&nbsp;docs</a>
+    <a class="navlink" href="../demo.html">Live&nbsp;demo</a>
+    <a class="navlink" href="../widgets.html">Widgets</a>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme">
+      <span id="themeIcon">◐</span> <span id="themeLabel">theme</span>
+    </button>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero hero-compact">
+      <p class="eyebrow">User guide · App layout F4</p>
+      <h1>Selection Color</h1>
+      <p class="lede">
+        Colour, ghost, hide and isolate whatever you have selected. <b>Numbered markers</b> on each picture match the numbers in the text; click a picture to see it full size.
+      </p>
+    </header>
+
+    <div class="guide">
+      <aside class="toc" aria-label="Guide navigation">
+        <nav id="guideNav" aria-label="Guide pages"></nav>
+        <hr class="toc-sep" />
+        <p class="toc-title">On this page</p>
+        <nav id="toc" aria-label="On this page"></nav>
+      </aside>
+
+      <main class="guide-main">
+        <section id="layout" class="g-sec">
+          <p class="sec-kick">App layout · F4</p>
+          <h2>The Selection Color layout</h2>
+          <p>
+            Press <kbd>F4</kbd> (or pick <b>Selection Color</b> on the <a href="index.html#app-layout-ribbon">App Layout</a>
+            ribbon) to switch to the colouring workspace. Everything on its ribbon works on the
+            <b>current selection</b>: select items in the tree or the 3D view, then colour, ghost or hide them.
+            For colouring by name, with rules you can save and reuse, the <b>Set Color</b> panel opens on the right.
+          </p>
+          <figure class="shot" data-shot="f04-layout">
+            <figcaption>The F4 layout. The Console is minimised to its tab at the bottom.</figcaption>
+          </figure>
+          <ol class="legend-list">
+            <li><b>Selection Color ribbon</b> — described group by group below.</li>
+            <li><b>Hierarchy</b> — the model tree. Click a row to select that item and everything under it.</li>
+            <li><b>3D view</b> — click an item to select it. <kbd>Ctrl</kbd> + click adds an item to the selection, or takes it out again. Clicking empty space unselects everything.</li>
+            <li><b>Set Color</b> — colour by name with rules. See the <a href="panel-set-color.html">Set Color guide</a>.</li>
+            <li><b>Console</b> — minimised. Click its tab to see messages, for example how many items an action changed.</li>
+          </ol>
+        </section>
+
+        <section id="ribbon" class="g-sec">
+          <p class="sec-kick">Ribbon</p>
+          <h2>The Selection Color ribbon</h2>
+          <p>
+            Most buttons are greyed out until something is selected. Every change here can be undone with
+            <b>Undo</b> (<kbd>PAGEUP</kbd>).
+          </p>
+
+          <h3 id="ribbon-hidden">Hidden Items</h3>
+          <figure class="shot" data-shot="f04-hidden"></figure>
+          <ol class="legend-list">
+            <li><b>Hide</b> (<kbd>H</kbd>) — hides the selected items.</li>
+            <li><b>Unhide Sel</b> (<kbd>J</kbd>) — shows the selected items again (select them in the tree, since they can't be clicked in 3D).</li>
+            <li><b>Unhide All</b> — shows every hidden item.</li>
+            <li><b>Unhide Box</b> — shows everything that touches the clipping box, wherever the box is now (it does not have to be switched on). See <a href="f03-clip-box.html">F3 Clip Box</a>.</li>
+            <li><b>Unhide Sel+Off.</b> — shows everything around the selection: inside its bounding box, grown on every side by the <b>Fit Sel</b> offset from the Clipping Box ribbon.</li>
+            <li><b>Unhide Each+Off.</b> — the same, but around <i>each</i> selected item on its own. Better for scattered items, where one big box would show too much. Works with up to 200 selected items.</li>
+          </ol>
+
+          <h3 id="ribbon-clipselect">Clipping Shape Select</h3>
+          <figure class="shot" data-shot="f04-clipselect"></figure>
+          <p>
+            <b>Select Inside</b> selects every item that lies completely inside the clipping box or an enabled clip
+            shape. <b>Select Intersecting</b> also takes the items that only touch it. Both are greyed out while
+            clipping is off. Set up the box or shapes in <a href="f03-clip-box.html">F3 Clip Box</a> first.
+          </p>
+
+          <h3 id="ribbon-quick">Quick Coloring</h3>
+          <figure class="shot" data-shot="f04-quick"></figure>
+          <ol class="legend-list">
+            <li><b>Colour swatches</b> — click one to colour the selection. Each swatch has a shortcut (<kbd>ALT 210</kbd> for the first, and up).</li>
+            <li><b>Reset Sel</b> — puts the selection back to its original colour.</li>
+            <li><b>Reset All</b> — removes every colour change on the model.</li>
+            <li><b>Panel</b> — opens the Color Panel on the left. Use it to pick any colour, or to change which colours the swatches hold.</li>
+          </ol>
+
+          <h3 id="ribbon-opacity">Opacity Override</h3>
+          <figure class="shot" data-shot="f04-opacity"></figure>
+          <ol class="legend-list">
+            <li><b>The value</b> in percent: 100 % is solid, lower is more see-through. Use − / + or type a number.</li>
+            <li><b>Set Sel</b> — gives the selection that opacity.</li>
+            <li><b>Reset Sel</b> — makes the selection solid again.</li>
+            <li><b>Reset All</b> (<kbd>Y</kbd>) — removes every opacity change.</li>
+          </ol>
+
+          <h3 id="ribbon-misc">Misc, Reset and History</h3>
+          <figure class="shot" data-shot="f04-misc"></figure>
+          <ol class="legend-list">
+            <li><b>Invert Sel</b> (<kbd>I</kbd>) — selects everything that is not selected, and unselects the rest.</li>
+            <li><b>Isolate</b> (<kbd>ALT+H</kbd>) — hides everything except the selection.</li>
+            <li><b>Clear Sel</b> (<kbd>ESC</kbd>) — unselects everything.</li>
+            <li><b>Clear All</b> (<kbd>ALT+R</kbd>) — puts the whole model back to normal: all colours, opacity and hiding are removed.</li>
+            <li><b>Undo</b> (<kbd>PAGEUP</kbd>) — undoes the last colour, opacity, hide or unhide change.</li>
+            <li><b>Redo</b> (<kbd>PAGEDOWN</kbd>) — does it again.</li>
+          </ol>
+        </section>
+
+        <section id="tasks" class="g-sec">
+          <p class="sec-kick">Step by step</p>
+          <h2>Common tasks</h2>
+
+          <h3 id="task-color">Colour a system</h3>
+          <ol class="steps">
+            <li>Select it: click its row in the <b>Hierarchy</b> (here <code class="inline">/HA-PIPE</code>), or click it in the 3D view.</li>
+            <li>
+              Click a swatch under <b>Quick Coloring</b>. Click in empty space or press <kbd>ESC</kbd> to unselect and
+              see the colour without the selection highlight.
+              <figure class="shot" data-shot="f04-task-color-viewport"></figure>
+            </li>
+          </ol>
+
+          <h3 id="task-ghost">Make something see-through</h3>
+          <ol class="steps">
+            <li>Select it, here the mechanical model <code class="inline">/HA-MECH</code>.</li>
+            <li>Set the <b>Opacity Override</b> value to <b>20 %</b> and press <b>Set Sel</b>. What is behind it shows through.
+              <figure class="shot" data-shot="f04-task-opacity-viewport"></figure>
+            </li>
+            <li>To make it solid again, select it and press <b>Reset Sel</b>. To undo every opacity change, press <b>Reset All</b> (<kbd>Y</kbd>).</li>
+          </ol>
+
+          <h3 id="task-isolate">Look at one system on its own</h3>
+          <ol class="steps">
+            <li>Select it, here the safety model <code class="inline">/HA-SAFE</code>.</li>
+            <li>Press <b>Isolate</b> (<kbd>ALT+H</kbd>). Everything else is hidden.
+              <figure class="shot" data-shot="f04-task-isolate-viewport"></figure>
+            </li>
+            <li>To bring the rest back, press <b>Unhide All</b>, or <b>Clear All</b> (<kbd>ALT+R</kbd>) to also remove colour and opacity changes.</li>
+          </ol>
+
+          <h3 id="task-around">Show what is around a hidden area</h3>
+          <p>
+            After <b>Isolate</b>, you sometimes want to see what is <i>next to</i> the item as well. Select it and press
+            <b>Unhide Sel+Off.</b>: everything within the <b>Fit Sel</b> offset of its bounding box comes back (the
+            offset is set on the <a href="f03-clip-box.html">Clipping Box ribbon</a>). For several items far apart, use
+            <b>Unhide Each+Off.</b> instead.
+          </p>
+        </section>
+
+        <section id="set-color" class="g-sec">
+          <p class="sec-kick">Panel</p>
+          <h2>Set Color (right side)</h2>
+          <p>
+            The panel on the right of this layout colours, ghosts or hides parts of the model <b>by name</b>, using a
+            list of rules you can save and load. It has its own guide:
+            <a href="panel-set-color.html"><b>Set Color guide →</b></a>
+          </p>
+        </section>
+
+        <section id="reference" class="g-sec">
+          <p class="sec-kick">Reference</p>
+          <h2>Every control on the ribbon</h2>
+          <div class="ref-table" data-ref="ribbonSelectionColor"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span class="brand"><b>TreDeSpace</b> user guide</span>
+      <span id="guideVersion"></span>
+    </footer>
+  </div>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Full-size screenshot">
+    <button class="lightbox-close" type="button" aria-label="Close">✕</button>
+    <div class="lightbox-body"></div>
+  </dialog>
+
+  <script type="module" src="../theme.ts"></script>
+  <script type="module" src="./guide.ts"></script>
+</body>
+</html>

@@ -1,0 +1,253 @@
+import { createStore } from '@treDeSpaceUI/lib/createStore';
+import type { NwdUnits } from '../../lib/nwd2tdp/nwdUnits';
+import type { StoreFormat } from './sourceImport';
+import { scanWorkerCap, stepWorkerDefault, workerPoolCap } from './workerPoolCap';
+
+/** One imported model asset — the file lives in OPFS
+ *  `model_assets/<store>/<id>.tdp`; this metadata lives in
+ *  `model_assets/index.json` (survives refreshes). The store list itself is
+ *  shared with SQL Assets — see state/stores/stores.state.ts. */
+/** Cook-time boxes [minX,minY,minZ,maxX,maxY,maxZ] — dense = 10th–90th pct. */
+export interface AssetBounds {
+  full: number[];
+  dense: number[] | null;
+}
+
+export interface AssetEntry {
+  /** Host metadata attached at import (`meta` on the import command) and
+   *  returned by `assets.list` — e.g. the md5 of the COMPRESSED artifact the
+   *  host serves, for its own freshness checks. Opaque to the viewer; a
+   *  converter that yields several assets from one file tags them all. */
+  meta?: Record<string, unknown>;
+
+  id: string;
+  /** Which store this asset belongs to (default 'main'). */
+  store: string;
+  /** Display name in the assets list (renamable). */
+  name: string;
+  /** Grouping folder in the list ('' = ungrouped). */
+  folder: string;
+  /** The original file name (kept for reference + load labeling). */
+  fileName: string;
+  /** MD5 of the bytes cooked or stored: a GLB's own bytes, or the `.tdp`
+   *  itself (a `.tdp` import, and every converter import — they cook straight
+   *  to `.tdp`). Lets a host detect whether re-importing would change anything. */
+  md5?: string;
+  /** MD5 of the ORIGINAL file a converter import came from (RVM, STEP, IFC,
+   *  NWD, E57, LGSX) — every asset of that import carries it, and the Import
+   *  Manager asks before converting the same file again. */
+  sourceMd5?: string;
+  /** Quick fingerprint of the converted source (its size and both ends) —
+   *  what the "already imported" check compares for the formats that are not
+   *  hashed whole by default (NWD, LGSX, E57). */
+  sourceQuick?: string;
+  size: number;
+  importedAt: number;
+  /** Captured at import (v8 cooker) — drives fit-to-loaded-selection. */
+  bounds?: AssetBounds;
+  /** merged = rvm2glb web3dversion-2; standard = generic glTF (incl. gpu-instanced);
+   *  points = a laser scan (`<id>.tdpp`, opened by the Scans domain, not modeldb). */
+  kind?: 'merged' | 'standard' | 'points';
+  /** The cooked file carries an authored-normal stream (smooth shading). */
+  hasNormals?: boolean;
+  /** A laser scan's offset from its own coordinates, metres (x, y, z) — set
+   *  in the Scans panel to line the scan up with a model; applied every
+   *  time the scan is loaded. */
+  scanOffset?: [number, number, number];
+  /** The coordinate system a laser scan is shown in, by name ('' = the
+   *  source's own frame); unset = the one the file was written in. */
+  scanCoordSystem?: string;
+  /** Draw edge lines on this model (undefined = true). Import option — off
+   *  for meshes where edges would fight the surface (e.g. future textures). */
+  edges?: boolean;
+  /** A coarse geometry variant (`<id>.coarse.tdp`) exists for the VRAM-budget
+   *  residency swap. Absent on pre-feature imports → demotion falls back to a
+   *  full unload. */
+  coarse?: { size: number };
+  /** Session-only import (Import Manager "Temp" checkbox): the asset and its
+   *  cooked file are purged on the next app start once its tab is gone. */
+  temp?: boolean;
+  /** The tab a temp import belongs to (lib/tabSession.ts) — while that tab is
+   *  open, no other tab purges it. */
+  tempOwner?: string;
+}
+
+/** The model DB's group = the import folder, or the model name when there's no
+ *  folder (mirrors modeldb `addModel(group = name)`). Groups are treated as
+ *  '/'-separated folder PATHS, but a merged GLB's hierarchy root name is stored
+ *  verbatim WITH its leading '/' (e.g. "/HO-PIPE") — used raw as a group, that
+ *  leading slash fabricates a blank top folder and shifts the rebuilt path so
+ *  it no longer matches the stored group (the roots then never render). Strip
+ *  leading slashes so the group is a clean path; the node NAME keeps its '/'. */
+export const groupOf = (a: { folder: string; name: string }): string => (a.folder || a.name).replace(/^\/+/, '');
+
+export interface AssetsState {
+  /** Store of an import whose caller names none and that has no format
+   *  store (host API imports); '' = main. */
+  importStore: string;
+  /** Per format, the store its Import Manager imports go to when the user
+   *  picked one; unset = the format's default (`rvm-files`, `glb-files` …). */
+  formatStores: Partial<Record<StoreFormat, string>>;
+  assets: AssetEntry[];
+  /** index.json has been read from OPFS. */
+  ready: boolean;
+  /** Import cook concurrency (worker pool, 1..workerPoolCap()). */
+  pool: number;
+  /** Load concurrency for "Load selected" (1..workerPoolCap()) — models
+   *  whose bytes are in flight at once, not worker threads. */
+  loadPool: number;
+  /** Don't move the camera when loading additional models. */
+  keepCamera: boolean;
+  /** Load whatever an import produced into the viewer when it finishes. */
+  loadAfterImport: boolean;
+  /** Import as session-only temp: purged on next app start. Temp imports
+   *  always load and ignore the store pick. Off by default — an import is
+   *  kept, in its format's store or the picked one. */
+  importTemp: boolean;
+  /** Edge-triggered counters the library tree listens to (Collapse all /
+   *  Expand all buttons and hotkeys) — the tree itself owns per-folder state. */
+  treeCollapseSignal: number;
+  treeExpandSignal: number;
+  /** id → selected (multi-select for load/delete/rename-many later). */
+  selected: Record<string, boolean>;
+  /** Per-store folders that exist even while empty (store name → paths). */
+  extraFolders: Record<string, string[]>;
+  /** RVM import options (Import Manager → Import RVM). */
+  rvm: RvmImportOptions;
+  /** IFC import options (Import Manager → Import IFC). */
+  ifc: IfcImportOptions;
+  /** STEP import options (Import Manager → Import STEP). */
+  step: StepImportOptions;
+  /** Navisworks import options (Import Manager → Import NWD). */
+  nwd: NwdImportOptions;
+  /** Laser-scan import options (Import Manager → Import LGSX / E57). */
+  scan: ScanImportOptions;
+  /** Standard-GLB import options (Import Manager → Import standard GLB). */
+  stdGlb: StdGlbImportOptions;
+}
+
+export interface StdGlbImportOptions {
+  /** Keep authored normals (smooth shading). Off = flat shading, which also
+   *  restores the full facet edge detection. */
+  normals: boolean;
+  /** Draw edge lines on this model when loaded (stored per asset). */
+  edges: boolean;
+}
+
+export interface RvmImportOptions {
+  /** Hierarchy split depth: 0 SITE, 1 ZONE, 2 EQUIPMENT. */
+  level: number;
+  /** Tessellation chord-height tolerance. */
+  tolerance: number;
+  includeLines: boolean;
+  lineWidth: number;
+  /** Round circle tessellation to multiples of 4 (better flat shading). */
+  alignElements: boolean;
+}
+
+export interface IfcImportOptions {
+  /** Split into one GLB per spatial tier: 'none' | 'site' | 'building' | 'storey'. */
+  split: string;
+  /** Tessellation quality: 'lowest' | 'low' | 'medium' | 'high' | 'highest'. */
+  quality: string;
+  /** IfcSpace handling: 'skip' | 'include' | 'separate'. */
+  spaces: string;
+  /** Opening (void) handling: 'skip' | 'include' | 'separate'. */
+  openings: string;
+  /** Recenter the model on its bounding box (off by default: the model
+   *  keeps the file's coordinates, so it lines up with other models). */
+  recenter: boolean;
+}
+
+export interface NwdImportOptions {
+  /** Smooth shading: the cooked model carries per-vertex normals. */
+  normals: boolean;
+  /** Include line primitives (construction / datum layer), drawn as crosses. */
+  includeLines: boolean;
+  /** Width of those line crosses, model units. */
+  lineWidth: number;
+  /** Weld coincident vertex positions per mesh. */
+  cleanup: boolean;
+  /** Decimal places of the weld grid (2, the default, = 0.01 model units). */
+  precision: number;
+  /** Simplify each part after the weld: drop triangles the shape does not
+   *  need (meshopt). */
+  simplify: boolean;
+  /** Lowest percentage of a part's triangles the simplifier may leave. */
+  simplifyKeep: number;
+  /** How far the simplified surface may move, percent of the part's size
+   *  (0 = only triangles that change nothing). */
+  simplifyError: number;
+  /** Hash the whole file for the "already imported" check (off: its size
+   *  and both ends). */
+  fullFingerprint: boolean;
+  /** The unit of the file's coordinates (automatic: feet for a Revit
+   *  export, metres otherwise) — the model is converted to metres. */
+  units: NwdUnits;
+}
+
+export interface ScanImportOptions {
+  /** Keep the scanner setups' panorama photos (LGSX / E57 cook). */
+  panoramas: boolean;
+  /** Keep the scanner's full 16-bit intensity (off: 8 bits — what the
+   *  viewer shows — and about 15% smaller files). */
+  intensity16: boolean;
+  /** Sub-workers of a scan cook (0–8; 0 = one worker does everything;
+   *  default: the cores the machine can spare, up to 8): more = faster, more
+   *  memory. */
+  workers: number;
+  /** Hash the whole file for the "already imported" check (off: its size
+   *  and both ends — a multi-GB scan takes a minute to hash whole). */
+  fullFingerprint: boolean;
+}
+
+export interface StepImportOptions {
+  /** Chordal sag tolerance (mm) — smaller = smoother, more triangles. */
+  deflectionMm: number;
+  /** Max chord turn angle (deg) — smaller = smoother, more triangles. */
+  maxAngleDeg: number;
+  /** Weld positions (drops normals) — matches flatshaded rendering. */
+  cleanup: boolean;
+  /** Tessellation sub-workers (0–5; 0 = in-process; default: the cores the
+   *  machine can spare, up to 5). Each holds its own copy of the file index:
+   *  more = faster, but more memory. */
+  workers: number;
+}
+
+export const assetsState = createStore<AssetsState>({
+  importStore: '',
+  formatStores: {},
+  assets: [],
+  ready: false,
+  pool: workerPoolCap(),
+  loadPool: workerPoolCap(),
+  keepCamera: false,
+  loadAfterImport: true,
+  importTemp: false,
+  treeCollapseSignal: 0,
+  treeExpandSignal: 0,
+  selected: {},
+  extraFolders: {},
+  rvm: { level: 0, tolerance: 0.01, includeLines: false, lineWidth: 0.005, alignElements: false },
+  ifc: { split: 'none', quality: 'medium', spaces: 'skip', openings: 'skip', recenter: false },
+  step: { deflectionMm: 1.0, maxAngleDeg: 25.0, cleanup: true, workers: stepWorkerDefault() },
+  nwd: {
+    normals: false,
+    includeLines: false,
+    lineWidth: 0.005,
+    cleanup: true,
+    precision: 2,
+    simplify: false,
+    simplifyKeep: 75,
+    simplifyError: 0,
+    fullFingerprint: false,
+    units: 'auto',
+  },
+  scan: {
+    panoramas: true,
+    intensity16: false,
+    workers: scanWorkerCap(),
+    fullFingerprint: false,
+  },
+  stdGlb: { normals: true, edges: true },
+});

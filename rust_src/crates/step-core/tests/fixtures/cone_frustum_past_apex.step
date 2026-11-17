@@ -1,0 +1,44 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION((''),'2;1');
+FILE_NAME('','',(''),(''),'','','');
+FILE_SCHEMA(('AUTOMOTIVE_DESIGN'));
+ENDSEC;
+DATA;
+/* A conical frustum band that sits BEYOND the apex: the cone reference is at
+   x=-35.2, axis -X, ref_radius 3.6, semi_angle 45deg, so the apex is at
+   x=-31.6. Both rim circles (r=4 at x=-27.6, r=3.2 at x=-28.4) lie on the far
+   nappe, where the signed radius r + v*tan(a) is negative. A valid frustum
+   (real-model excerpt), exercising the cone uv inverse across the apex. */
+#1=CARTESIAN_POINT('',(-35.2,15.3,278.));
+#2=DIRECTION('',(-1.,0.,0.));
+#3=DIRECTION('',(0.,0.,1.));
+#4=AXIS2_PLACEMENT_3D('',#1,#2,#3);
+#5=CONICAL_SURFACE('',#4,3.6,0.78539816339744830961);
+#6=CARTESIAN_POINT('',(-27.6,15.3,278.));
+#7=DIRECTION('',(1.,0.,0.));
+#8=DIRECTION('',(0.,0.,1.));
+#9=AXIS2_PLACEMENT_3D('',#6,#7,#8);
+#10=CIRCLE('',#9,4.);
+#11=CARTESIAN_POINT('',(-27.6,15.3,274.));
+#12=VERTEX_POINT('',#11);
+#13=EDGE_CURVE('',#12,#12,#10,.T.);
+#14=ORIENTED_EDGE('',*,*,#13,.T.);
+#15=EDGE_LOOP('',(#14));
+#16=FACE_OUTER_BOUND('',#15,.T.);
+#17=CARTESIAN_POINT('',(-28.4,15.3,278.));
+#18=DIRECTION('',(-1.,0.,0.));
+#19=DIRECTION('',(0.,0.,1.));
+#20=AXIS2_PLACEMENT_3D('',#17,#18,#19);
+#21=CIRCLE('',#20,3.2);
+#22=CARTESIAN_POINT('',(-28.4,15.3,281.2));
+#23=VERTEX_POINT('',#22);
+#24=EDGE_CURVE('',#23,#23,#21,.T.);
+#25=ORIENTED_EDGE('',*,*,#24,.T.);
+#26=EDGE_LOOP('',(#25));
+#27=FACE_BOUND('',#26,.T.);
+#28=ADVANCED_FACE('',(#16,#27),#5,.T.);
+#29=OPEN_SHELL('',(#28));
+#30=SHELL_BASED_SURFACE_MODEL('',(#29));
+ENDSEC;
+END-ISO-10303-21;

@@ -1,0 +1,13 @@
+{
+  // Emit config for packaging @tredespace/ui (scripts/pack-ui.mjs): compiles
+  // src/treDeSpaceUI to ESM .js + .d.ts in the staging dir. The main
+  // tsconfig.json stays noEmit — this one is only ever used by the packer.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rootDir": "src/treDeSpaceUI",
+    "outDir": ".pack/tredespace-ui"
+  },
+  "include": ["src/treDeSpaceUI"]
+}

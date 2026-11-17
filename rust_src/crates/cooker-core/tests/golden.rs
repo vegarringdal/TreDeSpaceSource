@@ -1,0 +1,556 @@
+//! Golden pipeline test: convert a real Huldra RVM sample (Equinor open data)
+//! through rvm2glb (merged mode, as the app's Import Manager does), then cook
+//! every produced GLB and validate the CADM output. The old byte-compare
+//! against vulkan_reference/ went away with that folder; this exercises the
+//! full RVM → GLB → .tdp pipeline instead.
+
+use cad_format::ModelFileHeader;
+
+/// HA-STRU.RVM → merged GLBs via rvm2glb with the app's defaults (merged mode,
+/// no meshopt feature — the wasm shell the viewer ships builds the same way).
+fn huldra_glbs() -> Option<Vec<(String, Vec<u8>)>> {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let rvm_path = root.join("../convertSamples/rvm/HA-STRU.RVM");
+    if !rvm_path.exists() {
+        eprintln!("sample missing — skipping");
+        return None;
+    }
+    let rvm = std::fs::read(&rvm_path).unwrap();
+    let mut sink = rvm_core::MemSink::new();
+    let opts = rvm_core::ConvertOptions {
+        source_name: "HA-STRU.RVM".into(),
+        ..Default::default()
+    };
+    let report = rvm_core::convert(Box::new(rvm), &mut sink, &opts, &mut |_p| {}).expect("convert");
+    let glbs: Vec<(String, Vec<u8>)> = sink
+        .into_files()
+        .into_iter()
+        .filter(|(name, _)| name.ends_with(".glb"))
+        .collect();
+    eprintln!(
+        "rvm2glb: {} output file(s), {} site GLB(s)",
+        report.filemeta.len(),
+        glbs.len()
+    );
+    assert!(!glbs.is_empty(), "HA-STRU.RVM produced no GLB sites");
+    Some(glbs)
+}
+
+/// Default cook (v8): every site GLB cooks into a valid CADM file whose dense
+/// bounds sit inside the full bounds.
+#[test]
+fn rvm_to_glb_to_cook() {
+    let Some(glbs) = huldra_glbs() else { return };
+    for (name, glb) in &glbs {
+        let out = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("cook {name}: {e}"));
+        let b = &out.bytes;
+        let u32_at = |o: usize| u32::from_le_bytes(b[o..o + 4].try_into().unwrap());
+        let f32_at = |o: usize| f32::from_le_bytes(b[o..o + 4].try_into().unwrap());
+        assert_eq!(u32_at(0), 0x4d44_4143, "{name}: CADM magic");
+        assert_eq!(u32_at(4), 9, "{name}: format version");
+        assert!(u32_at(8) > 0, "{name}: no color groups");
+        assert!(!out.root_name.is_empty(), "{name}: empty root name");
+        for k in 0..3 {
+            let (fmin, fmax) = (f32_at(48 + k * 4), f32_at(60 + k * 4));
+            let (dmin, dmax) = (f32_at(216 + k * 4), f32_at(228 + k * 4));
+            assert!(fmin < fmax, "{name} axis {k}: degenerate full bounds");
+            assert!(
+                dmin >= fmin && dmax <= fmax && dmin < dmax,
+                "{name} axis {k}: dense outside full"
+            );
+        }
+        let h: &ModelFileHeader =
+            bytemuck::from_bytes(&b[..std::mem::size_of::<ModelFileHeader>()]);
+        eprintln!(
+            "{name}: {} B, cgs {}, root {:?}",
+            b.len(),
+            h.color_group_count,
+            out.root_name
+        );
+    }
+}
+
+/// v7 (reference-compatible options): same pipeline, header stays 216 bytes
+/// with version 7 — what the byte-compare against the native cooker used.
+#[test]
+fn rvm_to_glb_to_cook_v7() {
+    let Some(glbs) = huldra_glbs() else { return };
+    let (name, glb) = &glbs[0];
+    let out = cooker_core::cook(
+        glb,
+        cooker_core::CookOptions {
+            compute_normals: true,
+            dense_bounds: false,
+            coarsen: None,
+            spatial_order: false, // v7 parity: plain id order
+        },
+    )
+    .unwrap_or_else(|e| panic!("cook {name}: {e}"));
+    let u32_at = |o: usize| u32::from_le_bytes(out.bytes[o..o + 4].try_into().unwrap());
+    assert_eq!(u32_at(0), 0x4d44_4143, "CADM magic");
+    assert_eq!(u32_at(4), 7, "format version");
+    assert!(u32_at(8) > 0, "no color groups");
+    eprintln!("v7 OK: {name} → {} B", out.bytes.len());
+}
+
+/// Spatial ordering (v9-RANGES phase 1) permutes only the DENSE packing
+/// order. The semantic mapping the whole app relies on — source id → (colour
+/// group, draw range) — must come out identical, because selection, hide
+/// state, colour rules and the hierarchy are all keyed through it. This is
+/// what makes renumbering safe; if it ever breaks, colours land on the wrong
+/// items.
+#[test]
+fn spatial_order_permutes_only_the_packing() {
+    use cad_format::{HierarchySectionHeader, ItemsSectionHeader};
+
+    /// For every source id, the id of the DRAW RANGE its dense item points at.
+    /// These must be equal: that link is what makes selection/colour/hide land
+    /// on the right geometry. (The raw cg/dr indices are internal and DO change
+    /// under spatial ordering — asserting on them would test the implementation,
+    /// not the contract.) Also returns the dense order as a list of source ids.
+    fn id_to_drawrange_id(b: &[u8]) -> (std::collections::HashMap<u32, u32>, Vec<u32>) {
+        use cad_format::{HierarchySectionHeader, ItemsSectionHeader};
+        let version = u32::from_le_bytes(b[4..8].try_into().unwrap());
+        let cg_start: usize = match version {
+            7 => 216,
+            8 => 240,
+            _ => 256,
+        };
+        let cg_count = u32::from_le_bytes(b[8..12].try_into().unwrap()) as usize;
+        // per colour group: the draw-range id array
+        let dr_ids: Vec<Vec<u32>> = (0..cg_count)
+            .map(|i| {
+                let base = cg_start + i * 128;
+                let d = u32::from_le_bytes(b[base + 24..base + 28].try_into().unwrap()) as usize;
+                let off = u64::from_ne_bytes(b[base + 32..base + 40].try_into().unwrap()) as usize;
+                (0..d)
+                    .map(|k| {
+                        u32::from_le_bytes(b[off + k * 4..off + k * 4 + 4].try_into().unwrap())
+                    })
+                    .collect()
+            })
+            .collect();
+
+        let h: ModelFileHeader =
+            bytemuck::pod_read_unaligned(&b[..std::mem::size_of::<ModelFileHeader>()]);
+        let ish: ItemsSectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.items_offset as usize
+                ..h.items_offset as usize + std::mem::size_of::<ItemsSectionHeader>()],
+        );
+        let hsh: HierarchySectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.hierarchy_offset as usize
+                ..h.hierarchy_offset as usize + std::mem::size_of::<HierarchySectionHeader>()],
+        );
+        let cg_off = ish.item_to_color_group_offset as usize;
+        let dr_off = ish.item_to_draw_range_idx_offset as usize;
+        let mut map = std::collections::HashMap::new();
+        let mut order = vec![u32::MAX; ish.item_count as usize];
+        for k in 0..hsh.id_item_count as usize {
+            let e = hsh.id_item_offset as usize + k * 8;
+            let id = u32::from_le_bytes(b[e..e + 4].try_into().unwrap());
+            let item = u32::from_le_bytes(b[e + 4..e + 8].try_into().unwrap()) as usize;
+            let cg = u16::from_le_bytes(
+                b[cg_off + item * 2..cg_off + item * 2 + 2]
+                    .try_into()
+                    .unwrap(),
+            ) as usize;
+            let dr = u32::from_le_bytes(
+                b[dr_off + item * 4..dr_off + item * 4 + 4]
+                    .try_into()
+                    .unwrap(),
+            ) as usize;
+            map.insert(id, dr_ids[cg][dr]);
+            order[item] = id;
+        }
+        (map, order)
+    }
+
+    let Some(glbs) = huldra_glbs() else { return };
+    let (name, glb) = &glbs[0];
+    let plain = cooker_core::cook(
+        glb,
+        cooker_core::CookOptions {
+            spatial_order: false,
+            ..Default::default()
+        },
+    )
+    .unwrap_or_else(|e| panic!("plain cook {name}: {e}"));
+    let spatial = cooker_core::cook(glb, cooker_core::CookOptions::default())
+        .unwrap_or_else(|e| panic!("spatial cook {name}: {e}"));
+
+    let (map_a, order_a) = id_to_drawrange_id(&plain.bytes);
+    let (map_b, order_b) = id_to_drawrange_id(&spatial.bytes);
+    assert_eq!(map_a.len(), map_b.len(), "{name}: item count changed");
+    // every item points at its OWN draw range, in both cooks
+    for (map, which) in [(&map_a, "plain"), (&map_b, "spatial")] {
+        for (id, dr_id) in map.iter() {
+            assert_eq!(
+                id, dr_id,
+                "{name} ({which}): item {id} points at draw range {dr_id}"
+            );
+        }
+    }
+    assert_eq!(
+        map_a, map_b,
+        "{name}: id → draw-range-id mapping must be identical"
+    );
+    assert_ne!(
+        order_a, order_b,
+        "{name}: spatial order did not actually reorder anything"
+    );
+    let mut sorted_a = order_a.clone();
+    let mut sorted_b = order_b.clone();
+    sorted_a.sort_unstable();
+    sorted_b.sort_unstable();
+    assert_eq!(
+        sorted_a, sorted_b,
+        "{name}: the id set must be a pure permutation"
+    );
+    eprintln!(
+        "{name}: {} items reordered spatially, mapping intact",
+        order_b.len()
+    );
+}
+
+/// v9 cell table: the ranges ARE the octree, so they must tile the item space
+/// exactly — every item in exactly one cell, each cell contiguous, no gaps and
+/// no overlaps. If this ever breaks, range-based loading would silently drop
+/// or duplicate geometry.
+#[test]
+fn v9_cell_table_tiles_every_item() {
+    use cad_format::{CellEntry, ItemsSectionHeader, CELL_COUNT};
+
+    let Some(glbs) = huldra_glbs() else { return };
+    for (name, glb) in &glbs {
+        let out = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("cook {name}: {e}"));
+        let b = &out.bytes;
+        assert_eq!(
+            u32::from_le_bytes(b[4..8].try_into().unwrap()),
+            9,
+            "{name}: expected FORMAT v9"
+        );
+        let cell_off = u64::from_ne_bytes(b[240..248].try_into().unwrap()) as usize;
+        let cell_count = u32::from_ne_bytes(b[248..252].try_into().unwrap());
+        assert_eq!(cell_count, CELL_COUNT, "{name}: cell count");
+
+        let h: ModelFileHeader =
+            bytemuck::pod_read_unaligned(&b[..std::mem::size_of::<ModelFileHeader>()]);
+        let ish: ItemsSectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.items_offset as usize
+                ..h.items_offset as usize + std::mem::size_of::<ItemsSectionHeader>()],
+        );
+
+        let mut cells: Vec<CellEntry> = Vec::with_capacity(cell_count as usize);
+        for i in 0..cell_count as usize {
+            cells.push(bytemuck::pod_read_unaligned(
+                &b[cell_off + i * 32..cell_off + i * 32 + 32],
+            ));
+        }
+
+        // every item covered exactly once, and each cell's range is contiguous
+        let mut seen = vec![0u8; ish.item_count as usize];
+        let mut occupied = 0usize;
+        for (ci, c) in cells.iter().enumerate() {
+            if c.item_count == 0 {
+                continue;
+            }
+            occupied += 1;
+            let s = c.item_start as usize;
+            let e = s + c.item_count as usize;
+            assert!(
+                e <= seen.len(),
+                "{name}: cell {ci} range past the item table"
+            );
+            for slot in &mut seen[s..e] {
+                assert_eq!(*slot, 0, "{name}: cell {ci} overlaps another cell");
+                *slot = 1;
+            }
+            for k in 0..3 {
+                assert!(
+                    c.aabb_min[k] <= c.aabb_max[k],
+                    "{name}: cell {ci} has a degenerate AABB"
+                );
+            }
+        }
+        assert!(
+            seen.iter().all(|&s| s == 1),
+            "{name}: some items are in no cell"
+        );
+        assert!(
+            occupied > 1,
+            "{name}: everything landed in one cell — binning did nothing"
+        );
+        eprintln!(
+            "{name}: {} items across {occupied} occupied cells",
+            ish.item_count
+        );
+    }
+}
+
+/// Coarse variant (VRAM-budget residency swap): the item table and hierarchy
+/// must match the full cook EXACTLY — item ids, order, item→cg/dr mappings,
+/// names, id→item table — because the viewer swaps variants in place and keeps
+/// per-item state keyed by dense item index. Only geometry may differ (and
+/// must shrink). Section headers hold absolute file offsets, so the comparison
+/// is on array CONTENTS, not raw section bytes.
+#[test]
+fn coarse_cook_preserves_item_table() {
+    use cad_format::{HierarchySectionHeader, ItemsSectionHeader};
+
+    struct Tables {
+        item_to_cg: Vec<u8>,
+        item_to_dr: Vec<u8>,
+        name_pool: Vec<u8>,
+        entries: Vec<u8>,
+        id_item: Vec<u8>,
+        item_count: u32,
+    }
+    fn tables(b: &[u8]) -> Tables {
+        let h: ModelFileHeader =
+            bytemuck::pod_read_unaligned(&b[..std::mem::size_of::<ModelFileHeader>()]);
+        let ish: ItemsSectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.items_offset as usize
+                ..h.items_offset as usize + std::mem::size_of::<ItemsSectionHeader>()],
+        );
+        let hsh: HierarchySectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.hierarchy_offset as usize
+                ..h.hierarchy_offset as usize + std::mem::size_of::<HierarchySectionHeader>()],
+        );
+        let n = ish.item_count as usize;
+        let slice = |off: u64, len: usize| b[off as usize..off as usize + len].to_vec();
+        Tables {
+            item_to_cg: slice(ish.item_to_color_group_offset, n * 2),
+            item_to_dr: slice(ish.item_to_draw_range_idx_offset, n * 4),
+            name_pool: slice(hsh.name_pool_offset, hsh.name_pool_len as usize),
+            entries: slice(hsh.entries_offset, hsh.entry_count as usize * 16),
+            id_item: slice(hsh.id_item_offset, hsh.id_item_count as usize * 8),
+            item_count: ish.item_count,
+        }
+    }
+
+    let Some(glbs) = huldra_glbs() else { return };
+    let mut full_total = 0usize;
+    let mut coarse_total = 0usize;
+    for (name, glb) in &glbs {
+        let full = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("full cook {name}: {e}"));
+        let coarse = cooker_core::cook(
+            glb,
+            cooker_core::CookOptions {
+                coarsen: Some(cooker_core::CoarsenOptions::default()),
+                ..Default::default()
+            },
+        )
+        .unwrap_or_else(|e| panic!("coarse cook {name}: {e}"));
+
+        let tf = tables(&full.bytes);
+        let tc = tables(&coarse.bytes);
+        assert_eq!(tf.item_count, tc.item_count, "{name}: item count");
+        assert_eq!(tf.item_to_cg, tc.item_to_cg, "{name}: item→cg");
+        assert_eq!(tf.item_to_dr, tc.item_to_dr, "{name}: item→dr");
+        assert_eq!(tf.name_pool, tc.name_pool, "{name}: name pool");
+        assert_eq!(tf.entries, tc.entries, "{name}: hierarchy entries");
+        assert_eq!(tf.id_item, tc.id_item, "{name}: id→item table");
+        assert_eq!(full.root_name, coarse.root_name, "{name}: root name");
+        assert!(
+            coarse.bytes.len() < full.bytes.len(),
+            "{name}: coarse ({} B) not smaller than full ({} B)",
+            coarse.bytes.len(),
+            full.bytes.len()
+        );
+        full_total += full.bytes.len();
+        coarse_total += coarse.bytes.len();
+    }
+    eprintln!(
+        "coarse/full size: {coarse_total}/{full_total} B ({:.1}%)",
+        100.0 * coarse_total as f64 / full_total as f64
+    );
+}
+
+/// Coarse-from-.tdp (no source file): the rebuilt coarse variant must be a
+/// valid residency-swap partner for the full file — identical item table,
+/// hierarchy section, cell table, draw-range ids and header bounds. Compared
+/// against the coarse-from-GLB cook, which is the reference for all of those.
+#[test]
+fn coarsen_tdp_matches_glb_coarse_structure() {
+    use cad_format::{HierarchySectionHeader, ItemsSectionHeader};
+
+    /// Structural sections of a packed file: per-cg draw-range id arrays, the
+    /// items-section arrays, the hierarchy blob (name pool + entries +
+    /// id→item), and the v9 cell table.
+    fn sections(b: &[u8]) -> (Vec<Vec<u32>>, Vec<u8>, Vec<u8>, Vec<u8>) {
+        let version = u32::from_le_bytes(b[4..8].try_into().unwrap());
+        let cg_start: usize = match version {
+            7 => 216,
+            8 => 240,
+            _ => 256,
+        };
+        let cg_count = u32::from_le_bytes(b[8..12].try_into().unwrap()) as usize;
+        let dr_ids: Vec<Vec<u32>> = (0..cg_count)
+            .map(|i| {
+                let base = cg_start + i * 128;
+                let d = u32::from_le_bytes(b[base + 24..base + 28].try_into().unwrap()) as usize;
+                let off = u64::from_ne_bytes(b[base + 32..base + 40].try_into().unwrap()) as usize;
+                (0..d)
+                    .map(|k| {
+                        u32::from_le_bytes(b[off + k * 4..off + k * 4 + 4].try_into().unwrap())
+                    })
+                    .collect()
+            })
+            .collect();
+
+        let h: ModelFileHeader =
+            bytemuck::pod_read_unaligned(&b[..std::mem::size_of::<ModelFileHeader>()]);
+        let ish: ItemsSectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.items_offset as usize
+                ..h.items_offset as usize + std::mem::size_of::<ItemsSectionHeader>()],
+        );
+        let n = ish.item_count as usize;
+        let cg_off = ish.item_to_color_group_offset as usize;
+        let dr_off = ish.item_to_draw_range_idx_offset as usize;
+        let mut items = b[cg_off..cg_off + n * 2].to_vec();
+        items.extend_from_slice(&b[dr_off..dr_off + n * 4]);
+
+        let hsh: HierarchySectionHeader = bytemuck::pod_read_unaligned(
+            &b[h.hierarchy_offset as usize
+                ..h.hierarchy_offset as usize + std::mem::size_of::<HierarchySectionHeader>()],
+        );
+        let np = hsh.name_pool_offset as usize;
+        let en = hsh.entries_offset as usize;
+        let ii = hsh.id_item_offset as usize;
+        let mut hier = b[np..np + hsh.name_pool_len as usize].to_vec();
+        hier.extend_from_slice(&b[en..en + hsh.entry_count as usize * 16]);
+        hier.extend_from_slice(&b[ii..ii + hsh.id_item_count as usize * 8]);
+
+        let cells = if version >= 9 {
+            let off = u64::from_ne_bytes(b[240..248].try_into().unwrap()) as usize;
+            let count = u32::from_le_bytes(b[248..252].try_into().unwrap()) as usize;
+            b[off..off + count * 32].to_vec()
+        } else {
+            Vec::new()
+        };
+        (dr_ids, items, hier, cells)
+    }
+
+    let Some(glbs) = huldra_glbs() else { return };
+    for (name, glb) in &glbs {
+        let full = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("full cook {name}: {e}"));
+        let glb_coarse = cooker_core::cook(
+            glb,
+            cooker_core::CookOptions {
+                coarsen: Some(cooker_core::CoarsenOptions::default()),
+                ..Default::default()
+            },
+        )
+        .unwrap_or_else(|e| panic!("glb coarse cook {name}: {e}"));
+        let tdp_coarse =
+            cooker_core::coarsen_tdp(&full.bytes, cooker_core::CoarsenOptions::default())
+                .unwrap_or_else(|e| panic!("coarsen_tdp {name}: {e}"));
+
+        // header: same version, bounds/dense bit-exact with the FULL file
+        assert_eq!(tdp_coarse[0..8], full.bytes[0..8], "{name}: magic/version");
+        assert_eq!(tdp_coarse[48..72], full.bytes[48..72], "{name}: bounds");
+        assert_eq!(
+            tdp_coarse[216..240],
+            full.bytes[216..240],
+            "{name}: dense bounds"
+        );
+
+        let (dr_a, items_a, hier_a, cells_a) = sections(&glb_coarse.bytes);
+        let (dr_b, items_b, hier_b, cells_b) = sections(&tdp_coarse);
+        assert_eq!(dr_a, dr_b, "{name}: draw-range id arrays diverge");
+        assert_eq!(items_a, items_b, "{name}: items section diverges");
+        assert_eq!(hier_a, hier_b, "{name}: hierarchy section diverges");
+        assert_eq!(cells_a, cells_b, "{name}: cell table diverges");
+
+        assert!(
+            tdp_coarse.len() < full.bytes.len(),
+            "{name}: tdp coarse ({} B) not smaller than full ({} B)",
+            tdp_coarse.len(),
+            full.bytes.len()
+        );
+        eprintln!(
+            "{name}: full {} B, glb-coarse {} B, tdp-coarse {} B",
+            full.bytes.len(),
+            glb_coarse.bytes.len(),
+            tdp_coarse.len()
+        );
+    }
+}
+
+/// `cook_both` shares one parse and one prepare pass between the full and the
+/// coarse variant. Both outputs must be byte-identical to what two separate
+/// cooks produce — that is the contract the import pipeline relies on when it
+/// stops cooking every merged GLB twice.
+#[test]
+fn cook_both_matches_separate_cooks() {
+    let Some(glbs) = huldra_glbs() else { return };
+    let coarse_opts = cooker_core::CookOptions {
+        coarsen: Some(cooker_core::CoarsenOptions::default()),
+        ..Default::default()
+    };
+    for (name, glb) in &glbs {
+        let full = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("full cook {name}: {e}"));
+        let coarse = cooker_core::cook(glb, coarse_opts)
+            .unwrap_or_else(|e| panic!("coarse cook {name}: {e}"));
+        let (both_full, both_coarse) = cooker_core::cook_both(glb, coarse_opts)
+            .unwrap_or_else(|e| panic!("cook_both {name}: {e}"));
+        assert!(both_full.bytes == full.bytes, "{name}: full variant differs");
+        assert!(both_coarse.bytes == coarse.bytes, "{name}: coarse variant differs");
+        assert_eq!(both_full.root_name, full.root_name, "{name}: root name");
+        assert_eq!(both_coarse.root_name, coarse.root_name, "{name}: coarse root name");
+    }
+    eprintln!("cook_both: {} site(s) byte-identical", glbs.len());
+}
+
+/// The flat typed-array form (`model_from_flat`, the `.tdp` export path) must
+/// round-trip a model without changing the cook: GLB → model → flat arrays →
+/// model cooks to the same bytes as the GLB itself.
+#[test]
+fn flat_model_round_trips_byte_identical() {
+    let Some(glbs) = huldra_glbs() else { return };
+    for (name, glb) in &glbs {
+        let model = cooker_core::merged_model_from_glb(glb)
+            .unwrap_or_else(|e| panic!("decode {name}: {e}"));
+        let mut positions: Vec<f32> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
+        let mut nodes: Vec<u32> = Vec::new();
+        let mut colors: Vec<f32> = Vec::new();
+        let mut ranges: Vec<u32> = Vec::new();
+        for n in &model.nodes {
+            nodes.extend_from_slice(&[
+                (positions.len() / 3) as u32,
+                n.positions.len() as u32,
+                indices.len() as u32,
+                n.indices.len() as u32,
+                (ranges.len() / 3) as u32,
+                n.draw_ranges.len() as u32,
+            ]);
+            positions.extend(n.positions.iter().flatten());
+            indices.extend_from_slice(&n.indices);
+            colors.extend_from_slice(&n.base_color);
+            for r in &n.draw_ranges {
+                ranges.extend_from_slice(&[r.id, r.index_start, r.index_count]);
+            }
+        }
+        let hier: Vec<(u32, &str, Option<u32>)> = model
+            .hierarchy
+            .iter()
+            .map(|h| (h.id, h.name.as_str(), h.parent_id))
+            .collect();
+        let hier_json = serde_json::to_string(&hier).unwrap();
+        let flat = cooker_core::model_from_flat(&positions, &indices, &nodes, &colors, &ranges, &hier_json)
+            .unwrap_or_else(|e| panic!("model_from_flat {name}: {e}"));
+        let via_glb = cooker_core::cook(glb, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("cook {name}: {e}"));
+        let via_flat = cooker_core::cook_model(flat, cooker_core::CookOptions::default())
+            .unwrap_or_else(|e| panic!("cook flat {name}: {e}"));
+        assert!(via_flat.bytes == via_glb.bytes, "{name}: flat path differs");
+        assert_eq!(via_flat.root_name, via_glb.root_name, "{name}: root name");
+    }
+    eprintln!("flat: {} site(s) byte-identical", glbs.len());
+}

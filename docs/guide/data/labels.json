@@ -1,0 +1,630 @@
+{
+  "shots": {
+    "labels-open": {
+      "w": 783,
+      "h": 111,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 678.671875,
+          "y": 7,
+          "w": 96,
+          "h": 22
+        },
+        {
+          "n": 2,
+          "x": 488.0625,
+          "y": 57.328125,
+          "w": 132.5625,
+          "h": 21.328125
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-new": {
+      "w": 414,
+      "h": 266,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 94.71875,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-list": {
+      "w": 414,
+      "h": 116,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 20,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        {
+          "n": 2,
+          "x": 40,
+          "y": 44,
+          "w": 298,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 3,
+          "x": 342,
+          "y": 44,
+          "w": 24,
+          "h": 24,
+          "at": "bl"
+        },
+        {
+          "n": 4,
+          "x": 370,
+          "y": 44,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 5,
+          "x": 20,
+          "y": 72,
+          "w": 374,
+          "h": 24,
+          "at": "bl"
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-import": {
+      "w": 414,
+      "h": 333,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 384,
+          "h": 127
+        },
+        {
+          "n": 2,
+          "x": 15,
+          "y": 174,
+          "w": 180.609375,
+          "h": 16
+        },
+        {
+          "n": 3,
+          "x": 15,
+          "y": 198,
+          "w": 174.890625,
+          "h": 16
+        },
+        {
+          "n": 4,
+          "x": 77,
+          "y": 222,
+          "w": 322,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 15,
+          "y": 254,
+          "w": 62.421875,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 83.421875,
+          "y": 254,
+          "w": 63.796875,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-import-notfound": {
+      "w": 388,
+      "h": 143,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "labels-overview": {
+      "w": 420,
+      "h": 738,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 18,
+          "y": 65,
+          "w": 94.71875,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 118.71875,
+          "y": 65,
+          "w": 83.46875,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 18,
+          "y": 97,
+          "w": 112.515625,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 18,
+          "y": 159,
+          "w": 90.328125,
+          "h": 24
+        },
+        {
+          "n": 5,
+          "x": 18,
+          "y": 221,
+          "w": 83.78125,
+          "h": 24
+        },
+        {
+          "n": 6,
+          "x": 18,
+          "y": 253,
+          "w": 76.140625,
+          "h": 24
+        },
+        {
+          "n": 7,
+          "x": 18,
+          "y": 297,
+          "w": 384,
+          "h": 16
+        },
+        {
+          "n": 8,
+          "x": 18,
+          "y": 329,
+          "w": 384,
+          "h": 16
+        },
+        {
+          "n": 9,
+          "x": 18,
+          "y": 459,
+          "w": 384,
+          "h": 62
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-style": {
+      "w": 402,
+      "h": 366,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 39,
+          "w": 372,
+          "h": 16
+        },
+        {
+          "n": 2,
+          "x": 15,
+          "y": 63,
+          "w": 372,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 15,
+          "y": 95,
+          "w": 372,
+          "h": 24
+        },
+        {
+          "n": 4,
+          "x": 15,
+          "y": 191,
+          "w": 157.84375,
+          "h": 16
+        },
+        {
+          "n": 5,
+          "x": 15,
+          "y": 335,
+          "w": 234.875,
+          "h": 16
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-explode": {
+      "w": 285,
+      "h": 40,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 8,
+          "y": 8,
+          "w": 83.78125,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 97.78125,
+          "y": 8,
+          "w": 83.75,
+          "h": 24
+        },
+        {
+          "n": 3,
+          "x": 187.53125,
+          "y": 8,
+          "w": 50.984375,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-viewpoints-button": {
+      "w": 414,
+      "h": 266,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 15,
+          "y": 133,
+          "w": 90.328125,
+          "h": 24
+        },
+        {
+          "n": 2,
+          "x": 15,
+          "y": 101,
+          "w": 166.515625,
+          "h": 24
+        }
+      ],
+      "fromGpu": true
+    },
+    "labels-viewpoints-viewer": {
+      "w": 284,
+      "h": 278,
+      "gpu": false,
+      "marks": [],
+      "fromGpu": true
+    },
+    "labels-new-viewport": {
+      "w": 713,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "labels-import-viewport": {
+      "w": 713,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "labels-style-viewport": {
+      "w": 713,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    },
+    "labels-explode-viewport": {
+      "w": 713,
+      "h": 582,
+      "gpu": true,
+      "marks": [],
+      "fromGpu": true
+    }
+  },
+  "reference": {
+    "labels": [
+      {
+        "section": "Common",
+        "label": "New label",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-map-pin-plus \"><path d=\"M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path><path d=\"M12.794 21.322a2 2 0 0 1 -2.207 -.422l-4.244 -4.243a8 8 0 1 1 13.59 -4.616\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path></svg>",
+        "tooltip": "Arm placement \u2014 the next click in the viewport creates a label there",
+        "keys": "ALT 1032"
+      },
+      {
+        "section": "Common",
+        "label": "Mute all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-off \"><path d=\"M10.585 10.587a2 2 0 0 0 2.829 2.828\"></path><path d=\"M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hide/show all labels in the viewport (items are kept). Show all also unmutes individually muted labels",
+        "keys": "ALT 1139"
+      },
+      {
+        "section": "Common",
+        "label": "Mute sel.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-off \"><path d=\"M10.585 10.587a2 2 0 0 0 2.829 2.828\"></path><path d=\"M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hide the selected labels in the viewport (items are kept). Press again on an all-muted selection to show them",
+        "keys": "ALT 1202"
+      },
+      {
+        "section": "Common",
+        "label": "Delete all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete every label",
+        "keys": "ALT 1037"
+      },
+      {
+        "section": "Common",
+        "label": "Highlight sel.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list-search \"><path d=\"M11 15a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"></path><path d=\"M18.5 18.5l2.5 2.5\"></path><path d=\"M4 6h16\"></path><path d=\"M4 12h4\"></path><path d=\"M4 18h4\"></path></svg>",
+        "tooltip": "Highlight the linked items (by fullname) of the selected labels in the tree/model",
+        "keys": "ALT 1040"
+      },
+      {
+        "section": "Common",
+        "label": "Highlight all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-list-search \"><path d=\"M11 15a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"></path><path d=\"M18.5 18.5l2.5 2.5\"></path><path d=\"M4 6h16\"></path><path d=\"M4 12h4\"></path><path d=\"M4 18h4\"></path></svg>",
+        "tooltip": "Highlight ALL labels' linked items (by fullname) in the tree/model",
+        "keys": "ALT 1041"
+      },
+      {
+        "section": "Common",
+        "label": "Selected to viewpoints",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera-plus \"><path d=\"M12 20h-7a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v3.5\"></path><path d=\"M16 19h6\"></path><path d=\"M19 16v6\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
+        "tooltip": "Add one viewpoint per selected label with a linked fullname: label text as name, the fullname selected, the label copied in, camera on the label framing the item (never closer than 2 m). A fullname + name some viewpoint already has is skipped. Opens the Viewpoint Viewer",
+        "keys": "ALT 1231"
+      },
+      {
+        "section": "Common",
+        "label": "Select all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-select-all \"><path d=\"M8 9a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1l0 -6\"></path><path d=\"M12 20v.01\"></path><path d=\"M16 20v.01\"></path><path d=\"M8 20v.01\"></path><path d=\"M4 20v.01\"></path><path d=\"M4 16v.01\"></path><path d=\"M4 12v.01\"></path><path d=\"M4 8v.01\"></path><path d=\"M4 4v.01\"></path><path d=\"M8 4v.01\"></path><path d=\"M12 4v.01\"></path><path d=\"M16 4v.01\"></path><path d=\"M20 4v.01\"></path><path d=\"M20 8v.01\"></path><path d=\"M20 12v.01\"></path><path d=\"M20 16v.01\"></path><path d=\"M20 20v.01\"></path></svg>",
+        "tooltip": "Select every label",
+        "keys": "ALT 1203"
+      },
+      {
+        "section": "Common",
+        "label": "Deselect all",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-deselect \"><path d=\"M12 8h3a1 1 0 0 1 1 1v3\"></path><path d=\"M16 16h-7a1 1 0 0 1 -1 -1v-7\"></path><path d=\"M12 20v.01\"></path><path d=\"M16 20v.01\"></path><path d=\"M8 20v.01\"></path><path d=\"M4 20v.01\"></path><path d=\"M4 16v.01\"></path><path d=\"M4 12v.01\"></path><path d=\"M4 8v.01\"></path><path d=\"M8 4v.01\"></path><path d=\"M12 4v.01\"></path><path d=\"M16 4v.01\"></path><path d=\"M20 4v.01\"></path><path d=\"M20 8v.01\"></path><path d=\"M20 12v.01\"></path><path d=\"M20 16v.01\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Clear the label selection",
+        "keys": "ALT 1204"
+      },
+      {
+        "section": "Common",
+        "label": "Select bbox",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-box \"><path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"></path><path d=\"M12 12l8 -4.5\"></path><path d=\"M12 12l0 9\"></path><path d=\"M12 12l-8 -4.5\"></path></svg>",
+        "tooltip": "Select every label inside the clipping box or an enabled clip shape (geometric inside \u2014 invert is ignored)",
+        "keys": "ALT 1205"
+      },
+      {
+        "section": "Common",
+        "label": "Hide outside bbox",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-off \"><path d=\"M10.585 10.587a2 2 0 0 0 2.829 2.828\"></path><path d=\"M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87\"></path><path d=\"M3 3l18 18\"></path></svg>",
+        "tooltip": "Hide every label outside the clipping box / enabled clip shapes (labels inside are shown). Show all brings them back",
+        "keys": "ALT 1206"
+      },
+      {
+        "section": "Common",
+        "label": "Invert sel.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-switch-horizontal \"><path d=\"M16 3l4 4l-4 4\"></path><path d=\"M10 7l10 0\"></path><path d=\"M8 13l-4 4l4 4\"></path><path d=\"M4 17l9 0\"></path></svg>",
+        "tooltip": "Invert which labels are selected",
+        "keys": "ALT 1035"
+      },
+      {
+        "section": "Common",
+        "label": "Delete sel.",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete the selected labels",
+        "keys": "ALT 1036"
+      },
+      {
+        "section": "Common",
+        "label": "Explode",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-maximize \"><path d=\"M16 4l4 0l0 4\"></path><path d=\"M14 10l6 -6\"></path><path d=\"M8 20l-4 0l0 -4\"></path><path d=\"M4 20l6 -6\"></path><path d=\"M16 20l4 0l0 -4\"></path><path d=\"M14 14l6 6\"></path><path d=\"M8 4l-4 0l0 4\"></path><path d=\"M4 4l6 6\"></path></svg>",
+        "tooltip": "Fan the labels outward from the cluster center (press again to push further)",
+        "keys": "ALT 1042"
+      },
+      {
+        "section": "Common",
+        "label": "Implode",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-minimize \"><path d=\"M5 9l4 0l0 -4\"></path><path d=\"M3 3l6 6\"></path><path d=\"M5 15l4 0l0 4\"></path><path d=\"M3 21l6 -6\"></path><path d=\"M19 9l-4 0l0 -4\"></path><path d=\"M15 9l6 -6\"></path><path d=\"M19 15l-4 0l0 4\"></path><path d=\"M15 15l6 6\"></path></svg>",
+        "tooltip": "Move every label back onto its anchor point (undoes explode and manual drags)",
+        "keys": "ALT 1043"
+      },
+      {
+        "section": "Common",
+        "label": "Circle",
+        "icon": "",
+        "tooltip": "Explode the labels onto a circle around the anchors",
+        "keys": ""
+      },
+      {
+        "section": "Common",
+        "label": "Box",
+        "icon": "",
+        "tooltip": "Explode the labels onto a rectangle around the anchors",
+        "keys": ""
+      },
+      {
+        "section": "Common",
+        "label": "Save\u2026",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-download \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 11l5 5l5 -5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Save all labels to a JSON file",
+        "keys": "ALT 1045"
+      },
+      {
+        "section": "Common",
+        "label": "Load\u2026",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
+        "tooltip": "Load labels from a JSON file (replaces the current labels)",
+        "keys": "ALT 1046"
+      },
+      {
+        "section": "Common",
+        "label": "Undo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-back-up \"><path d=\"M9 14l-4 -4l4 -4\"></path><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"></path></svg>",
+        "tooltip": "Undo the last label change",
+        "keys": "ALT 1033"
+      },
+      {
+        "section": "Common",
+        "label": "Redo",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrow-forward-up \"><path d=\"M15 14l4 -4l-4 -4\"></path><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"></path></svg>",
+        "tooltip": "Redo the last undone label change",
+        "keys": "ALT 1034"
+      },
+      {
+        "section": "Style",
+        "label": "3D sphere at the anchor",
+        "icon": "",
+        "tooltip": "Draw a wireframe sphere IN the scene at the anchor \u2014 depth tested, so the point reads at its true depth",
+        "keys": "ALT 1055"
+      },
+      {
+        "section": "Style",
+        "label": "Sphere size \u2212",
+        "icon": "",
+        "tooltip": "Smaller label sphere markers",
+        "keys": "ALT 1057"
+      },
+      {
+        "section": "Style",
+        "label": "Sphere size +",
+        "icon": "",
+        "tooltip": "Bigger label sphere markers",
+        "keys": "ALT 1056"
+      },
+      {
+        "section": "Style",
+        "label": "Solid sphere",
+        "icon": "",
+        "tooltip": "Fill the sphere (shaded, with the opacity below) instead of drawing a wireframe",
+        "keys": "ALT 1058"
+      },
+      {
+        "section": "Style",
+        "label": "Sphere opacity \u2212",
+        "icon": "",
+        "tooltip": "More translucent label spheres",
+        "keys": "ALT 1060"
+      },
+      {
+        "section": "Style",
+        "label": "Sphere opacity +",
+        "icon": "",
+        "tooltip": "More opaque label spheres",
+        "keys": "ALT 1059"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Style",
+        "label": "Label color / Text color / Leader line",
+        "tooltip": "Colours for the selected labels \u2014 or, with nothing selected, for the next labels you create."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Style",
+        "label": "Opacity",
+        "tooltip": "Label background opacity, 0.1\u20131."
+      },
+      {
+        "section": "Import tags",
+        "label": "Snap anchor to nearest item",
+        "icon": "",
+        "tooltip": "A tag with children anchors at its bounding-box center \u2014 on a bent pipe run that point hangs in empty air. This snaps the anchor to the nearest child item instead.",
+        "keys": "ALT 1197"
+      },
+      {
+        "section": "Import tags",
+        "label": "Label text without leading /",
+        "icon": "",
+        "tooltip": "Show the tag without the model's leading \u201c/\u201d in the label itself. The label stays linked to the full name, so selection, colouring and viewpoints still match.",
+        "keys": "ALT 1290"
+      },
+      {
+        "section": "Import tags",
+        "label": "Store",
+        "icon": "",
+        "tooltip": "Resolve tags only among models loaded from one store \u2014 All stores searches every loaded model",
+        "keys": ""
+      },
+      {
+        "section": "Import tags",
+        "label": "Append",
+        "icon": "",
+        "tooltip": "Add labels for these tags (existing labels are kept; duplicates skipped)",
+        "keys": "ALT 1038"
+      },
+      {
+        "section": "Import tags",
+        "label": "Replace",
+        "icon": "",
+        "tooltip": "Delete all labels, then add labels for these tags",
+        "keys": "ALT 1039"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Import tags",
+        "label": "Tag list",
+        "tooltip": "Paste tag names, one per line. Names that are not found are written back here."
+      },
+      {
+        "section": "Label list",
+        "label": "Label swatch",
+        "icon": "",
+        "tooltip": "Toggle selected",
+        "keys": ""
+      },
+      {
+        "section": "Label list",
+        "label": "Move label",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-crosshair \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path><path d=\"M9 12l6 0\"></path><path d=\"M12 9l0 6\"></path></svg>",
+        "tooltip": "Move this label: activate, then click the new spot in the model (disarms after one click)",
+        "keys": ""
+      },
+      {
+        "section": "Label list",
+        "label": "Delete label",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trash \"><path d=\"M4 7l16 0\"></path><path d=\"M10 11l0 6\"></path><path d=\"M14 11l0 6\"></path><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"></path><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"></path></svg>",
+        "tooltip": "Delete this label",
+        "keys": ""
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Label list",
+        "label": "Label text",
+        "tooltip": "Edit what the label says. With Styled text on, this is a multi-line box where **bold** works."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "Label list",
+        "label": "Linked fullname",
+        "tooltip": "The model item the label belongs to. Highlight, viewpoints and duplicate checks use it."
+      }
+    ]
+  },
+  "appVersion": "0.0.140"
+}

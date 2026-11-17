@@ -1,0 +1,33 @@
+# Block OpenAI (ChatGPT & GPTbot)
+User-agent: GPTBot
+User-agent: ChatGPT-User
+Disallow: /
+
+# Block Anthropic (Claude)
+User-agent: Anthropic-AI
+User-agent: Claude-Web
+Disallow: /
+
+# Block Google's AI Training (Does NOT block Google Search)
+User-agent: Google-Extended
+Disallow: /
+
+# Block Apple's AI Scraper
+User-agent: Applebot-Extended
+Disallow: /
+
+# Block Perplexity
+User-agent: PerplexityBot
+Disallow: /
+
+# Block Common Crawl (Massive dataset used by many AI models)
+User-agent: CCBot
+Disallow: /
+
+# Block Meta's AI Scraper
+User-agent: FacebookBot
+Disallow: /
+
+# Block Cohere
+User-agent: cohere-ai
+Disallow: /

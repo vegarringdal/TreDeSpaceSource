@@ -1,0 +1,12 @@
+{
+  "sources": "4ed8da60c43240e6597923bf04f9f7d79ec8b07b0a2a6d31b413180d25297752",
+  "wasm": "bf4a6459dd351e7a29745571210194558a415260b481a782255e400f68fc7d4b",
+  "crates": [
+    "cad-format",
+    "cooker-core",
+    "meshopt",
+    "rvm-core",
+    "rvm-wasm",
+    "tess2-rust"
+  ]
+}

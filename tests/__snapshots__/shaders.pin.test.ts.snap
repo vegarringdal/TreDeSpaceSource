@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`shader text pins > produces byte-identical WGSL for every entry point and variant 1`] = `
+{
+  "cubeBlitWgsl()": "ecada98894e2e0d8aad79f9af408f69e06f2fd666f21559fb17f2d3ffa0dccd5",
+  "cullWgsl(false,false)": "0fefaf07ca78e9b450b325d1ab82705252e8c5899ce7043eb22de51c52409f78",
+  "cullWgsl(false,true)": "d98aeece7a1a678339e14f1141bf23f40736fbc959d4d6ad5885e2bf7f3e90f2",
+  "cullWgsl(true,false)": "57413a3b574c1157115aa2751d72ff30f857376d0a9b94b3a64cc4b9571c817b",
+  "cullWgsl(true,true)": "300eedf0ac3286dbbdc8ec10cad76a74dedd41d197d05527eeaec7569c404c13",
+  "hzbWgsl(false)": "817e184faf1f80ff6fe5713c1c12a2ed879a07d3c10b0e5463ab223f3388ed43",
+  "hzbWgsl(true)": "19dcbba481bec69f35b464fcc8f2d5a2e290d22a31ea0b8ae56588ad9ddb24ac",
+  "lineWgsl()": "4cde66c8bbc9a5dc64e7c9fbe620ca120abbcc036c0d322278e20b39941a0fbf",
+  "markerWgsl()": "c9b93ab77ac560326752f6cc72ef58987ff8b11cc31d8f4d6f94b01289fa6cd5",
+  "measureSnapWgsl()": "6f9ce632143b9c8817d62cdb601e7dc0fb98bb23f6aebd4a193b532e956a7ea9",
+  "outlineWgsl(false)": "dbcd52754e366bd11b1bc7587f52e2106e37a3e6a88db6ff04c783872ca5d2a7",
+  "outlineWgsl(true)": "d1157817b219a6252c7fdde18d90fccf42355260a2dfcfbeceb1c8befef10ce0",
+  "panoWgsl(false)": "930bd779986fa91143660d428a0d86d64eb5a08bbfb343ebe0e6674258a3f943",
+  "panoWgsl(true)": "1b3a19f8fb28cfddd8794a69fe686fc64a900b8a38c90eca936b18a552eb105f",
+  "pickDepthWgsl(false)": "010dd1c8f4a17efa1811636905db599b91330ebf6dc96bc002d2d8fe511abd5d",
+  "pickDepthWgsl(true)": "428033173c950cb0dc06c7c9c7b6f6daad6864788a6a79f75c390bc464ca8197",
+  "pickItemIdWgsl(false)": "09bbe74c8d9f904dcdd090b887626f7cebea66403e1808f951108a93d2e813af",
+  "pickItemIdWgsl(true)": "831e57eb5b94a2c1d63f93a96eecddf2489bc3f5a4371f469b1e3b79a58f6c3b",
+  "pointsWgsl()": "d9c303db55791041f5773e3a9723aeea0b3cf7c9e8db8d6f51b833f64845d9c2",
+  "postWgsl(false)": "38b1f177ec3d9789d5d10663301bd8f26f285e87242ba6d54057da8e31c92d18",
+  "postWgsl(true)": "7f732ffce7422067e8b6ae011ceda749fd635e930cbaa41e6f9198988782a6db",
+  "renderVpWgsl()": "42955acb9474d42243a2c0216ec028f4eefb80dce6c6155c1f7fd544f9d86183",
+  "renderWgsl(false)": "896b8724f76389dda5036b8289e6d05918e349f0f9b7ac8c7c3f8d0366aa9854",
+  "renderWgsl(true)": "b6dfeb4824149f5104fd520f06607600f5bff396cbd8a8b9ed3bf5fd359cc953",
+  "sortScanWgsl()": "35d13f371d6ba9df56f27c8464da5152b32096192f1c33b9dcca45ad1e0ee158",
+  "sortScatterWgsl(false)": "bc72290c6e92116d39eb9833414f80210f44d5a6a2dd1c960f7f9f908d1f168d",
+  "sortScatterWgsl(true)": "77736101ab794ecbdf6a72acc274132e89b01f6589e8982a07ff1df7738ff649",
+  "vbaoWgsl(false)": "f3fa43f9e886bf70a7f6f4e96c1c7063b3841e17e8280a8bd8dc360794161a5f",
+  "vbaoWgsl(true)": "2008f174d2fb7553dd85650c245c7cd8a1c7acf94ad6f1ca58db1b6d27d15fc3",
+  "viewCubeWgsl()": "7d198cb3d4f76333eb76c37ce7426531b685ff1eddfd47d97982e24994755e84",
+}
+`;
