@@ -291,6 +291,19 @@ own. Key facts, kept here so the port history isn't lost:
   Children are A–Z; the *Model order* toggle (`viewerState.treeModelOrder`,
   2026-10-21) keeps the model file's order from model level 3 down (below
   site / zone — `MODEL_ORDER_FROM_LEVEL`, passed to `treeApi.children`).
+- **Temporary isolate** (2026-11-18, Hierarchy toolbar, `ALT 805`,
+  `modeldb/tempIsolate.ts`): isolates the selection, and switching it off
+  puts back exactly what that isolate changed.
+  - **How it remembers:** it keeps the state-undo RLE captures from before
+    and after the isolate (`captureColorRuns`) and compares their hidden
+    bits. What the isolate hid is shown again; selected items it had to
+    show are hidden again.
+  - **Only the hidden bit changes,** so colours set and parts hidden while
+    isolated stay.
+  - **Undo:** on and off are one undo step each, like Isolate.
+  - **When the record is dropped:** forgetting or clearing models, or
+    applying a snapshot, drops it; `viewerActions.syncTempIsolate` keeps the
+    button honest.
 - **Scene Labels** (`LabelOverlay.ts`, `labels/` panel): world-anchored,
   draggable DOM text labels with leader lines (same projection path as the
   measurement overlay). Native has this only as backlog (its 8.3 labels item);
@@ -301,6 +314,38 @@ own. Key facts, kept here so the port history isn't lost:
   item only when the name happens to exist.
 - **View cube** (`viewCubeGpu.ts` + `ViewGizmo.ts`): GPU-drawn orientation
   cube with a label atlas; DOM hit-test for face/edge/corner click-to-snap.
+- **Navigation gizmo styles** (2026-11-18, `plans/navigation_gizmo.md`):
+  - **Two styles.** The cube or **axis balls** (the default), switched by a
+    right-click or long-press on the gizmo (`gizmoGestures.ts`, measure aim's
+    450 ms hold) or in Settings → Gizmo.
+  - **Ball layout.** The balls' geometry lives in one pure module
+    (`render/axisGizmo.ts`): ball and snap-dot positions, depth order, the
+    near-side fade and picking. The renderer paints from it and the DOM hit
+    layer (`AxisBallLayer.ts`) picks with it, so drawn and clicked always
+    agree.
+  - **Drawing.** `ViewCubePass` paints the balls, and the cube's true-north
+    chip, with Canvas 2D into an offscreen canvas the size of the mini
+    viewport. It uploads that premultiplied and blits it through the cube's
+    blit pipeline, so captures include it with no new shader.
+  - **Fade.** The snap dots' fade runs by time in the pass. Its
+    `isAnimating` keeps hold frames coming without entering the idle key,
+    which would restart TAA every frame.
+  - **Snapping.** Picks map to the camera through the pure
+    `render/gizmoSnap.ts`: view from / look toward, the flip when already
+    there, Shift for the opposite, and the top-view heading.
+  - **Ball letters** are the face names' first letters (`faceLetters`).
+  - **True north** (`northAngle`, clockwise from +Y) is only ever shown on
+    the cube. RVM keeps its axes, so plant north is +Y, the BACK face. The
+    marker (`gizmoNorthMarker`, off by default) is a round N chip with a
+    ground-plane pointer, painted in the cube palette (face / line / text,
+    sketch mode's too), so it never needs its own colour settings.
+  - **Ball background:** a see-through sphere behind the balls
+    (`gizmoBallsBgColor`, `gizmoBallsBgOpacity` in %), painted as a disc
+    with a radial gradient lit from the upper left.
+  - **Settings safety:** stored settings and settings files are not
+    validated on load, so `navGizmo.ts` reads the gizmo keys through
+    `enumOr` and clamps. A bad value falls back to its default instead of
+    leaving the drawing and the hit layer disagreeing.
 - **Assets / Import**: Model Assets + Import Manager panels over OPFS stores
   (`opfs.ts`; a store is a folder of cooked models, `stores.json`) — import,
   load / unload and organise cooked models. Unloading forgets a model's look

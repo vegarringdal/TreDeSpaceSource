@@ -150,6 +150,7 @@ async function rebuildModels(renderer: Renderer): Promise<RebuildResult> {
   renderer.writeTransforms(await db.transformsNow());
   if (lost.length > 0) {
     await db.forgetModels(lost);
+    await viewerActions.syncTempIsolate();
   }
   return { restored: live.length, failed };
 }

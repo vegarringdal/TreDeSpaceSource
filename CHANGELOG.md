@@ -6,6 +6,86 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.18** (>0.26.3):
+  Fix: the dev build stopped at start with "Invalid hotkey bindings:
+  settings.reset.shortcuts and settings.storagePersist share the same keys
+  ALT 1264".
+  - **Cause:** the per-section Settings reset shortcuts are numbered by
+    position (`ALT 1241` + n). Adding the Navigation gizmo section in the
+    middle moved every later section's default by one, and the last landed
+    on `ALT 1264`.
+  - **Fix:** the new section now sits last with a fixed `ALT 1265`, and
+    every other section has its old key back.
+  - **Not affected:** production builds only logged it, and keys a user
+    changed themselves were never affected: they are applied without that
+    check, and a clash only shows as a conflict in Settings → Shortcuts.
+  - **Tests:** `tests/hotkeyBindings.test.ts` runs the boot check over the
+    whole table in `npm test` (same keys, bad keys, reset keys staying put),
+    plus a user binding that lands on a new default. `vitest.config.ts`
+    gains the `@treDeSpaceUI` alias for it.
+
+  User guide:
+  - F1 Home has a new *The navigation gizmo* section: the two styles,
+    switching them, the snap dots, Shift+click and moving the gizmo.
+  - The Hierarchy toolbar list now has *Temporary isolate*.
+  - Settings → Gizmo describes the new Navigation gizmo settings.
+  - The screenshot and clip-plane steps no longer assume the cube.
+
+  DESIGN.md and the gizmo plan list the settings as built. The guide's
+  screenshots (`npm run docs:shots`) still show the old Settings → Gizmo tab
+  and need a re-shoot.
+
+  New `plans/future_events.md`: a backlog of host API commands and events
+  to add later, each with sample code (SDK method, handler, EVENTS.md
+  entry, host use). It starts with the temporary isolate command and event,
+  plain hide / isolate commands, a `settings.changed` event (to see when a
+  user switches the gizmo style) and the model's true north on
+  `model.loaded`.
+
+  Hierarchy toolbar: a **temporary isolate** button after Model order, also
+  on hotkey `ALT 805`. Switched on, it hides everything that is not
+  selected, like Isolate. Switched off, it shows again exactly what it hid,
+  and selected parts that were hidden before go back to hidden. Colours you
+  set and parts you hide while isolated stay as they are. Each switch is
+  one undo step.
+
+  Navigation gizmo: a second style, **axis balls**, is now the default
+  beside the cube. A right-click or a press-and-hold on the gizmo switches
+  between them, and Settings → Gizmo → Navigation gizmo offers the choice
+  too.
+  - **Balls.** The balls show the first letters of the face names, as the
+    ribbons' letter buttons do. Small 45° snap dots between them give the
+    cube's angled and iso views. They appear only while the pointer is over
+    the gizmo, and only on the side facing you; on touch, a tap shows them
+    for 3 s. Clicking a ball views from that side (a setting can make it
+    look toward it instead). Clicking it again, or Shift+click anywhere on
+    either style, gives the opposite view. Dragging the balls orbits.
+  - **True north.** A north angle (degrees clockwise from the model's +Y,
+    the back side) can be set, and the cube can mark true north with a
+    round N chip and a small triangle pointing at it. Both are drawn in the
+    cube's own colours (face, line and text, or sketch mode's). The marker
+    is off by default, so the cube looks as before until a project or user
+    turns it on. The balls never show north.
+  - **Ball background.** A faint, see-through sphere sits behind the balls:
+    white at 15 % by default. Its colour and opacity are settings
+    (`gizmoBallsBgColor`, `gizmoBallsBgOpacity`), and 0 % hides it.
+  - **Moving the gizmo.** Its drag handle sits clear of the balls (and of
+    the north marker), shows the app's own tooltip, and Shift+click on the
+    handle puts the gizmo back in its corner.
+  - **Top and bottom views** can keep the heading (as before), turn +Y up,
+    or turn true north up.
+  - **Host API.** `settings.gizmo.set` sets all of this (`gizmoStyle`,
+    `gizmoBallClick`, `gizmoSnapDots`, `topViewHeading`, `northAngle`,
+    `gizmoNorthMarker`), and an empty payload or `settings.get` reads back
+    whether a user switched style. RVM models keep their axes, so their
+    plant north is +Y, the cube's back side.
+
+  New `plans/navigation_gizmo.md`: the gizmo design behind this. It covers
+  the cube with a true-north marker beside axis balls with hover-only 45°
+  snap dots, as plant-design tools often use. It also covers models whose
+  +Y is not north, and records that a compass ring was tried and dropped.
+  A throw-away browser prototype is in `plans/gizmo/prototype.html`.
+
 - **2026.11.18** (>0.26.2):
   Screenshot (Home button and `view.screenshot`): the navigation cube is in
   the picture again, and the picture really is rendered at the higher

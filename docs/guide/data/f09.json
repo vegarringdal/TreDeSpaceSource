@@ -218,35 +218,35 @@
         "section": "View",
         "label": "Focus Click",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-2 \"><path d=\"M11.5 12a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0\" fill=\"currentColor\"></path><path d=\"M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"></path><path d=\"M12 3l0 2\"></path><path d=\"M3 12l2 0\"></path><path d=\"M12 19l0 2\"></path><path d=\"M19 12l2 0\"></path></svg>",
-        "tooltip": "Re-pivot on the last clicked point (same as Alt+click) \u2014 camera stays put",
+        "tooltip": "Re-pivot on the last clicked point (same as Alt+click) — camera stays put",
         "keys": "O"
       },
       {
         "section": "View",
         "label": "Go To Click",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-current-location \"><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"></path><path d=\"M4 12a8 8 0 1 0 16 0a8 8 0 1 0 -16 0\"></path><path d=\"M12 2l0 2\"></path><path d=\"M12 20l0 2\"></path><path d=\"M20 12l2 0\"></path><path d=\"M2 12l2 0\"></path></svg>",
-        "tooltip": "Fly to the last clicked point and pivot there \u2014 the Space+click move, after the fact",
+        "tooltip": "Fly to the last clicked point and pivot there — the Space+click move, after the fact",
         "keys": "G"
       },
       {
         "section": "View",
         "label": "Focus Sel.",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-centered \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
-        "tooltip": "Re-pivot on the selection center \u2014 camera stays put",
+        "tooltip": "Re-pivot on the selection center — camera stays put",
         "keys": "ALT 1029"
       },
       {
         "section": "View",
         "label": "Fit Visible",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-arrows-maximize \"><path d=\"M16 4l4 0l0 4\"></path><path d=\"M14 10l6 -6\"></path><path d=\"M8 20l-4 0l0 -4\"></path><path d=\"M4 20l6 -6\"></path><path d=\"M16 20l4 0l0 -4\"></path><path d=\"M14 14l6 6\"></path><path d=\"M8 4l-4 0l0 4\"></path><path d=\"M4 4l6 6\"></path></svg>",
-        "tooltip": "Frame everything that is not hidden, cut to the clipping in force \u2014 hide, isolate or clip first to zoom onto a set",
+        "tooltip": "Frame everything that is not hidden, cut to the clipping in force — hide, isolate or clip first to zoom onto a set",
         "keys": "ALT 1219"
       },
       {
         "section": "View",
         "label": "Solo",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-distribute-vertical \"><path d=\"M4 4l0 16\"></path><path d=\"M20 4l0 16\"></path><path d=\"M9 8a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -8\"></path></svg>",
-        "tooltip": "Close every panel except the main one \u2014 click again to restore the layout",
+        "tooltip": "Close every panel except the main one — click again to restore the layout",
         "keys": "ALT+F11"
       },
       {
@@ -288,21 +288,21 @@
         "section": "Nav",
         "label": "Orbit",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-rotate-3d \"><path d=\"M12 3a7 7 0 0 1 7 7v4l-3 -3\"></path><path d=\"M22 11l-3 3\"></path><path d=\"M8 15.5l-5 -3l5 -3l5 3v5.5l-5 3l0 -5.5\"></path><path d=\"M3 12.5v5.5l5 3\"></path><path d=\"M8 15.545l5 -3.03\"></path></svg>",
-        "tooltip": "Orbit only \u2014 look and pan, movement keys off",
+        "tooltip": "Orbit only — look and pan, movement keys off",
         "keys": "ALT 627"
       },
       {
         "section": "Nav",
         "label": "Fly",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-rotate-360 \"><path d=\"M12 16h4v4\"></path><path d=\"M19.458 11.042c.86 -2.366 .722 -4.58 -.6 -5.9c-2.272 -2.274 -7.185 -1.045 -10.973 2.743c-3.788 3.788 -5.017 8.701 -2.744 10.974c2.227 2.226 6.987 1.093 10.74 -2.515\"></path></svg>",
-        "tooltip": "Fly \u2014 move along the view direction",
+        "tooltip": "Fly — move along the view direction",
         "keys": "ALT 628"
       },
       {
         "section": "Nav",
         "label": "Walk",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-walk \"><path d=\"M12 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M7 21l3 -4\"></path><path d=\"M16 21l-2 -4l-3 -3l1 -6\"></path><path d=\"M6 12l2 -3l4 -1l3 3l3 1\"></path></svg>",
-        "tooltip": "Walk \u2014 stay at a constant height",
+        "tooltip": "Walk — stay at a constant height",
         "keys": "ALT 629"
       },
       {
@@ -321,7 +321,7 @@
       },
       {
         "section": "Controller",
-        "label": "Top \u2212",
+        "label": "Top −",
         "icon": "",
         "tooltip": "Move the on-screen joystick up",
         "keys": "ALT 1052"
@@ -342,7 +342,7 @@
       },
       {
         "section": "Controller",
-        "label": "Side \u2212",
+        "label": "Side −",
         "icon": "",
         "tooltip": "Move both on-screen joysticks closer to their side edges",
         "keys": "ALT 1050"
@@ -356,5 +356,5 @@
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.26.3"
 }

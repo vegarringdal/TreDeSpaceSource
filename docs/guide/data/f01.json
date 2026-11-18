@@ -76,10 +76,11 @@
           "w": 64,
           "h": 68
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f01-canvas": {
-      "w": 371,
+      "w": 368,
       "h": 103,
       "gpu": false,
       "marks": [
@@ -94,108 +95,111 @@
           "n": 2,
           "x": 78,
           "y": 6,
-          "w": 81.171875,
+          "w": 78.515625,
           "h": 68
         },
         {
           "n": 3,
-          "x": 161.171875,
+          "x": 158.515625,
           "y": 6,
           "w": 64,
           "h": 68
         },
         {
           "n": 4,
-          "x": 227.171875,
+          "x": 224.515625,
           "y": 6,
           "w": 64,
           "h": 68
         },
         {
           "n": 5,
-          "x": 293.171875,
+          "x": 290.515625,
           "y": 6,
           "w": 64,
           "h": 68
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f01-drawmode": {
-      "w": 302,
+      "w": 293,
       "h": 103,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 12.171875,
+          "x": 12.515625,
           "y": 6,
           "w": 64,
           "h": 68
         },
         {
           "n": 2,
-          "x": 78.171875,
+          "x": 78.515625,
           "y": 6,
-          "w": 87.75,
+          "w": 85.328125,
           "h": 21.328125
         },
         {
           "n": 3,
-          "x": 78.171875,
+          "x": 78.515625,
           "y": 29.328125,
-          "w": 87.75,
+          "w": 85.328125,
           "h": 21.328125
         },
         {
           "n": 4,
-          "x": 78.171875,
+          "x": 78.515625,
           "y": 52.65625,
-          "w": 87.75,
+          "w": 85.328125,
           "h": 21.328125
         },
         {
           "n": 5,
-          "x": 167.921875,
+          "x": 165.84375,
           "y": 6,
-          "w": 120.53125,
+          "w": 114.671875,
           "h": 21.328125
         },
         {
           "n": 6,
-          "x": 167.921875,
+          "x": 165.84375,
           "y": 29.328125,
-          "w": 120.53125,
+          "w": 114.671875,
           "h": 21.328125
         },
         {
           "n": 7,
-          "x": 167.921875,
+          "x": 165.84375,
           "y": 52.65625,
-          "w": 120.53125,
+          "w": 114.671875,
           "h": 21.328125
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f01-quickclear": {
-      "w": 149,
+      "w": 144,
       "h": 103,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 12.453125,
+          "x": 12.515625,
           "y": 6,
-          "w": 124.390625,
+          "w": 119.96875,
           "h": 33
         },
         {
           "n": 2,
-          "x": 12.453125,
+          "x": 12.515625,
           "y": 41,
-          "w": 124.390625,
+          "w": 119.96875,
           "h": 33
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f01-hierarchy": {
       "w": 290,
@@ -206,14 +210,14 @@
           "n": 1,
           "x": 8,
           "y": 31,
-          "w": 186.140625,
+          "w": 188.234375,
           "h": 24
         },
         {
           "n": 2,
-          "x": 198.140625,
+          "x": 200.234375,
           "y": 31,
-          "w": 24,
+          "w": 24.015625,
           "h": 24,
           "at": "tr"
         },
@@ -277,7 +281,8 @@
           "w": 24,
           "h": 24
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f01-search": {
       "w": 290,
@@ -288,7 +293,7 @@
           "n": 1,
           "x": 8,
           "y": 31,
-          "w": 186.140625,
+          "w": 188.234375,
           "h": 24
         },
         {
@@ -298,13 +303,15 @@
           "w": 269.203125,
           "h": 85
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f01-hierarchy-menu": {
-      "w": 258,
+      "w": 248,
       "h": 220,
       "gpu": false,
-      "marks": []
+      "marks": [],
+      "fromGpu": true
     },
     "f01-console": {
       "w": 834,
@@ -315,7 +322,7 @@
           "n": 1,
           "x": 11.203125,
           "y": 34.125,
-          "w": 64.46875,
+          "w": 63.6875,
           "h": 23.75
         },
         {
@@ -333,7 +340,8 @@
           "h": 24,
           "at": "tr"
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f01-task-sketch-viewport": {
       "w": 822,
@@ -545,6 +553,13 @@
       },
       {
         "section": "Hierarchy",
+        "label": "",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-auto \"><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path><path d=\"M10 15v-4a2 2 0 1 1 4 0v4\"></path><path d=\"M10 13h4\"></path></svg>",
+        "tooltip": "Temporary isolate\n(on: hide everything not selected; off: show again exactly what it hid — colours you set and parts you hide meanwhile stay)",
+        "keys": "ALT 805"
+      },
+      {
+        "section": "Hierarchy",
         "label": "Dotted eye",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-eye-dotted \"><path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"></path><path d=\"M21 12h.01\"></path><path d=\"M3 12h.01\"></path><path d=\"M5 15h.01\"></path><path d=\"M5 9h.01\"></path><path d=\"M19 15h.01\"></path><path d=\"M12 18h.01\"></path><path d=\"M12 6h.01\"></path><path d=\"M8 17h.01\"></path><path d=\"M8 7h.01\"></path><path d=\"M16 17h.01\"></path><path d=\"M16 7h.01\"></path><path d=\"M19 9h.01\"></path></svg>",
         "tooltip": "Some items below are hidden (hide, or opacity 0)",
@@ -610,5 +625,5 @@
       }
     ]
   },
-  "appVersion": "0.26.2"
+  "appVersion": "0.26.3"
 }

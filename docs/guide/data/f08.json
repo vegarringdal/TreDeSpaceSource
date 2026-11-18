@@ -53,24 +53,25 @@
           "n": 1,
           "x": 11,
           "y": 28,
-          "w": 109.53125,
+          "w": 107.984375,
           "h": 21.328125
         },
         {
           "n": 2,
-          "x": 503.546875,
-          "y": 28,
-          "w": 96.859375,
+          "x": 524.09375,
+          "y": 51.328125,
+          "w": 101.625,
           "h": 21.328125
         },
         {
           "n": 3,
-          "x": 1159.84375,
+          "x": 1235.1875,
           "y": 28,
-          "w": 141.171875,
+          "w": 126.34375,
           "h": 91
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f08-tabstrip": {
       "w": 318,
@@ -81,12 +82,12 @@
           "n": 1,
           "x": 4.484375,
           "y": 4,
-          "w": 82.1875,
+          "w": 79.203125,
           "h": 22
         },
         {
           "n": 2,
-          "x": 155.609375,
+          "x": 150.578125,
           "y": 8.5,
           "w": 13,
           "h": 13,
@@ -108,7 +109,8 @@
           "h": 17,
           "at": "tr"
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f08-compass": {
       "w": 324,
@@ -138,7 +140,8 @@
           "h": 23,
           "at": "bl"
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "f08-floating": {
       "w": 360,
@@ -176,7 +179,8 @@
           "h": 20,
           "at": "br"
         }
-      ]
+      ],
+      "fromGpu": true
     }
   },
   "reference": {
@@ -222,6 +226,13 @@
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
         "tooltip": "Click to enable / disable · drag to place the Clip Shape List panel where you want it",
         "keys": "ALT 675"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
+        "label": "Transform Objects",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable · drag to place the Transform Objects panel where you want it",
+        "keys": "ALT 694"
       },
       {
         "section": "Internal Panels (Drag/Drop)",
@@ -295,6 +306,13 @@
       },
       {
         "section": "Internal Panels (Drag/Drop)",
+        "label": "Scans",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-layout-board \"><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"></path><path d=\"M4 9h8\"></path><path d=\"M12 15h8\"></path><path d=\"M12 4v16\"></path></svg>",
+        "tooltip": "Click to enable / disable · drag to place the Scans panel where you want it",
+        "keys": "ALT 693"
+      },
+      {
+        "section": "Internal Panels (Drag/Drop)",
         "label": "Viewpoint Editor",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-camera \"><path d=\"M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2\"></path><path d=\"M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"></path></svg>",
         "tooltip": "Click to enable / disable · drag to place the Viewpoint Editor panel where you want it",
@@ -365,5 +383,5 @@
       }
     ]
   },
-  "appVersion": "0.0.141"
+  "appVersion": "0.26.3"
 }

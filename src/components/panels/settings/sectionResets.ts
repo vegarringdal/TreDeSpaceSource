@@ -118,6 +118,11 @@ export const SETTINGS_SECTIONS = {
     isDirty: () => Object.keys(hotkeysState.get().overrides).length > 0,
     reset: () => hotkeysActions.resetAll(),
   },
+  // Sections added after the reset-hotkey range was full go LAST: the
+  // `settings.reset.<id>` keys are positional (bindings.ts, ALT 1241 + i), so a
+  // section inserted earlier would shift every later default key. Each late
+  // section gets a fixed key in bindings.ts › LATE_SECTION_KEYS.
+  navGizmo: viewerSection('Navigation gizmo', VIEWER_SECTION_KEYS.navGizmo),
 } satisfies Record<string, SectionDef>;
 
 export type SettingsSectionId = keyof typeof SETTINGS_SECTIONS;
