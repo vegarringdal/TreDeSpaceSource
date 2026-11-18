@@ -92,7 +92,16 @@ export const VIEWER_SECTION_KEYS = {
     'sketchCubeHoverColor',
   ),
   ao: keys('aoMode', 'aoRadius', 'aoStrength', 'aoSlices', 'aoSamples'),
-  navGizmo: keys('gizmoStyle', 'gizmoBallClick', 'gizmoSnapDots', 'topViewHeading', 'northAngle', 'gizmoNorthMarker'),
+  navGizmo: keys(
+    'gizmoStyle',
+    'gizmoBallClick',
+    'gizmoSnapDots',
+    'topViewHeading',
+    'northAngle',
+    'gizmoNorthMarker',
+    'gizmoBallsBgColor',
+    'gizmoBallsBgOpacity',
+  ),
   cubeColors: keys('cubeFaceColor', 'cubeLineColor', 'cubeTextColor', 'cubeHoverColor'),
   stats: keys('showStats', 'statsHidden', 'statsBackdrop', 'gpuTimings', 'trace'),
 };

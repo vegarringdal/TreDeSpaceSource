@@ -614,9 +614,13 @@ face names.
   (its back side) seen from above, wrapped to −180..180. The default 0 is
   plant north: RVM models keep their axes, so their north is +Y, the back
   side. A host can set it per project.
-- **`gizmoNorthMarker`** shows true north on the cube. The default is
-  `false`, so turn it on per project where north means something. The
-  axis balls never show north.
+- **`gizmoNorthMarker`** shows true north on the cube: a round N chip with
+  a small triangle pointing at north, in the cube's own colours. The
+  default is `false`, so turn it on per project where north means
+  something. The axis balls never show north.
+- **`gizmoBallsBgColor` / `gizmoBallsBgOpacity`** set the see-through sphere
+  behind the axis balls: a `'#rrggbb'` colour (default `'#ffffff'`) and an
+  opacity in percent, 0–100 (default 15; 0 hides it).
 - **Face names.** `labels` takes any subset of the six faces (`front back
   left right top bottom`); an empty name restores that face's default, and
   names are cut to 5 characters. The axis balls show their first letters.
@@ -627,7 +631,7 @@ Same rules otherwise.
 ```js
 payload:  { gizmoStyle: 'cube', northAngle: 30, gizmoNorthMarker: true, labels: { front: 'S', back: 'N', top: 'UP' } }
 response: { gizmoStyle: 'cube', gizmoBallClick: 'viewFrom', gizmoSnapDots: 'iso', topViewHeading: 'keep',
-            northAngle: 30, gizmoNorthMarker: true,
+            northAngle: 30, gizmoNorthMarker: true, gizmoBallsBgColor: '#ffffff', gizmoBallsBgOpacity: 15,
             cubeFaceColor: '#2f3641', cubeLineColor: '#4d5665', cubeTextColor: '#c9cfd8', cubeHoverColor: '#4a6d9c',
             labels: { front: 'S', back: 'N', left: 'LEFT', right: 'RIGHT', top: 'UP', bottom: 'BOT' } }
 ```

@@ -3,7 +3,7 @@
 // viewport and blits it over the frame, so captures include it. Layout comes
 // from axisGizmo.ts — the same numbers the DOM hit layer picks with.
 import type { GizmoFace } from '../overlay/ViewGizmo';
-import { type AxisItem, BALL_RADIUS, DOT_RADIUS, MARKER_CHIP } from './axisGizmo';
+import { type AxisItem, BALL_ARM, BALL_RADIUS, DOT_RADIUS, MARKER_CHIP } from './axisGizmo';
 
 // -----------------------------------------------------------------------------
 // types
@@ -24,6 +24,8 @@ export type AxisPaintOptions = Readonly<{
   /** AxisItem id under the pointer, or ''. */
   hoverId: string;
   palette: GizmoPalette;
+  /** The sphere behind the balls: '#rrggbb' and opacity 0..1 (0 = none). */
+  background: Readonly<{ color: string; opacity: number }>;
 }>;
 
 export type MarkerPaintOptions = Readonly<{
@@ -44,8 +46,10 @@ export type MarkerPaintOptions = Readonly<{
 // -----------------------------------------------------------------------------
 
 const AXIS_COLORS = { X: '#e0475b', Y: '#7cb342', Z: '#3b82e0' } as const satisfies Record<string, string>;
-export const NORTH_COLOR = '#e0a63b';
 const NEGATIVE_FILL_ALPHA = '59'; // ≈35 % as a hex alpha byte
+/** The background sphere encloses the balls with a little room to spare. */
+const SPHERE_RADIUS = BALL_ARM + BALL_RADIUS + 0.03;
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const POSITIVE_TEXT = '#14181e';
 const NEGATIVE_TEXT = '#eef1f5';
 const HOVER_RING = '#ffffff';
@@ -103,8 +107,41 @@ function paintDot(ctx: Ctx2D, it: AxisItem, o: AxisPaintOptions, x: number, y: n
   ctx.globalAlpha = 1;
 }
 
-/** The six balls (+ the revealed snap dots), back to front as laid out. */
+/** `#rrggbb` as an rgba() string with `alpha` (an unparseable colour reads as white). */
+function rgba(hex: string, alpha: number): string {
+  const h = HEX_COLOR.test(hex) ? hex : '#ffffff';
+  const r = parseInt(h.slice(1, 3), 16);
+  const g = parseInt(h.slice(3, 5), 16);
+  const b = parseInt(h.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/**
+ * The see-through sphere behind the balls. Orthographic, so it is a disc; a
+ * soft radial gradient lit from the upper left and a slightly stronger rim
+ * make it read as a sphere. `opacity` is the brightest part.
+ */
+function paintBackground(ctx: Ctx2D, o: AxisPaintOptions) {
+  const a = o.background.opacity;
+  if (a <= 0) {
+    return;
+  }
+  const R = SPHERE_RADIUS * o.scale;
+  const c = o.background.color;
+  const g = ctx.createRadialGradient(o.cx - R * 0.3, o.cy - R * 0.35, R * 0.05, o.cx, o.cy, R);
+  g.addColorStop(0, rgba(c, a));
+  g.addColorStop(0.75, rgba(c, a * 0.55));
+  g.addColorStop(1, rgba(c, a * 0.8));
+  ctx.beginPath();
+  ctx.arc(o.cx, o.cy, R, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+}
+
+/** The background sphere, then the six balls (+ the revealed snap dots),
+ *  back to front as laid out. */
 export function paintAxisGizmo(ctx: Ctx2D, items: readonly AxisItem[], o: AxisPaintOptions) {
+  paintBackground(ctx, o);
   for (const it of items) {
     const x = o.cx + it.x * o.scale;
     const y = o.cy + it.y * o.scale;
@@ -116,13 +153,15 @@ export function paintAxisGizmo(ctx: Ctx2D, items: readonly AxisItem[], o: AxisPa
   }
 }
 
-/** The cube's true-north marker: an amber pointer triangle aimed at north,
- *  and a small square chip with an amber border and the letter. */
+/** The cube's true-north marker in the cube's own palette (Settings → Gizmo →
+ *  Cube colours, or sketch mode's): a pointer triangle aimed at north in the
+ *  text colour, and a round chip in the face colour with the line colour as
+ *  its rim and the letter in the text colour. */
 export function paintNorthMarker(ctx: Ctx2D, o: MarkerPaintOptions) {
-  const s = MARKER_CHIP * o.scale;
+  const r = (MARKER_CHIP * o.scale) / 2;
   ctx.globalAlpha = o.isBehind ? BEHIND_ALPHA : 1;
   if (o.pointer.length === 3) {
-    ctx.fillStyle = NORTH_COLOR;
+    ctx.fillStyle = o.palette.text;
     ctx.beginPath();
     ctx.moveTo(o.pointer[0].x, o.pointer[0].y);
     ctx.lineTo(o.pointer[1].x, o.pointer[1].y);
@@ -130,15 +169,17 @@ export function paintNorthMarker(ctx: Ctx2D, o: MarkerPaintOptions) {
     ctx.closePath();
     ctx.fill();
   }
+  ctx.beginPath();
+  ctx.arc(o.x, o.y, r, 0, Math.PI * 2);
   ctx.fillStyle = o.isHover ? o.palette.hover : o.palette.face;
-  ctx.fillRect(o.x - s / 2, o.y - s / 2, s, s);
+  ctx.fill();
   ctx.lineWidth = Math.max(1.5, o.scale * 0.02);
-  ctx.strokeStyle = NORTH_COLOR;
-  ctx.strokeRect(o.x - s / 2, o.y - s / 2, s, s);
-  ctx.fillStyle = NORTH_COLOR;
-  ctx.font = `700 ${o.label.length > 1 ? s * 0.48 : s * 0.62}px ${FONT}`;
+  ctx.strokeStyle = o.palette.line;
+  ctx.stroke();
+  ctx.fillStyle = o.palette.text;
+  ctx.font = `700 ${o.label.length > 1 ? r * 0.95 : r * 1.25}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(o.label, o.x, o.y + s * 0.04);
+  ctx.fillText(o.label, o.x, o.y + r * 0.08);
   ctx.globalAlpha = 1;
 }

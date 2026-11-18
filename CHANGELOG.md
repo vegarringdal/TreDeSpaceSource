@@ -33,10 +33,14 @@ Entries from before the stable pilot (0.26.1) have been removed.
     look toward it instead). Clicking it again, or Shift+click anywhere on
     either style, gives the opposite view. Dragging the balls orbits.
   - **True north.** A north angle (degrees clockwise from the model's +Y,
-    the back side) can be set, and the cube can mark true north with an
-    amber N and a small triangle pointing at it. The marker is off by
-    default, so the cube looks as before until a project or user turns it
-    on. The balls never show north.
+    the back side) can be set, and the cube can mark true north with a
+    round N chip and a small triangle pointing at it. Both are drawn in the
+    cube's own colours (face, line and text, or sketch mode's). The marker
+    is off by default, so the cube looks as before until a project or user
+    turns it on. The balls never show north.
+  - **Ball background.** A faint, see-through sphere sits behind the balls:
+    white at 15 % by default. Its colour and opacity are settings
+    (`gizmoBallsBgColor`, `gizmoBallsBgOpacity`), and 0 % hides it.
   - **Moving the gizmo.** Its drag handle sits clear of the balls (and of
     the north marker), shows the app's own tooltip, and Shift+click on the
     handle puts the gizmo back in its corner.

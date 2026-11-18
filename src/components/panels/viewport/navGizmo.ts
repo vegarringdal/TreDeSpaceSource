@@ -24,6 +24,8 @@ type NavSettings = Readonly<{
   topViewHeading: TopViewHeading;
   northAngle: number;
   isMarkerOn: boolean;
+  /** The sphere behind the balls; opacity 0..1. */
+  ballsBackground: Readonly<{ color: string; opacity: number }>;
 }>;
 
 export interface NavGizmo {
@@ -41,6 +43,7 @@ export interface NavGizmo {
 // -----------------------------------------------------------------------------
 
 const SNAP_SECONDS = 0.35;
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const PLATE_KINDS = new Set<GizmoPick['kind']>(['face', 'edge', 'corner']);
 
 // -----------------------------------------------------------------------------
@@ -107,6 +110,12 @@ function readNavSettings(): NavSettings {
     topViewHeading: enumOr('topViewHeading', s.topViewHeading, d.topViewHeading),
     northAngle: Number.isFinite(s.northAngle) ? wrapDegrees(s.northAngle) : d.northAngle,
     isMarkerOn: typeof s.gizmoNorthMarker === 'boolean' ? s.gizmoNorthMarker : d.gizmoNorthMarker,
+    ballsBackground: {
+      color: HEX_COLOR.test(s.gizmoBallsBgColor) ? s.gizmoBallsBgColor : d.gizmoBallsBgColor,
+      opacity: Number.isFinite(s.gizmoBallsBgOpacity)
+        ? Math.min(100, Math.max(0, s.gizmoBallsBgOpacity)) / 100
+        : d.gizmoBallsBgOpacity / 100,
+    },
   };
 }
 
@@ -169,6 +178,7 @@ export function attachNavGizmo(host: HTMLElement, renderer: Renderer): NavGizmo 
       letters,
       northAngle: s.northAngle,
       northMarker: isMarkerShown,
+      ballsBackground: s.ballsBackground,
     });
     gizmo.setStyle(s.style);
     gizmo.setSnapDots(s.snapDots);

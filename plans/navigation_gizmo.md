@@ -168,9 +168,12 @@ north.
   so `north = (sin a, cos a, 0)`. It is 0° for plant models (RVM) and
   can come from IFC.
 - **North marker:**
-  - **What it is:** an amber **N** chip at true north, with a small amber
-    triangle lying in the ground plane between the cube and the chip,
-    pointing at north. **Cube only;** the balls show no north.
+  - **What it is:** a round **N** chip at true north, with a small triangle
+    lying in the ground plane between the cube and the chip, pointing at
+    north. **Cube only;** the balls show no north.
+  - **Colours:** the cube's own: the chip's background is the face colour,
+    its rim the line colour, and the letter and triangle the text colour.
+    Sketch mode uses its own set.
   - **Setting:** `gizmoNorthMarker`, off by default, turns it on.
   - **Always shown:** when on, it shows at every angle, 0° included, and
     always reads plain N. An earlier "TN" label and an "already lettered N,
@@ -315,7 +318,8 @@ In order of precedence:
 3. Default for TOP / BOTTOM clicks: keep heading (today), or true north up
    (the same as model +Y up at 0°)?
 4. Snap dots: 12 or all 20? And is 3 s right for the touch reveal?
-5. North colour: fixed amber, or a setting next to the cube colours (plus a
-   sketch-mode one)?
+5. ~~North colour~~: decided, it follows the cube's colours. The axis balls
+   have a see-through background sphere with its own colour and opacity
+   settings.
 6. Stepping back and forward through earlier views: wanted here too (a
    separate feature)?

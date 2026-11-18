@@ -28,6 +28,8 @@ export type NavGizmoOptions = Readonly<{
   northAngle: number;
   /** Draw the cube's true-north "N" marker (never on the balls). */
   northMarker: boolean;
+  /** The see-through sphere behind the axis balls: '#rrggbb', opacity 0..1. */
+  ballsBackground: Readonly<{ color: string; opacity: number }>;
 }>;
 
 /** Pixel location of the gizmo's mini viewport for one frame (device px). */
@@ -83,6 +85,7 @@ export class ViewCubePass {
     letters: DEFAULT_LETTERS,
     northAngle: 0,
     northMarker: false,
+    ballsBackground: { color: '#ffffff', opacity: 0 },
   };
   private navHover = '';
   private revealTarget = 0;
@@ -233,6 +236,7 @@ export class ViewCubePass {
       `${this.rect ? `${this.rect.x},${this.rect.y},${this.rect.size}` : '-'};${this.hover};` +
       `${this.faceCol.join(',')};${this.lineCol.join(',')};${this.hoverCol.join(',')};${this.textCol};` +
       `${n.style};${n.snapDots};${Object.values(n.letters).join(',')};${n.northAngle};${n.northMarker};` +
+      `${n.ballsBackground.color},${n.ballsBackground.opacity};` +
       `${this.navHover};${this.revealTarget}`
     );
   }
@@ -266,6 +270,7 @@ export class ViewCubePass {
     const key =
       `${vx},${vy},${vw},${vh},${S};${q.x},${q.y},${q.z},${q.w};${n.style};${n.snapDots};` +
       `${Object.values(n.letters).join(',')};${n.northAngle};${n.northMarker};${this.navHover};${this.reveal.toFixed(3)};` +
+      `${n.ballsBackground.color},${n.ballsBackground.opacity};` +
       `${this.faceCol.join(',')};${this.lineCol.join(',')};${this.hoverCol.join(',')};${this.textCol}`;
     if (!this.overlayTex || this.overlayTex.width !== vw || this.overlayTex.height !== vh) {
       this.overlayTex?.destroy();
@@ -307,7 +312,15 @@ export class ViewCubePass {
     const palette = this.palette();
     if (n.style === 'balls') {
       const items = layoutAxisGizmo(basis, n.snapDots, this.reveal);
-      paintAxisGizmo(ctx, items, { cx: ox, cy: oy, scale: S, letters: n.letters, hoverId: this.navHover, palette });
+      paintAxisGizmo(ctx, items, {
+        cx: ox,
+        cy: oy,
+        scale: S,
+        letters: n.letters,
+        hoverId: this.navHover,
+        palette,
+        background: n.ballsBackground,
+      });
     } else if (n.northMarker) {
       const m = northMarkerPoint(basis, n.northAngle);
       const pointer = northPointer(basis, n.northAngle).map((p) => ({ x: ox + p.x * S, y: oy + p.y * S }));

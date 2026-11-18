@@ -1,4 +1,4 @@
-import { Checkbox, NumberInput, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
+import { Checkbox, ColorSelect, NumberInput, RadioGroup, type RadioOption } from '@treDeSpaceUI/widgets';
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer, type ViewerState } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
@@ -61,6 +61,23 @@ export function GizmoNavSection() {
         options={SNAP_DOTS}
         value={v.gizmoSnapDots}
         onChange={(gizmoSnapDots) => act.update({ gizmoSnapDots })}
+      />
+      <ColorSelect
+        label="Ball background"
+        labelPosition="split"
+        value={v.gizmoBallsBgColor}
+        onChange={(x) => act.update({ gizmoBallsBgColor: x })}
+      />
+      <NumberInput
+        label="Background opacity"
+        labelPosition="split"
+        tooltip="The see-through sphere behind the axis balls; 0 hides it"
+        value={v.gizmoBallsBgOpacity}
+        min={0}
+        max={100}
+        step={5}
+        unit="%"
+        onChange={(x) => act.update({ gizmoBallsBgOpacity: x })}
       />
       <div className="text-slate-400 text-xs">Top and bottom views</div>
       <RadioGroup

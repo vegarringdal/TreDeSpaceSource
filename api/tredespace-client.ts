@@ -767,6 +767,10 @@ export interface GizmoSettings {
   /** Show the true-north marker on the cube (default false: turn it on per
    *  project where north means something; the balls never show north). */
   gizmoNorthMarker: boolean;
+  /** Colour of the see-through sphere behind the axis balls ('#rrggbb', default '#ffffff'). */
+  gizmoBallsBgColor: string;
+  /** Opacity of that sphere in percent, 0–100 (default 15; 0 hides it). */
+  gizmoBallsBgOpacity: number;
   cubeFaceColor: string;
   cubeLineColor: string;
   cubeTextColor: string;

@@ -89,6 +89,10 @@ export interface ViewerState {
   northAngle: number;
   /** The cube's true-north marker, off by default (the axis balls never show north). */
   gizmoNorthMarker: boolean;
+  /** The see-through sphere behind the axis balls: its colour ('#rrggbb')… */
+  gizmoBallsBgColor: string;
+  /** …and its opacity in percent (0 = no sphere). */
+  gizmoBallsBgOpacity: number;
   edgeColor: string; // hex, e.g. "#000000"
   fadeExp: number;
   depthThr: number;
@@ -262,6 +266,8 @@ export const initialViewerState: ViewerState = {
   topViewHeading: 'keep',
   northAngle: 0, // plant convention: +Y is north (RVM keeps its axes)
   gizmoNorthMarker: false, // opt-in per project: north means nothing on a boat
+  gizmoBallsBgColor: '#ffffff', // a faint whitish sphere behind the axis balls
+  gizmoBallsBgOpacity: 15,
   edgeColor: '#000000',
   fadeExp: 0.3,
   depthThr: 0.01,

@@ -26,6 +26,8 @@ const NAV_DEFAULTS: Pick<ViewerState, (typeof VIEWER_SECTION_KEYS.navGizmo)[numb
   topViewHeading: 'keep',
   northAngle: 0,
   gizmoNorthMarker: false,
+  gizmoBallsBgColor: '#ffffff',
+  gizmoBallsBgOpacity: 15,
 };
 
 describe('axis gizmo layout', () => {
