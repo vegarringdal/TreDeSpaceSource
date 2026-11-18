@@ -75,6 +75,25 @@
           <p>
             Speeds and the fly / walk mode are set under <a href="panel-settings.html#tab-navigation">Settings → Navigation</a>.
           </p>
+
+          <h3 id="nav-gizmo">The navigation gizmo</h3>
+          <p>
+            The navigation gizmo sits in the bottom-right corner of the 3D view and comes in two styles. Right-click it,
+            or press and hold it, to switch between them; <a href="panel-settings.html#tab-gizmo">Settings → Gizmo</a>
+            has the same choice.
+          </p>
+          <ul>
+            <li><b>Axis balls</b> (the default) — one ball for each direction, marked with the first letter of the face
+              names. Click a ball to look from that side; click it again to look from the opposite side. While the
+              pointer is over the gizmo, small dots appear between the balls on the side facing you: click one for a 45°
+              or isometric view. On a touch screen, tap the gizmo to show the dots for a few seconds. Drag on the balls
+              to turn the view.</li>
+            <li><b>Cube</b> — click a face, edge or corner to look from there. It can also mark true north; see
+              Settings → Gizmo.</li>
+            <li><kbd>Shift</kbd> + click a ball, face, edge, corner or dot to look from the opposite side.</li>
+            <li>Drag the dotted handle above the gizmo to move it. <kbd>Shift</kbd> + click the handle to put it back
+              in the corner.</li>
+          </ul>
         </section>
 
         <section id="ribbon" class="g-sec">
@@ -105,7 +124,7 @@
           <figure class="shot" data-shot="f01-canvas"></figure>
           <ol class="legend-list">
             <li><b>Clear</b> (<kbd>ALT 603</kbd>) — unloads every model from the 3D view, after asking first. The models stay in the Model Assets library, so you can load them again. Colour, hide and selection changes on them are lost.</li>
-            <li><b>Screenshot</b> (<kbd>ALT 1010</kbd>) — saves the 3D view as a PNG file. The picture is rendered at a higher resolution than the screen and includes the view cube, labels and measurements. A "Please wait" box shows while it is made.</li>
+            <li><b>Screenshot</b> (<kbd>ALT 1010</kbd>) — saves the 3D view as a PNG file. The picture is rendered at a higher resolution than the screen and includes the <a href="#nav-gizmo">navigation gizmo</a>, labels and measurements. A "Please wait" box shows while it is made.</li>
             <li><b>Persp.</b> (<kbd>ALT 610</kbd>) — normal perspective view: things further away look smaller.</li>
             <li><b>Ortho</b> (<kbd>ALT 611</kbd>) — orthographic view: no perspective, parallel lines stay parallel. Useful for straight side, front or top views. The app always starts in perspective.</li>
             <li><b>Dark</b> (<kbd>ALT 401</kbd>) — switches the whole app to the dark theme. The button then reads <b>Light</b> and switches back. The choice is remembered.</li>
@@ -204,6 +223,7 @@
             <li><b>Fit visible</b> (<kbd>ALT 1219</kbd>) — shows everything that is not hidden. With clipping on, only the part inside the clipping counts.</li>
             <li><b>Collapse all</b> (<kbd>ALT 801</kbd>) — folds the whole tree up again.</li>
             <li><b>Model order</b> (<kbd>ALT 804</kbd>) — when it is on, what sits below the zones is listed in the order the model file has it. When it is off (the default), the tree is sorted A–Z. Folders, sites and zones are always A–Z. The setting is kept when you reload.</li>
+            <li><b>Temporary isolate</b> (<kbd>ALT 805</kbd>) — hides everything that is not selected, so you can work on that part alone. Click it again to show exactly what it hid. Colours you set and parts you hide in the meantime stay as they are, and selected parts that were hidden before are hidden again. Greyed out when nothing is selected.</li>
           </ol>
 
           <h3 id="hierarchy-tree">Reading and using the tree</h3>

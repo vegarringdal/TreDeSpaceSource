@@ -21,6 +21,7 @@ import { type DbModel, forgetModelTables, isEffectivelyHidden, models, type Stat
 import { dropModelFromGlobalIndex, indexRevivedModel, resetGlobalIndex } from './globalNameIndex';
 import { buildIndexes, packStates, transferUpdates } from './hierarchyIndex';
 import { parsedCache } from './parsedCache';
+import { forgetTempIsolate } from './tempIsolate';
 import { itemWorldBounds, resetTransformPool } from './transformPool';
 
 /** Mark the packed geometry arrays for zero-copy transfer to the main thread. */
@@ -461,6 +462,7 @@ export const modelsApi = {
     parsedCache.clear();
     resetGlobalIndex();
     resetColorUndo();
+    forgetTempIsolate();
     resetTransformObjects();
     resetTransformPool();
     resetAnimationState();
@@ -674,6 +676,7 @@ export const modelsApi = {
       }
       m.removed = true;
       forgetModelTables(m);
+      forgetTempIsolate([i]);
       dropModelFromGlobalIndex(i);
       parsedCache.forgetOwner(i);
     }

@@ -3800,6 +3800,15 @@ export const HOTKEYS: HotkeyDef[] = [
     run: () => viewerActions.update({ treeModelOrder: !viewerState.get().treeModelOrder }),
   },
   {
+    id: 'hierarchy.tempIsolate',
+    category: 'Hierarchy',
+    label: 'Temporary isolate',
+    defaultKeys: 'ALT 805',
+    description:
+      'Isolate the selection for a while; toggle again to show exactly what it hid (colours and hides made meanwhile stay)',
+    run: () => void viewerActions.toggleTempIsolate(),
+  },
+  {
     id: 'hierarchy.itemEdgesOff',
     category: 'Hierarchy',
     label: 'Item edges off on selection',

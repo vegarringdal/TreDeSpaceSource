@@ -241,6 +241,17 @@ export class CameraController {
     };
   }
 
+  /** Orbit by a pointer delta in CSS px, exactly like a left-button drag on
+   *  the canvas (same sensitivity; consumed by the next update). The
+   *  navigation gizmo's drag uses it. */
+  orbitBy(dx: number, dy: number) {
+    if (this.inputLocked) {
+      return;
+    }
+    this.orbitDX += dx;
+    this.orbitDY += dy;
+  }
+
   // View-cube snap: animate to the given azimuth/elevation around the current
   // pivot at the current distance (native ViewCube SnapView).
   snapView(azimuth: number, elevation: number, smoothTime: number) {

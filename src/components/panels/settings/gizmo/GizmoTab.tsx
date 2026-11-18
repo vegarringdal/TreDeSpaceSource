@@ -8,8 +8,9 @@ import {
 import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
+import { GizmoNavSection } from './GizmoNavSection';
 
-/** Settings → Gizmo tab: view-cube face names + cube colours. */
+/** Settings → Gizmo tab: the navigation gizmo, face names + cube colours. */
 export function GizmoTab() {
   const v = useViewer();
   const act = viewerActions;
@@ -17,10 +18,11 @@ export function GizmoTab() {
 
   return (
     <div className="flex flex-col gap-1.5">
+      <GizmoNavSection />
       <SettingsSection
         id="gizmoNames"
         title="Gizmo"
-        info="View-cube face names — the colored face buttons on the ribbons use their first letters."
+        info="View-cube face names — the colored face buttons on the ribbons and the axis balls use their first letters."
       >
         {(Object.keys(DEFAULT_GIZMO_LABELS) as GizmoFaceName[]).map((face) => (
           <TextInput

@@ -3,9 +3,55 @@
 // geometry, label atlas, pipelines and the AA offscreen pair; the renderer
 // forwards placement/palette from the DOM gizmo and calls draw() per frame.
 import type { GizmoFace } from '../overlay/ViewGizmo';
+import {
+  AXIS_REACH,
+  basisFromQuat,
+  layoutAxisGizmo,
+  MARKER_REACH,
+  type NavGizmoStyle,
+  northMarkerPoint,
+  northPointer,
+  type SnapDotSet,
+} from './axisGizmo';
+import { type GizmoPalette, paintAxisGizmo, paintNorthMarker } from './axisGizmoPaint';
 import type { GpuTimings } from './gpuTimings';
 import { cubeBlitWgsl, viewCubeWgsl } from './shaders';
 import { ATLAS_TILE, buildLabelAtlas, buildViewCubeGeometry, VIEWCUBE_REACH } from './viewCubeGpu';
+
+/** What the navigation gizmo shows, from the settings (Settings → Gizmo). */
+export type NavGizmoOptions = Readonly<{
+  style: NavGizmoStyle;
+  snapDots: SnapDotSet;
+  /** The ball letters: the face names' first letters (faceLetters). */
+  letters: Readonly<Record<GizmoFace, string>>;
+  /** Degrees clockwise from +Y, seen from above. */
+  northAngle: number;
+  /** Draw the cube's true-north "N" marker (never on the balls). */
+  northMarker: boolean;
+  /** The see-through sphere behind the axis balls: '#rrggbb', opacity 0..1. */
+  ballsBackground: Readonly<{ color: string; opacity: number }>;
+}>;
+
+/** Pixel location of the gizmo's mini viewport for one frame (device px). */
+type GizmoBox = Readonly<{ vx: number; vy: number; vw: number; vh: number; cx: number; cy: number; S: number }>;
+
+const DEFAULT_LETTERS: Readonly<Record<GizmoFace, string>> = {
+  front: 'F',
+  back: 'B',
+  left: 'L',
+  right: 'R',
+  top: 'T',
+  bottom: 'Bo',
+};
+/** The snap dots fade in/out over about this many ms. */
+const REVEAL_FADE_MS = 90;
+const REVEAL_DONE_EPS = 0.01;
+/** The cube's north marker's hover key (its GizmoPick id). */
+const NORTH_HOVER_KEY = 'north';
+const NORTH_LABEL = 'N';
+
+const toCss = (c: readonly [number, number, number]): string =>
+  `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`;
 
 export class ViewCubePass {
   private device: GPUDevice | null = null;
@@ -31,6 +77,24 @@ export class ViewCubePass {
   private lineCol: [number, number, number] = [0.302, 0.337, 0.396]; // #4d5665
   private hoverCol: [number, number, number] = [0.29, 0.427, 0.612]; // #4a6d9c
   private textCol = '#c9cfd8';
+  // navigation gizmo: style, axis balls and the cube's north marker. Both
+  // are painted in 2D into `overlayCanvas` and blitted (see drawOverlay).
+  private nav: NavGizmoOptions = {
+    style: 'cube',
+    snapDots: 'iso',
+    letters: DEFAULT_LETTERS,
+    northAngle: 0,
+    northMarker: false,
+    ballsBackground: { color: '#ffffff', opacity: 0 },
+  };
+  private navHover = '';
+  private revealTarget = 0;
+  private reveal = 0;
+  private revealT = 0;
+  private overlayCanvas: OffscreenCanvas | null = null;
+  private overlayTex: GPUTexture | null = null;
+  private overlayBind: GPUBindGroup | null = null;
+  private overlayKey = '';
 
   /** Create the static geometry, tiny uniform and pipelines. No depth — the
    *  cube is convex, per-fragment facing (not winding) culls the far plates. */
@@ -144,12 +208,162 @@ export class ViewCubePass {
     }
   }
 
-  /** Everything that changes the cube's on-screen pixels, for the idle-skip key. */
+  /** Style, letters, snap dots and north marker (settings-driven). */
+  setNavOptions(options: NavGizmoOptions) {
+    this.nav = options;
+  }
+
+  /** Per frame: the axis-ball item under the pointer ('' for none) and
+   *  whether the snap dots should show; their fade runs in draw(). */
+  setNavHover(hoverKey: string, isRevealed: boolean) {
+    this.navHover = hoverKey;
+    this.revealTarget = isRevealed ? 1 : 0;
+  }
+
+  /** The snap dots are mid-fade: the renderer keeps (hold) frames coming. */
+  get isAnimating(): boolean {
+    return (
+      this.rect !== null && this.nav.style === 'balls' && Math.abs(this.reveal - this.revealTarget) > REVEAL_DONE_EPS
+    );
+  }
+
+  /** Everything that changes the cube's on-screen pixels, for the idle-skip key.
+   *  The dots' fade is left out on purpose (it would restart TAA every frame);
+   *  isAnimating covers it. */
   get stateKey(): string {
+    const n = this.nav;
     return (
       `${this.rect ? `${this.rect.x},${this.rect.y},${this.rect.size}` : '-'};${this.hover};` +
-      `${this.faceCol.join(',')};${this.lineCol.join(',')};${this.hoverCol.join(',')};${this.textCol}`
+      `${this.faceCol.join(',')};${this.lineCol.join(',')};${this.hoverCol.join(',')};${this.textCol};` +
+      `${n.style};${n.snapDots};${Object.values(n.letters).join(',')};${n.northAngle};${n.northMarker};` +
+      `${n.ballsBackground.color},${n.ballsBackground.opacity};` +
+      `${this.navHover};${this.revealTarget}`
     );
+  }
+
+  /** Ease the snap dots' reveal toward its target (frame-rate independent). */
+  private stepReveal() {
+    const now = performance.now();
+    const dt = this.revealT ? now - this.revealT : 0;
+    this.revealT = now;
+    const k = 1 - Math.exp(-dt / REVEAL_FADE_MS);
+    this.reveal += (this.revealTarget - this.reveal) * k;
+    if (Math.abs(this.reveal - this.revealTarget) <= REVEAL_DONE_EPS) {
+      this.reveal = this.revealTarget;
+    }
+  }
+
+  private palette(): GizmoPalette {
+    return { face: toCss(this.faceCol), line: toCss(this.lineCol), text: this.textCol, hover: toCss(this.hoverCol) };
+  }
+
+  /** Paint the balls (or the cube's north marker) into the offscreen canvas,
+   *  sized exactly to the mini viewport so the blit is 1:1 even when the
+   *  viewport is clamped at the canvas edge. Repaints only on change. */
+  private paintOverlay(dev: GPUDevice, box: GizmoBox): boolean {
+    if (!this.blitPipeline) {
+      return false;
+    }
+    const { vx, vy, vw, vh, cx, cy, S } = box;
+    const q = this.quat;
+    const n = this.nav;
+    const key =
+      `${vx},${vy},${vw},${vh},${S};${q.x},${q.y},${q.z},${q.w};${n.style};${n.snapDots};` +
+      `${Object.values(n.letters).join(',')};${n.northAngle};${n.northMarker};${this.navHover};${this.reveal.toFixed(3)};` +
+      `${n.ballsBackground.color},${n.ballsBackground.opacity};` +
+      `${this.faceCol.join(',')};${this.lineCol.join(',')};${this.hoverCol.join(',')};${this.textCol}`;
+    if (!this.overlayTex || this.overlayTex.width !== vw || this.overlayTex.height !== vh) {
+      this.overlayTex?.destroy();
+      this.overlayTex = dev.createTexture({
+        label: 'navGizmoOverlay',
+        size: [vw, vh],
+        format: 'rgba8unorm',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+      this.overlayBind = dev.createBindGroup({
+        label: 'navGizmoOverlayBind',
+        layout: this.blitPipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: this.overlayTex.createView() },
+          { binding: 1, resource: dev.createSampler({ magFilter: 'linear', minFilter: 'linear' }) },
+        ],
+      });
+      this.overlayKey = '';
+    }
+    if (key === this.overlayKey) {
+      return true;
+    }
+    if (!this.overlayCanvas) {
+      this.overlayCanvas = new OffscreenCanvas(vw, vh);
+    }
+    const canvas = this.overlayCanvas;
+    if (canvas.width !== vw || canvas.height !== vh) {
+      canvas.width = vw;
+      canvas.height = vh;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return false;
+    }
+    ctx.clearRect(0, 0, vw, vh);
+    const basis = basisFromQuat(q);
+    const ox = cx - vx;
+    const oy = cy - vy;
+    const palette = this.palette();
+    if (n.style === 'balls') {
+      const items = layoutAxisGizmo(basis, n.snapDots, this.reveal);
+      paintAxisGizmo(ctx, items, {
+        cx: ox,
+        cy: oy,
+        scale: S,
+        letters: n.letters,
+        hoverId: this.navHover,
+        palette,
+        background: n.ballsBackground,
+      });
+    } else if (n.northMarker) {
+      const m = northMarkerPoint(basis, n.northAngle);
+      const pointer = northPointer(basis, n.northAngle).map((p) => ({ x: ox + p.x * S, y: oy + p.y * S }));
+      paintNorthMarker(ctx, {
+        x: ox + m.x * S,
+        y: oy + m.y * S,
+        scale: S,
+        label: NORTH_LABEL,
+        pointer,
+        isBehind: m.depth < 0,
+        isHover: this.navHover === NORTH_HOVER_KEY,
+        palette,
+      });
+    }
+    // premultiplied: the blit blends one / one-minus-src-alpha
+    dev.queue.copyExternalImageToTexture({ source: canvas }, { texture: this.overlayTex, premultipliedAlpha: true }, [
+      vw,
+      vh,
+    ]);
+    this.overlayKey = key;
+    return true;
+  }
+
+  /** Blit the painted overlay onto the frame at the mini viewport. */
+  private drawOverlay(
+    enc: GPUCommandEncoder,
+    view: GPUTextureView,
+    box: GizmoBox,
+    timestampWrites: GPURenderPassTimestampWrites | undefined,
+  ) {
+    const dev = this.device;
+    if (!dev || !this.blitPipeline || !this.paintOverlay(dev, box) || !this.overlayBind) {
+      return;
+    }
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{ view, loadOp: 'load', storeOp: 'store' }],
+      ...(timestampWrites ? { timestampWrites } : {}),
+    });
+    pass.setViewport(box.vx, box.vy, box.vw, box.vh, 0, 1);
+    pass.setPipeline(this.blitPipeline);
+    pass.setBindGroup(0, this.overlayBind);
+    pass.draw(3);
+    pass.end();
   }
 
   /** Overlay pass: draw the view cube into `view` (the swapchain after post,
@@ -210,7 +424,10 @@ export class ViewCubePass {
     const S = rect.size * dpr;
     const cx = (rect.x + rect.size / 2) * dpr;
     const cy = (rect.y + rect.size / 2) * dpr;
-    const E = S * VIEWCUBE_REACH;
+    // the balls and the cube's north marker reach further than the cube
+    const isBalls = this.nav.style === 'balls';
+    const reach = isBalls ? AXIS_REACH : this.nav.northMarker ? MARKER_REACH : VIEWCUBE_REACH;
+    const E = S * reach;
     const vx = Math.max(0, Math.floor(cx - E));
     const vy = Math.max(0, Math.floor(cy - E));
     const vx1 = Math.min(canvas.width, Math.ceil(cx + E));
@@ -218,6 +435,12 @@ export class ViewCubePass {
     const vw = vx1 - vx;
     const vh = vy1 - vy;
     if (vw < 2 || vh < 2) {
+      return;
+    }
+    const box: GizmoBox = { vx, vy, vw, vh, cx, cy, S };
+    this.stepReveal();
+    if (isBalls) {
+      this.drawOverlay(enc, view, box, timings.writes(10));
       return;
     }
     // Same rotation the DOM gizmo shows. CSS matrix3d is COLUMN-major, so
@@ -325,6 +548,9 @@ export class ViewCubePass {
       blit.setBindGroup(0, this.blitBind!);
       blit.draw(3);
       blit.end();
+      if (this.nav.northMarker) {
+        this.drawOverlay(enc, view, box, undefined);
+      }
       return;
     }
 
@@ -338,5 +564,8 @@ export class ViewCubePass {
     pass.setVertexBuffer(0, this.verts);
     pass.draw(this.vertCount);
     pass.end();
+    if (this.nav.northMarker) {
+      this.drawOverlay(enc, view, box, undefined);
+    }
   }
 }
