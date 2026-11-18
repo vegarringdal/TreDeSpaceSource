@@ -242,14 +242,14 @@
     "measurements": [
       {
         "section": "Load & save",
-        "label": "Save\u2026",
+        "label": "Save…",
         "icon": "",
         "tooltip": "Save all measurements to a JSON file",
         "keys": "ALT 721"
       },
       {
         "section": "Load & save",
-        "label": "Load\u2026",
+        "label": "Load…",
         "icon": "",
         "tooltip": "Load measurements from a JSON file",
         "keys": "ALT 722"
@@ -270,7 +270,7 @@
       },
       {
         "section": "Config",
-        "label": "Decimals \u2212",
+        "label": "Decimals −",
         "icon": "",
         "tooltip": "Fewer measurement decimals",
         "keys": "ALT 725"
@@ -284,16 +284,16 @@
       },
       {
         "section": "Config",
-        "label": "Sphere size \u2212",
+        "label": "Sphere size −",
         "icon": "",
-        "tooltip": "Smaller 3D point spheres (Config \u2192 Sphere)",
+        "tooltip": "Smaller 3D point spheres (Config → Sphere)",
         "keys": "ALT 727"
       },
       {
         "section": "Config",
         "label": "Sphere size +",
         "icon": "",
-        "tooltip": "Bigger 3D point spheres (Config \u2192 Sphere)",
+        "tooltip": "Bigger 3D point spheres (Config → Sphere)",
         "keys": "ALT 726"
       },
       {
@@ -305,7 +305,7 @@
       },
       {
         "section": "Config",
-        "label": "Sphere opacity \u2212",
+        "label": "Sphere opacity −",
         "icon": "",
         "tooltip": "More translucent point spheres",
         "keys": "ALT 737"
@@ -321,7 +321,7 @@
         "section": "Config",
         "label": "Spheres on",
         "icon": "",
-        "tooltip": "Spheres at every point of every measurement \u2014 all on with the Config sphere, or all off",
+        "tooltip": "Spheres at every point of every measurement — all on with the Config sphere, or all off",
         "keys": "ALT 738"
       },
       {
@@ -329,7 +329,7 @@
         "keys": "",
         "section": "Config",
         "label": "Color",
-        "tooltip": "Colour of every measurement\u2019s lines, markers and area fill in the 3D view."
+        "tooltip": "Colour of every measurement’s lines, markers and area fill in the 3D view."
       },
       {
         "icon": "",
@@ -343,7 +343,7 @@
         "keys": "",
         "section": "Each measurement",
         "label": "Name",
-        "tooltip": "The measurement\u2019s name. Enter starts a new line; **bold** works. The row header shows the first line."
+        "tooltip": "The measurement’s name. Enter starts a new line; **bold** works. The row header shows the first line."
       },
       {
         "section": "Each measurement",
@@ -370,7 +370,7 @@
         "section": "Each measurement",
         "label": "Slope",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-trending-up \"><path d=\"M3 17l6 -6l4 4l8 -8\"></path><path d=\"M14 7l7 0l0 7\"></path></svg>",
-        "tooltip": "Append the slope (\u2220 from horizontal + % fall) to the label",
+        "tooltip": "Append the slope (∠ from horizontal + % fall) to the label",
         "keys": ""
       },
       {
@@ -391,66 +391,66 @@
         "section": "Each measurement",
         "label": "XYZ",
         "icon": "",
-        "tooltip": "Toggle all \u0394X/\u0394Y/\u0394Z legs",
+        "tooltip": "Toggle all ΔX/ΔY/ΔZ legs",
         "keys": ""
       },
       {
         "section": "Each measurement",
         "label": "X",
         "icon": "",
-        "tooltip": "Show the \u0394X leg",
+        "tooltip": "Show the ΔX leg",
         "keys": ""
       },
       {
         "section": "Each measurement",
         "label": "XT",
         "icon": "",
-        "tooltip": "Show the \u0394X length",
+        "tooltip": "Show the ΔX length",
         "keys": ""
       },
       {
         "section": "Each measurement",
         "label": "Y",
         "icon": "",
-        "tooltip": "Show the \u0394Y leg",
+        "tooltip": "Show the ΔY leg",
         "keys": ""
       },
       {
         "section": "Each measurement",
         "label": "YT",
         "icon": "",
-        "tooltip": "Show the \u0394Y length",
+        "tooltip": "Show the ΔY length",
         "keys": ""
       },
       {
         "section": "Each measurement",
         "label": "Z",
         "icon": "",
-        "tooltip": "Show the \u0394Z leg",
+        "tooltip": "Show the ΔZ leg",
         "keys": ""
       },
       {
         "section": "Each measurement",
         "label": "ZT",
         "icon": "",
-        "tooltip": "Show the \u0394Z length",
+        "tooltip": "Show the ΔZ length",
         "keys": ""
       },
       {
         "section": "Each measurement",
-        "label": "\u03a3XYZ",
+        "label": "ΣXYZ",
         "icon": "",
-        "tooltip": "Append the \u0394X/\u0394Y/\u0394Z lengths to the main label (X: \u2026 / Y: \u2026 / Z: \u2026)",
+        "tooltip": "Append the ΔX/ΔY/ΔZ lengths to the main label (X: … / Y: … / Z: …)",
         "keys": ""
       },
       {
         "section": "Each measurement",
         "label": "Reflex angle",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-angle -scale-x-100\"><path d=\"M21 19h-18l9 -15\"></path><path d=\"M20.615 15.171h.015\"></path><path d=\"M19.515 11.771h.015\"></path><path d=\"M17.715 8.671h.015\"></path><path d=\"M15.415 5.971h.015\"></path></svg>",
-        "tooltip": "Flip to the reflex angle (360\u00b0 \u2212 \u03b8)",
+        "tooltip": "Flip to the reflex angle (360° − θ)",
         "keys": ""
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.26.3"
 }

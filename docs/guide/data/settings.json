@@ -123,8 +123,8 @@
       "fromGpu": true
     },
     "settings-gizmo": {
-      "w": 404,
-      "h": 412,
+      "w": 392,
+      "h": 738,
       "gpu": false,
       "marks": [],
       "fromGpu": true
@@ -212,7 +212,7 @@
     },
     "settings-about": {
       "w": 404,
-      "h": 389,
+      "h": 428,
       "gpu": false,
       "marks": [],
       "fromGpu": true
@@ -1388,5 +1388,5 @@
       }
     ]
   },
-  "appVersion": "0.0.157"
+  "appVersion": "0.26.3"
 }

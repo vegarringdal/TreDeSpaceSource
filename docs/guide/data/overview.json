@@ -85,7 +85,7 @@
       "fromGpu": true
     },
     "layout-ribbon": {
-      "w": 1225,
+      "w": 1221,
       "h": 130,
       "gpu": false,
       "marks": [
@@ -98,62 +98,65 @@
         },
         {
           "n": 2,
-          "x": 503.453125,
+          "x": 499.984375,
           "y": 79.65625,
           "w": 112,
           "h": 21.328125
         },
         {
           "n": 3,
-          "x": 970.453125,
+          "x": 966.984375,
           "y": 33,
           "w": 64,
           "h": 68
         },
         {
           "n": 4,
-          "x": 1036.453125,
+          "x": 1032.984375,
           "y": 51,
           "w": 176,
           "h": 24
         },
         {
           "n": 5,
-          "x": 1036.453125,
+          "x": 1032.984375,
           "y": 79,
           "w": 88.5,
           "h": 24,
           "at": "bl"
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "layout-settings-tab": {
-      "w": 407,
-      "h": 270,
+      "w": 395,
+      "h": 526,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 181,
-          "y": 78,
-          "w": 186,
+          "y": 462,
+          "w": 174,
           "h": 24
         },
         {
           "n": 2,
-          "x": 375,
+          "x": 363,
           "y": 78,
           "w": 24,
           "h": 24,
           "at": "tr"
         }
-      ]
+      ],
+      "fromGpu": true
     },
     "layout-f10": {
       "w": 1440,
       "h": 900,
       "gpu": false,
-      "marks": []
+      "marks": [],
+      "fromGpu": true
     }
   },
   "reference": {
@@ -189,8 +192,8 @@
       {
         "icon": "",
         "keys": "F1 … F12",
-        "section": "Configured App Layouts (Shortcut F1-F12)",
-        "label": "Preset layouts",
+        "section": "Default App Layouts (F1-F12)",
+        "label": "Default layouts",
         "tooltip": "Click one to switch to that layout. It also becomes the target for Save."
       },
       {
@@ -202,5 +205,5 @@
       }
     ]
   },
-  "appVersion": "0.0.141"
+  "appVersion": "0.26.3"
 }

@@ -194,21 +194,21 @@
         "section": "Visibility",
         "label": "Helper",
         "icon": "",
-        "tooltip": "Show the X plane helper (the 3\u00d73 m marker)",
+        "tooltip": "Show the X plane helper (the 3×3 m marker)",
         "keys": "ALT 317"
       },
       {
         "section": "Visibility",
         "label": "Helper",
         "icon": "",
-        "tooltip": "Show the Y plane helper (the 3\u00d73 m marker)",
+        "tooltip": "Show the Y plane helper (the 3×3 m marker)",
         "keys": "ALT 318"
       },
       {
         "section": "Visibility",
         "label": "Helper",
         "icon": "",
-        "tooltip": "Show the Z plane helper (the 3\u00d73 m marker)",
+        "tooltip": "Show the Z plane helper (the 3×3 m marker)",
         "keys": "ALT 319"
       },
       {
@@ -237,25 +237,25 @@
         "label": "Center",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-centered \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
         "tooltip": "Center the X plane on the last clicked point",
-        "keys": ""
+        "keys": "ALT 3001"
       },
       {
         "section": "Position",
         "label": "Center",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-centered \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
         "tooltip": "Center the Y plane on the last clicked point",
-        "keys": ""
+        "keys": "ALT 3002"
       },
       {
         "section": "Position",
         "label": "Center",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-focus-centered \"><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"></path><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"></path><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"></path><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"></path></svg>",
         "tooltip": "Center the Z plane on the last clicked point",
-        "keys": ""
+        "keys": "ALT 3003"
       },
       {
         "section": "Position",
-        "label": "X Position \u2212",
+        "label": "X Position −",
         "icon": "",
         "tooltip": "Decrease the X plane position",
         "keys": "ALT 351"
@@ -269,7 +269,7 @@
       },
       {
         "section": "Position",
-        "label": "Y Position \u2212",
+        "label": "Y Position −",
         "icon": "",
         "tooltip": "Decrease the Y plane position",
         "keys": "ALT 367"
@@ -283,7 +283,7 @@
       },
       {
         "section": "Position",
-        "label": "Z Position \u2212",
+        "label": "Z Position −",
         "icon": "",
         "tooltip": "Decrease the Z plane position",
         "keys": "ALT 383"
@@ -297,7 +297,7 @@
       },
       {
         "section": "Position Step",
-        "label": "X Position Step \u2212",
+        "label": "X Position Step −",
         "icon": "",
         "tooltip": "Decrease the X plane step",
         "keys": "ALT 355"
@@ -311,7 +311,7 @@
       },
       {
         "section": "Position Step",
-        "label": "Y Position Step \u2212",
+        "label": "Y Position Step −",
         "icon": "",
         "tooltip": "Decrease the Y plane step",
         "keys": "ALT 371"
@@ -325,7 +325,7 @@
       },
       {
         "section": "Position Step",
-        "label": "Z Position Step \u2212",
+        "label": "Z Position Step −",
         "icon": "",
         "tooltip": "Decrease the Z plane step",
         "keys": "ALT 387"
@@ -381,84 +381,84 @@
       },
       {
         "section": "Rotation",
-        "label": "X \u00b0el \u2212",
+        "label": "X °el −",
         "icon": "",
         "tooltip": "Decrease the X plane el",
         "keys": "ALT 359"
       },
       {
         "section": "Rotation",
-        "label": "X \u00b0el +",
+        "label": "X °el +",
         "icon": "",
         "tooltip": "Increase the X plane el",
         "keys": "ALT 358"
       },
       {
         "section": "Rotation",
-        "label": "Y \u00b0el \u2212",
+        "label": "Y °el −",
         "icon": "",
         "tooltip": "Decrease the Y plane el",
         "keys": "ALT 375"
       },
       {
         "section": "Rotation",
-        "label": "Y \u00b0el +",
+        "label": "Y °el +",
         "icon": "",
         "tooltip": "Increase the Y plane el",
         "keys": "ALT 374"
       },
       {
         "section": "Rotation",
-        "label": "Z \u00b0el \u2212",
+        "label": "Z °el −",
         "icon": "",
         "tooltip": "Decrease the Z plane el",
         "keys": "ALT 391"
       },
       {
         "section": "Rotation",
-        "label": "Z \u00b0el +",
+        "label": "Z °el +",
         "icon": "",
         "tooltip": "Increase the Z plane el",
         "keys": "ALT 390"
       },
       {
         "section": "Rotation",
-        "label": "X \u00b0az \u2212",
+        "label": "X °az −",
         "icon": "",
         "tooltip": "Decrease the X plane az",
         "keys": "ALT 363"
       },
       {
         "section": "Rotation",
-        "label": "X \u00b0az +",
+        "label": "X °az +",
         "icon": "",
         "tooltip": "Increase the X plane az",
         "keys": "ALT 362"
       },
       {
         "section": "Rotation",
-        "label": "Y \u00b0az \u2212",
+        "label": "Y °az −",
         "icon": "",
         "tooltip": "Decrease the Y plane az",
         "keys": "ALT 379"
       },
       {
         "section": "Rotation",
-        "label": "Y \u00b0az +",
+        "label": "Y °az +",
         "icon": "",
         "tooltip": "Increase the Y plane az",
         "keys": "ALT 378"
       },
       {
         "section": "Rotation",
-        "label": "Z \u00b0az \u2212",
+        "label": "Z °az −",
         "icon": "",
         "tooltip": "Decrease the Z plane az",
         "keys": "ALT 395"
       },
       {
         "section": "Rotation",
-        "label": "Z \u00b0az +",
+        "label": "Z °az +",
         "icon": "",
         "tooltip": "Increase the Z plane az",
         "keys": "ALT 394"
@@ -472,5 +472,5 @@
       }
     ]
   },
-  "appVersion": "0.0.140"
+  "appVersion": "0.26.3"
 }

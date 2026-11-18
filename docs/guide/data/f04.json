@@ -328,8 +328,8 @@
         "section": "Quick Coloring",
         "label": "Panel",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-palette \"><path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\"></path><path d=\"M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path><path d=\"M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"></path></svg>",
-        "tooltip": "Open the Color Panel (swatches, manual color, opacity)",
-        "keys": ""
+        "tooltip": "Show / hide the Color Panel (swatches, manual color, opacity)",
+        "keys": "ALT 671"
       },
       {
         "section": "Opacity Override",
@@ -350,7 +350,7 @@
         "label": "Set Sel",
         "icon": "",
         "tooltip": "Set the opacity override on the selection",
-        "keys": ""
+        "keys": "T"
       },
       {
         "section": "Opacity Override",
@@ -410,5 +410,5 @@
       }
     ]
   },
-  "appVersion": "0.0.144"
+  "appVersion": "0.26.3"
 }
