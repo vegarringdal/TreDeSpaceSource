@@ -1,45 +1,65 @@
 name: Pages
+run-name: Pages — ${{ github.ref_name }}
 
-# Manual deploy of the built viewer to GitHub Pages — for trying a branch on a
-# test fork / dummy repo: push the branch there, set Settings → Pages →
-# Source to "GitHub Actions", then run this workflow from the Actions tab.
-# Never triggered by pushes or PRs. The build uses the committed wasm modules,
-# so no Rust toolchain is needed; vite's base './' makes the site work from
-# the repo subpath (https://<owner>.github.io/<repo>/).
+# Manual deploy of the built viewer to GitHub Pages — for trying out a branch
+# on a test fork: pick the branch under "Run workflow" (it builds that
+# branch's latest commit) and the site at https://<owner>.github.io/<repo>/
+# becomes that build. Never triggered by pushes or PRs.
+#
+# The build is force-pushed to the root of the `gh-pages` branch as a single
+# commit, so that branch never accumulates history — it only ever holds the
+# last deploy. The app shows `<branch>#<short sha>` as its version (About,
+# Console banner, /build.version) so it is clear which build is live.
+#
+# One-time setup: run this once to create `gh-pages`, then set Settings →
+# Pages → Source to "Deploy from a branch", branch `gh-pages`, folder `/`.
+# The build uses the committed wasm modules, so no Rust toolchain is needed;
+# vite's base './' makes the site work from the repo subpath.
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
+      - id: version
+        run: echo "value=${GITHUB_REF_NAME}#${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - run: npm ci
       - run: npm run build
-      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+        env:
+          APP_VERSION: ${{ steps.version.outputs.value }}
+      - name: Force-push dist to gh-pages
+        working-directory: dist
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          TOKEN: ${{ github.token }}
+        run: |
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${VERSION}"
+          git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          echo "Deployed **${VERSION}** to https://${owner,,}.github.io/${repo}/ (live once the Pages build finishes)" >> "$GITHUB_STEP_SUMMARY"

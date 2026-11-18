@@ -2369,13 +2369,16 @@ guess, so one over-budget correction, bounded by dwell, is expected.
   discipline in SQL panels, unified blocking-UI store, SQL-worker
   lifecycle, messageApi forwarding seam) to land as normal refactors first.
 - **WebXR VR/AR — PLANNED, not scheduled** (`plans/XR.md`, design capture only).
-  VR model review first (desktop Chrome + PCVR headset, e.g. Quest 3 over
-  Link/Virtual Desktop), on-site passthrough-AR alignment later. Unblocked by
-  the WebXR/WebGPU Binding (`XRGPUBinding` + projection layers; Editor's
-  Draft June 2026) — behind Chrome flags on Windows/Android XR as of 2026-07,
-  shipped only on Vision Pro Safari, **absent from the Quest standalone
-  browser** (which also lacks multi-draw indirect → untethered/AR is blocked
-  on Meta, not us). three.js dev's `XRManager.js` is the reference impl.
+  VR model review first (Chrome on a Windows PC + a headset as display, wired
+  or wireless, e.g. Quest 3 over Link/Virtual Desktop or a Steam Frame),
+  on-site passthrough-AR alignment later. Unblocked by the WebXR/WebGPU
+  Binding (`XRGPUBinding` + projection layers; Editor's Draft June 2026) —
+  as of 2026-11 still behind flags in Chrome (Windows / Android XR) and, since
+  Quest Browser 146, in the Quest standalone browser; shipped only on Vision
+  Pro Safari; no official WebXR in Chrome on Linux. A headset browser has no
+  multi-draw indirect, so it would run the vertex-pull path — untethered/AR
+  now hangs on an unmeasured mobile frame budget, not on a missing browser
+  feature. three.js r185's `XRManager.js` is the reference impl.
   Renderer seams (per-view render fn, per-eye cull incl. both cull pushes,
   TAA off/MSAA resolve into layer, no hold path, Z-up↔Y-up root transform)
   and the alignment "lock button" (`M = H · H0⁻¹ · M0` while held) are pinned

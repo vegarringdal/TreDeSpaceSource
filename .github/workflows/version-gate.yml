@@ -1,0 +1,107 @@
+name: Version gate
+
+# The release gate for PRs into main (CONTRIBUTING.md › Versioning and
+# releases): only this repository's `dev` may target main, and its
+# package.json version must be the next MAJOR.YY.RELEASE.
+#
+# It runs on pull_request_target, so GitHub always uses MAIN's copy of this
+# file — a PR cannot loosen the gate it is checked by. That trigger runs in
+# main's context, so this job must never execute PR code: it reads the PR's
+# package.json and file list as git objects only (nothing from the PR is
+# checked out), the token is read-only and there are no caches. `edited`
+# re-runs it when the PR title changes. Because main's copy is the one that
+# runs, a change to this file takes effect only after it is merged.
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  version-gate:
+    runs-on: ubuntu-latest
+    steps:
+      # branch and repo names are PR-controlled text: they reach the script as
+      # data (env), never spliced into it
+      - name: Only this repository's dev may target main
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REPO" != "$BASE_REPO" ] || [ "$HEAD_REF" != "dev" ]; then
+            echo "::error::PRs into main must come from $BASE_REPO:dev (got $HEAD_REPO:$HEAD_REF)"
+            exit 1
+          fi
+
+      # main, not the PR: the PR head is only fetched as git objects below
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Version must be the next MAJOR.YY.RELEASE (CONTRIBUTING.md › Versioning and releases)
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          git fetch -q --no-tags origin "$HEAD_SHA"
+          NEW=$(git show "$HEAD_SHA:package.json" | jq -r .version)
+          OLD=$(git show origin/main:package.json | jq -r .version)
+
+          SEMVER='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          [[ "$NEW" =~ $SEMVER ]] ||
+            fail "package.json version $NEW is not MAJOR.YY.RELEASE (three numbers, no leading zeros)"
+
+          # No release: only for PRs that change nothing the app is built from
+          # (EVENTS.md and src/ Markdown are built into /docs/ and the UI
+          # package). --no-renames lists both paths of a move, so moving a
+          # file out of src/ still counts as an app change.
+          if [ "$NEW" = "$OLD" ]; then
+            APP=$(git diff --no-renames --name-only "origin/main...$HEAD_SHA" | while IFS= read -r f; do
+              case "$f" in
+                .github/*|plans/*|README.md|CHANGELOG.md|DESIGN.md|CLAUDE.md) ;;
+                EVENTS.md|src/*|docs/*) echo "$f" ;;
+                *.md) ;;
+                *) echo "$f" ;;
+              esac
+            done)
+            [ -z "$APP" ] || fail "version unchanged ($NEW), but the PR changes app files: $(echo $APP | head -c 300)"
+            echo "OK: no release, non-app changes only (v$NEW)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          IFS=. read -r NMAJ NYY NREL <<< "$NEW"
+          IFS=. read -r OMAJ OYY OREL <<< "$OLD"
+          YY=$(date -u +%y | sed 's/^0*//')
+
+          [ "$NYY" = "$YY" ] || fail "YY is $NYY, expected the current year $YY ($NEW)"
+          # A MAJOR bump must reset RELEASE to 1, so a mistyped MAJOR can't
+          # pass as an ordinary release.
+          if [ "$NMAJ" = "$((OMAJ + 1))" ]; then
+            EXPECT=1 WHY="a MAJOR bump resets it to 1"
+          elif [ "$NMAJ" = "$OMAJ" ]; then
+            if [ "$OYY" = "$YY" ]; then
+              EXPECT=$((OREL + 1)) WHY="one up within the year"
+            else
+              EXPECT=1 WHY="it resets to 1 in a new year"
+            fi
+          else
+            fail "MAJOR is $NMAJ; it stays $OMAJ or goes up by one (previous: $OLD)"
+          fi
+          [ "$NREL" = "$EXPECT" ] || fail "RELEASE is $NREL, expected $EXPECT — $WHY (previous: $OLD)"
+
+          # the version must be a word of its own in the title: brackets and
+          # trailing punctuation are fine, v0.26.30 does not count as v0.26.3
+          printf '%s\n' "$TITLE" | tr -s '[:space:]' '\n' |
+            sed -E 's/^[[:punct:]]+//; s/[[:punct:]]+$//' | grep -qxF "v$NEW" ||
+            fail "PR title must contain v$NEW as a word of its own"
+
+          echo "OK: v$NEW (previous v$OLD)" >> "$GITHUB_STEP_SUMMARY"

@@ -206,12 +206,12 @@
           "n": 1,
           "x": 8,
           "y": 31,
-          "w": 214.140625,
+          "w": 186.140625,
           "h": 24
         },
         {
           "n": 2,
-          "x": 226.140625,
+          "x": 198.140625,
           "y": 31,
           "w": 24,
           "h": 24,
@@ -219,13 +219,21 @@
         },
         {
           "n": 3,
+          "x": 253.203125,
+          "y": 31,
+          "w": 24,
+          "h": 24,
+          "at": "tr"
+        },
+        {
+          "n": 4,
           "x": 8,
           "y": 59,
           "w": 24,
           "h": 24
         },
         {
-          "n": 4,
+          "n": 5,
           "x": 36,
           "y": 59,
           "w": 24,
@@ -233,14 +241,14 @@
           "at": "bl"
         },
         {
-          "n": 5,
+          "n": 6,
           "x": 64,
           "y": 59,
           "w": 24,
           "h": 24
         },
         {
-          "n": 6,
+          "n": 7,
           "x": 92,
           "y": 59,
           "w": 24,
@@ -248,14 +256,14 @@
           "at": "bl"
         },
         {
-          "n": 7,
+          "n": 8,
           "x": 120,
           "y": 59,
           "w": 24,
           "h": 24
         },
         {
-          "n": 8,
+          "n": 9,
           "x": 148,
           "y": 59,
           "w": 24,
@@ -263,7 +271,7 @@
           "at": "bl"
         },
         {
-          "n": 9,
+          "n": 10,
           "x": 176,
           "y": 59,
           "w": 24,
@@ -280,7 +288,7 @@
           "n": 1,
           "x": 8,
           "y": 31,
-          "w": 214.140625,
+          "w": 186.140625,
           "h": 24
         },
         {
@@ -481,6 +489,13 @@
       },
       {
         "section": "Hierarchy",
+        "label": "One row per name",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-stack-2 \"><path d=\"M12 4l-8 4l8 4l8 -4l-8 -4\"></path><path d=\"M4 12l8 4l8 -4\"></path><path d=\"M4 16l8 4l8 -4\"></path></svg>",
+        "tooltip": "One row per name — a name found several times shows once (×N); clicking it selects every copy and jumps to the first",
+        "keys": ""
+      },
+      {
+        "section": "Hierarchy",
         "label": "Fly to selection",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-plane-tilt \"><path d=\"M14.5 6.5l3 -2.9a2.05 2.05 0 0 1 2.9 2.9l-2.9 3l2.5 7.5l-2.5 2.55l-3.5 -6.55l-3 3v3l-2 2l-1.5 -4.5l-4.5 -1.5l2 -2h3l3 -3l-6.5 -3.5l2.5 -2.5l7.5 2.5\"></path></svg>",
         "tooltip": "Fly to selection\n(fit its bounding box)",
@@ -554,7 +569,7 @@
         "keys": "",
         "section": "",
         "label": "Search items…",
-        "tooltip": "Type at least two letters of a name. Up to ten matches are listed, highest level first; click one to select it."
+        "tooltip": "Type at least two letters of a name. Up to ten matches are listed, highest level first; click one to select it, Ctrl+click to add it to the selection."
       }
     ],
     "console": [
@@ -595,5 +610,5 @@
       }
     ]
   },
-  "appVersion": "0.0.142"
+  "appVersion": "0.26.2"
 }
