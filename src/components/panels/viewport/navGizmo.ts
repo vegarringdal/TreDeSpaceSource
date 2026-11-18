@@ -4,14 +4,7 @@
 // settings that shape it (Settings → Gizmo, settings.gizmo.set).
 
 import { type GizmoPick, ViewGizmo } from '../../../lib/overlay/ViewGizmo';
-import {
-  isNorthMarkerRedundant,
-  type NavGizmoStyle,
-  northMarkerLabel,
-  type Quat,
-  type SnapDotSet,
-  wrapDegrees,
-} from '../../../lib/render/axisGizmo';
+import { type NavGizmoStyle, type Quat, type SnapDotSet, wrapDegrees } from '../../../lib/render/axisGizmo';
 import { type BallClick, gizmoSnapTarget, type TopViewHeading } from '../../../lib/render/gizmoSnap';
 import type { Renderer } from '../../../lib/render/renderer';
 import { buildViewCubeGeometry } from '../../../lib/render/viewCubeGpu';
@@ -168,13 +161,14 @@ export function attachNavGizmo(host: HTMLElement, renderer: Renderer): NavGizmo 
   const applyOptions = () => {
     const s = readNavSettings();
     const letters = faceLetters(gizmoLabelsState.get().labels);
-    const isMarkerShown = s.style === 'cube' && s.isMarkerOn && !isNorthMarkerRedundant(s.northAngle, letters);
+    // the cube's north marker: always an N with its pointer when switched on (never on the balls)
+    const isMarkerShown = s.style === 'cube' && s.isMarkerOn;
     renderer.setNavGizmo({
       style: s.style,
       snapDots: s.snapDots,
       letters,
       northAngle: s.northAngle,
-      marker: isMarkerShown ? northMarkerLabel(letters) : null,
+      northMarker: isMarkerShown,
     });
     gizmo.setStyle(s.style);
     gizmo.setSnapDots(s.snapDots);

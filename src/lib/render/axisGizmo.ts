@@ -54,6 +54,10 @@ const BALL_HIT_SLACK = 0.02;
 /** The cube's north marker: its distance from the centre and its chip edge. */
 export const MARKER_DISTANCE = 1.16;
 export const MARKER_CHIP = 0.24;
+/** The marker's pointer triangle: tip just short of the chip, base nearer the cube. */
+const POINTER_TIP = MARKER_DISTANCE - MARKER_CHIP / 2 - 0.03;
+const POINTER_BASE = POINTER_TIP - 0.16;
+const POINTER_HALF_WIDTH = 0.08;
 
 /** How far each drawing reaches from the centre (sizes the mini viewport). */
 export const AXIS_REACH = BALL_ARM + BALL_RADIUS + 0.08;
@@ -84,10 +88,6 @@ export const AXIS_BALLS: readonly AxisBall[] = [
   { face: 'top', axis: 'Z', sign: 1 },
   { face: 'bottom', axis: 'Z', sign: -1 },
 ];
-
-/** Exact quarter turns of the north angle and the face that then points north. */
-const NORTH_FACE_BY_QUARTER: Record<number, GizmoFace> = { 0: 'back', 90: 'right', 180: 'front', [-90]: 'left' };
-const QUARTER_EPS_DEG = 0.01;
 
 // -----------------------------------------------------------------------------
 // helpers
@@ -223,18 +223,16 @@ export function northMarkerPoint(basis: GizmoBasis, angleDeg: number): ScreenPoi
   return projectPoint(basis, [n[0] * MARKER_DISTANCE, n[1] * MARKER_DISTANCE, 0]);
 }
 
-/** "TN" when a face letter is already N (two Ns would read as one), else "N". */
-export function northMarkerLabel(letters: Readonly<Record<GizmoFace, string>>): 'TN' | 'N' {
-  return Object.values(letters).some((l) => l === 'N') ? 'TN' : 'N';
-}
-
-/** The marker adds nothing when north points straight at a face already lettered N. */
-export function isNorthMarkerRedundant(angleDeg: number, letters: Readonly<Record<GizmoFace, string>>): boolean {
-  const a = wrapDegrees(angleDeg);
-  const quarter = Math.round(a / 90) * 90;
-  if (Math.abs(a - quarter) > QUARTER_EPS_DEG) {
-    return false;
-  }
-  const face = NORTH_FACE_BY_QUARTER[wrapDegrees(quarter) === 180 ? 180 : quarter];
-  return face !== undefined && letters[face] === 'N';
+/**
+ * The marker's pointer: a flat triangle lying in the ground plane between
+ * the cube and the N chip, its tip aimed at true north — tip first, then the
+ * two base corners. Seen from above it points straight at north; seen from
+ * the side it flattens like the ground does.
+ */
+export function northPointer(basis: GizmoBasis, angleDeg: number): readonly [ScreenPoint, ScreenPoint, ScreenPoint] {
+  const n = northDirection(angleDeg);
+  const side: Vec3 = [n[1], -n[0], 0];
+  const at = (along: number, across: number): ScreenPoint =>
+    projectPoint(basis, [n[0] * along + side[0] * across, n[1] * along + side[1] * across, 0]);
+  return [at(POINTER_TIP, 0), at(POINTER_BASE, -POINTER_HALF_WIDTH), at(POINTER_BASE, POINTER_HALF_WIDTH)];
 }

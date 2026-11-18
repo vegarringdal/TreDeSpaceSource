@@ -20,9 +20,12 @@ Entries from before the stable pilot (0.26.1) have been removed.
     either style, gives the opposite view. Dragging the balls orbits.
   - **True north.** A north angle (degrees clockwise from the model's +Y,
     the back side) can be set, and the cube can mark true north with an
-    amber N, or TN when a face is already lettered N. The marker is off by
+    amber N and a small triangle pointing at it. The marker is off by
     default, so the cube looks as before until a project or user turns it
     on. The balls never show north.
+  - **Moving the gizmo.** Its drag handle sits clear of the balls (and of
+    the north marker), and Shift+click on the handle puts the gizmo back
+    in its corner.
   - **Top and bottom views** can keep the heading (as before), turn +Y up,
     or turn true north up.
   - **Host API.** `settings.gizmo.set` sets all of this (`gizmoStyle`,

@@ -31,6 +31,8 @@ export type MarkerPaintOptions = Readonly<{
   y: number;
   scale: number;
   label: string;
+  /** The pointer triangle in canvas px: tip, then the two base corners. */
+  pointer: readonly Readonly<{ x: number; y: number }>[];
   /** Behind the cube's centre: drawn faint so the cube reads in front. */
   isBehind: boolean;
   isHover: boolean;
@@ -114,10 +116,20 @@ export function paintAxisGizmo(ctx: Ctx2D, items: readonly AxisItem[], o: AxisPa
   }
 }
 
-/** The cube's true-north chip: a small square with an amber border and letter. */
+/** The cube's true-north marker: an amber pointer triangle aimed at north,
+ *  and a small square chip with an amber border and the letter. */
 export function paintNorthMarker(ctx: Ctx2D, o: MarkerPaintOptions) {
   const s = MARKER_CHIP * o.scale;
   ctx.globalAlpha = o.isBehind ? BEHIND_ALPHA : 1;
+  if (o.pointer.length === 3) {
+    ctx.fillStyle = NORTH_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(o.pointer[0].x, o.pointer[0].y);
+    ctx.lineTo(o.pointer[1].x, o.pointer[1].y);
+    ctx.lineTo(o.pointer[2].x, o.pointer[2].y);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.fillStyle = o.isHover ? o.palette.hover : o.palette.face;
   ctx.fillRect(o.x - s / 2, o.y - s / 2, s, s);
   ctx.lineWidth = Math.max(1.5, o.scale * 0.02);

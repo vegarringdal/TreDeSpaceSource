@@ -79,7 +79,7 @@ north.
 - Keeps its 26 snaps: faces, 45° edges and iso corners. This is why it is
   so quick for 45° views.
 - New: **Shift + click** a face, edge or corner gives the opposite view.
-- New: the **TN marker** for true north (see True north). It is off by
+- New: the **north marker** (N + pointer) for true north (see True north). It is off by
   default; a setting or the host turns it on.
 - New: an optional **north arrow on the TOP face** (and BOTTOM), turned by
   the north angle.
@@ -161,25 +161,24 @@ north.
 | | Model sides / plant north | True north |
 |---|---|---|
 | What it is | The model's own axes. +Y is BACK; naming that face NORTH makes it N (plant north) | +Y turned clockwise by the **north angle** |
-| Shown by | Cube faces, balls, ribbon letter buttons | On the cube only: the **TN marker** (off by default) and the TOP-face arrow. In either style: a "true north up" top view |
+| Shown by | Cube faces, balls, ribbon letter buttons | On the cube only: the **north marker** (N + pointer, off by default) and the TOP-face arrow. In either style: a "true north up" top view |
 | Turns with the angle? | Never | Always |
 
 - **North angle:** degrees clockwise from the model's +Y, seen from above,
   so `north = (sin a, cos a, 0)`. It is 0° for plant models (RVM) and
   can come from IFC.
-- **TN marker:** one amber chip lying in the ground plane at true north,
-  with a short pointer toward it, **on the cube only**. The balls show no
-  north. A setting (`gizmoNorthMarker`, off by default) turns the marker on.
-  It reads **TN** when the
-  gizmo already calls +Y "N" (its BACK face is named NORTH, so its letter is
-  N) and **N** otherwise. It is hidden when the angle is 0° and +Y already reads N.
-  Clicking it views from (or looks toward) true north, following the ball
-  setting.
+- **North marker:**
+  - **What it is:** an amber **N** chip at true north, with a small amber
+    triangle lying in the ground plane between the cube and the chip,
+    pointing at north. **Cube only;** the balls show no north.
+  - **Setting:** `gizmoNorthMarker`, off by default, turns it on.
+  - **Always shown:** when on, it shows at every angle, 0° included, and
+    always reads plain N. An earlier "TN" label and an "already lettered N,
+    so hide it" rule were dropped after trying it.
+  - **Click:** it views from (or looks toward) true north, following the
+    ball setting.
 - **Top / bottom heading** setting: *keep heading* (today), *model +Y up*,
   or *true north up*.
-- **Settings note:** when the angle is not 0° and the gizmo uses compass
-  letters or names, the settings show: "N on the gizmo is plant north… the
-  TN marker shows true north".
 
 ### Where the angle comes from
 
@@ -209,7 +208,7 @@ In order of precedence:
 1. **True north on the cube** (small to medium):
    - The north-angle and compass-letter settings, with their API and
      settings-file entries.
-   - The **TN marker** on the cube, off by default, with a setting to turn it on.
+   - The **north marker** (N + pointer) on the cube, off by default, with a setting to turn it on.
    - The top/bottom heading setting.
    - Shift + click for the opposite view.
    - The TOP-face arrow, if still wanted next to the marker.
@@ -260,7 +259,7 @@ In order of precedence:
     renderer's idle skip must count the fade as a change (as it already does
     for the cube's hover).
   - The pin in `tests/shaders.pin.test.ts` moves with the shader.
-- **TN marker (cube only):** one more atlas tile and quad in the pass, and one DOM hit
+- **North marker (cube only):** one more atlas tile and quad in the pass, and one DOM hit
   zone placed from its projected point in `update()`.
 - **North from IFC:** `rust_src/crates/ifc-*` reads `TrueNorth`. Rebuild the
   wasm (`node scripts/build-wasm.mjs ifc2glb`, plus the cooker if the
@@ -278,7 +277,7 @@ In order of precedence:
   press-and-hold on the gizmo. The balls have face-name letters and 45° snap
   dots (12 or 20, on hover or always, near side only). It also has an "act
   like a touch screen" switch for the tap-to-reveal rule, the compass
-  letters (N E S W or N Ø S V), the click mode, Shift + click, the TN
+  letters (N E S W or N Ø S V), the click mode, Shift + click, the north
   marker, the TOP arrow, the three top-view heading modes and a heading
   readout.
 - **`plans/gizmo/prototype.html`** (open the file directly): the first 2D

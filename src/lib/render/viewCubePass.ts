@@ -10,6 +10,7 @@ import {
   MARKER_REACH,
   type NavGizmoStyle,
   northMarkerPoint,
+  northPointer,
   type SnapDotSet,
 } from './axisGizmo';
 import { type GizmoPalette, paintAxisGizmo, paintNorthMarker } from './axisGizmoPaint';
@@ -25,8 +26,8 @@ export type NavGizmoOptions = Readonly<{
   letters: Readonly<Record<GizmoFace, string>>;
   /** Degrees clockwise from +Y, seen from above. */
   northAngle: number;
-  /** The cube's north marker text, or null for none (the balls never show one). */
-  marker: 'N' | 'TN' | null;
+  /** Draw the cube's true-north "N" marker (never on the balls). */
+  northMarker: boolean;
 }>;
 
 /** Pixel location of the gizmo's mini viewport for one frame (device px). */
@@ -45,6 +46,7 @@ const REVEAL_FADE_MS = 90;
 const REVEAL_DONE_EPS = 0.01;
 /** The cube's north marker's hover key (its GizmoPick id). */
 const NORTH_HOVER_KEY = 'north';
+const NORTH_LABEL = 'N';
 
 const toCss = (c: readonly [number, number, number]): string =>
   `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`;
@@ -80,7 +82,7 @@ export class ViewCubePass {
     snapDots: 'iso',
     letters: DEFAULT_LETTERS,
     northAngle: 0,
-    marker: null,
+    northMarker: false,
   };
   private navHover = '';
   private revealTarget = 0;
@@ -230,7 +232,7 @@ export class ViewCubePass {
     return (
       `${this.rect ? `${this.rect.x},${this.rect.y},${this.rect.size}` : '-'};${this.hover};` +
       `${this.faceCol.join(',')};${this.lineCol.join(',')};${this.hoverCol.join(',')};${this.textCol};` +
-      `${n.style};${n.snapDots};${Object.values(n.letters).join(',')};${n.northAngle};${n.marker};` +
+      `${n.style};${n.snapDots};${Object.values(n.letters).join(',')};${n.northAngle};${n.northMarker};` +
       `${this.navHover};${this.revealTarget}`
     );
   }
@@ -263,7 +265,7 @@ export class ViewCubePass {
     const n = this.nav;
     const key =
       `${vx},${vy},${vw},${vh},${S};${q.x},${q.y},${q.z},${q.w};${n.style};${n.snapDots};` +
-      `${Object.values(n.letters).join(',')};${n.northAngle};${n.marker};${this.navHover};${this.reveal.toFixed(3)};` +
+      `${Object.values(n.letters).join(',')};${n.northAngle};${n.northMarker};${this.navHover};${this.reveal.toFixed(3)};` +
       `${this.faceCol.join(',')};${this.lineCol.join(',')};${this.hoverCol.join(',')};${this.textCol}`;
     if (!this.overlayTex || this.overlayTex.width !== vw || this.overlayTex.height !== vh) {
       this.overlayTex?.destroy();
@@ -306,13 +308,15 @@ export class ViewCubePass {
     if (n.style === 'balls') {
       const items = layoutAxisGizmo(basis, n.snapDots, this.reveal);
       paintAxisGizmo(ctx, items, { cx: ox, cy: oy, scale: S, letters: n.letters, hoverId: this.navHover, palette });
-    } else if (n.marker) {
+    } else if (n.northMarker) {
       const m = northMarkerPoint(basis, n.northAngle);
+      const pointer = northPointer(basis, n.northAngle).map((p) => ({ x: ox + p.x * S, y: oy + p.y * S }));
       paintNorthMarker(ctx, {
         x: ox + m.x * S,
         y: oy + m.y * S,
         scale: S,
-        label: n.marker,
+        label: NORTH_LABEL,
+        pointer,
         isBehind: m.depth < 0,
         isHover: this.navHover === NORTH_HOVER_KEY,
         palette,
@@ -409,7 +413,7 @@ export class ViewCubePass {
     const cy = (rect.y + rect.size / 2) * dpr;
     // the balls and the cube's north marker reach further than the cube
     const isBalls = this.nav.style === 'balls';
-    const reach = isBalls ? AXIS_REACH : this.nav.marker ? MARKER_REACH : VIEWCUBE_REACH;
+    const reach = isBalls ? AXIS_REACH : this.nav.northMarker ? MARKER_REACH : VIEWCUBE_REACH;
     const E = S * reach;
     const vx = Math.max(0, Math.floor(cx - E));
     const vy = Math.max(0, Math.floor(cy - E));
@@ -531,7 +535,7 @@ export class ViewCubePass {
       blit.setBindGroup(0, this.blitBind!);
       blit.draw(3);
       blit.end();
-      if (this.nav.marker) {
+      if (this.nav.northMarker) {
         this.drawOverlay(enc, view, box, undefined);
       }
       return;
@@ -547,7 +551,7 @@ export class ViewCubePass {
     pass.setVertexBuffer(0, this.verts);
     pass.draw(this.vertCount);
     pass.end();
-    if (this.nav.marker) {
+    if (this.nav.northMarker) {
       this.drawOverlay(enc, view, box, undefined);
     }
   }

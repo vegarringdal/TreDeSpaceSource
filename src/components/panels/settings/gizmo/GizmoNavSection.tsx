@@ -44,9 +44,9 @@ export function GizmoNavSection() {
       info={
         <>
           Right-click the gizmo, or press and hold it, to switch between the <b>axis balls</b> and the <b>cube</b>.
-          Shift+click gives the opposite view. The ball letters are the first letters of the face names below.{' '}
-          <b>True north</b> is measured clockwise from the model's +Y (its back side); the cube can mark it, the balls
-          never do.
+          Shift+click gives the opposite view; Shift+click on the drag handle puts the gizmo back in its corner. The
+          ball letters are the first letters of the face names below. <b>True north</b> is measured clockwise from the
+          model's +Y (its back side); the cube can mark it, the balls never do.
         </>
       }
     >

@@ -91,6 +91,8 @@ const COL = {
 
 /** The gizmo always keeps this many px between itself and the viewport edges. */
 const MARGIN = 25;
+/** Space between the drag handle and the stage (the cube's own gap). */
+const HANDLE_GAP_PX = 8;
 /** Extra px between the balls' (or the north marker's) outer edge and the viewport edge. */
 const BALLS_EDGE_GAP = 6;
 
@@ -114,6 +116,8 @@ export class ViewGizmo {
   private cube: HTMLDivElement;
   private faces = new Map<GizmoFace, HTMLDivElement>();
   private pos: { right: number; bottom: number };
+  /** Where the gizmo starts; Shift+click on the handle returns it here. */
+  private readonly home: { right: number; bottom: number };
   private container: HTMLElement;
   private resizeObserver: ResizeObserver;
   private visual = true;
@@ -135,6 +139,7 @@ export class ViewGizmo {
     this.size = S;
     const c = S * 0.16; // chamfer width
     this.pos = { ...(opts.position ?? { right: 12, bottom: 12 }) };
+    this.home = { ...this.pos };
 
     this.root = document.createElement('div');
     Object.assign(this.root.style, {
@@ -146,7 +151,7 @@ export class ViewGizmo {
       flexDirection: 'column',
       // Handle sits top-right, clear of the cube, so it is always grabbable.
       alignItems: 'flex-end',
-      gap: '8px',
+      gap: `${HANDLE_GAP_PX}px`,
       userSelect: 'none',
       touchAction: 'none',
       paddingRight: '0px',
@@ -154,11 +159,14 @@ export class ViewGizmo {
 
     // -- drag handle ---------------------------------------------------------
     const handle = document.createElement('div');
-    handle.title = 'Move gizmo';
+    handle.title = 'Move gizmo (Shift+click: back to the corner)';
     Object.assign(handle.style, {
       width: '26px',
       height: '8px',
       cursor: 'grab',
+      // above the axis balls' hit circle and the north marker's hit zone
+      position: 'relative',
+      zIndex: '2',
       // Poke out past the cube's top-right corner so a rotated cube never covers it.
       marginRight: '-12px',
       background:
@@ -347,11 +355,29 @@ export class ViewGizmo {
   /** Gap kept to the viewport edges: the axis balls and the cube's north
    *  marker reach past the stage box, so they need more room than the cube. */
   private edgeMargin(): number {
+    const over = this.overReachPx();
+    return over === 0 ? MARGIN : Math.max(MARGIN, over + BALLS_EDGE_GAP);
+  }
+
+  /** How far past the stage box the drawing reaches, in px: the axis balls
+   *  and the cube's north marker do, the plain cube is covered by MARGIN. */
+  private overReachPx(): number {
     const reach = this.style === 'balls' ? AXIS_REACH : this.isMarkerShown() ? MARKER_REACH : 0;
-    if (reach === 0) {
-      return MARGIN;
-    }
-    return Math.max(MARGIN, Math.ceil((reach - 0.5) * this.size) + BALLS_EDGE_GAP);
+    return reach === 0 ? 0 : Math.ceil((reach - 0.5) * this.size);
+  }
+
+  /** Lift the drag handle clear of whatever reaches above the stage, so the
+   *  balls or the marker never sit under it. */
+  private placeHandle() {
+    this.root.style.gap = `${HANDLE_GAP_PX + this.overReachPx()}px`;
+  }
+
+  /** Back to the starting corner (Shift+click on the handle). */
+  private resetPosition() {
+    this.pos = { ...this.home };
+    this.root.style.right = `${this.pos.right}px`;
+    this.root.style.bottom = `${this.pos.bottom}px`;
+    this.clamp();
   }
 
   /** Keep the gizmo fully inside the container. */
@@ -407,7 +433,9 @@ export class ViewGizmo {
     this.balls.setActive(style === 'balls');
     this.opts.onHover?.(null);
     this.markerHit.style.display = this.isMarkerShown() ? '' : 'none';
-    this.clamp(); // the balls need more room from the edges than the cube
+    // the balls need more room (edges, handle) than the cube
+    this.placeHandle();
+    this.clamp();
   }
 
   setSnapDots(set: SnapDotSet) {
@@ -420,6 +448,7 @@ export class ViewGizmo {
     this.northAngle = angleDeg;
     this.markerHit.style.display = this.isMarkerShown() ? '' : 'none';
     if (wasShown !== this.isMarkerShown()) {
+      this.placeHandle();
       this.clamp();
     }
   }
@@ -499,6 +528,10 @@ export class ViewGizmo {
 
   private startDrag = (e: PointerEvent) => {
     e.preventDefault();
+    if (e.shiftKey) {
+      this.resetPosition();
+      return;
+    }
     const handle = e.currentTarget as HTMLElement;
     handle.setPointerCapture(e.pointerId);
     handle.style.cursor = 'grabbing';

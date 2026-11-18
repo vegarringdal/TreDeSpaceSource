@@ -4,10 +4,10 @@ import {
   basisFromQuat,
   dotAlpha,
   type GizmoBasis,
-  isNorthMarkerRedundant,
   layoutAxisGizmo,
   northDirection,
-  northMarkerLabel,
+  northMarkerPoint,
+  northPointer,
   pickAxisGizmo,
   snapDirections,
   wrapDegrees,
@@ -18,8 +18,6 @@ import { enumOr, SETTINGS_TAB_KEYS, VIEWER_SECTION_KEYS } from '../src/state/vie
 // the camera on the front side (−Y) looking at +Y, Z up: screen right = +X
 const FRONT_VIEW: GizmoBasis = { right: [1, 0, 0], up: [0, 0, 1], back: [0, -1, 0] };
 
-const DEFAULT_LETTERS = { front: 'F', back: 'B', left: 'L', right: 'R', top: 'T', bottom: 'Bo' };
-const COMPASS_LETTERS = { front: 'S', back: 'N', left: 'W', right: 'E', top: 'U', bottom: 'D' };
 
 const NAV_DEFAULTS: Pick<ViewerState, (typeof VIEWER_SECTION_KEYS.navGizmo)[number]> = {
   gizmoStyle: 'balls',
@@ -96,18 +94,22 @@ describe('true north', () => {
     expect(east[1]).toBeCloseTo(0, 9);
   });
 
-  it('labels the marker TN when a face letter is already N', () => {
-    expect(northMarkerLabel(DEFAULT_LETTERS)).toBe('N');
-    expect(northMarkerLabel(COMPASS_LETTERS)).toBe('TN');
-  });
-
-  it('drops the marker only when north points straight at a face lettered N', () => {
-    expect(isNorthMarkerRedundant(0, COMPASS_LETTERS)).toBe(true);
-    expect(isNorthMarkerRedundant(0, DEFAULT_LETTERS)).toBe(false);
-    expect(isNorthMarkerRedundant(30, COMPASS_LETTERS)).toBe(false);
-    const frontIsNorth = { ...DEFAULT_LETTERS, front: 'N' };
-    expect(isNorthMarkerRedundant(180, frontIsNorth)).toBe(true);
-    expect(isNorthMarkerRedundant(-180, frontIsNorth)).toBe(true);
+  it('aims the pointer at north, between the cube and the N chip', () => {
+    // seen from straight above with +Y up the screen (y down on screen)
+    const TOP_VIEW: GizmoBasis = { right: [1, 0, 0], up: [0, 1, 0], back: [0, 0, 1] };
+    for (const angle of [0, 30, 90, -135]) {
+      const [tip, a, b] = northPointer(TOP_VIEW, angle);
+      const chip = northMarkerPoint(TOP_VIEW, angle);
+      const n = northDirection(angle);
+      // the tip lies along north (screen y is flipped), short of the chip
+      expect(tip.x / Math.hypot(tip.x, tip.y)).toBeCloseTo(n[0], 6);
+      expect(-tip.y / Math.hypot(tip.x, tip.y)).toBeCloseTo(n[1], 6);
+      expect(Math.hypot(tip.x, tip.y)).toBeLessThan(Math.hypot(chip.x, chip.y));
+      // the base corners sit nearer the cube than the tip, either side of it
+      const baseMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      expect(Math.hypot(baseMid.x, baseMid.y)).toBeLessThan(Math.hypot(tip.x, tip.y));
+      expect(Math.hypot(baseMid.x, baseMid.y)).toBeGreaterThan(0.75);
+    }
   });
 });
 
