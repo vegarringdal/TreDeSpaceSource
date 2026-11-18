@@ -683,6 +683,9 @@ export class Renderer {
   private pendingW = 0;
   private pendingH = 0;
   private pendingSizeT = 0;
+  /** captureScale the backing size was last computed with — a change is a
+   *  capture starting or ending, applied at once instead of debounced. */
+  private sizedCaptureScale = 1;
   private lastVP = new Float32Array(16);
   /** world position of the last successful click pick (native last_click_world) */
   lastClickWorld: [number, number, number] | null = null;
@@ -2877,12 +2880,18 @@ export class Renderer {
       this.pendingH = h;
       this.pendingSizeT = t0;
     }
-    const sizeSettled = !this.depth || t0 - this.pendingSizeT >= RESIZE_SETTLE_MS;
+    // A capture-scale change is not a live drag: resize in this frame, or the
+    // capture would take a frame at the old size (no 4K, and the view cube —
+    // placed at the capture scale — lands off-canvas and is left out).
+    const captureScaleChanged = this.captureScale !== this.sizedCaptureScale;
+    this.sizedCaptureScale = this.captureScale;
+    const sizeSettled = !this.depth || captureScaleChanged || t0 - this.pendingSizeT >= RESIZE_SETTLE_MS;
     const sizeChanged = sizeSettled && (canvas.width !== w || canvas.height !== h);
     if (sizeChanged) {
       canvas.width = w;
       canvas.height = h;
     }
+    const sizeCurrent = canvas.width === w && canvas.height === h;
     // post is needed by AA/edges/AO/debug/sketch — and it is what makes the
     // hold path possible (it re-presents the offscreen scene into the swapchain)
     const anyEdges = opt.geoEdges || opt.itemEdges || opt.sketch;
@@ -3644,8 +3653,9 @@ export class Renderer {
 
     // snapshots copy the presented swapchain (post output + view cube), and
     // only once accumulation has converged — before that the pending snap
-    // just keeps the renderer out of idle so it converges
-    const snapJob = this.encodeSnapshot(enc, dev, canvas, snapReady, swapTex);
+    // just keeps the renderer out of idle so it converges. A frame still at
+    // a stale size (live resize settling) is never captured, draft or not.
+    const snapJob = sizeCurrent ? this.encodeSnapshot(enc, dev, canvas, snapReady, swapTex) : null;
     const tsJob = this.timings.resolve(enc);
 
     dev.queue.submit([enc.finish()]);

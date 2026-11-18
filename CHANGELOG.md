@@ -6,6 +6,16 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.18** (>0.26.2):
+  Screenshot (Home button and `view.screenshot`): the navigation cube is in
+  the picture again, and the picture really is rendered at the higher
+  resolution. When the view had already settled, the capture took the very
+  next frame — still at screen size, because the switch to the capture size
+  waited for the live-resize pause — while the cube was already placed for
+  the larger size, so it fell outside the frame. The capture size now
+  applies at once, and a frame at a stale size is never captured (this also
+  covers video export frames).
+
 - **2026.11.17** (>0.26.2):
   Version gate (CI, no app change): moved from `ci.yml` into its own
   `version-gate.yml` on `pull_request_target`, so main's copy always runs
