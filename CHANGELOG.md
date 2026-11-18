@@ -7,6 +7,13 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.18** (>0.26.3):
+  New `plans/future_events.md`: a backlog of host API commands and events
+  to add later, each with sample code (SDK method, handler, EVENTS.md
+  entry, host use). It starts with the temporary isolate command and event,
+  plain hide / isolate commands, a `settings.changed` event (to see when a
+  user switches the gizmo style) and the model's true north on
+  `model.loaded`.
+
   Hierarchy toolbar: a **temporary isolate** button after Model order, also
   on hotkey `ALT 805`. Switched on, it hides everything that is not
   selected, like Isolate. Switched off, it shows again exactly what it hid,
