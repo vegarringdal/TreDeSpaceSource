@@ -749,8 +749,24 @@ export interface AoSettings {
 /** The six view-cube faces and their names (at most 5 characters each). */
 export type GizmoLabels = Record<'front' | 'back' | 'left' | 'right' | 'top' | 'bottom', string>;
 
-/** Settings → Gizmo: the view cube's colours ('#rrggbb') and face names. */
+/** Settings → Gizmo: the navigation gizmo, the view cube's colours ('#rrggbb')
+ *  and the face names (the axis balls use their first letters). */
 export interface GizmoSettings {
+  /** Which gizmo the viewport shows (default 'balls'); the user switches with
+   *  a right-click or long-press on it, so read it back to see their choice. */
+  gizmoStyle: 'cube' | 'balls';
+  /** Clicking an axis ball: view from that side (default, as the cube) or look toward it. */
+  gizmoBallClick: 'viewFrom' | 'lookToward';
+  /** The axis balls' 45° snap dots: sides + iso corners ('iso', default) or all 20 ('all'). */
+  gizmoSnapDots: 'iso' | 'all';
+  /** Heading after a straight-down/up snap: 'keep' (default), 'model' (+Y up) or 'north' (true north up). */
+  topViewHeading: 'keep' | 'model' | 'north';
+  /** True north in degrees clockwise from the model's +Y (its back side), seen
+   *  from above; wrapped to −180..180. Default 0 (plant north, as RVM models use). */
+  northAngle: number;
+  /** Show the true-north marker on the cube (default false: turn it on per
+   *  project where north means something; the balls never show north). */
+  gizmoNorthMarker: boolean;
   cubeFaceColor: string;
   cubeLineColor: string;
   cubeTextColor: string;
@@ -2321,9 +2337,11 @@ export class TredespaceClient {
     return this.send('settings.ao.set', { ...patch });
   }
 
-  /** Set Settings → Gizmo: the view cube's colours and/or its face names
-   *  (`labels` takes any subset of the six faces; an empty name restores
-   *  that face's default, names are cut to 5 characters). Same rules as
+  /** Set Settings → Gizmo: the navigation gizmo (style, ball click, snap dots,
+   *  top-view heading, true north and the cube's north marker), the view
+   *  cube's colours and/or its face names (`labels` takes any subset of the six
+   *  faces; an empty name restores that face's default, names are cut to 5
+   *  characters). An empty patch just reads the current values. Same rules as
    *  {@link TredespaceClient.settingsRenderingSet}. */
   settingsGizmoSet(
     patch: Partial<Omit<GizmoSettings, 'labels'>> & { labels?: Partial<GizmoLabels>; reset?: boolean } = {},

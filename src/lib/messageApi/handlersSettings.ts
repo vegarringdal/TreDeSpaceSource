@@ -18,6 +18,7 @@ import {
 import { getRenderer, viewerActions } from '../../state/viewer/viewer.actions';
 import { initialViewerState, type ViewerState, viewerState } from '../../state/viewer/viewer.state';
 import { pickViewer, SETTINGS_TAB_KEYS } from '../../state/viewer/viewerSettingsGroups';
+import { wrapDegrees } from '../render/axisGizmo';
 import { probeAdapters, sameAdapter } from '../render/gpuProbe';
 import { ApiError, type ApiHandler, isRecord } from './protocol';
 import { validateViewerPatch } from './settingsPatch';
@@ -101,10 +102,14 @@ export const settingsHandlers: Record<string, ApiHandler> = {
   'settings.edges.set': tabSetter(SETTINGS_TAB_KEYS.edges),
   'settings.ao.set': tabSetter(SETTINGS_TAB_KEYS.ao),
 
-  // the Gizmo tab spans two stores: cube colours (viewer state) + face names
+  // the Gizmo tab spans two stores: the navigation gizmo + cube colours
+  // (viewer state) and the face names
   'settings.gizmo.set': ({ p }) => {
     const { labels, ...rest } = p;
     const names = labels === undefined ? {} : faceLabels(labels);
+    if (typeof rest.northAngle === 'number' && Number.isFinite(rest.northAngle)) {
+      rest.northAngle = wrapDegrees(rest.northAngle);
+    }
     const colors = applyViewerPatch(rest, SETTINGS_TAB_KEYS.gizmo);
     if (rest.reset === true) {
       gizmoLabelsActions.reset();

@@ -78,6 +78,7 @@ export const SETTINGS_SECTIONS = {
   edgesSmooth: viewerSection('Edges — with normals', VIEWER_SECTION_KEYS.edgesSmooth),
   sketchEdges: viewerSection('Sketch edges', VIEWER_SECTION_KEYS.sketchEdges),
   ao: viewerSection('Ambient Occlusion', VIEWER_SECTION_KEYS.ao),
+  navGizmo: viewerSection('Navigation gizmo', VIEWER_SECTION_KEYS.navGizmo),
   cubeColors: viewerSection('Cube colours', VIEWER_SECTION_KEYS.cubeColors),
   stats: viewerSection('Stats', VIEWER_SECTION_KEYS.stats),
   navigation: {

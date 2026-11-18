@@ -92,6 +92,7 @@ export const VIEWER_SECTION_KEYS = {
     'sketchCubeHoverColor',
   ),
   ao: keys('aoMode', 'aoRadius', 'aoStrength', 'aoSlices', 'aoSamples'),
+  navGizmo: keys('gizmoStyle', 'gizmoBallClick', 'gizmoSnapDots', 'topViewHeading', 'northAngle', 'gizmoNorthMarker'),
   cubeColors: keys('cubeFaceColor', 'cubeLineColor', 'cubeTextColor', 'cubeHoverColor'),
   stats: keys('showStats', 'statsHidden', 'statsBackdrop', 'gpuTimings', 'trace'),
 };
@@ -118,7 +119,7 @@ export const SETTINGS_TAB_KEYS = {
   edges: [...S.edgesCommon, ...S.edgesFlat, ...S.edgesSmooth, ...S.sketchEdges],
   ao: [...S.ao],
   /** the Gizmo tab's viewer-state part; its face names live in gizmoLabels.state */
-  gizmo: [...S.cubeColors],
+  gizmo: [...S.navGizmo, ...S.cubeColors],
 };
 
 // -----------------------------------------------------------------------------
@@ -134,10 +135,36 @@ export const VIEWER_ENUM_VALUES = {
   selectionStyle: ['tint', 'outline', 'both'],
   sketchColorMode: ['off', 'fill', 'edges'],
   vramSwapSpeed: ['relaxed', 'normal', 'fast'],
+  gizmoStyle: ['cube', 'balls'],
+  gizmoBallClick: ['viewFrom', 'lookToward'],
+  gizmoSnapDots: ['iso', 'all'],
+  topViewHeading: ['keep', 'model', 'north'],
 } as const satisfies { [K in ViewerEnumKey]: readonly ViewerState[K][] };
 
-export type ViewerEnumKey = 'aoMode' | 'debugBuf' | 'selectionStyle' | 'sketchColorMode' | 'vramSwapSpeed';
+export type ViewerEnumKey =
+  | 'aoMode'
+  | 'debugBuf'
+  | 'selectionStyle'
+  | 'sketchColorMode'
+  | 'vramSwapSpeed'
+  | 'gizmoStyle'
+  | 'gizmoBallClick'
+  | 'gizmoSnapDots'
+  | 'topViewHeading';
 
 export function isViewerEnumKey(k: string): k is ViewerEnumKey {
   return k in VIEWER_ENUM_VALUES;
+}
+
+function isEnumValue<K extends ViewerEnumKey>(key: K, v: unknown): v is ViewerState[K] {
+  const allowed: readonly unknown[] = VIEWER_ENUM_VALUES[key];
+  return allowed.includes(v);
+}
+
+/** `v` when it is one of `key`'s allowed values, else `fallback`. For values
+ *  read back without validation (stored settings, a hand-edited settings
+ *  file), so an unknown value falls back to the default instead of
+ *  breaking whatever reads it. */
+export function enumOr<K extends ViewerEnumKey>(key: K, v: unknown, fallback: ViewerState[K]): ViewerState[K] {
+  return isEnumValue(key, v) ? v : fallback;
 }

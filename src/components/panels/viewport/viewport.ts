@@ -13,6 +13,7 @@ import { buildClip } from './clipPack';
 import { attachMeasureAim, type MeasureAim } from './measureAim';
 import { attachMeasureBar } from './measureBar';
 import { traceMeasureProbe } from './measureTrace';
+import { attachNavGizmo, type NavGizmo } from './navGizmo';
 import { shapeGizmoTarget } from './shapeGizmo';
 
 /** Adapt the renderer's probe (null fields) to the state's MeasureHit (optional). */
@@ -44,9 +45,7 @@ function tapSlop(pointerType: string): number {
 
 import type { PanelDefinition } from '@treDeSpaceUI/dockable';
 import { emitApiEvent, setGpuState } from '../../../lib/messageApi/transport';
-import { ViewGizmo } from '../../../lib/overlay/ViewGizmo';
 import { Renderer } from '../../../lib/render/renderer';
-import { buildViewCubeGeometry } from '../../../lib/render/viewCubeGpu';
 import { animationDocState } from '../../../state/animation/animationDoc.state';
 import { animationUiState } from '../../../state/animation/animationUi.state';
 import { animationHelperLines } from '../../../state/animation/helperLines';
@@ -61,7 +60,6 @@ import { currentPivotWorld } from '../../../state/transform/transform.actions';
 import { transformState } from '../../../state/transform/transform.state';
 import { clipShapesState } from '../../../state/viewer/clipShapes.state';
 import { db } from '../../../state/viewer/db';
-import { gizmoLabelsState } from '../../../state/viewer/gizmoLabels.state';
 import { onGpuDeviceLost, registerViewportRemount } from '../../../state/viewer/gpuRecovery';
 import { labelsActions } from '../../../state/viewer/labels.actions';
 import { labelsState } from '../../../state/viewer/labels.state';
@@ -92,51 +90,6 @@ function hexRgb(hex: string): [number, number, number] {
     parseInt(hex.slice(3, 5), 16) / 255,
     parseInt(hex.slice(5, 7), 16) / 255,
   ];
-}
-
-/** Camera world-orientation quaternion (columns right/up/back) for the gizmo. */
-function cameraQuat(fwd: [number, number, number]): { x: number; y: number; z: number; w: number } {
-  const rl = Math.hypot(fwd[0], fwd[1]) || 1;
-  const r = [fwd[1] / rl, -fwd[0] / rl, 0];
-  const u = [r[1] * fwd[2], -r[0] * fwd[2], r[0] * fwd[1] - r[1] * fwd[0]];
-  const b = [-fwd[0], -fwd[1], -fwd[2]];
-  const m00 = r[0],
-    m01 = u[0],
-    m02 = b[0];
-  const m10 = r[1],
-    m11 = u[1],
-    m12 = b[1];
-  const m20 = r[2],
-    m21 = u[2],
-    m22 = b[2];
-  const tr = m00 + m11 + m22;
-  let x: number, y: number, z: number, w: number;
-  if (tr > 0) {
-    const s = Math.sqrt(tr + 1) * 2;
-    w = s / 4;
-    x = (m21 - m12) / s;
-    y = (m02 - m20) / s;
-    z = (m10 - m01) / s;
-  } else if (m00 > m11 && m00 > m22) {
-    const s = Math.sqrt(1 + m00 - m11 - m22) * 2;
-    w = (m21 - m12) / s;
-    x = s / 4;
-    y = (m01 + m10) / s;
-    z = (m02 + m20) / s;
-  } else if (m11 > m22) {
-    const s = Math.sqrt(1 + m11 - m00 - m22) * 2;
-    w = (m02 - m20) / s;
-    x = (m01 + m10) / s;
-    y = s / 4;
-    z = (m12 + m21) / s;
-  } else {
-    const s = Math.sqrt(1 + m22 - m00 - m11) * 2;
-    w = (m10 - m01) / s;
-    x = (m02 + m20) / s;
-    y = (m12 + m21) / s;
-    z = s / 4;
-  }
-  return { x, y, z, w };
 }
 
 /**
@@ -292,7 +245,7 @@ export const viewport: PanelDefinition = {
     const renderer = new Renderer();
     let frame = 0;
     let disposed = false;
-    let gizmo: ViewGizmo | null = null;
+    let navGizmo: NavGizmo | null = null;
     let clipGizmo: ClipGizmo | null = null;
     let measureOverlay: MeasureOverlay | null = null;
     let labelOverlay: LabelOverlay | null = null;
@@ -302,7 +255,6 @@ export const viewport: PanelDefinition = {
     let detachAnimation: (() => void) | null = null;
     let unmountPlayBar: (() => void) | null = null;
     let removeMeasureKeys: (() => void) | null = null;
-    let unsubLabels: (() => void) | null = null;
     // selection-gizmo drag bookkeeping: the live preview matrix (gizmo rides
     // along) and the pivot position frozen at pivot-drag start
     let liveMatrix: Float32Array | null = null;
@@ -473,6 +425,7 @@ export const viewport: PanelDefinition = {
         hexRgb(s.sketch ? s.sketchCubeHoverColor : s.cubeHoverColor),
         s.sketch ? s.sketchCubeTextColor : s.cubeTextColor,
       );
+      navGizmo?.applyOptions(); // style, ball letters, snap dots, north marker
       o.fadeExp = s.sketch ? s.sketchFadeExp : s.fadeExp;
       o.depthThr = s.sketch ? s.sketchDepthThr : s.depthThr;
       o.normalThr = s.sketch ? s.sketchNormalThr : s.normalThr;
@@ -679,31 +632,8 @@ export const viewport: PanelDefinition = {
           });
         },
       });
-      // The cube is DRAWN by the renderer (GPU overlay — so canvas captures
-      // include it); the DOM ViewGizmo stays as invisible hit zones + handle.
-      const cubeZones = buildViewCubeGeometry().zoneIds; // pick.id → zone id
-      let cubeHover = -1;
-      gizmo = new ViewGizmo(host, {
-        visual: false,
-        // bottom-right by default (it stays draggable via its handle)
-        position: { right: 12, bottom: 12 },
-        onPick({ direction: [dx, dy, dz] }) {
-          // position the camera along +direction, looking back at the pivot:
-          // forward (camera -> target) = -direction. Straight up/down (top/
-          // bottom face) has no azimuth of its own — keep the current one so
-          // the camera just pitches instead of also yawing to 0.
-          const az = Math.hypot(dx, dy) < 1e-3 ? renderer.camera.azimuth : Math.atan2(-dy, -dx);
-          renderer.camera.snapView(az, Math.asin(Math.max(-1, Math.min(1, -dz))), 0.35);
-        },
-        onHover(pick) {
-          cubeHover = pick ? (cubeZones[pick.id] ?? -1) : -1;
-        },
-      });
-      renderer.setViewCubeLabels({ ...gizmoLabelsState.get().labels });
-      unsubLabels = gizmoLabelsState.subscribe(() => {
-        renderer.setViewCubeLabels({ ...gizmoLabelsState.get().labels });
-      });
-      const cubeHoverId = () => cubeHover;
+      // navigation gizmo: cube or axis balls, drawn by the renderer (navGizmo.ts)
+      navGizmo = attachNavGizmo(host, renderer);
 
       // The laser-scan setup marker SEEN at a canvas pixel, or null: the ray
       // test alone would also take a sphere behind a wall, so the hit is
@@ -1015,8 +945,7 @@ export const viewport: PanelDefinition = {
           optionsDirty = false;
           applyOptions();
         }
-        const cubeQ = cameraQuat(renderer.camera.forward());
-        renderer.setViewCube(gizmo ? gizmo.getRect() : null, cubeHoverId(), cubeQ);
+        navGizmo?.beforeFrame(now);
         tickAnimation(now); // playhead + band slots + camera follow, before the frame
         renderer.frame(canvas);
         residency.tick(renderer, now); // VRAM budget (no-op while disabled)
@@ -1031,7 +960,7 @@ export const viewport: PanelDefinition = {
           scansActions.exit();
         }
         scanPhoto.tick(renderer); // sharpen the entered setup's photo on zoom
-        gizmo?.update(cubeQ);
+        navGizmo?.afterFrame();
         clipGizmo?.update();
         measureOverlay?.update();
         labelOverlay?.update();
@@ -1096,7 +1025,7 @@ export const viewport: PanelDefinition = {
       // or remounted after a GPU device loss): leave the entered setup
       scansActions.exit();
       registerRenderer(null);
-      gizmo?.dispose();
+      navGizmo?.dispose();
       clipGizmo?.dispose();
       measureOverlay?.dispose();
       labelOverlay?.dispose();
@@ -1106,7 +1035,6 @@ export const viewport: PanelDefinition = {
       measureAim?.dispose();
       measureBar?.dispose();
       removeMeasureKeys?.();
-      unsubLabels?.();
       for (const off of unsubOptions) {
         off();
       }

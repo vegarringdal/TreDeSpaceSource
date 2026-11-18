@@ -1,0 +1,1364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navigation Gizmo Prototype</title>
+<!--
+  Throw-away prototype for plans/navigation_gizmo.md. Open the file directly
+  in a browser (no build, no server). Not part of the app.
+
+  It copies the app's conventions so what you see here is what the app would
+  do: Z up, +X = RIGHT, +Y = BACK, +Z = TOP (ViewGizmo.gizmoFaceDirections);
+  the same turntable camera (azimuth/elevation, no roll — camera.ts); the
+  same cube plate layout (viewCubeGpu.ts); faceLetters() from
+  gizmoLabels.state.ts; and the same snap rule as viewport.ts onPick.
+-->
+<style>
+  :root {
+    --bg: #1b1f26;
+    --panel: #232933;
+    --panel-2: #2a313c;
+    --line: #3a4350;
+    --text: #c9cfd8;
+    --muted: #8b95a5;
+    --accent: #e0a63b;
+    --view-bg: #20252d;
+  }
+  :root[data-theme="light"] {
+    --bg: #e9edf2;
+    --panel: #f6f8fa;
+    --panel-2: #ffffff;
+    --line: #c8d0da;
+    --text: #1f2733;
+    --muted: #5b6676;
+    --accent: #b7791f;
+    --view-bg: #dde2e8;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.4 ui-sans-serif, system-ui, sans-serif;
+  }
+  body { display: grid; grid-template-columns: minmax(0, 1fr) 460px; height: 100vh; }
+  #view { position: relative; overflow: hidden; background: var(--view-bg); }
+  #scene { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+  #scene.dragging { cursor: grabbing; }
+  #corner { position: absolute; right: 12px; bottom: 12px; }
+  #hud {
+    position: absolute; left: 12px; top: 12px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    border: 1px solid var(--line); padding: 8px 10px; max-width: 520px;
+  }
+  #hud .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  #readout { font-variant-numeric: tabular-nums; }
+  #readout b { color: var(--accent); font-weight: 600; }
+  .hint { color: var(--muted); font-size: 12px; }
+  aside { overflow: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 12px; }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin: 16px 0 6px; font-weight: 600;
+  }
+  button, select, input[type="text"] {
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 0; padding: 3px 8px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  .names { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; }
+  .names label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
+  .names input { width: 100%; text-transform: uppercase; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; }
+  .checks label { display: flex; gap: 6px; align-items: flex-start; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .card { background: var(--panel-2); border: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .card.in-corner { border-color: var(--accent); }
+  .card canvas { align-self: center; }
+  .card h3 { margin: 0; font-size: 13px; }
+  .card ul { margin: 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
+  .card button { align-self: flex-start; font-size: 12px; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div id="view">
+  <canvas id="scene"></canvas>
+  <div id="hud">
+    <div id="readout"></div>
+    <div class="hint">Drag: orbit · wheel: zoom · the amber arrow and N/E/S/W on the ground are the truth to check the gizmos against.</div>
+    <div class="row">
+      <button id="btn-reset">Reset view</button>
+      <button id="btn-top">Top view (keeps heading, as today)</button>
+      <button id="btn-random">Random view</button>
+    </div>
+  </div>
+  <canvas id="corner"></canvas>
+</div>
+
+<aside>
+  <h1>Navigation gizmo — prototype</h1>
+  <div class="hint">Every gizmo below is live and drives the same camera. The one in the viewport corner is drawn at the app's real size (72 px cube).</div>
+
+  <h2>Face names (Settings → Gizmo)</h2>
+  <div class="names" id="names"></div>
+  <div class="row" style="margin-top:6px">
+    <button data-preset="app">App default</button>
+    <button data-preset="compass">Compass names</button>
+    <span class="hint" id="letters"></span>
+  </div>
+
+  <h2>Options</h2>
+  <div class="checks">
+    <label><input type="checkbox" id="opt-northUp"> Top / Bottom click turns north up</label>
+    <label><input type="checkbox" id="opt-highlight" checked> Mark north in amber</label>
+    <label><input type="checkbox" id="opt-dragOrbit" checked> Drag on a gizmo orbits</label>
+    <label><input type="checkbox" id="opt-negLetters" checked> Letters on negative balls</label>
+  </div>
+  <div class="row" style="margin-top:6px">
+    Ball letters
+    <select id="opt-ballLetters">
+      <option value="names">First letter of the face names</option>
+      <option value="axis">X / Y / Z</option>
+    </select>
+  </div>
+  <div class="row" style="margin-top:6px">
+    Cube size <input type="range" id="opt-size" min="56" max="110" value="72"> <span id="size-val">72 px</span>
+    <button id="btn-theme">Light / dark</button>
+  </div>
+
+  <h2>Viewport corner</h2>
+  <div class="row">
+    Style
+    <select id="corner-style">
+      <option value="cube">Cube</option>
+      <option value="balls">Axis balls</option>
+      <option value="needle">North needle</option>
+    </select>
+  </div>
+  <div class="checks" style="margin-top:6px">
+    <label><input type="checkbox" data-corner="ring"> Compass ring</label>
+    <label><input type="checkbox" data-corner="topArrow"> North arrow on TOP</label>
+    <label><input type="checkbox" data-corner="northTint"> Tint the north face</label>
+    <label><input type="checkbox" data-corner="triad"> Axis triad</label>
+    <label><input type="checkbox" data-corner="needle"> North needle beside it</label>
+  </div>
+
+  <h2>Variants</h2>
+  <div class="cards" id="cards"></div>
+</aside>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------------
+// Math
+// ---------------------------------------------------------------------------
+
+const DEG = Math.PI / 180;
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const scale = (v, s) => [v[0] * s, v[1] * s, v[2] * s];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const norm = (v) => {
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+};
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+// ---------------------------------------------------------------------------
+// Camera — the turntable model of src/lib/render/camera.ts
+// ---------------------------------------------------------------------------
+
+const SENSITIVITY = 0.003;
+const EL_CLAMP = 89 * DEG;
+const EL_CLAMP_ANIM = 89.99 * DEG;
+const SNAP_MS = 350;
+const DEFAULT_EYE_DIR = norm([0.6, -0.75, 0.55]);
+
+const cam = { az: 0, el: 0, dist: 80, target: [0, 0, 3], anim: null };
+
+/** Look direction (camera → target), exactly camera.forward(). */
+function forward() {
+  const ce = Math.cos(cam.el);
+  return [ce * Math.cos(cam.az), ce * Math.sin(cam.az), Math.sin(cam.el)];
+}
+
+/** Screen right / up / toward-viewer, as viewport.ts cameraQuat() builds them. */
+function basis() {
+  const f = forward();
+  const rl = Math.hypot(f[0], f[1]) || 1;
+  const r = [f[1] / rl, -f[0] / rl, 0];
+  const u = cross(r, f);
+  return { f, r, u, b: scale(f, -1), fh: [f[0] / rl, f[1] / rl, 0] };
+}
+
+function setViewFromEyeDir(d) {
+  cam.anim = null;
+  cam.az = Math.atan2(-d[1], -d[0]);
+  cam.el = Math.asin(clamp(-d[2], -1, 1));
+}
+
+function orbitBy(dx, dy) {
+  cam.anim = null;
+  cam.az -= dx * SENSITIVITY;
+  cam.el = clamp(cam.el - dy * SENSITIVITY, -EL_CLAMP, EL_CLAMP);
+}
+
+function snapAzEl(az, el) {
+  cam.anim = {
+    t0: performance.now(),
+    sAz: cam.az,
+    sEl: cam.el,
+    eAz: cam.az + wrapPi(az - cam.az),
+    eEl: clamp(el, -EL_CLAMP_ANIM, EL_CLAMP_ANIM),
+  };
+}
+
+/**
+ * Snap so the camera sits along `d` (target → eye), the rule of viewport.ts
+ * onPick. Straight up/down has no azimuth of its own: today the current one
+ * is kept; with "north up" on, the heading turns so +Y is screen-up.
+ */
+function snapToEyeDir(d) {
+  const isVertical = Math.hypot(d[0], d[1]) < 1e-3;
+  let az = isVertical ? cam.az : Math.atan2(-d[1], -d[0]);
+  if (isVertical && settings.northUp) {
+    az = d[2] > 0 ? Math.PI / 2 : -Math.PI / 2;
+  }
+  snapAzEl(az, Math.asin(clamp(-d[2], -1, 1)));
+}
+
+function isLookingFrom(d) {
+  return dot(scale(forward(), -1), norm(d)) > Math.cos(1 * DEG);
+}
+
+function tickCamera(now) {
+  const a = cam.anim;
+  if (!a) {
+    return;
+  }
+  const t = clamp((now - a.t0) / SNAP_MS, 0, 1);
+  const e = 1 - (1 - t) ** 3;
+  cam.az = a.sAz + (a.eAz - a.sAz) * e;
+  cam.el = a.sEl + (a.eEl - a.sEl) * e;
+  if (t >= 1) {
+    cam.anim = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Face names — gizmoLabels.state.ts (names, faceLetters)
+// ---------------------------------------------------------------------------
+
+const FACES = ['front', 'back', 'left', 'right', 'top', 'bottom'];
+const FACE_DIR = {
+  front: [0, -1, 0],
+  back: [0, 1, 0],
+  right: [1, 0, 0],
+  left: [-1, 0, 0],
+  top: [0, 0, 1],
+  bottom: [0, 0, -1],
+};
+const PRESETS = {
+  app: { front: 'FRONT', back: 'BACK', left: 'LEFT', right: 'RIGHT', top: 'TOP', bottom: 'BOT' },
+  compass: { front: 'SOUTH', back: 'NORTH', left: 'WEST', right: 'EAST', top: 'UP', bottom: 'DOWN' },
+};
+const MAX_LABEL = 5;
+const AXES = [
+  { face: 'right', axis: 'X', sign: 1 },
+  { face: 'left', axis: 'X', sign: -1 },
+  { face: 'back', axis: 'Y', sign: 1 },
+  { face: 'front', axis: 'Y', sign: -1 },
+  { face: 'top', axis: 'Z', sign: 1 },
+  { face: 'bottom', axis: 'Z', sign: -1 },
+];
+const NORTH_FACE = 'back';
+
+/** Port of faceLetters(): first letter, plus a second when two collide. */
+function faceLetters(labels) {
+  const order = ['left', 'right', 'front', 'back', 'bottom', 'top'];
+  const used = new Set();
+  const out = {};
+  for (const face of order) {
+    const name = labels[face] || PRESETS.app[face];
+    let letter = name[0].toUpperCase();
+    if (used.has(letter)) {
+      letter = letter + (name[1] ?? 'x').toLowerCase();
+    }
+    used.add(letter);
+    out[face] = letter;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Settings shared by every gizmo on the page
+// ---------------------------------------------------------------------------
+
+const settings = {
+  labels: { ...PRESETS.app },
+  ballLetters: 'names',
+  negLetters: true,
+  northUp: false,
+  highlightNorth: true,
+  dragOrbit: true,
+  size: 72,
+};
+
+const PALETTE = {
+  face: '#2f3641',
+  bevel: '#333a46',
+  line: '#4d5665',
+  text: '#c9cfd8',
+  hover: '#4a6d9c',
+  northTint: '#4a4232',
+  amber: '#e0a63b',
+  ring: '#3a4250',
+  chip: '#262c35',
+  X: '#e0475b',
+  Y: '#7cb342',
+  Z: '#3b82e0',
+};
+
+const letters = () => faceLetters(settings.labels);
+const northColor = () => (settings.highlightNorth ? PALETTE.amber : PALETTE.text);
+
+// ---------------------------------------------------------------------------
+// Cube geometry — same plates as viewCubeGpu.ts buildViewCubeGeometry()
+// ---------------------------------------------------------------------------
+
+const CHAMFER = 0.16;
+const FACE_UP = {
+  front: [0, 0, 1],
+  back: [0, 0, 1],
+  left: [0, 0, 1],
+  right: [0, 0, 1],
+  top: [0, 1, 0],
+  bottom: [0, -1, 0],
+};
+const EDGE_PAIRS = [
+  ['front', 'right'], ['front', 'left'], ['back', 'right'], ['back', 'left'],
+  ['front', 'top'], ['front', 'bottom'], ['back', 'top'], ['back', 'bottom'],
+  ['right', 'top'], ['right', 'bottom'], ['left', 'top'], ['left', 'bottom'],
+];
+
+function quadPoints(centre, right, up, hw, hh) {
+  return [
+    add(add(centre, scale(right, -hw)), scale(up, hh)),
+    add(add(centre, scale(right, hw)), scale(up, hh)),
+    add(add(centre, scale(right, hw)), scale(up, -hh)),
+    add(add(centre, scale(right, -hw)), scale(up, -hh)),
+  ];
+}
+
+function buildCube() {
+  const plates = [];
+  const faceHalf = (1 - 2 * CHAMFER) / 2;
+  for (const face of FACES) {
+    const n = FACE_DIR[face];
+    const up = FACE_UP[face];
+    const right = norm(cross(up, n));
+    const centre = scale(n, 0.5);
+    plates.push({ kind: 'face', id: face, n, dir: n, centre, right, up, half: faceHalf, pts: quadPoints(centre, right, up, faceHalf, faceHalf) });
+  }
+  const bevelHalf = (CHAMFER * Math.SQRT2) / 2;
+  const edgeDist = (1 - CHAMFER) / Math.SQRT2;
+  for (const [a, b] of EDGE_PAIRS) {
+    const n = norm(add(FACE_DIR[a], FACE_DIR[b]));
+    const along = norm(cross(FACE_DIR[a], FACE_DIR[b]));
+    const across = norm(cross(n, along));
+    const centre = scale(n, edgeDist);
+    plates.push({ kind: 'edge', id: `${a}+${b}`, n, dir: n, centre, pts: quadPoints(centre, along, across, faceHalf, bevelHalf) });
+  }
+  const cornerDist = (1.5 - 2 * CHAMFER) / Math.sqrt(3);
+  const tri = CHAMFER * Math.SQRT2 * 1.14;
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const n = norm([sx, sy, sz]);
+        const names = [sy < 0 ? 'front' : 'back', sz > 0 ? 'top' : 'bottom', sx > 0 ? 'right' : 'left'];
+        const d = sz * n[2];
+        const up = norm([-n[0] * d, -n[1] * d, sz - n[2] * d]);
+        const right = norm(cross(up, n));
+        const centre = scale(n, cornerDist);
+        const pts = [
+          add(centre, scale(up, tri * 0.5)),
+          add(add(centre, scale(up, -tri * 0.25)), scale(right, -tri * 0.44)),
+          add(add(centre, scale(up, -tri * 0.25)), scale(right, tri * 0.44)),
+        ];
+        plates.push({ kind: 'corner', id: names.join('+'), n, dir: n, centre, pts });
+      }
+    }
+  }
+  return plates;
+}
+
+const CUBE = buildCube();
+
+// ---------------------------------------------------------------------------
+// Gizmo widget — one canvas, one config, draws + hit-tests + handles input
+// ---------------------------------------------------------------------------
+
+/** Compass ring: below the cube, in the ground plane (cube-edge units). */
+const RING_Z = -0.62;
+const RING_R = 0.92;
+const RING_LETTER_R = 1.16;
+const BALL_ARM = 0.8;
+const BALL_R = 0.16;
+const DRAG_THRESHOLD_PX = 3;
+const RING_SAMPLES = 96;
+
+class Gizmo {
+  constructor(canvas, cfg, opts = {}) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.cfg = { ...cfg };
+    this.fixedCss = opts.cssSize ?? null;
+    this.hover = null;
+    this.press = null;
+    canvas.style.touchAction = 'none';
+    canvas.addEventListener('pointerdown', (e) => this.handleDown(e));
+    canvas.addEventListener('pointermove', (e) => this.handleMove(e));
+    canvas.addEventListener('pointerup', (e) => this.handleUp(e));
+    canvas.addEventListener('pointerleave', () => {
+      if (!this.press) {
+        this.hover = null;
+      }
+    });
+  }
+
+  /** How far the drawing reaches from the centre, in cube-edge units. */
+  reach() {
+    if (this.cfg.style === 'needle') {
+      return 0.7;
+    }
+    if (this.cfg.style === 'cube' && this.cfg.ring) {
+      return RING_LETTER_R + 0.3;
+    }
+    return 1.1;
+  }
+
+  /** Cube edge in px: the page setting, shrunk to fit a fixed-size card. */
+  get k() {
+    const base = this.cfg.style === 'needle' ? settings.size * 0.9 : settings.size;
+    if (!this.fixedCss) {
+      return base;
+    }
+    return Math.min(base, (this.fixedCss - 16) / (2 * this.reach()));
+  }
+
+  cssSize() {
+    if (this.fixedCss) {
+      return this.fixedCss;
+    }
+    return Math.round(this.k * this.reach() * 2 + (this.cfg.triad ? 24 : 0) + 16);
+  }
+
+  layout() {
+    const css = this.cssSize();
+    const dpr = window.devicePixelRatio || 1;
+    if (this.canvas.width !== Math.round(css * dpr)) {
+      this.canvas.width = this.canvas.height = Math.round(css * dpr);
+      this.canvas.style.width = this.canvas.style.height = `${css}px`;
+    }
+    const v = basis();
+    // a cube with a ring sits a little high so the ring's letters fit below it
+    const lift = this.cfg.style === 'cube' && this.cfg.ring ? this.k * 0.12 : 0;
+    return { ...v, css, dpr, k: this.k, cx: css / 2, cy: css / 2 - lift };
+  }
+
+  // -- projection (orthographic, like the app's cube) -------------------------
+
+  proj(view, p) {
+    return [view.cx + view.k * dot(p, view.r), view.cy - view.k * dot(p, view.u)];
+  }
+
+  // -- draw -------------------------------------------------------------------
+
+  draw() {
+    const view = this.layout();
+    const { ctx } = this;
+    ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    ctx.clearRect(0, 0, view.css, view.css);
+    if (this.cfg.style === 'balls') {
+      this.drawBalls(view);
+    } else if (this.cfg.style === 'needle') {
+      this.drawNeedle(view);
+    } else {
+      this.drawCubeStyle(view);
+    }
+    if (this.cfg.triad) {
+      this.drawTriad(view);
+    }
+    this.drawTip(view);
+  }
+
+  drawCubeStyle(view) {
+    if (this.cfg.ring) {
+      this.drawRing(view, 'back');
+    }
+    this.drawCube(view);
+    if (this.cfg.ring) {
+      this.drawRing(view, 'front');
+    }
+  }
+
+  drawCube(view) {
+    const { ctx } = this;
+    const visible = CUBE.filter((p) => dot(p.n, view.b) > 1e-3).sort((p, q) => dot(p.centre, view.b) - dot(q.centre, view.b));
+    for (const p of visible) {
+      ctx.beginPath();
+      p.pts.forEach((pt, i) => {
+        const [x, y] = this.proj(view, pt);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.closePath();
+      ctx.fillStyle = this.plateFill(p);
+      ctx.fill();
+      ctx.strokeStyle = PALETTE.line;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      if (p.kind === 'face') {
+        this.drawFaceLabel(view, p);
+      }
+    }
+  }
+
+  plateFill(p) {
+    if (this.hover && this.hover.kind === 'plate' && this.hover.id === p.id) {
+      return PALETTE.hover;
+    }
+    if (this.cfg.northTint && p.id === NORTH_FACE) {
+      return PALETTE.northTint;
+    }
+    return p.kind === 'face' ? PALETTE.face : PALETTE.bevel;
+  }
+
+  /** Face text through an affine map of the face plane (exact: the view is orthographic). */
+  drawFaceLabel(view, p) {
+    const { ctx } = this;
+    const UNITS = 100;
+    const s = view.k / UNITS;
+    const [ex, ey] = this.proj(view, p.centre);
+    ctx.save();
+    ctx.transform(s * dot(p.right, view.r), -s * dot(p.right, view.u), -s * dot(p.up, view.r), s * dot(p.up, view.u), ex, ey);
+    const facePx = p.half * 2 * UNITS;
+    const isNorth = p.id === NORTH_FACE && (this.cfg.northTint || this.cfg.ring);
+    ctx.fillStyle = isNorth && settings.highlightNorth ? PALETTE.amber : PALETTE.text;
+    ctx.font = `700 ${(facePx * 1.15) / MAX_LABEL}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const text = (settings.labels[p.id] || PRESETS.app[p.id]).slice(0, MAX_LABEL);
+    const hasArrow = this.cfg.topArrow && (p.id === 'top' || p.id === 'bottom');
+    ctx.fillText(text, 0, hasArrow ? 5 : 0, facePx * 0.9);
+    if (hasArrow) {
+      // the top face's "up" is +Y and the bottom's is -Y, so north is local up / down
+      const dir = p.id === 'top' ? -1 : 1;
+      ctx.fillStyle = northColor();
+      ctx.beginPath();
+      ctx.moveTo(0, dir * 31);
+      ctx.lineTo(-8, dir * 19);
+      ctx.lineTo(8, dir * 19);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  ringPoint(t, radius = RING_R) {
+    return [Math.cos(t) * radius, Math.sin(t) * radius, RING_Z];
+  }
+
+  /** Half the ring at a time, so its far side goes under the cube and its near side over it. */
+  drawRing(view, half) {
+    const { ctx } = this;
+    const centreDepth = dot([0, 0, RING_Z], view.b);
+    const isFrontHalf = (p) => dot(p, view.b) > centreDepth + 1e-6;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < RING_SAMPLES; i++) {
+      const t0 = (i / RING_SAMPLES) * Math.PI * 2;
+      const t1 = ((i + 1) / RING_SAMPLES) * Math.PI * 2;
+      const mid = this.ringPoint((t0 + t1) / 2);
+      if (isFrontHalf(mid) !== (half === 'front')) {
+        continue;
+      }
+      const [x0, y0] = this.proj(view, this.ringPoint(t0));
+      const [x1, y1] = this.proj(view, this.ringPoint(t1));
+      ctx.strokeStyle = this.hover && this.hover.kind === 'ring' ? PALETTE.hover : PALETTE.ring;
+      ctx.lineWidth = view.k * 0.07;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+    const ls = letters();
+    for (const face of ['back', 'right', 'front', 'left']) {
+      const d = FACE_DIR[face];
+      const p = [d[0] * RING_LETTER_R, d[1] * RING_LETTER_R, RING_Z];
+      if (isFrontHalf(p) !== (half === 'front')) {
+        continue;
+      }
+      if (face === NORTH_FACE) {
+        this.drawRingPointer(view);
+      }
+      this.drawChip(view, p, ls[face], face === NORTH_FACE ? northColor() : PALETTE.text, this.isHover('ringLetter', face));
+    }
+  }
+
+  drawRingPointer(view) {
+    const { ctx } = this;
+    const tip = this.proj(view, [0, RING_R + 0.13, RING_Z]);
+    const bl = this.proj(view, [-0.08, RING_R - 0.02, RING_Z]);
+    const br = this.proj(view, [0.08, RING_R - 0.02, RING_Z]);
+    ctx.fillStyle = northColor();
+    ctx.beginPath();
+    ctx.moveTo(tip[0], tip[1]);
+    ctx.lineTo(bl[0], bl[1]);
+    ctx.lineTo(br[0], br[1]);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  drawChip(view, p, text, color, isHover) {
+    const { ctx } = this;
+    const [x, y] = this.proj(view, p);
+    const w = Math.max(15, text.length * 8 + 6);
+    ctx.fillStyle = isHover ? PALETTE.hover : PALETTE.chip;
+    ctx.fillRect(x - w / 2, y - 8, w, 16);
+    ctx.strokeStyle = color === PALETTE.text ? PALETTE.line : color;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - w / 2 + 0.5, y - 7.5, w - 1, 15);
+    ctx.fillStyle = color;
+    ctx.font = '700 11px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y + 0.5);
+  }
+
+  ballText(a) {
+    if (settings.ballLetters === 'axis') {
+      if (a.sign > 0) {
+        return a.axis;
+      }
+      return this.isHover('ball', a.face) ? `-${a.axis}` : '';
+    }
+    if (a.sign < 0 && !settings.negLetters && !this.isHover('ball', a.face)) {
+      return '';
+    }
+    return letters()[a.face];
+  }
+
+  drawBalls(view) {
+    const { ctx } = this;
+    const k = view.k;
+    const rb = BALL_R * k * 1.0;
+    if (this.hover) {
+      ctx.fillStyle = 'rgba(255,255,255,0.07)';
+      ctx.beginPath();
+      ctx.arc(view.cx, view.cy, (BALL_ARM + BALL_R) * k + 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (this.cfg.ring) {
+      ctx.strokeStyle = 'rgba(160,170,185,0.45)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= RING_SAMPLES; i++) {
+        const t = (i / RING_SAMPLES) * Math.PI * 2;
+        const [x, y] = this.proj(view, [Math.cos(t) * BALL_ARM, Math.sin(t) * BALL_ARM, 0]);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+    const items = AXES.map((a) => {
+      const p = scale(FACE_DIR[a.face], BALL_ARM);
+      return { a, p, depth: dot(p, view.b) };
+    }).sort((m, n) => m.depth - n.depth);
+    for (const { a, p } of items) {
+      const color = PALETTE[a.axis];
+      const [x, y] = this.proj(view, p);
+      const isHover = this.isHover('ball', a.face);
+      if (a.sign > 0) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(2, k * 0.035);
+        ctx.beginPath();
+        ctx.moveTo(view.cx, view.cy);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(x, y, rb, 0, Math.PI * 2);
+      ctx.fillStyle = a.sign > 0 ? color : `${color}55`;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isHover ? '#ffffff' : color;
+      ctx.stroke();
+      if (a.face === NORTH_FACE && settings.highlightNorth) {
+        ctx.beginPath();
+        ctx.arc(x, y, rb + 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = PALETTE.amber;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      const text = this.ballText(a);
+      if (text) {
+        ctx.fillStyle = a.sign > 0 ? '#14181e' : '#e8ecf1';
+        ctx.font = `700 ${text.length > 1 ? rb * 0.95 : rb * 1.2}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y + 0.5);
+      }
+    }
+  }
+
+  /** Screen direction of north on the ground plane, as (right, up). */
+  northOnScreen(view) {
+    return [dot([0, 1, 0], view.r), dot([0, 1, 0], view.fh)];
+  }
+
+  drawNeedle(view) {
+    const { ctx } = this;
+    const R = view.k * 0.62;
+    const { cx, cy } = view;
+    ctx.fillStyle = this.hover ? PALETTE.hover : PALETTE.chip;
+    ctx.strokeStyle = PALETTE.line;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    const [nx, ny] = this.northOnScreen(view);
+    const ang = Math.atan2(nx, ny);
+    const ls = letters();
+    ctx.font = '700 11px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const rim = [['back', 0], ['right', Math.PI / 2], ['front', Math.PI], ['left', -Math.PI / 2]];
+    for (const [face, off] of rim) {
+      const a = ang + off;
+      ctx.fillStyle = face === NORTH_FACE ? northColor() : '#8b95a5';
+      ctx.fillText(ls[face], cx + Math.sin(a) * (R - 9), cy - Math.cos(a) * (R - 9));
+    }
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(ang);
+    const len = R - 20;
+    ctx.fillStyle = northColor();
+    ctx.beginPath();
+    ctx.moveTo(0, -len);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(5, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#5b6676';
+    ctx.beginPath();
+    ctx.moveTo(0, len);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(5, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawTriad(view) {
+    const { ctx } = this;
+    const ox = 18;
+    const oy = view.css - 18;
+    const L = 22;
+    const items = ['right', 'back', 'top']
+      .map((face) => ({ face, d: FACE_DIR[face], depth: dot(FACE_DIR[face], view.b) }))
+      .sort((m, n) => m.depth - n.depth);
+    ctx.font = '700 10px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const { face, d } of items) {
+      const axis = AXES.find((a) => a.face === face).axis;
+      const x = ox + L * dot(d, view.r);
+      const y = oy - L * dot(d, view.u);
+      ctx.strokeStyle = PALETTE[axis];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.fillStyle = PALETTE[axis];
+      ctx.fillText(axis, ox + (L + 8) * dot(d, view.r), oy - (L + 8) * dot(d, view.u));
+    }
+  }
+
+  drawTip(view) {
+    const text = this.tipText();
+    if (!text) {
+      return;
+    }
+    const { ctx } = this;
+    ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+    const w = ctx.measureText(text).width + 10;
+    ctx.fillStyle = 'rgba(20,24,30,0.9)';
+    ctx.fillRect(view.css / 2 - w / 2, 2, w, 16);
+    ctx.fillStyle = '#e8ecf1';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, view.css / 2, 10.5);
+  }
+
+  tipText() {
+    const h = this.hover;
+    if (!h) {
+      return '';
+    }
+    const name = (face) => settings.labels[face] || PRESETS.app[face];
+    if (h.kind === 'ball') {
+      const a = AXES.find((x) => x.face === h.id);
+      return `${name(h.id)} (${a.sign > 0 ? '+' : '−'}${a.axis})${isLookingFrom(FACE_DIR[h.id]) ? ' · click flips' : ''}`;
+    }
+    if (h.kind === 'ringLetter') {
+      return `View from ${name(h.id)}`;
+    }
+    if (h.kind === 'ring') {
+      return 'Drag to turn';
+    }
+    if (h.kind === 'needle') {
+      return `Turn to face ${name(NORTH_FACE)}`;
+    }
+    return h.id.split('+').map(name).join(' + ');
+  }
+
+  // -- hit-testing ------------------------------------------------------------
+
+  isHover(kind, id) {
+    return !!this.hover && this.hover.kind === kind && this.hover.id === id;
+  }
+
+  hitTest(x, y) {
+    const view = this.layout();
+    if (this.cfg.style === 'balls') {
+      return this.hitBalls(view, x, y);
+    }
+    if (this.cfg.style === 'needle') {
+      return Math.hypot(x - view.cx, y - view.cy) <= view.k * 0.62 ? { kind: 'needle', id: 'north' } : null;
+    }
+    if (this.cfg.ring) {
+      const letter = this.hitRingLetter(view, x, y);
+      if (letter) {
+        return letter;
+      }
+    }
+    const plate = this.hitCube(view, x, y);
+    if (plate) {
+      return plate;
+    }
+    if (this.cfg.ring && this.isNearRing(view, x, y)) {
+      return { kind: 'ring', id: 'ring' };
+    }
+    return null;
+  }
+
+  hitBalls(view, x, y) {
+    const rb = BALL_R * view.k;
+    const items = AXES.map((a) => ({ a, p: scale(FACE_DIR[a.face], BALL_ARM) })).sort((m, n) => dot(n.p, view.b) - dot(m.p, view.b));
+    for (const { a, p } of items) {
+      const [bx, by] = this.proj(view, p);
+      if (Math.hypot(x - bx, y - by) <= rb + 1) {
+        return { kind: 'ball', id: a.face, dir: FACE_DIR[a.face] };
+      }
+    }
+    if (Math.hypot(x - view.cx, y - view.cy) <= (BALL_ARM + BALL_R) * view.k) {
+      return { kind: 'area', id: 'area' };
+    }
+    return null;
+  }
+
+  hitRingLetter(view, x, y) {
+    for (const face of ['back', 'right', 'front', 'left']) {
+      const d = FACE_DIR[face];
+      const [lx, ly] = this.proj(view, [d[0] * RING_LETTER_R, d[1] * RING_LETTER_R, RING_Z]);
+      if (Math.abs(x - lx) <= 9 && Math.abs(y - ly) <= 9) {
+        return { kind: 'ringLetter', id: face, dir: d };
+      }
+    }
+    return null;
+  }
+
+  hitCube(view, x, y) {
+    const visible = CUBE.filter((p) => dot(p.n, view.b) > 1e-3).sort((p, q) => dot(q.centre, view.b) - dot(p.centre, view.b));
+    for (const p of visible) {
+      if (pointInPolygon([x, y], p.pts.map((pt) => this.proj(view, pt)))) {
+        return { kind: 'plate', id: p.id, dir: p.dir };
+      }
+    }
+    return null;
+  }
+
+  isNearRing(view, x, y) {
+    for (let i = 0; i < RING_SAMPLES; i++) {
+      const [rx, ry] = this.proj(view, this.ringPoint((i / RING_SAMPLES) * Math.PI * 2));
+      if (Math.hypot(x - rx, y - ry) < view.k * 0.07 + 3) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // -- input ------------------------------------------------------------------
+
+  localPoint(e) {
+    const r = this.canvas.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  }
+
+  handleDown(e) {
+    const [x, y] = this.localPoint(e);
+    const hit = this.hitTest(x, y);
+    if (!hit) {
+      return;
+    }
+    this.canvas.setPointerCapture(e.pointerId);
+    this.press = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, hit, isDrag: false };
+  }
+
+  handleMove(e) {
+    if (!this.press) {
+      const [x, y] = this.localPoint(e);
+      this.hover = this.hitTest(x, y);
+      this.canvas.style.cursor = this.hover ? 'pointer' : 'default';
+      return;
+    }
+    const p = this.press;
+    if (!p.isDrag && Math.hypot(e.clientX - p.x, e.clientY - p.y) > DRAG_THRESHOLD_PX) {
+      p.isDrag = p.hit.kind === 'ring' || settings.dragOrbit;
+    }
+    if (p.isDrag) {
+      const dx = e.clientX - p.lastX;
+      const dy = e.clientY - p.lastY;
+      orbitBy(dx * 2, p.hit.kind === 'ring' ? 0 : dy * 2);
+      this.canvas.style.cursor = 'grabbing';
+    }
+    p.lastX = e.clientX;
+    p.lastY = e.clientY;
+  }
+
+  handleUp() {
+    const p = this.press;
+    this.press = null;
+    if (!p || p.isDrag) {
+      return;
+    }
+    this.click(p.hit);
+  }
+
+  click(hit) {
+    if (hit.kind === 'plate') {
+      snapToEyeDir(hit.dir);
+      return;
+    }
+    if (hit.kind === 'ball') {
+      snapToEyeDir(isLookingFrom(hit.dir) ? scale(hit.dir, -1) : hit.dir);
+      return;
+    }
+    if (hit.kind === 'ringLetter') {
+      // view from that side, keeping the tilt
+      snapAzEl(Math.atan2(-hit.dir[1], -hit.dir[0]), cam.el);
+      return;
+    }
+    if (hit.kind === 'needle') {
+      snapAzEl(Math.PI / 2, cam.el);
+    }
+  }
+}
+
+function pointInPolygon([x, y], pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i];
+    const [xj, yj] = pts[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// ---------------------------------------------------------------------------
+// Scene — a wireframe site with the true compass on the ground
+// ---------------------------------------------------------------------------
+
+const GLYPHS = {
+  N: [[[0, 0], [0, 1], [1, 0], [1, 1]]],
+  E: [[[1, 1], [0, 1], [0, 0], [1, 0]], [[0, 0.5], [0.7, 0.5]]],
+  S: [[[1, 0.9], [0.8, 1], [0.2, 1], [0, 0.85], [0, 0.62], [0.2, 0.5], [0.8, 0.5], [1, 0.38], [1, 0.15], [0.8, 0], [0.2, 0], [0, 0.1]]],
+  W: [[[0, 1], [0.25, 0], [0.5, 0.6], [0.75, 0], [1, 1]]],
+};
+const GRID_HALF = 30;
+const GRID_STEP = 5;
+const FOV_HALF = 25 * DEG;
+const NEAR = 0.5;
+
+function buildScene() {
+  const segs = [];
+  const seg = (a, b, kind) => segs.push({ a, b, kind });
+  const poly = (pts, kind) => pts.slice(1).forEach((p, i) => seg(pts[i], p, kind));
+  const box = (x0, y0, z0, x1, y1, z1) => {
+    const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+    c.forEach(([x, y], i) => {
+      const [nx, ny] = c[(i + 1) % 4];
+      seg([x, y, z0], [nx, ny, z0], 'obj');
+      seg([x, y, z1], [nx, ny, z1], 'obj');
+      seg([x, y, z0], [x, y, z1], 'obj');
+    });
+  };
+  const cylinder = (cx, cy, r, h) => {
+    const n = 28;
+    for (let i = 0; i < n; i++) {
+      const t0 = (i / n) * Math.PI * 2;
+      const t1 = ((i + 1) / n) * Math.PI * 2;
+      const p0 = [cx + Math.cos(t0) * r, cy + Math.sin(t0) * r];
+      const p1 = [cx + Math.cos(t1) * r, cy + Math.sin(t1) * r];
+      seg([...p0, 0], [...p1, 0], 'obj');
+      seg([...p0, h], [...p1, h], 'obj');
+      if (i % 4 === 0) {
+        seg([...p0, 0], [...p0, h], 'obj');
+      }
+    }
+  };
+  for (let v = -GRID_HALF; v <= GRID_HALF; v += GRID_STEP) {
+    seg([v, -GRID_HALF, 0], [v, GRID_HALF, 0], 'grid');
+    seg([-GRID_HALF, v, 0], [GRID_HALF, v, 0], 'grid');
+  }
+  seg([0, 0, 0.02], [16, 0, 0.02], 'X');
+  seg([0, 0, 0.02], [0, 16, 0.02], 'Y');
+  seg([0, 0, 0], [0, 0, 10], 'Z');
+  poly([[0, 20, 0.05], [0, 33, 0.05]], 'north');
+  poly([[-2.5, 29, 0.05], [0, 33, 0.05], [2.5, 29, 0.05]], 'north');
+  const letterAt = (ch, cx, cy, size, kind) => {
+    for (const stroke of GLYPHS[ch]) {
+      poly(stroke.map(([x, y]) => [cx + (x - 0.5) * size * 0.7, cy + (y - 0.5) * size, 0.05]), kind);
+    }
+  };
+  letterAt('N', 0, 37, 4, 'north');
+  letterAt('E', 37, 0, 4, 'compass');
+  letterAt('S', 0, -37, 4, 'compass');
+  letterAt('W', -37, 0, 4, 'compass');
+  box(-18, 8, 0, -7, 17, 9);
+  box(-18, 8, 9, -13, 17, 12);
+  cylinder(12, -11, 4, 7);
+  cylinder(-6, -14, 1, 18);
+  for (const x of [-2, 3, 8, 13, 18]) {
+    seg([x, 2, 0], [x, 2, 5], 'obj');
+    seg([x, 5, 0], [x, 5, 5], 'obj');
+    seg([x, 2, 5], [x, 5, 5], 'obj');
+  }
+  seg([-2, 2, 5], [18, 2, 5], 'obj');
+  seg([-2, 5, 5], [18, 5, 5], 'obj');
+  return segs;
+}
+
+const SCENE = buildScene();
+
+function sceneColors() {
+  const isLight = document.documentElement.dataset.theme === 'light';
+  return {
+    grid: isLight ? '#c3cad3' : '#2c333d',
+    obj: isLight ? '#4f5a69' : '#8590a0',
+    compass: isLight ? '#6b7686' : '#9aa4b2',
+    north: isLight ? '#b7791f' : PALETTE.amber,
+    X: PALETTE.X,
+    Y: PALETTE.Y,
+    Z: PALETTE.Z,
+  };
+}
+
+function drawScene(canvas) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const { f, r, u } = basis();
+  const eye = sub(cam.target, scale(f, cam.dist));
+  const focal = H / 2 / Math.tan(FOV_HALF);
+  const toCam = (p) => {
+    const v = sub(p, eye);
+    return [dot(v, r), dot(v, u), dot(v, f)];
+  };
+  const screen = ([x, y, z]) => [W / 2 + (focal * x) / z, H / 2 - (focal * y) / z];
+  const colors = sceneColors();
+  for (const { a, b, kind } of SCENE) {
+    let ca = toCam(a);
+    let cb = toCam(b);
+    if (ca[2] < NEAR && cb[2] < NEAR) {
+      continue;
+    }
+    if (ca[2] < NEAR || cb[2] < NEAR) {
+      const t = (NEAR - ca[2]) / (cb[2] - ca[2]);
+      const cut = add(ca, scale(sub(cb, ca), t));
+      if (ca[2] < NEAR) {
+        ca = cut;
+      } else {
+        cb = cut;
+      }
+    }
+    const [x0, y0] = screen(ca);
+    const [x1, y1] = screen(cb);
+    ctx.strokeStyle = colors[kind];
+    ctx.lineWidth = kind === 'grid' ? 1 : kind === 'north' ? 2.5 : 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Readout
+// ---------------------------------------------------------------------------
+
+const WINDS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+const ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+
+function readoutText() {
+  const v = basis();
+  const bearing = ((Math.atan2(v.fh[0], v.fh[1]) / DEG) + 360) % 360;
+  const wind = WINDS[Math.round(bearing / 22.5) % 16];
+  const north = [dot([0, 1, 0], v.r), dot([0, 1, 0], v.fh)];
+  const screenAng = ((Math.atan2(north[0], north[1]) / DEG) + 360) % 360;
+  const arrow = ARROWS[Math.round(screenAng / 45) % 8];
+  const tilt = cam.el / DEG;
+  return `Heading <b>${bearing.toFixed(0)}° ${wind}</b> · tilt ${tilt.toFixed(0)}° · north on screen <b>${arrow}</b>`;
+}
+
+// ---------------------------------------------------------------------------
+// Page wiring
+// ---------------------------------------------------------------------------
+
+const CARDS = [
+  {
+    title: 'Cube — today',
+    cfg: { style: 'cube' },
+    notes: ['What ships now.', 'North is the BACK face, and nothing marks it.', 'Top view keeps the heading: north can point anywhere.'],
+  },
+  {
+    title: 'Cube + compass ring',
+    cfg: { style: 'cube', ring: true, topArrow: true },
+    notes: ['Ring letters are the first letters of the face names.', 'Click a letter: view from that side. Drag the ring: turn.', 'Arrow on TOP points north in a top view.'],
+  },
+  {
+    title: 'Cube + tint + triad',
+    cfg: { style: 'cube', northTint: true, topArrow: true, triad: true },
+    notes: ['No new hit zones: only the cube\'s look changes.', 'North face tinted, arrow on TOP, small X/Y/Z triad.'],
+  },
+  {
+    title: 'Axis balls',
+    cfg: { style: 'balls' },
+    notes: ['As in the screenshot: +axes solid, −axes hollow.', 'Click: view from there; click again: the opposite.', 'Drag anywhere on it: orbit.'],
+  },
+  {
+    title: 'Axis balls + horizon',
+    cfg: { style: 'balls', ring: true },
+    notes: ['A faint ring through the four side balls shows the ground plane, so the tilt reads at a glance.'],
+  },
+  {
+    title: 'North needle',
+    cfg: { style: 'needle' },
+    notes: ['Map-style add-on; fits beside either gizmo.', 'Click: turn to face north, keep the tilt.'],
+  },
+];
+
+const CORNER_DEFAULT = { style: 'cube', ring: false, topArrow: false, northTint: false, triad: false, needle: false };
+const corner = { cfg: { ...CORNER_DEFAULT } };
+const sceneCanvas = document.getElementById('scene');
+const cornerCanvas = document.getElementById('corner');
+const cornerGizmo = new Gizmo(cornerCanvas, corner.cfg);
+const needleCanvas = document.createElement('canvas');
+needleCanvas.style.position = 'absolute';
+document.getElementById('view').appendChild(needleCanvas);
+const cornerNeedle = new Gizmo(needleCanvas, { style: 'needle' });
+const cardGizmos = [];
+
+function applyCornerCfg(cfg) {
+  Object.assign(corner.cfg, CORNER_DEFAULT, cfg);
+  cornerGizmo.cfg = { ...corner.cfg };
+  document.getElementById('corner-style').value = corner.cfg.style;
+  document.querySelectorAll('[data-corner]').forEach((el) => {
+    el.checked = !!corner.cfg[el.dataset.corner];
+  });
+  const key = (cfg) => JSON.stringify({ ...CORNER_DEFAULT, ...cfg });
+  cardGizmos.forEach(({ card, gizmo }) => {
+    card.classList.toggle('in-corner', key(gizmo.cfg) === key(corner.cfg));
+  });
+}
+
+function buildCards() {
+  const host = document.getElementById('cards');
+  for (const def of CARDS) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const canvas = document.createElement('canvas');
+    const title = document.createElement('h3');
+    title.textContent = def.title;
+    const list = document.createElement('ul');
+    for (const note of def.notes) {
+      const li = document.createElement('li');
+      li.textContent = note;
+      list.appendChild(li);
+    }
+    const use = document.createElement('button');
+    use.textContent = 'Use in corner';
+    use.addEventListener('click', () => applyCornerCfg(def.cfg));
+    card.append(title, canvas, list, use);
+    host.appendChild(card);
+    cardGizmos.push({ card, gizmo: new Gizmo(canvas, def.cfg, { cssSize: 196 }) });
+  }
+}
+
+function buildNameInputs() {
+  const host = document.getElementById('names');
+  for (const face of FACES) {
+    const label = document.createElement('label');
+    label.textContent = face[0].toUpperCase() + face.slice(1);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = MAX_LABEL;
+    input.dataset.face = face;
+    input.value = settings.labels[face];
+    input.addEventListener('input', () => {
+      settings.labels[face] = input.value.toUpperCase() || PRESETS.app[face];
+      showLetters();
+    });
+    label.appendChild(input);
+    host.appendChild(label);
+  }
+}
+
+function showLetters() {
+  const ls = letters();
+  document.getElementById('letters').textContent = `Letters: ${AXES.map((a) => `${a.sign > 0 ? '+' : '−'}${a.axis}=${ls[a.face]}`).join('  ')}`;
+}
+
+function applyPreset(name) {
+  settings.labels = { ...PRESETS[name] };
+  document.querySelectorAll('#names input').forEach((input) => {
+    input.value = settings.labels[input.dataset.face];
+  });
+  showLetters();
+}
+
+function bindOptions() {
+  const bindCheck = (id, key) => {
+    const el = document.getElementById(id);
+    el.checked = settings[key];
+    el.addEventListener('change', () => {
+      settings[key] = el.checked;
+    });
+  };
+  bindCheck('opt-northUp', 'northUp');
+  bindCheck('opt-highlight', 'highlightNorth');
+  bindCheck('opt-dragOrbit', 'dragOrbit');
+  bindCheck('opt-negLetters', 'negLetters');
+  document.getElementById('opt-ballLetters').addEventListener('change', (e) => {
+    settings.ballLetters = e.target.value;
+  });
+  const size = document.getElementById('opt-size');
+  size.addEventListener('input', () => {
+    settings.size = Number(size.value);
+    document.getElementById('size-val').textContent = `${size.value} px`;
+  });
+  document.querySelectorAll('[data-preset]').forEach((btn) => {
+    btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+  });
+  document.getElementById('corner-style').addEventListener('change', (e) => {
+    applyCornerCfg({ ...corner.cfg, style: e.target.value });
+  });
+  document.querySelectorAll('[data-corner]').forEach((el) => {
+    el.addEventListener('change', () => applyCornerCfg({ ...corner.cfg, [el.dataset.corner]: el.checked }));
+  });
+  document.getElementById('btn-theme').addEventListener('click', () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
+  });
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    const d = DEFAULT_EYE_DIR;
+    snapAzEl(Math.atan2(-d[1], -d[0]), Math.asin(-d[2]));
+  });
+  document.getElementById('btn-top').addEventListener('click', () => snapAzEl(cam.az, -Math.PI / 2));
+  document.getElementById('btn-random').addEventListener('click', () => {
+    snapAzEl(Math.random() * Math.PI * 2 - Math.PI, -(10 + Math.random() * 75) * DEG);
+  });
+}
+
+function bindSceneOrbit() {
+  let last = null;
+  sceneCanvas.addEventListener('pointerdown', (e) => {
+    last = [e.clientX, e.clientY];
+    sceneCanvas.setPointerCapture(e.pointerId);
+    sceneCanvas.classList.add('dragging');
+  });
+  sceneCanvas.addEventListener('pointermove', (e) => {
+    if (!last) {
+      return;
+    }
+    orbitBy(e.clientX - last[0], e.clientY - last[1]);
+    last = [e.clientX, e.clientY];
+  });
+  sceneCanvas.addEventListener('pointerup', () => {
+    last = null;
+    sceneCanvas.classList.remove('dragging');
+  });
+  sceneCanvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.001), 15, 250);
+  }, { passive: false });
+}
+
+function placeNeedle() {
+  needleCanvas.style.display = corner.cfg.needle && corner.cfg.style !== 'needle' ? 'block' : 'none';
+  needleCanvas.style.right = `${12 + cornerCanvas.offsetWidth + 6}px`;
+  needleCanvas.style.bottom = '12px';
+}
+
+function frame(now) {
+  tickCamera(now);
+  drawScene(sceneCanvas);
+  cornerGizmo.draw();
+  placeNeedle();
+  if (corner.cfg.needle) {
+    cornerNeedle.draw();
+  }
+  cardGizmos.forEach(({ gizmo }) => gizmo.draw());
+  document.getElementById('readout').innerHTML = readoutText();
+  requestAnimationFrame(frame);
+}
+
+setViewFromEyeDir(DEFAULT_EYE_DIR);
+buildNameInputs();
+buildCards();
+bindOptions();
+bindSceneOrbit();
+showLetters();
+applyCornerCfg(CORNER_DEFAULT);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

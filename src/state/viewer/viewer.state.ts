@@ -1,4 +1,6 @@
 import { createStore } from '@treDeSpaceUI/lib/createStore';
+import type { NavGizmoStyle, SnapDotSet } from '../../lib/render/axisGizmo';
+import type { BallClick, TopViewHeading } from '../../lib/render/gizmoSnap';
 import { storageKey } from '../../lib/storageKeys';
 import { DEFAULT_VRAM_BUDGET_MB, migrateVramBudget } from './vramBudget';
 
@@ -74,6 +76,19 @@ export interface ViewerState {
   sketchCubeLineColor: string;
   sketchCubeTextColor: string;
   sketchCubeHoverColor: string;
+  // navigation gizmo (Settings → Gizmo → Navigation gizmo)
+  /** Which gizmo the viewport shows; a right-click or long-press on it switches. */
+  gizmoStyle: NavGizmoStyle;
+  /** Clicking an axis ball: view from that side (as the cube), or look toward it. */
+  gizmoBallClick: BallClick;
+  /** The axis balls' 45° snap dots: sides + iso corners (12), or all 20. */
+  gizmoSnapDots: SnapDotSet;
+  /** Heading after a straight-down/up snap: keep it, model +Y up, or true north up. */
+  topViewHeading: TopViewHeading;
+  /** True north, degrees clockwise from the model's +Y (BACK) seen from above. */
+  northAngle: number;
+  /** The cube's true-north marker, off by default (the axis balls never show north). */
+  gizmoNorthMarker: boolean;
   edgeColor: string; // hex, e.g. "#000000"
   fadeExp: number;
   depthThr: number;
@@ -241,6 +256,12 @@ export const initialViewerState: ViewerState = {
   sketchCubeLineColor: '#000000',
   sketchCubeTextColor: '#333333',
   sketchCubeHoverColor: '#9e9e9e',
+  gizmoStyle: 'balls',
+  gizmoBallClick: 'viewFrom',
+  gizmoSnapDots: 'iso',
+  topViewHeading: 'keep',
+  northAngle: 0, // plant convention: +Y is north (RVM keeps its axes)
+  gizmoNorthMarker: false, // opt-in per project: north means nothing on a boat
   edgeColor: '#000000',
   fadeExp: 0.3,
   depthThr: 0.01,

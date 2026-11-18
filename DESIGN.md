@@ -301,6 +301,28 @@ own. Key facts, kept here so the port history isn't lost:
   item only when the name happens to exist.
 - **View cube** (`viewCubeGpu.ts` + `ViewGizmo.ts`): GPU-drawn orientation
   cube with a label atlas; DOM hit-test for face/edge/corner click-to-snap.
+- **Navigation gizmo styles** (2026-11-18, `plans/navigation_gizmo.md`):
+  - **Two styles.** The cube or **axis balls** (the default), switched by a
+    right-click or long-press on the gizmo (`gizmoGestures.ts`, measure aim's
+    450 ms hold) or in Settings → Gizmo.
+  - **Ball layout.** The balls' geometry lives in one pure module
+    (`render/axisGizmo.ts`): ball and snap-dot positions, depth order, the
+    near-side fade and picking. The renderer paints from it and the DOM hit
+    layer (`AxisBallLayer.ts`) picks with it, so drawn and clicked always
+    agree.
+  - **Drawing.** `ViewCubePass` paints the balls, and the cube's true-north
+    chip, with Canvas 2D into an offscreen canvas the size of the mini
+    viewport. It uploads that premultiplied and blits it through the cube's
+    blit pipeline, so captures include it with no new shader.
+  - **Fade.** The snap dots' fade runs by time in the pass. Its
+    `isAnimating` keeps hold frames coming without entering the idle key,
+    which would restart TAA every frame.
+  - **Snapping.** Picks map to the camera through the pure
+    `render/gizmoSnap.ts`: view from / look toward, the flip when already
+    there, Shift for the opposite, and the top-view heading.
+  - **Ball letters** are the face names' first letters (`faceLetters`).
+  - **True north** (`northAngle`, clockwise from +Y) is only ever shown on
+    the cube. RVM keeps its axes, so plant north is +Y, the BACK face.
 - **Assets / Import**: Model Assets + Import Manager panels over OPFS stores
   (`opfs.ts`; a store is a folder of cooked models, `stores.json`) — import,
   load / unload and organise cooked models. Unloading forgets a model's look

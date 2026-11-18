@@ -598,15 +598,38 @@ response: { aoMode: 2, aoRadius: 0.8, aoStrength: 0.25, aoSlices: 6, aoSamples: 
 ```
 
 ### settings.gizmo.set
-Settings → Gizmo: the view cube's colours and/or its face names. `labels`
-takes any subset of the six faces (`front back left right top bottom`); an
-empty name restores that face's default, names are cut to 5 characters.
-`reset: true` resets colours AND names. Same rules otherwise.
+Settings → Gizmo: the navigation gizmo, the view cube's colours and/or the
+face names.
+
+- **The gizmo.** `gizmoStyle` is `'balls'` (default) or `'cube'`. The user
+  can switch with a right-click or long-press on the gizmo, so read it back
+  (an empty payload, or `settings.get` → `viewer.gizmoStyle`) to see whether
+  they changed the default.
+- **`gizmoBallClick`** is `'viewFrom'` (default, as the cube) or
+  `'lookToward'`.
+- **`gizmoSnapDots`** is `'iso'` (12 dots, default) or `'all'` (20).
+- **`topViewHeading`** is `'keep'` (default), `'model'` (+Y up) or `'north'`
+  (true north up).
+- **`northAngle`** is true north in degrees clockwise from the model's +Y
+  (its back side) seen from above, wrapped to −180..180. The default 0 is
+  plant north: RVM models keep their axes, so their north is +Y, the back
+  side. A host can set it per project.
+- **`gizmoNorthMarker`** shows true north on the cube. The default is
+  `false`, so turn it on per project where north means something. The
+  axis balls never show north.
+- **Face names.** `labels` takes any subset of the six faces (`front back
+  left right top bottom`); an empty name restores that face's default, and
+  names are cut to 5 characters. The axis balls show their first letters.
+- **`reset: true`** resets the gizmo, colours AND names.
+
+Same rules otherwise.
 
 ```js
-payload:  { cubeFaceColor: '#1e2a3a', labels: { front: 'N', back: 'S', top: 'UP' } }
-response: { cubeFaceColor: '#1e2a3a', cubeLineColor: '#4d5665', cubeTextColor: '#c9cfd8', cubeHoverColor: '#4a6d9c',
-            labels: { front: 'N', back: 'S', left: 'LEFT', right: 'RIGHT', top: 'UP', bottom: 'BOT' } }
+payload:  { gizmoStyle: 'cube', northAngle: 30, gizmoNorthMarker: true, labels: { front: 'S', back: 'N', top: 'UP' } }
+response: { gizmoStyle: 'cube', gizmoBallClick: 'viewFrom', gizmoSnapDots: 'iso', topViewHeading: 'keep',
+            northAngle: 30, gizmoNorthMarker: true,
+            cubeFaceColor: '#2f3641', cubeLineColor: '#4d5665', cubeTextColor: '#c9cfd8', cubeHoverColor: '#4a6d9c',
+            labels: { front: 'S', back: 'N', left: 'LEFT', right: 'RIGHT', top: 'UP', bottom: 'BOT' } }
 ```
 
 ### gpu.info.get

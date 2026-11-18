@@ -97,7 +97,7 @@ import {
 } from './shaders';
 import { SORT_CLEAR_BYTES, SORT_COUNT_WORD, SORT_STATE_WORDS, sortScanWgsl, sortScatterWgsl } from './shaders/cull';
 import { unitSphereMesh } from './sphereMesh';
-import { ViewCubePass } from './viewCubePass';
+import { type NavGizmoOptions, ViewCubePass } from './viewCubePass';
 import { type AdapterHints, readDeviceMemoryGb } from './vramHint';
 
 export type { MeasureProbe, MeasureSnap } from './measureSnap';
@@ -3041,7 +3041,15 @@ export class Renderer {
       // the scene is complete: accumulation done, nothing owed by the cap (a
       // late readback re-arms capBacklog and the next tick renders), no
       // snapshot waiting on it and no outline animating
-      const complete = taaConverged && aoConverged && settled && !this.pendingSnap && !outlineWork && !this.capBacklog;
+      // (the navigation gizmo's snap-dot fade counts as unfinished too)
+      const complete =
+        taaConverged &&
+        aoConverged &&
+        settled &&
+        !this.pendingSnap &&
+        !outlineWork &&
+        !this.capBacklog &&
+        !this.viewCube.isAnimating;
       if (complete) {
         if (this.pendingPick || this.itemPick.hasPending) {
           this.submitPicksOnly(canvas);
@@ -3844,6 +3852,18 @@ export class Renderer {
   /** Change the cube's face labels (rebuilds the label atlas lazily). */
   setViewCubeLabels(labels: Partial<Record<GizmoFace, string>>) {
     this.viewCube.setLabels(labels);
+  }
+
+  /** Navigation gizmo style (cube / axis balls), ball letters, snap dots and
+   *  the cube's north marker — settings-driven. */
+  setNavGizmo(options: NavGizmoOptions) {
+    this.viewCube.setNavOptions(options);
+  }
+
+  /** Per frame: the axis-ball item under the pointer ('' for none) and
+   *  whether the snap dots show (pointer over the gizmo, or a recent tap). */
+  setNavGizmoHover(hoverKey: string, isRevealed: boolean) {
+    this.viewCube.setNavHover(hoverKey, isRevealed);
   }
 
   /** Cube palette (settings-driven; sketch mode passes its own set). The bevel

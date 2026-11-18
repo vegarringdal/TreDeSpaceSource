@@ -1,12 +1,29 @@
+import {
+  AXIS_REACH,
+  basisFromQuat,
+  type GizmoBasis,
+  MARKER_CHIP,
+  MARKER_REACH,
+  type NavGizmoStyle,
+  northDirection,
+  northMarkerPoint,
+  type SnapDotSet,
+} from '../render/axisGizmo';
+import { AxisBallLayer } from './AxisBallLayer';
+import { attachStyleToggle } from './gizmoGestures';
+
 export type GizmoFace = 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom';
-export type GizmoPickKind = 'face' | 'edge' | 'corner';
+/** Cube plates (face / edge / corner), axis balls, their snap dots, or the cube's north marker. */
+export type GizmoPickKind = 'face' | 'edge' | 'corner' | 'ball' | 'snap' | 'north';
 
 export interface GizmoPick {
   kind: GizmoPickKind;
-  /** e.g. "front", "front+right", "front+top+right" */
+  /** e.g. "front", "front+right", "front+top+right", "ball:back", "dot:1,-1,1", "north" */
   id: string;
-  /** Unit view direction (three.js axes, y up, +z front). */
+  /** Unit world direction of the picked item from the pivot (Z up). */
   direction: [number, number, number];
+  /** Shift was held: the caller takes the opposite view. */
+  isShift?: boolean;
 }
 
 export interface ViewGizmoOptions {
@@ -24,6 +41,10 @@ export interface ViewGizmoOptions {
   /** false = invisible hit-layer only: the cube is DRAWN by the renderer
    *  (see viewCubeGpu.ts); the DOM plates keep hit-testing/hover/drag. */
   visual?: boolean;
+  /** Right-click or long-press on the gizmo: switch cube ⇄ axis balls. */
+  onToggleStyle?: () => void;
+  /** A drag on the axis balls: orbit the camera by this many CSS px. */
+  onOrbit?: (dx: number, dy: number) => void;
 }
 
 /** Face labels are capped to this many chars so all faces share ONE font size. */
@@ -70,6 +91,8 @@ const COL = {
 
 /** The gizmo always keeps this many px between itself and the viewport edges. */
 const MARGIN = 25;
+/** Extra px between the balls' (or the north marker's) outer edge and the viewport edge. */
+const BALLS_EDGE_GAP = 6;
 
 const deg = (rad: number) => (rad * 180) / Math.PI;
 
@@ -95,10 +118,21 @@ export class ViewGizmo {
   private resizeObserver: ResizeObserver;
   private visual = true;
   private stage!: HTMLDivElement;
+  // navigation gizmo: the axis balls' hit layer, the cube's north-marker hit
+  // zone and the style-switch gesture (the renderer draws both styles)
+  private balls!: AxisBallLayer;
+  private markerHit!: HTMLDivElement;
+  private style: NavGizmoStyle = 'cube';
+  private northAngle: number | null = null;
+  private size: number;
+  private opts: ViewGizmoOptions;
+  private offGestures: () => void = () => {};
 
   constructor(container: HTMLElement, opts: ViewGizmoOptions = {}) {
     this.container = container;
+    this.opts = opts;
     const S = opts.size ?? 72;
+    this.size = S;
     const c = S * 0.16; // chamfer width
     this.pos = { ...(opts.position ?? { right: 12, bottom: 12 }) };
 
@@ -185,7 +219,7 @@ export class ViewGizmo {
         }
         opts.onHover?.(null);
       });
-      el.addEventListener('click', () => opts.onPick?.(pick));
+      el.addEventListener('click', (e) => opts.onPick?.({ ...pick, isShift: e.shiftKey }));
       this.cube.appendChild(el);
       return el;
     };
@@ -297,11 +331,27 @@ export class ViewGizmo {
     this.root.append(handle, stage);
     container.appendChild(this.root);
     this.stage = stage;
+    stage.style.position = 'relative';
+    this.balls = new AxisBallLayer(stage, S, { onPick: opts.onPick, onHover: opts.onHover, onOrbit: opts.onOrbit });
+    this.markerHit = this.createMarkerHit(S);
+    if (opts.onToggleStyle) {
+      this.offGestures = attachStyleToggle(stage, opts.onToggleStyle);
+    }
 
     // If the viewport shrinks (panel resize, dock rearrange), pull the gizmo
     // back inside rather than letting it get clipped away.
     this.resizeObserver = new ResizeObserver(() => this.clamp());
     this.resizeObserver.observe(container);
+  }
+
+  /** Gap kept to the viewport edges: the axis balls and the cube's north
+   *  marker reach past the stage box, so they need more room than the cube. */
+  private edgeMargin(): number {
+    const reach = this.style === 'balls' ? AXIS_REACH : this.isMarkerShown() ? MARKER_REACH : 0;
+    if (reach === 0) {
+      return MARGIN;
+    }
+    return Math.max(MARGIN, Math.ceil((reach - 0.5) * this.size) + BALLS_EDGE_GAP);
   }
 
   /** Keep the gizmo fully inside the container. */
@@ -311,11 +361,9 @@ export class ViewGizmo {
       return; // hidden tab — leave as-is
     }
     const rect = this.root.getBoundingClientRect();
-    this.pos.right = Math.min(Math.max(MARGIN, this.pos.right), Math.max(MARGIN, bounds.width - rect.width - MARGIN));
-    this.pos.bottom = Math.min(
-      Math.max(MARGIN, this.pos.bottom),
-      Math.max(MARGIN, bounds.height - rect.height - MARGIN),
-    );
+    const m = this.edgeMargin();
+    this.pos.right = Math.min(Math.max(m, this.pos.right), Math.max(m, bounds.width - rect.width - m));
+    this.pos.bottom = Math.min(Math.max(m, this.pos.bottom), Math.max(m, bounds.height - rect.height - m));
     this.root.style.right = `${this.pos.right}px`;
     this.root.style.bottom = `${this.pos.bottom}px`;
   }
@@ -344,6 +392,81 @@ export class ViewGizmo {
       this.lastTransform = transform;
       this.cube.style.transform = transform;
     }
+    const basis = basisFromQuat(q);
+    this.balls.update(basis);
+    this.placeMarker(basis);
+  }
+
+  /** Show the cube's hit zones or the axis balls' (the renderer draws either). */
+  setStyle(style: NavGizmoStyle) {
+    if (style === this.style) {
+      return;
+    }
+    this.style = style;
+    this.cube.style.display = style === 'cube' ? '' : 'none';
+    this.balls.setActive(style === 'balls');
+    this.opts.onHover?.(null);
+    this.markerHit.style.display = this.isMarkerShown() ? '' : 'none';
+    this.clamp(); // the balls need more room from the edges than the cube
+  }
+
+  setSnapDots(set: SnapDotSet) {
+    this.balls.setSnapDots(set);
+  }
+
+  /** The cube's true-north marker at `angleDeg` (clockwise from +Y), or none. */
+  setNorthMarker(angleDeg: number | null) {
+    const wasShown = this.isMarkerShown();
+    this.northAngle = angleDeg;
+    this.markerHit.style.display = this.isMarkerShown() ? '' : 'none';
+    if (wasShown !== this.isMarkerShown()) {
+      this.clamp();
+    }
+  }
+
+  /** The axis balls' snap dots should show (pointer over them, or a recent tap). */
+  isDotsRevealed(now: number): boolean {
+    return this.style === 'balls' && this.balls.isRevealed(now);
+  }
+
+  private isMarkerShown(): boolean {
+    return this.style === 'cube' && this.northAngle !== null;
+  }
+
+  /** The marker's hit zone: a small square kept over the painted chip. */
+  private createMarkerHit(S: number): HTMLDivElement {
+    const el = document.createElement('div');
+    el.dataset.gizmoPick = 'north';
+    const d = MARKER_CHIP * S + 6;
+    Object.assign(el.style, {
+      position: 'absolute',
+      width: `${d}px`,
+      height: `${d}px`,
+      zIndex: '1',
+      display: 'none',
+      cursor: 'pointer',
+    } satisfies Partial<CSSStyleDeclaration>);
+    const pick = (isShift: boolean): GizmoPick => ({
+      kind: 'north',
+      id: 'north',
+      direction: [...northDirection(this.northAngle ?? 0)],
+      isShift,
+    });
+    el.addEventListener('pointerenter', () => this.opts.onHover?.(pick(false)));
+    el.addEventListener('pointerleave', () => this.opts.onHover?.(null));
+    el.addEventListener('click', (e) => this.opts.onPick?.(pick(e.shiftKey)));
+    this.stage.appendChild(el);
+    return el;
+  }
+
+  private placeMarker(basis: GizmoBasis) {
+    if (!this.isMarkerShown() || this.northAngle === null) {
+      return;
+    }
+    const m = northMarkerPoint(basis, this.northAngle);
+    const d = MARKER_CHIP * this.size + 6;
+    this.markerHit.style.left = `${this.size / 2 + m.x * this.size - d / 2}px`;
+    this.markerHit.style.top = `${this.size / 2 + m.y * this.size - d / 2}px`;
   }
 
   /** Uniform face font: always sized to the MAX_LABEL_CHARS cap, so a short
@@ -384,14 +507,15 @@ export class ViewGizmo {
     const onMove = (ev: PointerEvent) => {
       const bounds = this.container.getBoundingClientRect();
       const rect = this.root.getBoundingClientRect();
+      const m = this.edgeMargin();
       // dragging right (clientX up) reduces the offset from the right edge
       this.pos.right = Math.min(
-        Math.max(MARGIN, start.right - (ev.clientX - start.x)),
-        Math.max(MARGIN, bounds.width - rect.width - MARGIN),
+        Math.max(m, start.right - (ev.clientX - start.x)),
+        Math.max(m, bounds.width - rect.width - m),
       );
       this.pos.bottom = Math.min(
-        Math.max(MARGIN, start.bottom - (ev.clientY - start.y)),
-        Math.max(MARGIN, bounds.height - rect.height - MARGIN),
+        Math.max(m, start.bottom - (ev.clientY - start.y)),
+        Math.max(m, bounds.height - rect.height - m),
       );
       this.root.style.right = `${this.pos.right}px`;
       this.root.style.bottom = `${this.pos.bottom}px`;
@@ -406,6 +530,8 @@ export class ViewGizmo {
   };
 
   dispose() {
+    this.offGestures();
+    this.balls.dispose();
     this.resizeObserver.disconnect();
     this.root.remove();
   }
