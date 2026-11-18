@@ -24,6 +24,7 @@ export function ClipPlanePositionGroups() {
             label="Center"
             tooltip={`Center the ${axis.toUpperCase()} plane on the last clicked point`}
             disabled={!s[axis].enabled}
+            shortcut={`clip.plane.${axis}.center`}
             onClick={() => act.center(axis)}
           />
         ))}

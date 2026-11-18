@@ -1,27 +1,42 @@
-import { IconCube, IconFolder } from '@tabler/icons-react';
-import { SegmentedControl, TextInput, TreeView, type TreeViewRow } from '@treDeSpaceUI/widgets';
-import { useEffect, useState } from 'react';
-import { db } from '../../../state/viewer/db';
+import { IconCube, IconFolder, IconStack2 } from '@tabler/icons-react';
+import {
+  Badge,
+  Button,
+  SegmentedControl,
+  type SegmentedOption,
+  TextInput,
+  TreeView,
+  type TreeViewRow,
+} from '@treDeSpaceUI/widgets';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { keyOf } from './hierarchyModel';
+import { type MatchMode, type SearchResult, useHierarchySearch } from './useHierarchySearch';
 
-export type SearchResult = { model: number; entry: number; name: string; path: number[]; group?: string };
-
-const SEARCH_DEBOUNCE_MS = 200;
-const MAX_RESULTS = 10;
-const MIN_QUERY_LEN = 2;
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
 
 /** The two name-match modes — the same pair the asset search offers. */
 const MATCH_MODES = [
   { value: 'contains', label: '*', tooltip: 'Contains — any part of the name matches' },
   { value: 'exact', label: '=', tooltip: 'Equals — whole-string match' },
-] as const;
+] as const satisfies readonly SegmentedOption<MatchMode>[];
 
-type MatchMode = (typeof MATCH_MODES)[number]['value'];
+const DISTINCT_TOOLTIP =
+  'One row per name — a name found several times shows once (×N); clicking it selects every copy and jumps to the first';
 
-/** One result row: a folder, a model root, or a deeper entry. */
+// -----------------------------------------------------------------------------
+// Helper functions
+// -----------------------------------------------------------------------------
+
+const resultKey = (r: SearchResult): string => r.group ?? keyOf(r.model, r.entry);
+
+/** One result row: a folder, a model root, or a deeper entry — with the copy
+ *  count when one row stands for several entries of the same name. */
 function toTreeRow(r: SearchResult): TreeViewRow {
+  const copies = r.count ?? 1;
   return {
-    key: r.group ?? keyOf(r.model, r.entry),
+    key: resultKey(r),
     depth: 0,
     label: r.group ? (r.group.split('/').pop() ?? r.name) : r.name,
     icon: r.group ? (
@@ -29,49 +44,53 @@ function toTreeRow(r: SearchResult): TreeViewRow {
     ) : (
       <IconCube size={14} className={`shrink-0 ${r.path.length === 1 ? 'text-sky-400/80' : 'text-slate-600'}`} />
     ),
+    trailing: copies > 1 ? <Badge tooltip={`${copies} items share this name`}>×{copies}</Badge> : undefined,
   };
 }
 
-/** Debounced worker-side name search (top-10, shallowest level first) with its
- *  match-mode toggle and result list. */
-export function HierarchySearch({ onPick }: { onPick: (r: SearchResult) => void }) {
-  const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<MatchMode>('contains');
-  const [results, setResults] = useState<SearchResult[] | null>(null);
+/** Name search over the loaded models: match mode, one-per-name toggle and
+ *  the result list. A click picks a result; Ctrl/⌘ marks the pick additive. */
+export function HierarchySearch({ onPick }: { onPick: (r: SearchResult, additive: boolean) => void }) {
+  const search = useHierarchySearch();
+  const byKey = new Map((search.results ?? []).map((r) => [resultKey(r), r]));
 
-  useEffect(() => {
-    if (query.trim().length < MIN_QUERY_LEN) {
-      setResults(null);
-      return;
+  // -----------------------------------------------------------------------------
+  // Event handlers
+  // -----------------------------------------------------------------------------
+
+  const handleRowClick = (row: TreeViewRow, e: ReactMouseEvent): void => {
+    const r = byKey.get(row.key);
+    if (r) {
+      onPick(r, e.ctrlKey || e.metaKey);
     }
-    const t = setTimeout(() => {
-      void db.search(query, mode === 'exact' ? 'equals' : 'contains', MAX_RESULTS).then(setResults);
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [query, mode]);
+  };
 
-  const byKey = new Map((results ?? []).map((r) => [r.group ?? keyOf(r.model, r.entry), r]));
+  // -----------------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------------
 
   return (
     <>
       <div className="mb-1 flex shrink-0 items-center gap-1">
         <div className="relative min-w-0 flex-1">
-          <TextInput type="search" value={query} onChange={setQuery} placeholder="Search items…" />
+          <TextInput type="search" value={search.query} onChange={search.setQuery} placeholder="Search items…" />
         </div>
-        <SegmentedControl value={mode} options={MATCH_MODES} onChange={setMode} />
+        <SegmentedControl value={search.mode} options={MATCH_MODES} onChange={search.setMode} />
+        <Button
+          iconOnly
+          icon={<IconStack2 />}
+          active={search.isDistinct}
+          tooltip={DISTINCT_TOOLTIP}
+          onClick={search.toggleDistinct}
+        />
       </div>
-      {results !== null && (
+      {search.results !== null && (
         <TreeView
           className="mb-1 max-h-56 shrink-0 border-slate-800 border-b pb-1"
-          rows={results.map(toTreeRow)}
+          rows={search.results.map(toTreeRow)}
           padLeft={8}
           emptyText="No matches."
-          onRowClick={(t) => {
-            const r = byKey.get(t.key);
-            if (r) {
-              onPick(r);
-            }
-          }}
+          onRowClick={handleRowClick}
         />
       )}
     </>

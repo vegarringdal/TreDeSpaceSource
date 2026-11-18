@@ -37,6 +37,7 @@ import { openMultiColorPanel } from '../components/panels/multi-color/multiColor
 import { ribbonClippingBoxActions as clipbox } from '../components/panels/ribbon-clipping-box/ribbonClippingBox.actions';
 import { ribbonClippingBoxState } from '../components/panels/ribbon-clipping-box/ribbonClippingBox.state';
 import { ribbonClippingPlaneActions as plane } from '../components/panels/ribbon-clipping-plane/ribbonClippingPlane.actions';
+import { ribbonClippingPlaneState } from '../components/panels/ribbon-clipping-plane/ribbonClippingPlane.state';
 import { ribbonHomeActions as home } from '../components/panels/ribbon-home/ribbonHome.actions';
 import { toggleKiosk, toggleSoloPanels } from '../components/panels/ribbon-home/soloPanels';
 import { ribbonMeasurementsActions as measure } from '../components/panels/ribbon-measurements/ribbonMeasurements.actions';
@@ -44,6 +45,7 @@ import { PANEL_TOGGLES, panelToggleHotkeyId, togglePanelById } from '../componen
 import { ribbonSelectionColorActions as colorNum } from '../components/panels/ribbon-selection-color/ribbonSelectionColor.actions';
 import { ribbonSelectionColorState } from '../components/panels/ribbon-selection-color/ribbonSelectionColor.state';
 import { ribbonSelectionTransformActions as tx } from '../components/panels/ribbon-selection-transform/ribbonSelectionTransform.actions';
+import { ribbonSelectionTransformState } from '../components/panels/ribbon-selection-transform/ribbonSelectionTransform.state';
 import { logMeshletFill } from '../components/panels/settings/rendering/fillStats';
 import { resetSection, SETTINGS_SECTION_IDS, SETTINGS_SECTIONS } from '../components/panels/settings/sectionResets';
 import { settingsActions } from '../components/panels/settings/settings.actions';
@@ -220,6 +222,24 @@ export const HOTKEYS: HotkeyDef[] = [
     defaultKeys: 'ALT 122',
     description: 'Toggle placing the pivot on the next clicked item',
     run: () => tx.togglePivotFromItem(),
+  },
+  {
+    id: 'transform.pivot.lock',
+    category: 'Transform',
+    label: 'Lock pivot',
+    defaultKeys: 'ALT 127',
+    description: "While placing the pivot: keep this position — it becomes the object's pivot",
+    context: () => ribbonSelectionTransformState.get().pivotSetting,
+    run: () => tx.lockPivot(),
+  },
+  {
+    id: 'transform.pivot.cancel',
+    category: 'Transform',
+    label: 'Cancel pivot placement',
+    defaultKeys: 'ALT 128',
+    description: 'While placing the pivot: discard this placement — the pivot stays where it was',
+    context: () => ribbonSelectionTransformState.get().pivotSetting,
+    run: () => tx.cancelPivot(),
   },
   {
     id: 'transform.moveToClick',
@@ -2913,6 +2933,15 @@ export const HOTKEYS: HotkeyDef[] = [
       description: `Show the ${axis.toUpperCase()} plane's transform tool in the viewport`,
       run: () => plane.toggleGizmo(axis),
     },
+    {
+      id: `clip.plane.${axis}.center`,
+      category: 'Clipping',
+      label: `Plane ${axis.toUpperCase()}: center`,
+      defaultKeys: `ALT ${3001 + i}`,
+      description: `Center the ${axis.toUpperCase()} plane on the last clicked point (only while the plane is on)`,
+      context: () => ribbonClippingPlaneState.get()[axis].enabled,
+      run: () => plane.center(axis),
+    },
   ]),
   {
     id: 'clip.plane.resetAll',
@@ -3005,6 +3034,43 @@ export const HOTKEYS: HotkeyDef[] = [
     description: 'Toggle 3-axis / 6-axis box scaling',
     run: () => clipbox.toggleSixAxis(),
   },
+  // per-face grids in the ribbon's face order — grow 3300..3305,
+  // shrink 3310..3315, move 344..349
+  ...(
+    [
+      ['L', 'left'],
+      ['R', 'right'],
+      ['F', 'front'],
+      ['B', 'back'],
+      ['Bt', 'bottom'],
+      ['T', 'top'],
+    ] as const
+  ).flatMap(([key, face], i) => [
+    {
+      id: `clip.box.grow.${key}`,
+      category: 'Clipping',
+      label: `Box: grow ${face}`,
+      defaultKeys: `ALT ${3300 + i}`,
+      description: `Grow the box through its ${face} face by one step`,
+      run: () => clipbox.resize(`${key}+`),
+    },
+    {
+      id: `clip.box.shrink.${key}`,
+      category: 'Clipping',
+      label: `Box: shrink ${face}`,
+      defaultKeys: `ALT ${3310 + i}`,
+      description: `Shrink the box through its ${face} face by one step`,
+      run: () => clipbox.resize(`${key}-`),
+    },
+    {
+      id: `clip.box.move.${key}`,
+      category: 'Clipping',
+      label: `Box: move ${face}`,
+      defaultKeys: `ALT ${344 + i}`,
+      description: `Move the whole box one step toward ${face}`,
+      run: () => clipbox.move(key),
+    },
+  ]),
 
   // — Clip shapes (34x) —
   {

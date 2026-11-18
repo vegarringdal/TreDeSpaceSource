@@ -1,9 +1,11 @@
 # XR — WebXR VR/AR for the WebGPU viewer (PLANNED, not scheduled)
 
-> **Status: design capture, 2026-07-26.** Direction agreed with the director;
-> no implementation started. Phase 1 (the spike) is deliberately small and can
-> be scheduled any time; phases 2-3 need a director-approved plan first. File
-> references were accurate when written — **re-verify at implementation time**.
+> **Status: design capture, 2026-07-26; platform status re-checked
+> 2026-11-17** (from web sources, nothing tested by us). Direction agreed with
+> the director; no implementation started. Phase 1 (the spike) is deliberately
+> small and can be scheduled any time; phases 2-3 need a director-approved
+> plan first. File references were accurate when written — **re-verify at
+> implementation time**.
 
 ## Goal / motivation
 
@@ -15,29 +17,57 @@ Two product stories, in priority order:
 2. **On-site AR alignment** — passthrough AR on location, overlay the CAD
    model on the real construction, and nudge it into alignment with the real
    object (the director's "lock button" idea, below). This is the long-game
-   story; it needs untethered hardware (Quest standalone / phone) which our
-   renderer can't target yet (see device matrix).
+   story; it needs untethered hardware (Quest standalone / phone). The
+   browsers there now have an experimental path and the renderer has a
+   fallback draw path, but nobody has measured whether a mobile chip is fast
+   enough (see device matrix).
 
-## Platform status (checked 2026-07-26)
+## Platform status (checked 2026-11-17; first written 2026-07-26)
 
-WebXR was WebGL-only for years; that has changed:
+WebXR was WebGL-only for years; that has changed. **Everything we could use
+is still behind flags** — nothing below was tested by us.
 
 - The **[WebXR/WebGPU Binding](https://immersive-web.github.io/WebXR-WebGPU-Binding/)**
   is an official Editor's Draft (June 2026). `XRGPUBinding` + WebGPU-backed
-  projection layers replace `XRWebGLLayer`. Per-platform (2026-07-26, per
-  three.js #32858 + blink-dev): **Vision Pro Safari = shipped** (only
-  unflagged impl; irrelevant to us — no multi-draw indirect); **Chrome
-  Windows / Android XR = experimental** behind flags ("WebXR Projection
-  Layers" + "WebXR/WebGPU Bindings", since Canary 135) — only an Intent to
-  Prototype (Aug 2024) exists, **no Intent to Ship filed**, so no stable
-  milestone is announced (realistically 2027+); **Meta Quest browser = not
-  implemented at all**. We already require experimental flags (multi-draw
-  indirect), so flagged Chrome is not a new constraint for v1.
-- **three.js dev branch has a native WebGPU XR path** and is our best
-  reference implementation: `src/renderers/common/XRManager.js` (session
-  lifecycle, layer creation, per-view loop, fallback chain), plus examples
+  projection layers replace `XRWebGLLayer`. Per platform:
+  - **Chrome Windows — behind flags.** Experimental since Canary 135. The
+    feature was still `FEATURE_DISABLED_BY_DEFAULT` in Chromium source on
+    2026-10-05; only the Intent to Prototype (Aug 2024) exists, **no Intent
+    to Ship**. In Chromium 154 it was reported as not listed in
+    `chrome://flags` and enabled with
+    `--enable-features=WebXRGPUBinding,WebXRLayers` — check the current way
+    at spike time.
+  - **Chrome Android XR (Galaxy XR) — experimental** (stated January 2026;
+    nothing newer found).
+  - **Meta Quest browser — behind a flag, no longer absent.** Experimental
+    since Quest Browser 146 (spring 2026): turn on *WebXR experimental
+    features* (plus the WebGPU entries) in `chrome://flags` and restart the
+    browser. A third-party test on a Quest 3 with browser 154 (2026-10-18)
+    reports the VR session running on `XRGPUBinding`; without the flags it
+    falls back to WebGL 2. (The July version of this plan said "not
+    implemented at all" — that was already out of date.)
+  - **Steam Frame** (Valve's standalone / streaming headset, launched
+    2026-09-14): its own browser got WebXR in the SteamOS 0.5.7 beta
+    (Chromium 157+, early November 2026). Nothing found on the WebGPU binding
+    there.
+  - **Vision Pro Safari — shipped**, the only unflagged implementation;
+    irrelevant to us.
+  - **Chrome on Linux — no official WebXR at all**; only a community patch
+    (`mrxz/webxr-linux`). A PCVR spike needs a Windows PC.
+- **Multi-draw indirect is still Chrome-experimental**
+  (`chromium-experimental-multi-draw-indirect`, behind "Unsafe WebGPU"). A
+  secondary source says the gpuweb standards issue was closed as not planned,
+  and survey data shows it on almost no Android device. It is no longer a
+  hard requirement for us: the renderer falls back to the **vertex-pull
+  path** (GPU culling without multi-draw; what Android tablets already run),
+  which is slower per meshlet.
+- **Two reference implementations now.** three.js shipped WebXR over WebGPU
+  in r185: `src/renderers/common/XRManager.js` (session lifecycle, layer
+  creation, per-view loop, fallback chain), plus examples
   `webgpu_xr_cubes.html` (controller input) and `webgpu_xr_rollercoaster.html`
-  (locomotion/rig transforms). Their recipe, confirmed from source:
+  (locomotion/rig transforms). Babylon.js closed its WebXR-over-WebGPU work on
+  2026-09-01 (reported by a tracker, not checked in the repo). The three.js
+  recipe, confirmed from source in July:
   - request session with `optionalFeatures: ['webgpu']`, check
     `session.enabledFeatures.includes('webgpu')`;
   - `new XRGPUBinding(session, device)` →
@@ -57,14 +87,18 @@ WebXR was WebGL-only for years; that has changed:
 
 | Target | Session | Feasible | Why |
 |---|---|---|---|
-| Desktop Chrome + PCVR (Quest Link / SteamVR) | `immersive-vr` | **v1** | Full `chromium-experimental-multi-draw-indirect`; the GPU we already target |
-| Quest standalone browser | `immersive-vr` / `immersive-ar` passthrough | later | WebGPU/WebXR binding **not implemented at all** (2026-07); plus almost certainly no multi-draw indirect on Adreno — needs both the browser to catch up and our non-MDI fallback draw path |
-| Android phone (ARCore Chrome) | `immersive-ar` | later | Same multi-draw problem; phone GPU |
+| Windows PC + Chrome, headset as display — wired or **wireless streaming** (Quest 3 / 3S over Air Link, Steam Link or Virtual Desktop; Steam Frame) | `immersive-vr` | **v1** | The browser and GPU are the PC's: full multi-draw indirect, the GPU class we already target. Flags on the PC only. Not on Linux |
+| Quest 3 standalone browser | `immersive-vr` / `immersive-ar` passthrough | **possible to try** | Binding behind a flag since Quest Browser 146. No multi-draw indirect on Adreno, so the vertex-pull path. Unknown: stereo at 72-90 Hz on a mobile chip with a dense model, and memory |
+| Steam Frame standalone browser | `immersive-vr` | unknown | WebXR only in a beta (Nov 2026); WebGPU binding status not found. As a streaming display it is the first row |
+| Galaxy XR (Android XR Chrome) | `immersive-vr` / `immersive-ar` | later | Binding experimental; same mobile-GPU questions as Quest |
+| Android phone (ARCore Chrome) | `immersive-ar` | later | Phone GPU; vertex-pull path |
 | iOS Safari | — | no | No AR-mode WebXR |
 
-The AR alignment story lands exactly on the hard row(s). **VR-first is the
-plan**: it builds all the XR plumbing; AR is then "add a non-MDI draw path +
-passthrough session mode", not a rewrite.
+The AR alignment story still lands on the hard rows, but they are no longer
+blocked by the browser or by a missing draw path — they are blocked by an
+unmeasured frame budget. **VR-first on a PC stays the plan**: it builds all
+the XR plumbing. A standalone Quest 3 test then costs little (same code,
+flags on the headset) and answers whether untethered is realistic.
 
 ## Renderer seams (what actually changes)
 
@@ -197,16 +231,26 @@ blocker — the spike exists to measure it.
 2. **Productize VR.** Enter/exit button (+hotkey/tooltip), start-from-camera,
    in-session settings preset (TAA→MSAA, VBAO/edges policy), controllers
    (pick, locomotion), lock button, desktop mirror, session teardown polish.
-3. **AR / untethered (separate plan).** Non-multi-draw fallback draw path
-   (big — it's a second draw architecture), `immersive-ar` passthrough,
-   phone/Quest profiling, alignment persistence. Do not start without a
-   director-approved plan; the fallback path is the real cost.
+3. **AR / untethered (separate plan).** Starts with a measurement: the
+   phase-1 build in the Quest 3 browser (flags on), on the vertex-pull path —
+   frame time on a small and on the dense model. The fallback draw path this
+   plan once listed as the big cost already exists; the cost is now making
+   stereo fast enough on a mobile chip (resolution scale, foveation, a
+   lighter preset, maybe a model-size limit). Then `immersive-ar`
+   passthrough, phone profiling, alignment persistence. Do not start without
+   a director-approved plan.
 
 ## Risks / open questions
 
-- **Flag/rollout drift**: which Chrome channel ships `XRGPUBinding` unflagged,
-  and does it reach stable while multi-draw indirect is still experimental?
-  (Both must be on simultaneously for us.)
+- **Flag/rollout drift**: no browser we can use ships `XRGPUBinding`
+  unflagged (2026-11), and the way to turn it on has changed between
+  versions. On a PC, multi-draw indirect must be on at the same time; a
+  headset browser runs without it on the vertex-pull path.
+- **Windows only**: Chrome has no official WebXR on Linux, so the spike
+  cannot run on a Linux workstation.
+- **Standalone frame budget**: stereo at 72-90 Hz on a mobile chip over the
+  vertex-pull path (a fixed vertex count per meshlet) — unmeasured; this
+  decides the whole untethered / AR story.
 - **Frame budget**: 2× scene at 90 Hz on the dense model — spike measures.
 - **Texture-copy overhead**: Chrome's early binding impl had an internal copy
   (toji.dev, 2025) — may or may not still exist; shows up in spike numbers.
@@ -226,5 +270,11 @@ blocker — the spike exists to measure it.
 - Spec: <https://immersive-web.github.io/WebXR-WebGPU-Binding/>
 - Explainer + samples: immersive-web GitHub (`WebXR-WebGPU-Binding` repo)
 - toji.dev: <https://toji.dev/2025/03/03/experimenting-with-webgpu-in-webxr.html>
-- three.js reference impl: `src/renderers/common/XRManager.js` (dev branch),
+- three.js reference impl (r185): `src/renderers/common/XRManager.js`,
   examples `webgpu_xr_cubes.html`, `webgpu_xr_rollercoaster.html`
+- Status sources, 2026-11-17: three.js issue #32858; immersive-web
+  `WebXR-WebGPU-Binding` issue #14 (Quest, closed completed 2026-05-05);
+  `Mandalorian007/quest-webgpu-webxr-experiment` (Quest 3, browser 154,
+  flags and restart); `davtamay/Godot_WebGPU` landscape watch (Chromium
+  source check); web3dsurvey.com (multi-draw indirect per platform);
+  `mrxz/webxr-linux` (Linux patch)

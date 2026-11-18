@@ -1,8 +1,10 @@
-// Tree / naming domain: tree nodes for the hierarchy panel, name search, the
-// fullname resolvers over the global index, and root→leaf path helpers.
+// Tree / naming domain: tree nodes for the hierarchy panel, name search (in
+// nameSearch.ts), the fullname resolvers over the global index, and root→leaf
+// path helpers.
 import { type DbModel, models, NO_PARENT, type TreeNode } from './dbState';
 import { ensureGlobalIndex, hitEntry, hitModel, liveHits } from './globalNameIndex';
-import { ensureNames, entryDepths, entryName, itemForId, itemsUnder, stateAggregates } from './hierarchyIndex';
+import { entryDepths, entryName, itemForId, itemsUnder, stateAggregates } from './hierarchyIndex';
+import { type NameMatchMode, type SearchHit, searchNames } from './nameSearch';
 import { transforms } from './transformPool';
 
 /** Label-anchor snap: if `c` lies inside NO item's AABB (a bent run whose
@@ -161,83 +163,10 @@ export const treeApi = {
     };
   },
 
-  /** Case-insensitive name search. mode "contains" or "equals"; results are
-   * sorted shallowest-first (highest hierarchy level wins) and capped. */
-  search(
-    text: string,
-    mode: 'contains' | 'equals' = 'contains',
-    limit = 10,
-  ): { model: number; entry: number; name: string; path: number[]; depth: number; group?: string }[] {
-    let q = text.trim().toLowerCase();
-    if (q.replaceAll('*', '').length < 2) {
-      return [];
-    }
-    // equals mode supports * wildcards: "*86A" ends-with, "86A*" starts-with,
-    // "*86A*" contains, plain = exact match
-    const startsWild = q.startsWith('*');
-    const endsWild = q.endsWith('*');
-    if (mode === 'equals') {
-      q = q.replace(/^\*+|\*+$/g, '');
-    }
-    const matches = (n: string): boolean => {
-      if (mode === 'contains') {
-        return n.includes(q);
-      }
-      if (startsWild && endsWild) {
-        return n.includes(q);
-      }
-      if (startsWild) {
-        return n.endsWith(q);
-      }
-      if (endsWild) {
-        return n.startsWith(q);
-      }
-      return n === q;
-    };
-    const found: { model: number; entry: number; name: string; path: number[]; depth: number; group?: string }[] = [];
-    // import folders first: every path level of every group is searchable, so
-    // "TP000" finds the TP000-ELECTRO folder as well as items named that way
-    const groupPaths = new Set<string>();
-    for (const m of models) {
-      if (m.removed) {
-        continue;
-      }
-      let p = '';
-      for (const seg of m.group.split('/')) {
-        p = p ? `${p}/${seg}` : seg;
-        groupPaths.add(p);
-      }
-    }
-    for (const p of groupPaths) {
-      const seg = p.split('/').pop() ?? p;
-      if (matches(seg.toLowerCase()) || matches(p.toLowerCase())) {
-        found.push({ model: -1, entry: -1, name: p, path: [], depth: 0, group: p });
-      }
-    }
-    const SCAN_CAP = 5000; // enough candidates to pick the 10 shallowest from
-    for (let mi = 0; mi < models.length && found.length < SCAN_CAP; mi++) {
-      const m = models[mi];
-      // tombstoned (unloaded) slots keep their hierarchy for a possible revive
-      // but must not surface in search
-      if (m.removed) {
-        continue;
-      }
-      const namesLower = ensureNames(m);
-      for (let e = 0; e < namesLower.length && found.length < SCAN_CAP; e++) {
-        if (!matches(namesLower[e])) {
-          continue;
-        }
-        const path: number[] = [];
-        let p = e;
-        while (p !== NO_PARENT) {
-          path.unshift(p);
-          p = m.hierarchy.entryParent[p];
-        }
-        found.push({ model: mi, entry: e, name: entryName(m, e), path, depth: path.length });
-      }
-    }
-    found.sort((a, b) => a.depth - b.depth || a.name.localeCompare(b.name));
-    return found.slice(0, limit);
+  /** Case-insensitive name search for the hierarchy panel — see searchNames.
+   *  `distinct` = one row per name (shallowest copy) with its `count`. */
+  search(text: string, mode: NameMatchMode = 'contains', limit = 10, distinct = false): SearchHit[] {
+    return searchNames(text, mode, limit, distinct);
   },
 
   /** Label import: resolve pasted tag names to world anchor points (subtree

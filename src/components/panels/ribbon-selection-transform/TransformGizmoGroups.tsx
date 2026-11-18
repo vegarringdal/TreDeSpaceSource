@@ -56,6 +56,7 @@ export function TransformGizmoGroups() {
               icon={<IconLock />}
               label="Lock"
               tooltip="Keep this pivot position — it becomes the object's pivot: rotate and scale turn around it"
+              shortcut="transform.pivot.lock"
               onClick={act.lockPivot}
             />
             <RibbonButton
@@ -63,6 +64,7 @@ export function TransformGizmoGroups() {
               icon={<IconX />}
               label="Cancel"
               tooltip="Discard this placement — the pivot stays where it was"
+              shortcut="transform.pivot.cancel"
               onClick={act.cancelPivot}
             />
             <RibbonButton

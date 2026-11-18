@@ -1,16 +1,17 @@
 import { IconPalette, IconRestore } from '@tabler/icons-react';
-import { usePanelContext } from '@treDeSpaceUI/dockable';
 import { RibbonButton, RibbonSection } from '@treDeSpaceUI/widgets';
 import { selectionState } from '../../../state/viewer/selection.state';
 import { viewerActions as act } from '../../../state/viewer/viewer.actions';
 import { quickColorsState } from '../quick-colors/quickColors.state';
+import { panelToggleHotkeyId, togglePanelById } from '../ribbon-panels/panelToggle';
 import { ribbonSelectionColorState } from './ribbonSelectionColor.state';
 
+const COLOR_PANEL_ID = 'quickColors';
+
 /** The quick-color palette (applied with the quick-opacity value), color
- *  resets and the Color Panel opener. */
+ *  resets and the Color Panel toggle. */
 export function ColorQuickColoringGroup() {
   const { colors } = quickColorsState.use();
-  const { manager } = usePanelContext();
   const { quickOpacity } = ribbonSelectionColorState.use();
   const none = selectionState.use().count === 0;
 
@@ -48,8 +49,9 @@ export function ColorQuickColoringGroup() {
         size="mini"
         icon={<IconPalette />}
         label="Panel"
-        tooltip="Open the Color Panel (swatches, manual color, opacity)"
-        onClick={() => manager.openPanel('quickColors', 'left')}
+        tooltip="Show / hide the Color Panel (swatches, manual color, opacity)"
+        shortcut={panelToggleHotkeyId(COLOR_PANEL_ID)}
+        onClick={() => togglePanelById(COLOR_PANEL_ID)}
       />
     </RibbonSection>
   );

@@ -78,13 +78,14 @@ async function captureHierarchy(ctx) {
     marks: [
       { n: 1, el: { ...HI, css: 'input[type="search"]' } },
       { n: 2, el: { ...HI, tooltip: 'Contains' }, at: 'tr' },
-      { n: 3, el: { ...HI, tooltip: 'Fly to selection' } },
-      { n: 4, el: { ...HI, tooltip: 'Focus last click' }, at: 'bl' },
-      { n: 5, el: { ...HI, tooltip: 'Go to last click' } },
-      { n: 6, el: { ...HI, tooltip: 'Focus selection' }, at: 'bl' },
-      { n: 7, el: { ...HI, tooltip: 'Fit visible' } },
-      { n: 8, el: { ...HI, tooltip: 'Collapse the whole tree' }, at: 'bl' },
-      { n: 9, el: { ...HI, tooltip: 'Model order' } },
+      { n: 3, el: { ...HI, tooltip: 'One row per name' }, at: 'tr' },
+      { n: 4, el: { ...HI, tooltip: 'Fly to selection' } },
+      { n: 5, el: { ...HI, tooltip: 'Focus last click' }, at: 'bl' },
+      { n: 6, el: { ...HI, tooltip: 'Go to last click' } },
+      { n: 7, el: { ...HI, tooltip: 'Focus selection' }, at: 'bl' },
+      { n: 8, el: { ...HI, tooltip: 'Fit visible' } },
+      { n: 9, el: { ...HI, tooltip: 'Collapse the whole tree' }, at: 'bl' },
+      { n: 10, el: { ...HI, tooltip: 'Model order' } },
     ],
   });
 
@@ -137,6 +138,7 @@ async function harvestAll(ctx) {
     rename: {
       'Contains —': 'Contains (*)',
       'Equals —': 'Equals (=)',
+      'One row per name': 'One row per name',
       'Fly to selection': 'Fly to selection',
       'Focus last click': 'Focus last click',
       'Go to last click': 'Go to last click',
@@ -153,7 +155,8 @@ async function harvestAll(ctx) {
       {
         section: '',
         label: 'Search items…',
-        tooltip: 'Type at least two letters of a name. Up to ten matches are listed, highest level first; click one to select it.',
+        tooltip:
+          'Type at least two letters of a name. Up to ten matches are listed, highest level first; click one to select it, Ctrl+click to add it to the selection.',
         first: true,
       },
     ],

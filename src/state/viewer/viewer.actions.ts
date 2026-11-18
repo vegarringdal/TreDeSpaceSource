@@ -478,13 +478,15 @@ export const viewerActions = {
    *  first hit). A name resolves in EVERY loaded model that carries it, so the
    *  same structure loaded twice selects both copies — matching what colouring
    *  the same list does. `append` keeps what is already selected and adds to
-   *  it — the host API's additive selection. `matched` counts the ENTRIES
+   *  it — the host API's additive selection. `focus` picks which hit is
+   *  revealed and made current (default the first resolved; ignored when it
+   *  is not among the hits). `matched` counts the ENTRIES
    *  selected, so it can exceed the number of names; `missed` lists the names
    *  that resolved to nothing — hosts driving the app over postMessage need
    *  those. */
   async selectByFullnames(
     names: string[],
-    opts: { append?: boolean } = {},
+    opts: { append?: boolean; focus?: { model: number; entry: number } } = {},
   ): Promise<{ matched: number; missed: string[] }> {
     const hits = await db.findEntriesByNames(names);
     const foundLower = new Set(hits.map((h) => h.name.toLowerCase().replace(/^\//, '')));
@@ -497,7 +499,8 @@ export const viewerActions = {
     }
     applyStateUpdates(await db.addSubtrees(hits.map((h) => ({ model: h.model, entry: h.entry }))));
     viewerState.set({ suppressTintOnOverride: false });
-    const first = hits[0];
+    const focus = opts.focus;
+    const first = (focus && hits.find((h) => h.model === focus.model && h.entry === focus.entry)) || hits[0];
     const keys = [...new Set(hits.map((h) => `${h.model}:${h.entry}`))];
     const reveal = { model: first.model, path: await db.pathForEntry(first.model, first.entry) };
     selectionState.set((prev) =>
