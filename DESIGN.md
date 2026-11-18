@@ -335,7 +335,17 @@ own. Key facts, kept here so the port history isn't lost:
     there, Shift for the opposite, and the top-view heading.
   - **Ball letters** are the face names' first letters (`faceLetters`).
   - **True north** (`northAngle`, clockwise from +Y) is only ever shown on
-    the cube. RVM keeps its axes, so plant north is +Y, the BACK face.
+    the cube. RVM keeps its axes, so plant north is +Y, the BACK face. The
+    marker (`gizmoNorthMarker`, off by default) is a round N chip with a
+    ground-plane pointer, painted in the cube palette (face / line / text,
+    sketch mode's too), so it never needs its own colour settings.
+  - **Ball background:** a see-through sphere behind the balls
+    (`gizmoBallsBgColor`, `gizmoBallsBgOpacity` in %), painted as a disc
+    with a radial gradient lit from the upper left.
+  - **Settings safety:** stored settings and settings files are not
+    validated on load, so `navGizmo.ts` reads the gizmo keys through
+    `enumOr` and clamps. A bad value falls back to its default instead of
+    leaving the drawing and the hit layer disagreeing.
 - **Assets / Import**: Model Assets + Import Manager panels over OPFS stores
   (`opfs.ts`; a store is a folder of cooked models, `stores.json`) — import,
   load / unload and organise cooked models. Unloading forgets a model's look

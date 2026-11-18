@@ -229,13 +229,15 @@ In order of precedence:
   also added to `viewerSettingsGroups.ts`, `sectionResets.ts`, Settings →
   Gizmo (`GizmoTab.tsx`), and `GizmoSettings` / `settingsGizmoSet` in
   `api/tredespace-client.ts` with JSDoc, plus the `settings.gizmo.set`
-  example in `EVENTS.md`. The build fails without the last two. Suggested
-  keys: `gizmoStyle` (`'cube' | 'balls'`), `gizmoSnaps` (`'iso' | 'all'`),
-  `gizmoDots` (`'hover' | 'always'`), `gizmoClick`
-  (`'viewFrom' | 'lookToward'`), `northAngle`, `compassLetters`,
-  `topViewHeading` (`'keep' | 'model' | 'north'`), `gizmoNorthMarker`,
-  `gizmoNorthArrow`. If the angle ends up as scene state, it moves out of
-  this list (open question 2).
+  example in `EVENTS.md`. The build fails without the last two. **Built
+  keys:** `gizmoStyle` (`'cube' | 'balls'`), `gizmoBallClick`
+  (`'viewFrom' | 'lookToward'`), `gizmoSnapDots` (`'iso' | 'all'`),
+  `topViewHeading` (`'keep' | 'model' | 'north'`), `northAngle`,
+  `gizmoNorthMarker`, `gizmoBallsBgColor` and `gizmoBallsBgOpacity`.
+  - **Not built:** an "always show dots" setting, compass letters and the
+    TOP-face arrow.
+  - If the angle ends up as scene state, it moves out of this list (open
+    question 1).
 - **Top/bottom heading:** `onPick` in `viewport.ts`, through a pure helper
   with a unit test. Looking down, the heading is the "up" vector. Looking
   up, it is the reverse, which gives a true view from below, not a mirror

@@ -7,6 +7,17 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.18** (>0.26.3):
+  User guide:
+  - F1 Home has a new *The navigation gizmo* section: the two styles,
+    switching them, the snap dots, Shift+click and moving the gizmo.
+  - The Hierarchy toolbar list now has *Temporary isolate*.
+  - Settings → Gizmo describes the new Navigation gizmo settings.
+  - The screenshot and clip-plane steps no longer assume the cube.
+
+  DESIGN.md and the gizmo plan list the settings as built. The guide's
+  screenshots (`npm run docs:shots`) still show the old Settings → Gizmo tab
+  and need a re-shoot.
+
   New `plans/future_events.md`: a backlog of host API commands and events
   to add later, each with sample code (SDK method, handler, EVENTS.md
   entry, host use). It starts with the temporary isolate command and event,
