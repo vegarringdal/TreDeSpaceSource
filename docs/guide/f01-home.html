@@ -164,8 +164,13 @@
             <li>Type part of the name in the <b>Search items…</b> box of the Hierarchy <span class="mk">1</span>. The matches appear right under it <span class="mk">2</span>.
               <figure class="shot" data-shot="f01-search"></figure>
             </li>
-            <li>Click a match. It is selected, and the tree opens down to it.</li>
+            <li>Click a match. It is selected, and the tree opens down to it. Hold <kbd>Ctrl</kbd> while you click to add the match to what is already selected instead; <kbd>Ctrl</kbd>+click it again to take it out.</li>
             <li>Press the <b>Fly to selection</b> button (<kbd>ALT 625</kbd>) to bring it into view.</li>
+          </ol>
+          <p>The same name can appear many times, for example when a model is loaded twice. To pick all of them at once:</p>
+          <ol class="steps">
+            <li>Turn on <b>One row per name</b>, the button to the right of <b>* / =</b>. Each name is now listed once, with <b>×3</b> (or how many there are) after it.</li>
+            <li>Click the name. Every item with that name is selected, and the tree opens down to the first one. <kbd>Ctrl</kbd>+click adds them all to the selection.</li>
           </ol>
 
           <h3 id="task-sketch">Make a sketch-style picture</h3>
@@ -189,8 +194,9 @@
           </p>
           <figure class="shot" data-shot="f01-hierarchy"></figure>
           <ol class="legend-list">
-            <li><b>Search items…</b> — type at least two letters of a name. Up to ten matches are listed, the highest level in the tree first. Folder names are found too. Upper and lower case do not matter.</li>
+            <li><b>Search items…</b> — type at least two letters of a name. Up to ten matches are listed, the highest level in the tree first. Folder names are found too. Upper and lower case do not matter. Click a match to select it; <kbd>Ctrl</kbd>+click adds it to the selection, or takes it out again.</li>
             <li><b>* / =</b> — how the search text is matched. <b>*</b> (Contains) finds the text anywhere in a name. <b>=</b> (Equals) needs the whole name; in this mode a <code class="inline">*</code> at the start or end of your text means "ends with" or "starts with".</li>
+            <li><b>One row per name</b> — lists a name found several times only once, with how many there are (<b>×3</b>). Clicking it selects every item with that name and opens the tree at the first one.</li>
             <li><b>Fly to selection</b> (<kbd>ALT 625</kbd>) — moves the camera so the selection fills the view. Greyed out when nothing is selected.</li>
             <li><b>Focus last click</b> (<kbd>O</kbd>) — makes the point you last clicked in 3D the centre of rotation; the camera stays where it is.</li>
             <li><b>Go to last click</b> (<kbd>G</kbd>) — flies to the point you last clicked in 3D.</li>

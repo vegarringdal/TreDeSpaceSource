@@ -16,6 +16,16 @@ Entries from before the stable pilot (0.26.1) have been removed.
   applies at once, and a frame at a stale size is never captured (this also
   covers video export frames).
 
+  Hierarchy search: Ctrl+click (⌘ on a Mac) on a match adds it to the
+  selection, or takes it out again, the same as Ctrl+click on a tree row;
+  the tree still opens at the match. A new **One row per name** toggle
+  right of `* / =` lists a name found several times only once, with a
+  `×N` count. Clicking it selects every item with that name, across all
+  loaded models, and opens the tree at the first (shallowest) one;
+  Ctrl+click adds them all. Duplicates are merged before the ten-row
+  limit, so they no longer push other matches off the list. The user
+  guide describes both.
+
 - **2026.11.17** (>0.26.2):
   Version gate (CI, no app change): moved from `ci.yml` into its own
   `version-gate.yml` on `pull_request_target`, so main's copy always runs
