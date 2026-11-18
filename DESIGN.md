@@ -291,6 +291,19 @@ own. Key facts, kept here so the port history isn't lost:
   Children are A–Z; the *Model order* toggle (`viewerState.treeModelOrder`,
   2026-10-21) keeps the model file's order from model level 3 down (below
   site / zone — `MODEL_ORDER_FROM_LEVEL`, passed to `treeApi.children`).
+- **Temporary isolate** (2026-11-18, Hierarchy toolbar, `ALT 805`,
+  `modeldb/tempIsolate.ts`): isolates the selection, and switching it off
+  puts back exactly what that isolate changed.
+  - **How it remembers:** it keeps the state-undo RLE captures from before
+    and after the isolate (`captureColorRuns`) and compares their hidden
+    bits. What the isolate hid is shown again; selected items it had to
+    show are hidden again.
+  - **Only the hidden bit changes,** so colours set and parts hidden while
+    isolated stay.
+  - **Undo:** on and off are one undo step each, like Isolate.
+  - **When the record is dropped:** forgetting or clearing models, or
+    applying a snapshot, drops it; `viewerActions.syncTempIsolate` keeps the
+    button honest.
 - **Scene Labels** (`LabelOverlay.ts`, `labels/` panel): world-anchored,
   draggable DOM text labels with leader lines (same projection path as the
   measurement overlay). Native has this only as backlog (its 8.3 labels item);

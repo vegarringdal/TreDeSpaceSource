@@ -16,6 +16,7 @@ import { db, transfer } from './db';
 import { getLastPick, recordViewportPick } from './pickListeners';
 import { residency } from './residency';
 import { groupSelKey, selectionState } from './selection.state';
+import { tempIsolateState } from './tempIsolate.state';
 import { initialViewerState, type ViewerState, viewerState } from './viewer.state';
 
 /** The one live renderer instance; the viewport panel registers it on init. */
@@ -166,6 +167,7 @@ async function reviveSlot(
     renderer.reviveModel(slot, packed, opts);
   } catch (e) {
     await db.forgetModels([slot]);
+    await viewerActions.syncTempIsolate();
     throw e;
   }
   applyStateUpdates(await db.statesFor([slot]));
@@ -213,6 +215,8 @@ export async function applyWorkerStateResult(updates: StateUpdate[], transforms?
   }
   applyStateUpdates(updates);
   await refreshSelectionMeta();
+  // a snapshot that replaced the states dropped any temporary isolate's record
+  await viewerActions.syncTempIsolate();
 }
 
 async function refreshSelectionMeta(active: SelectionStateActive = null) {
@@ -343,6 +347,7 @@ export const viewerActions = {
     residency.unregister(indices);
     renderer.removeModels(indices);
     await db.forgetModels(indices);
+    await viewerActions.syncTempIsolate();
     applyStateUpdates(await db.clearSelection());
     selectionState.set({ count: 0, active: null, actives: [], activeGroup: null, activeGroups: [], reveal: null });
     selectionState.set((p) => ({ modelsVersion: p.modelsVersion + 1 }));
@@ -378,6 +383,7 @@ export const viewerActions = {
     residency.reset();
     renderer.clearModels();
     await db.clear();
+    await viewerActions.syncTempIsolate();
     selectionState.set({
       count: 0,
       active: null,
@@ -850,6 +856,29 @@ export const viewerActions = {
   async isolateSelection() {
     applyStateUpdates(await db.isolateSelection());
     await refreshSelectionMeta(undefined);
+  },
+
+  /** Temporary isolate (Hierarchy toolbar): on, isolate the selection; off,
+   *  put back exactly what that isolate changed — colours set and parts hidden
+   *  meanwhile stay. Turning it on needs a selection. */
+  async toggleTempIsolate() {
+    if (tempIsolateState.get().isActive) {
+      applyStateUpdates(await db.tempIsolateEnd());
+      tempIsolateState.set({ isActive: false });
+    } else {
+      if (selectionState.get().count === 0) {
+        return;
+      }
+      applyStateUpdates(await db.tempIsolateStart());
+      tempIsolateState.set({ isActive: true });
+    }
+    await refreshSelectionMeta(undefined);
+  },
+
+  /** Re-read whether a temporary isolate is still on: models forgotten or
+   *  cleared, or a snapshot applied, drop what it would put back. */
+  async syncTempIsolate() {
+    tempIsolateState.set({ isActive: await db.tempIsolateActive() });
   },
 
   async unhideAll() {

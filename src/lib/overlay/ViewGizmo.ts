@@ -159,7 +159,8 @@ export class ViewGizmo {
 
     // -- drag handle ---------------------------------------------------------
     const handle = document.createElement('div');
-    handle.title = 'Move gizmo (Shift+click: back to the corner)';
+    // the app's styled tooltip (widgets/Tooltip.ts reads data-tooltip), not the native title
+    handle.dataset.tooltip = 'Move gizmo\n(Shift+click: back to the corner)';
     Object.assign(handle.style, {
       width: '26px',
       height: '8px',

@@ -2,6 +2,7 @@ import {
   IconArrowsMaximize,
   IconCurrentLocation,
   IconFocus2,
+  IconFocusAuto,
   IconFocusCentered,
   IconFoldUp,
   IconListNumbers,
@@ -9,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { Button } from '@treDeSpaceUI/widgets';
 import { selectionState } from '../../../state/viewer/selection.state';
+import { tempIsolateState } from '../../../state/viewer/tempIsolate.state';
 import { viewerActions } from '../../../state/viewer/viewer.actions';
 import { viewerState } from '../../../state/viewer/viewer.state';
 
@@ -22,6 +24,7 @@ export function HierarchyToolbar({
 }) {
   const sel = selectionState.use();
   const treeModelOrder = viewerState.useSelect((s) => s.treeModelOrder);
+  const isTempIsolated = tempIsolateState.use().isActive;
 
   return (
     <div className="mb-1 flex shrink-0 items-center gap-1 border-slate-800 border-b pb-1">
@@ -79,6 +82,17 @@ export function HierarchyToolbar({
         }
         shortcut="hierarchy.modelOrder"
         onClick={() => viewerActions.update({ treeModelOrder: !treeModelOrder })}
+      />
+      <Button
+        iconOnly
+        icon={<IconFocusAuto />}
+        active={isTempIsolated}
+        tooltip={
+          'Temporary isolate\n(on: hide everything not selected; off: show again exactly what it hid — colours you set and parts you hide meanwhile stay)'
+        }
+        shortcut="hierarchy.tempIsolate"
+        disabled={!isTempIsolated && sel.count === 0}
+        onClick={() => void viewerActions.toggleTempIsolate()}
       />
     </div>
   );

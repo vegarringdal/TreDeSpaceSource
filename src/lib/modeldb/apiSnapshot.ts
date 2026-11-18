@@ -30,6 +30,7 @@ import { resetTransformObjects } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
 import { type DbModel, HAS_COLOR_OVERRIDE, IS_HIDDEN, models, NO_PARENT, type StateUpdate } from './dbState';
 import { ensureNames, packStates, updateBuffers } from './hierarchyIndex';
+import { forgetTempIsolate } from './tempIsolate';
 import {
   allocTransformSlot,
   COMMITTED_SLOTS,
@@ -381,6 +382,7 @@ export const snapshotApi = {
     }
     if (applyColor) {
       resetColorUndo();
+      forgetTempIsolate(); // the snapshot replaced what it would put back
     }
     if (applyTransform) {
       resetTransformObjects();

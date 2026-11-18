@@ -7,6 +7,13 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.18** (>0.26.3):
+  Hierarchy toolbar: a **temporary isolate** button after Model order, also
+  on hotkey `ALT 805`. Switched on, it hides everything that is not
+  selected, like Isolate. Switched off, it shows again exactly what it hid,
+  and selected parts that were hidden before go back to hidden. Colours you
+  set and parts you hide while isolated stay as they are. Each switch is
+  one undo step.
+
   Navigation gizmo: a second style, **axis balls**, is now the default
   beside the cube. A right-click or a press-and-hold on the gizmo switches
   between them, and Settings → Gizmo → Navigation gizmo offers the choice
@@ -24,8 +31,8 @@ Entries from before the stable pilot (0.26.1) have been removed.
     default, so the cube looks as before until a project or user turns it
     on. The balls never show north.
   - **Moving the gizmo.** Its drag handle sits clear of the balls (and of
-    the north marker), and Shift+click on the handle puts the gizmo back
-    in its corner.
+    the north marker), shows the app's own tooltip, and Shift+click on the
+    handle puts the gizmo back in its corner.
   - **Top and bottom views** can keep the heading (as before), turn +Y up,
     or turn true north up.
   - **Host API.** `settings.gizmo.set` sets all of this (`gizmoStyle`,

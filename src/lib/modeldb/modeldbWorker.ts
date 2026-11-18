@@ -25,6 +25,7 @@ import { snapshotApi } from './apiSnapshot';
 import { transformApi } from './apiTransform';
 import { treeApi } from './apiTree';
 import { visibilityApi } from './apiVisibility';
+import { tempIsolateApi } from './tempIsolate';
 
 export type { AnimActorSpec, AnimEnterResult, AnimSlotBinding } from './apiAnimation';
 export type { ExportGeom } from './apiExport';
@@ -47,6 +48,7 @@ const api = {
   ...treeApi,
   ...selectionApi,
   ...visibilityApi,
+  ...tempIsolateApi,
   ...colorApi,
   ...transformApi,
   ...exportApi,
