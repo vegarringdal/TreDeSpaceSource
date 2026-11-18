@@ -47,7 +47,12 @@ import { ribbonSelectionColorState } from '../components/panels/ribbon-selection
 import { ribbonSelectionTransformActions as tx } from '../components/panels/ribbon-selection-transform/ribbonSelectionTransform.actions';
 import { ribbonSelectionTransformState } from '../components/panels/ribbon-selection-transform/ribbonSelectionTransform.state';
 import { logMeshletFill } from '../components/panels/settings/rendering/fillStats';
-import { resetSection, SETTINGS_SECTION_IDS, SETTINGS_SECTIONS } from '../components/panels/settings/sectionResets';
+import {
+  resetSection,
+  SETTINGS_SECTION_IDS,
+  SETTINGS_SECTIONS,
+  type SettingsSectionId,
+} from '../components/panels/settings/sectionResets';
 import { settingsActions } from '../components/panels/settings/settings.actions';
 import { loadSettingsFile, saveSettingsFile } from '../components/panels/settings/settingsFile';
 import { callSqlImport, openSqlAssetsPanel } from '../components/panels/sql-assets/sqlAssetsPanel';
@@ -100,6 +105,12 @@ function bump(field: keyof ViewerState, delta: number, lo: number, hi: number) {
       }) as Partial<ViewerState>,
   );
 }
+
+/** Settings sections added after the positional reset range (ALT 1241..1263)
+ *  filled up: each keeps a fixed key so no other section's default moves. */
+const LATE_SECTION_KEYS: Partial<Record<SettingsSectionId, string>> = {
+  navGizmo: 'ALT 1265',
+};
 
 // singleton number-input steppers (per-axis clipping + component-local opacity
 // are intentionally excluded — not meaningful as global hotkeys)
@@ -711,12 +722,14 @@ export const HOTKEYS: HotkeyDef[] = [
     description: 'Pick a settings JSON file saved here and apply it (Layout slots and External apps are untouched)',
     run: () => loadSettingsFile(),
   },
-  // per-section resets (Settings → header reset button of each section) — codes 1241..
+  // per-section resets (Settings → header reset button of each section) — codes
+  // 1241..1263 by position; the range is full (1264 is taken), so sections
+  // added since sit LAST in SETTINGS_SECTIONS and take a fixed key here
   ...SETTINGS_SECTION_IDS.map((id, i) => ({
     id: `settings.reset.${id}`,
     category: 'View',
     label: `Reset settings: ${SETTINGS_SECTIONS[id].label}`,
-    defaultKeys: `ALT ${1241 + i}`,
+    defaultKeys: LATE_SECTION_KEYS[id] ?? `ALT ${1241 + i}`,
     description: `Reset the ${SETTINGS_SECTIONS[id].label} settings section to its defaults`,
     run: () => resetSection(id),
   })),

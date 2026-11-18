@@ -7,6 +7,23 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.18** (>0.26.3):
+  Fix: the dev build stopped at start with "Invalid hotkey bindings:
+  settings.reset.shortcuts and settings.storagePersist share the same keys
+  ALT 1264".
+  - **Cause:** the per-section Settings reset shortcuts are numbered by
+    position (`ALT 1241` + n). Adding the Navigation gizmo section in the
+    middle moved every later section's default by one, and the last landed
+    on `ALT 1264`.
+  - **Fix:** the new section now sits last with a fixed `ALT 1265`, and
+    every other section has its old key back.
+  - **Not affected:** production builds only logged it, and keys a user
+    changed themselves were never affected: they are applied without that
+    check, and a clash only shows as a conflict in Settings → Shortcuts.
+  - **Tests:** `tests/hotkeyBindings.test.ts` runs the boot check over the
+    whole table in `npm test` (same keys, bad keys, reset keys staying put),
+    plus a user binding that lands on a new default. `vitest.config.ts`
+    gains the `@treDeSpaceUI` alias for it.
+
   User guide:
   - F1 Home has a new *The navigation gizmo* section: the two styles,
     switching them, the snap dots, Shift+click and moving the gizmo.
