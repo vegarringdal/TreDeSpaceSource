@@ -28,6 +28,7 @@ import { type Measurement, measurementsState } from './measurements.state';
 import { selectionState } from './selection.state';
 import { getRenderer, viewerActions } from './viewer.actions';
 import { viewerState } from './viewer.state';
+import { viewpointStepId } from './viewpointStep';
 import {
   type TransferKind,
   type TransferUndo,
@@ -448,6 +449,22 @@ export const viewpointsActions = {
       await viewerActions.clearSelection();
     }
     consoleActions.log('info', `Viewpoints: activated "${vp.name}"`);
+  },
+
+  /** Prev (`dir` -1) / Next (`dir` 1): activate the neighbour of the active
+   *  viewpoint in list order, through the normal activate path (so unsaved
+   *  edits are asked about). Stops at the ends; with nothing active Next
+   *  starts at the first viewpoint and Prev at the last. */
+  async step(dir: -1 | 1) {
+    const s = viewpointsState.get();
+    const id = viewpointStepId(
+      s.list.map((v) => v.id),
+      s.activeId,
+      dir,
+    );
+    if (id) {
+      await viewpointsActions.activate(id);
+    }
   },
 
   /** The "(viewpoint)" bars' Edit button: enter editing (the bar then shows

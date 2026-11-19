@@ -10,6 +10,7 @@ import {
   type ColorRulesMode,
   multiColorState,
 } from '../../components/panels/multi-color/multiColor.state';
+import { bindDetailReport, openSqlDetailPanel } from '../../components/panels/sql-detail/sqlDetailPanel';
 import { setTablePayload } from '../../components/panels/sql-table/sqlTablePanel';
 import { parseColor } from '../../lib/color/hexColor';
 import type { PackedNames } from '../../lib/color/packedNames';
@@ -20,6 +21,7 @@ import { sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements, stripSqlComments } from '../../lib/sqlite/sqlAttach';
 import {
   buildReportStatements,
+  detailScopedSql,
   filterArgsStatements,
   pickDropdownColumns,
   treeViewArgsStatements,
@@ -83,6 +85,17 @@ export type PackedColorMode =
     };
 
 const DEFAULT_BASE_OPACITY = 0.1;
+
+/** What one of the app's own colour buttons does with a coloring result:
+ *  paint it over a base coat, layer it on the Set Color rules, or select it. */
+export type ReportColorUse = 'white' | 'transparent' | 'hidden' | 'set' | 'selection';
+
+const COLOR_USE_MODE: Readonly<Record<Exclude<ReportColorUse, 'selection'>, PackedColorMode>> = {
+  white: { type: 'default-white' },
+  transparent: { type: 'default-transparent' },
+  hidden: { type: 'default-hidden' },
+  set: { type: 'default-set' },
+};
 
 /** The base coat a `custom-color` mode paints first, or null for 'none'. */
 /** A base coat as the rule that paints it plus the run mode it needs.
@@ -508,9 +521,45 @@ export const sqlReportsActions = {
     }
   },
 
+  /** A colour button: run the report's coloring query NOW and use the result
+   *  as `use` says. Every click runs again, so the result always answers for
+   *  the filter values and SQL the report holds at that moment — nothing is
+   *  kept between clicks. A failed run has already shown its error. */
+  async runAndColor(report: ReportDef, use: ReportColorUse): Promise<void> {
+    const rows = await sqlReportsActions.runColoring(report);
+    if (!rows) {
+      return;
+    }
+
+    if (use !== 'selection') {
+      await sqlReportsActions.colorPackedMode(rows, COLOR_USE_MODE[use]);
+      return;
+    }
+
+    const r = await sqlReportsActions.colorSelection(rows);
+    const missed = r.missed ? ` (${r.missed} not in the model)` : '';
+    consoleActions.log('info', `SQL: selected ${r.matched} of ${rows.count} fullname(s)${missed}`);
+  },
+
   /** DETAIL: run against the clicked fullname hierarchy, return the one row. */
   async runDetail(report: ReportDef, tree: string[]): Promise<RunResult> {
     return execReport(report, 'DETAIL', { tree });
+  },
+
+  /** A Detail button (a saved report, a report draft, the SQL Editor): bind
+   *  the report to the built-in SQL Detail panel and open it — clicks then run
+   *  it against the clicked hierarchy. SQL that reads TREE_VIEW_ARGS itself is
+   *  bound as written; anything else is wrapped to the clicked item's
+   *  fullname first (detailScopedSql), so it answers for the selection rather
+   *  than handing back its first row on every click. The report itself is not
+   *  changed. `debug` (ALT+click) prints the SQL actually bound. */
+  asDetail(report: ReportDef, debug = false) {
+    const bound = { ...report, sql: detailScopedSql(report.sql) };
+    bindDetailReport(bound);
+    if (debug) {
+      sqlReportsActions.logDetailSql(bound);
+    }
+    openSqlDetailPanel();
   },
 
   /** ALT+click on a Detail button — print the SQL just bound to SQL Detail, so
@@ -521,7 +570,7 @@ export const sqlReportsActions = {
   },
 
   // -----------------------------------------------------------------------------
-  // coloring apply (the 4 buttons)
+  // coloring apply (what runAndColor and the host API paint with)
   // -----------------------------------------------------------------------------
   // Each builds a LOCAL Set Color config (ColorRule[] + mode) in memory and runs
   // it through the very pipeline the Set Color panel uses (ruleToSpec →

@@ -181,8 +181,9 @@ export interface NwdImportOptions {
   /** Hash the whole file for the "already imported" check (off: its size
    *  and both ends). */
   fullFingerprint: boolean;
-  /** The unit of the file's coordinates (automatic: feet for a Revit
-   *  export, metres otherwise) — the model is converted to metres. */
+  /** The unit of the file's coordinates (automatic: the unit the file
+   *  stores, else feet for a Revit export, metres otherwise) — the model is
+   *  converted to metres. */
   units: NwdUnits;
 }
 

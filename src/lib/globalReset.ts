@@ -45,7 +45,7 @@ const LOCAL_KEYS: Record<string, string[]> = {
     storageKey('hotkeys'),
   ],
   external: [storageKey('externalApps'), storageKey('apiSecurity')],
-  viewPoints: [storageKey('viewpoints')],
+  viewPoints: [storageKey('viewpoints'), storageKey('viewpointViewer')],
   // labels have no standalone store today (they ride inside viewpoints) — the
   // key is a placeholder so the mechanism is ready if that changes.
   labels: [storageKey('labels')],

@@ -52,7 +52,8 @@ pub struct Options {
     pub meshopt_threshold: f32,
     pub meshopt_target_error: f32,
     /// Unit factor, model units → metres. `0.0` (the default) = automatic:
-    /// 0.3048 for a Revit-loader file (stored in feet), otherwise 1. Any
+    /// the unit the file's trailers store (metres, centimetres, feet …),
+    /// else 0.3048 for a Revit-loader file, otherwise 1. Any
     /// positive value is an explicit factor (`1.0` = as stored). The factor
     /// that was applied comes back as `unitScale` in the report.
     pub unit_scale: f32,

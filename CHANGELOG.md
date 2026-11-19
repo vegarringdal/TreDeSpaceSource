@@ -6,6 +6,93 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.19** (>0.26.4):
+  Viewpoint Editor: the list is virtualized, so a long set stays quick.
+  - **What changed:** only the rows in view are mounted, plus the open row.
+    Before, every viewpoint was a mounted row with its buttons, so a set
+    of thousands made the whole app slow. Checked headless with 3,000
+    viewpoints (open, move, activate, insert, rename): 27-59 rows mounted,
+    the whole run about 15 s. A similar 3,000-viewpoint run with the old
+    editor in the layout took over three minutes.
+  - **Buttons stay on top:** Add viewpoint, Save, Load and Delete all no
+    longer scroll away with the list.
+  - **One-line row headers:** a long name is cut with an ellipsis (closed
+    rows must be one height); the Name field shows it whole.
+  - **The editor follows the selection:** when a viewpoint becomes the
+    selected one (activated from the Viewpoint Viewer, Add viewpoint,
+    Insert before, Move up / down), the list scrolls to its row.
+  - **Shared with the Viewpoint Viewer:** both lists use one hook
+    (`useOpenRowVirtualList`: fixed rows, one measured taller row). The
+    viewer's list now scrolls only when the active viewpoint changes, so
+    resizing the panel no longer jumps it back to the active one.
+  - **Tests / guide:** `tests/openRowLayout.test.ts` covers the row and
+    scroll arithmetic; the F11 guide describes the list.
+  Fix: NWD files written by Navisworks' Inventor reader imported as a
+  single `model` element at 100× their size.
+  - **Hierarchy:** some nodes store an empty class slot (a plain `0`).
+    The tree parser is strict, so it dropped the whole tree on the first
+    one. Now an empty class slot is accepted, and these files keep their
+    full Navisworks tree. Every placement still links to its part, as on
+    the Revit files.
+  - **Units:** the automatic unit now comes from the unit code each NWD
+    stores next to its loader name: 0 metres, 1 centimetres, 3 feet, and
+    so on through Navisworks' unit list. Inventor files are in centimetres
+    and now come out in metres. RVM and Revit files resolve to the same
+    factor as before, so their output does not change. If a file has no
+    unit code, or its codes disagree, the old rule still applies (Revit →
+    feet, anything else as stored). The status note now names the unit,
+    e.g. "Stored in centimetres: geometry scaled to metres (× 0.01)".
+  - **Tests:** synthetic unit tests for the empty class slot and the unit
+    code. The sample tests now also check the stored unit of every
+    committed RVM and Revit file.
+  - **Docs:** `what_we_know_v1.md` moves the unit code from candidate to
+    decoded, records the empty class slot and adds Inventor-reader
+    coverage.
+  Viewpoint Viewer: easier to step through, and built for many viewpoints.
+  - **Top row (fixed):** previous / next arrows around an "x / y" position
+    (`ALT 1292` / `ALT 1293`, new `viewpoints.prev` / `viewpoints.next`).
+    Stepping goes through the normal activate, so unsaved edits are still
+    asked about; it stops at the first / last, and with nothing active Next
+    starts at the first and Previous at the last.
+  - **One at a time** (`ALT 1294`): shows only the active viewpoint — full
+    name and description — instead of the list. Remembered in localStorage
+    (`tds:viewpointViewer`, cleared with the viewpoints reset).
+  - **Bottom row (fixed):** Load, Mute labels and Mute measures moved under
+    the list, like the Settings panel's buttons, so they stay put while the
+    list scrolls.
+  - **Virtual scrolling:** only the rows in view are mounted
+    (`useVirtualRows`); checked with 3,000 viewpoints, about 30-40 rows
+    mounted. Rows are a fixed height, so a long name is cut with an ellipsis
+    in the list (One at a time shows it whole); the active viewpoint's
+    description still hangs under its row, and the list scrolls to the
+    viewpoint stepped to.
+  - **User guide:** F11 text, scene and pictures updated (new
+    `f11-viewer-one`).
+  Fix: a saved report's **Detail** button showed the same first row for
+  every click unless its SQL read `TREE_VIEW_ARGS` itself.
+  - **Cause:** only the SQL Editor's As Detail wrapped such a query to the
+    clicked item (`select * from (…) where fullname in (select fullname from
+    TREE_VIEW_ARGS) limit 1`). The report's Detail button and the report
+    editor's As Detail bound the SQL as written.
+  - **Fix:** all three now go through one action
+    (`sqlReportsActions.asDetail`), so the wrap is the same everywhere. SQL
+    that reads `TREE_VIEW_ARGS` is still bound as written; the saved report
+    is not changed. The host API's `sql.detail` is unchanged — it binds the
+    SQL it is given.
+  SQL Reports: a COLORING report now has the SQL Editor's five buttons —
+  **As White / As Transparent / As Hidden / Use Set Color / As Selection** —
+  in place of the **Coloring** button and its "apply as" box.
+  - **Why:** Coloring ran the query once and the box kept that result, so
+    after a filter was changed its buttons still painted the old rows, and
+    the box stayed up with the old row count. Each button now runs the
+    report with the filter values shown at that moment; nothing is kept
+    between clicks.
+  - The editor, the report row and the report editor's test buttons share
+    one run-and-apply action (`sqlReportsActions.runAndColor`); As Selection
+    logs how many names were found from all three.
+  - **User guide:** F12 text, scene and pictures updated (`npm run
+    docs:shots -- --only f12`, headless; the three viewport pictures keep
+    their GPU captures).
 - **2026.11.18** (>0.26.3):
   Fix: the dev build stopped at start with "Invalid hotkey bindings:
   settings.reset.shortcuts and settings.storagePersist share the same keys
