@@ -41,7 +41,8 @@ Entries from before the stable pilot (0.26.1) have been removed.
   culling is used) instead of 0.
   README › Supported files now says that an NWD / NWC import brings in
   geometry and the object tree, but not the per-object properties stored
-  in the file.
+  in the file. `plans/attributes.md` plans how imported files' properties
+  (and separate attribute files, such as RVM's) could reach the viewer.
 - **2026.11.19** (>0.26.4):
   Viewpoint Editor: the list is virtualized, so a long set stays quick.
   - **What changed:** only the rows in view are mounted, plus the open row.
