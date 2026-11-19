@@ -21,7 +21,7 @@ export function NwdOptionsRows() {
         options={NWD_UNITS}
         onChange={(v) => act.setNwdOptions({ units: v ?? 'auto' })}
         shortcut="assets.nwd.units.next"
-        tooltip="What the file’s coordinates are in — the model is converted to metres. Automatic: feet for a file exported from Revit (Revit always stores feet), metres otherwise. Pick another when the model comes in at the wrong size"
+        tooltip="What the file’s coordinates are in — the model is converted to metres. Automatic: the unit the file itself stores (metres, centimetres, feet …); a file without one is read as feet when it was exported from Revit, metres otherwise. Pick another when the model comes in at the wrong size"
       />
       <Checkbox
         label="Normals (smooth shading)"

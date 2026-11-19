@@ -7,6 +7,27 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.19** (>0.26.4):
+  Fix: NWD files written by Navisworks' Inventor reader imported as a
+  single `model` element at 100× their size.
+  - **Hierarchy:** some nodes store an empty class slot (a plain `0`).
+    The tree parser is strict, so it dropped the whole tree on the first
+    one. Now an empty class slot is accepted, and these files keep their
+    full Navisworks tree. Every placement still links to its part, as on
+    the Revit files.
+  - **Units:** the automatic unit now comes from the unit code each NWD
+    stores next to its loader name: 0 metres, 1 centimetres, 3 feet, and
+    so on through Navisworks' unit list. Inventor files are in centimetres
+    and now come out in metres. RVM and Revit files resolve to the same
+    factor as before, so their output does not change. If a file has no
+    unit code, or its codes disagree, the old rule still applies (Revit →
+    feet, anything else as stored). The status note now names the unit,
+    e.g. "Stored in centimetres: geometry scaled to metres (× 0.01)".
+  - **Tests:** synthetic unit tests for the empty class slot and the unit
+    code. The sample tests now also check the stored unit of every
+    committed RVM and Revit file.
+  - **Docs:** `what_we_know_v1.md` moves the unit code from candidate to
+    decoded, records the empty class slot and adds Inventor-reader
+    coverage.
   Viewpoint Viewer: easier to step through, and built for many viewpoints.
   - **Top row (fixed):** previous / next arrows around an "x / y" position
     (`ALT 1292` / `ALT 1293`, new `viewpoints.prev` / `viewpoints.next`).

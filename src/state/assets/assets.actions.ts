@@ -866,7 +866,7 @@ async function landCookedOutputs(
         consoleActions.log('error', `${label}: ${w}`);
       }
       // what the converter did by itself that the user should know of
-      // (a Revit export scaled from feet to metres)
+      // (geometry stored in feet or centimetres scaled to metres)
       for (const n of st.notes ?? []) {
         consoleActions.log('info', `${label}: ${n}`);
       }

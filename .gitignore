@@ -14,3 +14,6 @@ convertSamples/ifc/*.ifc
 
 # multi-GB LGSX / E57 samples for rust_src/crates/scan-* tests (not committed)
 /scanSamples
+
+#temp
+.devcontainer

@@ -48,6 +48,9 @@ pub struct Loaders {
     /// Any other plugin (`LcNwcLoaderPlugin:lcldrvm`, a DWG / 3DS reader,
     /// another exporter …).
     pub other: bool,
+    /// The stored-unit codes the File trailers name, one bit per code of
+    /// [`NAVISWORKS_UNITS`] (bit k = code k) — see [`loaders`].
+    pub units: u16,
 }
 
 impl Loaders {
@@ -55,6 +58,7 @@ impl Loaders {
         Loaders {
             revit: self.revit || o.revit,
             other: self.other || o.other,
+            units: self.units | o.units,
         }
     }
 
@@ -63,7 +67,39 @@ impl Loaders {
     pub fn revit_only(self) -> bool {
         self.revit && !self.other
     }
+
+    /// The unit the file's geometry is stored in, when its File trailers name
+    /// exactly one: `(name, metres per unit)`. `None` when no trailer carries
+    /// a unit word, or when they disagree (a model appended from sources in
+    /// different units — whether Navisworks folds those into the stored
+    /// coordinates is not known).
+    pub fn stored_unit(self) -> Option<(&'static str, f32)> {
+        (self.units.count_ones() == 1)
+            .then(|| NAVISWORKS_UNITS[self.units.trailing_zeros() as usize])
+    }
 }
+
+/// Navisworks' `Units` enumeration — the File trailer's unit word is an index
+/// into it: `(name, metres per unit)`.
+pub const NAVISWORKS_UNITS: [(&str, f32); 11] = [
+    ("metres", 1.0),
+    ("centimetres", 0.01),
+    ("millimetres", 0.001),
+    ("feet", 0.3048),
+    ("inches", 0.0254),
+    ("yards", 0.9144),
+    ("kilometres", 1000.0),
+    ("miles", 1609.344),
+    ("micrometres", 1e-6),
+    ("mils", 2.54e-5),
+    ("microinches", 2.54e-8),
+];
+
+/// The File trailer's word in front of the unit code (448 / 449 / 451 seen —
+/// it differs by loader; meaning OPAQUE). The range keeps the trailer apart
+/// from an exported NWC's header copy of the plugin slot, which is followed
+/// by `[1][1]…` instead.
+const TRAILER_TAG: std::ops::RangeInclusive<u32> = 400..=599;
 
 /// The plugin slots of a chunk: `[len u32][ASCII name, NUL-padded to 4]`,
 /// 4-byte aligned, the name being either `LcNwcLoaderPlugin:<reader>` (a
@@ -78,6 +114,12 @@ impl Loaders {
 /// On the sample corpus: 80 trailers of the three Huldra NWDs say `lcldrvm`;
 /// the six public Revit files say `lcldrevit` (five) or `nwexportrevit`
 /// (`Structural.nwc`). No allocation; one pass over the chunk's words.
+///
+/// In a File trailer the slot is followed by `[tag][unit][1]`, `unit` being
+/// the stored unit as a [`NAVISWORKS_UNITS`] code (collected in
+/// [`Loaders::units`]): 0 (metres) on all 80 RVM trailers, 3 (feet) on all
+/// six Revit ones, 1 (centimetres) on an Inventor-loader file — the three
+/// codes each match the geometry's real unit.
 pub fn loaders(data: &[u8]) -> Loaders {
     const READER: &[u8] = b"LcNwcLoaderPlugin:";
     const EXPORTER: &[u8] = b"nwexport";
@@ -110,8 +152,23 @@ pub fn loaders(data: &[u8]) -> Loaders {
         } else {
             found.other = true;
         }
+        if let Some(code) = trailer_unit(data, o + len.div_ceil(4) * 4) {
+            found.units |= 1 << code;
+        }
     }
     found
+}
+
+/// The unit code of a File trailer `[tag][unit][1]` starting at `o`, if the
+/// words there have that shape and the code is a known unit.
+fn trailer_unit(data: &[u8], o: usize) -> Option<u32> {
+    let word = |k: usize| {
+        data.get(o + 4 * k..o + 4 * k + 4)
+            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+    };
+    let (tag, unit, one) = (word(0)?, word(1)?, word(2)?);
+    (TRAILER_TAG.contains(&tag) && one == 1 && (unit as usize) < NAVISWORKS_UNITS.len())
+        .then_some(unit)
 }
 
 /// Fraction of bytes that are printable ASCII.
@@ -393,11 +450,11 @@ mod tests {
     fn plugin_slots_name_the_loader() {
         let revit = Loaders {
             revit: true,
-            other: false,
+            ..Loaders::default()
         };
         let other = Loaders {
-            revit: false,
             other: true,
+            ..Loaders::default()
         };
         assert_eq!(loaders(&slot(8, "LcNwcLoaderPlugin:lcldrevit")), revit);
         assert_eq!(loaders(&slot(72, "nwexportrevit")), revit);
@@ -419,5 +476,48 @@ mod tests {
         assert_eq!(loaders(&[]), none);
         assert_eq!(loaders(&[0xff; 7]), none);
         assert!(!none.revit_only());
+    }
+
+    /// A plugin slot followed by `[tag][unit][1]`, as in a File trailer.
+    fn trailer(name: &str, tag: u32, unit: u32) -> Vec<u8> {
+        let mut v = slot(8, name);
+        let at = v.len() - 12;
+        for (k, w) in [tag, unit, 1].into_iter().enumerate() {
+            v[at + 4 * k..at + 4 * k + 4].copy_from_slice(&w.to_le_bytes());
+        }
+        v
+    }
+
+    #[test]
+    fn file_trailers_name_the_stored_unit() {
+        let unit = |b: &[u8]| loaders(b).stored_unit();
+        assert_eq!(
+            unit(&trailer("LcNwcLoaderPlugin:lcldrvm", 449, 0)),
+            Some(("metres", 1.0))
+        );
+        assert_eq!(
+            unit(&trailer("LcNwcLoaderPlugin:lcldinv", 451, 1)),
+            Some(("centimetres", 0.01))
+        );
+        assert_eq!(
+            unit(&trailer("LcNwcLoaderPlugin:lcldrevit", 448, 3)),
+            Some(("feet", 0.3048))
+        );
+        // Not a trailer: no slot, an NWC header copy `[1][1]…`, a missing
+        // `[1]`, an unknown unit code, a chunk cut short.
+        assert_eq!(unit(&slot(8, "LcNwcLoaderPlugin:lcldrvm")), None);
+        assert_eq!(unit(&trailer("LcNwcLoaderPlugin:lcldrevit", 1, 1)), None);
+        let mut no_one = trailer("LcNwcLoaderPlugin:lcldrvm", 449, 0);
+        let end = no_one.len();
+        no_one[end - 4] = 2;
+        assert_eq!(unit(&no_one), None);
+        assert_eq!(unit(&trailer("LcNwcLoaderPlugin:lcldrvm", 449, 11)), None);
+        let cut = trailer("LcNwcLoaderPlugin:lcldinv", 451, 1);
+        assert_eq!(unit(&cut[..cut.len() - 4]), None);
+        // Trailers that agree name their unit; trailers that disagree, none.
+        let cm = loaders(&trailer("LcNwcLoaderPlugin:lcldinv", 451, 1));
+        let m = loaders(&trailer("LcNwcLoaderPlugin:lcldrvm", 449, 0));
+        assert_eq!(cm.merge(cm).stored_unit(), Some(("centimetres", 0.01)));
+        assert_eq!(cm.merge(m).stored_unit(), None);
     }
 }
