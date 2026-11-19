@@ -1128,8 +1128,15 @@ export class Renderer {
     };
 
     const wanted: string[] = [];
-    if (adapter.features.has('chromium-experimental-multi-draw-indirect')) {
-      wanted.push('chromium-experimental-multi-draw-indirect');
+    // MDI records carry the meshlet index in firstInstance (2 × index, the
+    // shaders read instance_index >> 1). Without indirect-first-instance,
+    // WebGPU turns every indirect draw whose firstInstance is not 0 into a
+    // no-op — all but meshlet 0 of each model vanished. MDI needs both.
+    if (
+      adapter.features.has('chromium-experimental-multi-draw-indirect') &&
+      adapter.features.has('indirect-first-instance')
+    ) {
+      wanted.push('chromium-experimental-multi-draw-indirect', 'indirect-first-instance');
       this.multiDraw = true;
     }
     const hasTimestamps = adapter.features.has('timestamp-query');

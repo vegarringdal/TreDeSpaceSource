@@ -57,7 +57,9 @@ own. Key facts, kept here so the port history isn't lost:
     lit-html islands unless they share these constraints.
 - **Renderer as a library** (`src/lib/render/renderer.ts`, WGSL in
   `src/lib/render/shaders/`): GPU-driven — cull compute → multi-draw indexed
-  indirect (`chromium-experimental-multi-draw-indirect`), vertex-pull fallback,
+  indirect (`chromium-experimental-multi-draw-indirect` + `indirect-first-instance`:
+  each record carries its meshlet in `firstInstance`, and without the second
+  feature WebGPU skips every such draw but meshlet 0's), vertex-pull fallback,
   two-pass HiZ occlusion, TAA (Halton jitter + accumulation), MSAA per-sample
   edges, VBAO. Within 5–10 % of the native Vulkan renderer.
 - **Worker model DB** (`src/lib/modeldb/modeldbWorker.ts` via comlink): cooked `.tdp`

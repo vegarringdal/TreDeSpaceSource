@@ -38,6 +38,12 @@ Entries from before the stable pilot (0.26.1) have been removed.
   before meshlets are built (as the Rust cook already does), and meshlets
   are built with cone weight 0.25 (meshoptimizer's default when cone
   culling is used) instead of 0.
+  Fix: with MDI on (Chrome flags) and vertex pull off, most of every model
+  disappeared. Each MDI draw record carries its meshlet in `firstInstance`,
+  and WebGPU skips an indirect draw with a non-zero `firstInstance` unless
+  the device has the `indirect-first-instance` feature, which was never
+  requested. The renderer now requests it with MDI and offers MDI only
+  when the adapter has both features.
   README › Supported files now says that an NWD / NWC import brings in
   geometry and the object tree, but not the per-object properties stored
   in the file. `plans/attributes.md` plans how imported files' properties
