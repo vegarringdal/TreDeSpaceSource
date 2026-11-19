@@ -19,6 +19,7 @@
 //           allocates them lazily, so a scene that never goes transparent
 //           never pays for them.
 
+import type { DrawPath } from './drawLayout';
 import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
 import { type GpuModel, replayDrawLists } from './gpuModel';
 import type { GpuTimings } from './gpuTimings';
@@ -117,7 +118,7 @@ export class ItemPickPass {
     dev: GPUDevice,
     canvas: HTMLCanvasElement,
     opt: PickOptions,
-    cullMode: 'mdi' | 'vp' | 'full',
+    cullMode: DrawPath,
     frameData: ArrayBuffer,
     frameBuf: GPUBuffer,
     countsBuf: GPUBuffer,

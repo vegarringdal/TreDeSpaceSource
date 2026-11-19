@@ -8,6 +8,7 @@ import { bakeMatrices, exportTreeToFlat, flatTransferables, type MergedFlatModel
 import { packModel } from '../model/pack';
 import { opfsOpenByteStream, opfsOpenTextStream } from '../opfs/opfsSyncWrite';
 import { clipCulledSphere } from '../render/clipCull';
+import type { IndexWidth } from '../render/drawLayout';
 import {
   type DbModel,
   HAS_COLOR_OVERRIDE,
@@ -25,7 +26,10 @@ export interface GpuGeom {
   model: number;
   meshletCount: number;
   positionsQ: ArrayBuffer;
-  indices16: ArrayBuffer;
+  /** Meshlet-local indices as the GPU holds them: u8 on the vertex-pull
+   *  paths, u16 under MDI (`indexWidth` bytes each). */
+  indices: ArrayBuffer;
+  indexWidth: IndexWidth;
   cull: ArrayBuffer;
   meshletInfo: ArrayBuffer;
   cgColors: ArrayBuffer;
@@ -67,7 +71,8 @@ function meshletVertexCount(cullU: Uint32Array, mi: number, meshletCount: number
 interface DecodedGeom {
   meshletCount: number;
   posQ: Uint16Array;
-  idx16: Uint16Array;
+  /** Meshlet-local indices (u8 or u16 — both read as plain numbers). */
+  idx: Uint8Array | Uint16Array;
   cullU: Uint32Array;
   infoU: Uint32Array;
   infoF: Float32Array;
@@ -79,7 +84,7 @@ async function resolveGeom(g: ExportGeom, m: DbModel): Promise<DecodedGeom> {
     return {
       meshletCount: g.meshletCount,
       posQ: new Uint16Array(g.positionsQ),
-      idx16: new Uint16Array(g.indices16),
+      idx: g.indexWidth === 1 ? new Uint8Array(g.indices) : new Uint16Array(g.indices),
       cullU: new Uint32Array(g.cull),
       infoU: new Uint32Array(g.meshletInfo),
       infoF: new Float32Array(g.meshletInfo),
@@ -94,7 +99,7 @@ async function resolveGeom(g: ExportGeom, m: DbModel): Promise<DecodedGeom> {
   return {
     meshletCount: p.meshletCount,
     posQ: p.positionsQ,
-    idx16: p.indices16,
+    idx: p.indices8,
     cullU: new Uint32Array(p.cull),
     infoU: new Uint32Array(p.meshletInfo),
     infoF: new Float32Array(p.meshletInfo),
@@ -194,7 +199,7 @@ export const exportApi = {
         continue;
       }
       const g = await resolveGeom(src, m);
-      const { posQ, idx16, cullU, infoU, infoF, cgColors } = g;
+      const { posQ, idx, cullU, infoU, infoF, cgColors } = g;
       const clipped = decodeOpts.clip ? clippedItems(m, decodeOpts.clip) : null;
 
       /** Final display RGBA of an item, or null when it must not export. */
@@ -305,7 +310,7 @@ export const exportApi = {
         const ts = slot * 16;
         gen++;
         for (let k = 0; k < indexCount; k++) {
-          const local = idx16[firstIndex + k];
+          const local = idx[firstIndex + k];
           if (remapGen[local] !== gen) {
             remapGen[local] = gen;
             const v = (baseVertex + local) * 4;

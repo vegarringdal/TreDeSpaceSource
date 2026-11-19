@@ -21,6 +21,7 @@
 // anti-aliased average as the scene. A converged hold frame re-composites the
 // last blurred result and encodes nothing else.
 
+import type { DrawPath } from './drawLayout';
 import { FRAME_SIZE, FRAME_SLOT } from './frameLayout';
 import { type GpuModel, OUTLINE_LIST, replayDrawLists } from './gpuModel';
 import type { GpuTimings } from './gpuTimings';
@@ -286,7 +287,7 @@ export class OutlinePass {
     dev: GPUDevice,
     canvas: HTMLCanvasElement,
     opt: OutlineOptions,
-    cullMode: 'mdi' | 'vp' | 'full',
+    cullMode: DrawPath,
     frameData: ArrayBuffer,
     frameBuf: GPUBuffer,
     countsBuf: GPUBuffer,
@@ -434,7 +435,7 @@ export class OutlinePass {
     list.setPipeline(maskMode === 'mdi' ? this.listPipeline : this.listVpPipeline);
     list.setBindGroup(1, this.listParamsBind);
     for (const m of live) {
-      list.setBindGroup(0, m.outlineListBind);
+      list.setBindGroup(0, m.binds.outlineList);
       list.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
     }
     list.end();

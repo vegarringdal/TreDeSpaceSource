@@ -108,7 +108,7 @@ function clipOption(r: Renderer): Float32Array | null {
 }
 
 const geomTransfers = (geoms: ExportGeom[]): ArrayBuffer[] =>
-  geoms.flatMap((g) => ('tdp' in g ? [g.tdp] : [g.positionsQ, g.indices16, g.cull, g.meshletInfo, g.cgColors]));
+  geoms.flatMap((g) => ('tdp' in g ? [g.tdp] : [g.positionsQ, g.indices, g.cull, g.meshletInfo, g.cgColors]));
 
 /** Trigger a download for a finished export file straight from OPFS — the
  *  blob streams from disk, nothing is copied into JS memory. The file stays in
