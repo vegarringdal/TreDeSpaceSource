@@ -40,6 +40,10 @@ const SCAN_NUDGE = 0.001;
 const SCAN_FOV_MIN = 15 * DEG;
 const SCAN_FOV_MAX = 100 * DEG;
 const SCAN_ZOOM = 0.1;
+/** SpaceMouse look rate at full deflection, rad/s (before the look sensitivity). */
+const SPACE_LOOK_SPEED = 1.5;
+/** SpaceMouse forward push under ortho: focus-distance dolly rate, 1/s. */
+const SPACE_ORTHO_DOLLY = 1.5;
 const MOVE_KEYS = ['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
 
 export class CameraController {
@@ -87,6 +91,12 @@ export class CameraController {
    *  padMove = [strafe(+right), forward(+fwd)]; padLook = look-around. */
   padMove: [number, number] = [0, 0];
   padLook: [number, number] = [0, 0];
+  /** SpaceMouse fly input, already deadzoned and shaped by the device layer:
+   *  spaceMove = [right, forward, up] as −1..1 of the fly/walk speed (the
+   *  move pad's analog rule), spaceLook = [yaw (+right), pitch (+up)].
+   *  Movement is ignored in 'orbit' mode like the move pad. */
+  spaceMove: [number, number, number] = [0, 0, 0];
+  spaceLook: [number, number] = [0, 0];
   flySpeed = 6;
   flyShift = 18;
   walkSpeed = 4;
@@ -94,6 +104,8 @@ export class CameraController {
   /** Mouse sensitivity multipliers (settings): LMB orbit / look-around, RMB pan. */
   orbitSens = 1;
   panSens = 1;
+  /** Flip the vertical of the LMB mouse drag (look/orbit) — mouse only, not touch or the gizmo. */
+  invertMouseY = false;
 
   // smoothed targets (exponential settle like native)
   private tAz = 0.6;
@@ -363,6 +375,7 @@ export class CameraController {
     }
     this.panDX = this.panDY = 0;
     this.padMove = [0, 0];
+    this.spaceMove = [0, 0, 0];
     for (const k of MOVE_KEYS) {
       this.keys.delete(k);
     }
@@ -400,6 +413,8 @@ export class CameraController {
       this.padMove[1] !== 0 ||
       this.padLook[0] !== 0 ||
       this.padLook[1] !== 0 ||
+      this.spaceMove.some((v) => v !== 0) ||
+      this.spaceLook.some((v) => v !== 0) ||
       ['w', 'a', 's', 'd', 'q', 'e'].some((k) => this.keys.has(k));
     if (interacting) {
       this.anim = null;
@@ -419,6 +434,12 @@ export class CameraController {
       const LOOK_SPEED = 2.2; // rad/s at full deflection
       this.tAz -= this.padLook[0] * LOOK_SPEED * dt * this.orbitSens;
       this.tEl = Math.min(EL_CLAMP, Math.max(-EL_CLAMP, this.tEl - this.padLook[1] * LOOK_SPEED * dt * this.orbitSens));
+    }
+
+    // SpaceMouse twist/tilt: look around (any mode, also scan look-around)
+    if (this.spaceLook[0] !== 0 || this.spaceLook[1] !== 0) {
+      this.tAz -= this.spaceLook[0] * SPACE_LOOK_SPEED * dt;
+      this.tEl = Math.min(EL_CLAMP, Math.max(-EL_CLAMP, this.tEl + this.spaceLook[1] * SPACE_LOOK_SPEED * dt));
     }
 
     // LMB orbit
@@ -459,9 +480,9 @@ export class CameraController {
       this.onUserInput?.('pan');
       const step = Math.max(this.orbitDistance, 0.1) * 0.8 * dt * this.keyPanSens;
       for (let i = 0; i < 3; i++) {
-        // +right for ArrowRight — matches RMB pan and the vertical arrows (was
-        // negated, which panned the wrong way horizontally)
-        this.target[i] += (right[i] * adx + up[i] * ady) * step;
+        // the camera moves the way the arrow points: ArrowUp = view up, ArrowRight
+        // = view right. `right` points screen-LEFT (native convention), hence −adx.
+        this.target[i] += (-right[i] * adx + up[i] * ady) * step;
       }
     }
 
@@ -491,6 +512,9 @@ export class CameraController {
       if (!orbit && (this.keys.has('s') || this.padMove[1] < -0.3)) {
         this.tDist = Math.min(this.tDist / factor, 1e7);
       }
+      if (!orbit && this.spaceMove[1] !== 0) {
+        this.tDist = Math.min(1e7, Math.max(0.1, this.tDist * Math.exp(-this.spaceMove[1] * SPACE_ORTHO_DOLLY * dt)));
+      }
     } else if (!orbit) {
       // walk uses the horizontal projection of forward (constant Z)
       const rl = Math.hypot(f[0], f[1]) || 1;
@@ -503,6 +527,9 @@ export class CameraController {
       }
       if (this.padMove[1] !== 0) {
         add(fwd, this.padMove[1]); // left pad: forward/back
+      }
+      if (this.spaceMove[1] !== 0) {
+        add(fwd, this.spaceMove[1]); // SpaceMouse push/pull
       }
     }
     if (!orbit) {
@@ -521,6 +548,9 @@ export class CameraController {
       if (this.keys.has('e')) {
         mv[2] -= 1; // E = down
       }
+      // SpaceMouse: sideways push strafes, lift/press rises/sinks (world Z, like Q/E)
+      add(right, -this.spaceMove[0]);
+      mv[2] += this.spaceMove[2];
     }
     const ml = Math.hypot(mv[0], mv[1], mv[2]);
     if (ml > 1e-6) {
@@ -578,6 +608,8 @@ export class CameraController {
     this.orbitDX = this.orbitDY = this.panDX = this.panDY = this.wheel = 0;
     this.padMove = [0, 0];
     this.padLook = [0, 0];
+    this.spaceMove = [0, 0, 0];
+    this.spaceLook = [0, 0];
     for (const k of MOVE_KEYS) {
       this.keys.delete(k);
     }
@@ -824,7 +856,7 @@ export class CameraController {
       }
       if (button === 0) {
         this.orbitDX += e.movementX;
-        this.orbitDY += e.movementY;
+        this.orbitDY += this.invertMouseY ? -e.movementY : e.movementY;
       } else if (button === 2 || button === 1) {
         this.panDX += e.movementX;
         this.panDY += e.movementY;

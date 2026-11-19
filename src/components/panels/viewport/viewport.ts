@@ -15,6 +15,7 @@ import { attachMeasureBar } from './measureBar';
 import { traceMeasureProbe } from './measureTrace';
 import { attachNavGizmo, type NavGizmo } from './navGizmo';
 import { shapeGizmoTarget } from './shapeGizmo';
+import { attachSpaceCrosshair, type SpaceCrosshair } from './spaceCrosshair';
 
 /** Adapt the renderer's probe (null fields) to the state's MeasureHit (optional). */
 function toHit(p: MeasureProbe | null): MeasureHit | null {
@@ -66,6 +67,7 @@ import { labelsState } from '../../../state/viewer/labels.state';
 import { navActions, navState } from '../../../state/viewer/nav.state';
 import { residency } from '../../../state/viewer/residency';
 import { selectionState } from '../../../state/viewer/selection.state';
+import { spaceMouseActions } from '../../../state/viewer/spaceMouse.actions';
 import { collectStats, formatOverlay } from '../../../state/viewer/statsRows';
 import { gizmoCommitIntercepted, registerRenderer, viewerActions } from '../../../state/viewer/viewer.actions';
 import { viewerState } from '../../../state/viewer/viewer.state';
@@ -251,6 +253,7 @@ export const viewport: PanelDefinition = {
     let labelOverlay: LabelOverlay | null = null;
     let measureAim: MeasureAim | null = null;
     let measureBar: { dispose(): void } | null = null;
+    let spaceCrosshair: SpaceCrosshair | null = null;
     let residencyBoxes: ResidencyBoxOverlay | null = null;
     let detachAnimation: (() => void) | null = null;
     let unmountPlayBar: (() => void) | null = null;
@@ -514,6 +517,7 @@ export const viewport: PanelDefinition = {
       cam.walkShift = nav.walkShift;
       cam.orbitSens = nav.orbitSens;
       cam.panSens = nav.panSens;
+      cam.invertMouseY = nav.mouseInvertY;
       cam.keyPanSens = nav.keyPanSens;
       renderer.fitDense = viewerState.get().fitDense;
       const showPads = viewerState.get().touchPads;
@@ -616,6 +620,9 @@ export const viewport: PanelDefinition = {
       detachAnimation = attachAnimationViewport(host, renderer);
       unmountPlayBar = mountPlayBar(host);
       measureBar = attachMeasureBar(host);
+      // SpaceMouse: re-open a device paired on an earlier visit (idempotent)
+      spaceMouseActions.init();
+      spaceCrosshair = attachSpaceCrosshair(host);
       // measure-probe trace (Settings → Stats → verbose trace → Console)
       const traceDeps = { host, canvas, renderer };
       renderer.onTrace = (line) => consoleActions.log('info', line);
@@ -655,6 +662,9 @@ export const viewport: PanelDefinition = {
         downAt = { x: e.clientX, y: e.clientY, type: e.pointerType };
       });
       canvas.addEventListener('click', (e) => {
+        if (spaceMouseActions.isButtonClickEcho(performance.now())) {
+          return; // 3DxWare's emulated click for a SpaceMouse button, not the user's
+        }
         if (e.altKey) {
           return; // alt+click re-pivots the camera
         }
@@ -777,6 +787,20 @@ export const viewport: PanelDefinition = {
             selectItem();
           }
         });
+      });
+
+      // SpaceMouse buttons act on the viewport centre (the user aims by flying):
+      // left selects like a plain click, right flies there like Space+click
+      spaceMouseActions.setCenterActions({
+        select: () => {
+          const x = canvas.clientWidth / 2;
+          const y = canvas.clientHeight / 2;
+          renderer.probeWorld(x, y);
+          void renderer.pickItem(x, y).then((id) => viewerActions.selectFromPick(id, false));
+        },
+        flyTo: () => {
+          renderer.flyToPixel(canvas.clientWidth / 2, canvas.clientHeight / 2);
+        },
       });
 
       // Double-click finishes an open-ended measurement (Path / Area).
@@ -947,6 +971,8 @@ export const viewport: PanelDefinition = {
         }
         navGizmo?.beforeFrame(now);
         tickAnimation(now); // playhead + band slots + camera follow, before the frame
+        spaceMouseActions.feed(renderer.camera);
+        spaceCrosshair?.update(now);
         renderer.frame(canvas);
         residency.tick(renderer, now); // VRAM budget (no-op while disabled)
         // laser-scan point streaming (no-op without open scans); a scan opened
@@ -1031,6 +1057,8 @@ export const viewport: PanelDefinition = {
       labelOverlay?.dispose();
       residencyBoxes?.dispose();
       detachAnimation?.();
+      spaceMouseActions.setCenterActions(null);
+      spaceCrosshair?.dispose();
       unmountPlayBar?.();
       measureAim?.dispose();
       measureBar?.dispose();

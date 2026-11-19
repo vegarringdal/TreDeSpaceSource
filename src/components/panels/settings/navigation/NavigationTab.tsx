@@ -4,6 +4,7 @@ import { viewerActions } from '../../../../state/viewer/viewer.actions';
 import { useViewer } from '../../../../state/viewer/viewer.state';
 import { SettingsSection } from '../SettingsSection';
 import { buildSpeedRows } from './navigationSpeedRows';
+import { SpaceMouseSettings } from './SpaceMouseSettings';
 
 const NAV_MODES: readonly RadioOption<NavState['mode']>[] = [
   {
@@ -68,6 +69,12 @@ export function NavigationTab() {
         />
       ))}
       <Checkbox
+        label="Invert mouse up/down"
+        checked={nav.mouseInvertY}
+        onChange={(x) => navActions.update({ mouseInvertY: x })}
+        info={<>Dragging the mouse down looks up (left-button look/orbit). Touch is not affected.</>}
+      />
+      <Checkbox
         label="Frame dense bounds on load"
         checked={v.fitDense}
         shortcut="nav.fitDense"
@@ -79,6 +86,7 @@ export function NavigationTab() {
           </>
         }
       />
+      <SpaceMouseSettings />
     </SettingsSection>
   );
 }

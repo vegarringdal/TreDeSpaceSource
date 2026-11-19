@@ -6,6 +6,34 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.19** (>0.26.6):
+  SpaceMouse (3Dconnexion) support through WebHID (Chrome/Edge). Settings ›
+  Navigation › SpaceMouse pairs the device once; later visits re-open it
+  without asking. The SpaceMouse flies the camera: push to move along the
+  view, lift/press to rise/sink, twist/tilt to look around. Pushing it switches
+  orbit to fly (walk is kept). Speed follows the fly/walk speed (Shift =
+  sprint), and look sensitivity, deadzone, dominant axis and invert
+  forward/back, pitch and yaw are tunable. Both buttons act on the screen
+  centre, so you aim by flying and never reach for the mouse: left = select
+  it, right = fly to it (the Space+click move). A small centre crosshair
+  shows while the SpaceMouse is in use and fades out once it has been still
+  for 2.5 s (on by default; toggle and delay in the same settings section).
+  A canvas click that arrives while a SpaceMouse button is held, or within
+  0.6 s of one changing, is ignored. 3DxWare can emulate a mouse click per
+  button, and that echo re-selected (or cleared) whatever sat under the mouse
+  pointer right after the button had selected the centre.
+  Input is ignored while the tab is not focused and under the animation kiosk lock.
+  No new dependency: the WebHID types used are declared in
+  `src/lib/spacemouse/webhid.ts`.
+
+  Settings › Navigation › "Invert mouse up/down": flips the vertical of the
+  left-button mouse drag (look/orbit), as many games and CAD tools offer.
+  Touch and the navigation gizmo are unchanged.
+
+  Fix: ArrowLeft/ArrowRight panned the wrong way. ArrowUp moved the view up
+  while ArrowRight moved it left, because the camera's `right` vector points
+  screen-left (native convention). The arrows now pan the way they point.
+
 - **2026.11.19** (>0.26.5):
   GPU memory: a meshlet now costs only the GPU lists its draw path uses.
   On the default vertex-pull path that is 100 bytes per meshlet instead of
