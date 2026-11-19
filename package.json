@@ -1,7 +1,7 @@
 {
   "name": "tredespace",
   "private": true,
-  "version": "0.26.5",
+  "version": "0.26.6",
   "type": "module",
   "author": "Vegar Ringdal <vegar.ringdal@postboxen.no>",
   "scripts": {
