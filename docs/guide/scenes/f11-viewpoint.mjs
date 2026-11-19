@@ -191,13 +191,20 @@ async function captureViewer(ctx) {
   await ctx.shot('f11-viewer', {
     crop: { ...VV, fit: true },
     marks: [
-      { n: 1, el: { ...VV, text: 'Load' } },
-      { n: 2, el: { ...VV, text: 'Mute labels' } },
-      { n: 3, el: { ...VV, text: 'Mute measures' } },
-      { n: 4, el: { ...VV, text: PA } },
-      { n: 5, el: { ...VV, css: '.leading-relaxed' } },
+      { n: 1, el: { ...VV, tooltip: 'Previous:' } },
+      { n: 2, el: { ...VV, tooltip: "The active viewpoint's place" } },
+      { n: 3, el: { ...VV, tooltip: 'Next:' } },
+      { n: 4, el: { ...VV, text: 'One at a time' } },
+      { n: 5, el: { ...VV, text: PA } },
+      { n: 6, el: { ...VV, css: '.leading-relaxed' } },
+      { n: 7, el: { ...VV, text: 'Load' } },
+      { n: 8, el: { ...VV, text: 'Mute labels' } },
+      { n: 9, el: { ...VV, text: 'Mute measures' } },
     ],
   });
+  await ctx.click({ ...VV, text: 'One at a time' });
+  await ctx.shot('f11-viewer-one', { crop: { ...VV, fit: true } });
+  await ctx.click({ ...VV, text: 'One at a time' });
 }
 
 async function captureSetColor(ctx) {
@@ -295,7 +302,12 @@ async function harvestPanels(ctx) {
     ],
   });
   await ctx.harvest('viewpointViewer', {
-    rename: { 'Activate this viewpoint': 'Viewpoint name' },
+    rename: {
+      'Activate this viewpoint': 'Viewpoint name',
+      "The active viewpoint's place": 'Position (x / y)',
+      'Previous:': 'Previous',
+      'Next:': 'Next',
+    },
   });
 }
 

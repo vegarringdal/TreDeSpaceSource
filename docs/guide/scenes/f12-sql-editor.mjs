@@ -324,24 +324,20 @@ async function captureReports(ctx) {
       { n: 1, el: { ...R, re: '^Every tag of the chosen' } },
       { n: 2, el: { ...R, section: 'Tags by discipline', css: 'label' } },
       { n: 3, el: { ...R, section: 'Tags by discipline', text: 'Table' } },
-      { n: 4, el: { ...R, section: 'Tags by discipline', text: 'Coloring' } },
+      { n: 4, el: { ...R, section: 'Tags by discipline', text: 'As White' } },
     ],
   });
 
   await ctx.call(REPORTS, 'sqlReportsActions', 'setOpen', STATUS.id);
   const ST = { ...R, section: 'Tag status' };
-  await ctx.click({ ...ST, text: 'Coloring' });
-  await ctx.sleep(500);
-  const box = { ...ST, re: '^[\\d,]+ rows — apply as:$' };
   await ctx.shot('f12-report-coloring', {
     crop: { el: { ...R, section: 'Tag status' } },
     marks: [
-      { n: 1, el: box },
-      { n: 2, el: { ...ST, text: 'Set color' } },
-      { n: 3, el: { ...ST, text: 'White' } },
-      { n: 4, el: { ...ST, text: 'Hidden' } },
-      { n: 5, el: { ...ST, text: 'Transparent' } },
-      { n: 6, el: { ...ST, text: 'Selection' } },
+      { n: 1, el: { ...ST, text: 'As White' } },
+      { n: 2, el: { ...ST, text: 'As Transparent' } },
+      { n: 3, el: { ...ST, text: 'As Hidden' } },
+      { n: 4, el: { ...ST, text: 'Use Set Color' } },
+      { n: 5, el: { ...ST, text: 'As Selection' } },
     ],
   });
   await harvestReportList(ctx);
@@ -575,7 +571,7 @@ async function harvestReportEditor(ctx) {
       'Create a new report',
       'Edit this report',
       'Run and show the result',
-      'Run the coloring',
+      'Run the report',
       'Enable the TABLE',
       'Enable the DETAIL',
     ],

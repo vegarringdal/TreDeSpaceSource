@@ -18,7 +18,7 @@ export function SqlEditorReportRow() {
           disabled={!can('COLORING')}
           shortcut="sql.editor.colorWhite"
           tooltip="Everything white + the result colored (needs a fullname column; fullname_color optional, defaults yellow)"
-          onClick={() => void act.colorWhite()}
+          onClick={() => void act.color('white')}
         >
           As White
         </Button>
@@ -26,7 +26,7 @@ export function SqlEditorReportRow() {
           disabled={!can('COLORING')}
           shortcut="sql.editor.colorTransparent"
           tooltip="Like As White, but the base coat is white at 10% opacity — the rest of the model stays faintly visible behind the colored result"
-          onClick={() => void act.colorTransparent()}
+          onClick={() => void act.color('transparent')}
         >
           As Transparent
         </Button>
@@ -34,7 +34,7 @@ export function SqlEditorReportRow() {
           disabled={!can('COLORING')}
           shortcut="sql.editor.colorHidden"
           tooltip="Isolate the result: the returned rows colored (fullname_color, defaults yellow), everything else faded to opacity 0 (Reset model in Set Color recovers)"
-          onClick={() => void act.colorHidden()}
+          onClick={() => void act.color('hidden')}
         >
           As Hidden
         </Button>
@@ -42,7 +42,7 @@ export function SqlEditorReportRow() {
           disabled={!can('COLORING')}
           shortcut="sql.editor.colorSet"
           tooltip="Run your current Set Color rules + the result appended as one extra Multi rule (fullname_color optional, defaults yellow). Nothing is saved to the Set Color panel."
-          onClick={() => void act.colorSet()}
+          onClick={() => void act.color('set')}
         >
           Use Set Color
         </Button>
@@ -68,7 +68,7 @@ export function SqlEditorReportRow() {
           disabled={!can('COLORING')}
           shortcut="sql.editor.colorSelection"
           tooltip="Select the result in the viewer: every returned fullname becomes the selection (replaces the current one; colors untouched, fullname_color ignored)"
-          onClick={() => void act.colorSelection()}
+          onClick={() => void act.color('selection')}
         >
           As Selection
         </Button>

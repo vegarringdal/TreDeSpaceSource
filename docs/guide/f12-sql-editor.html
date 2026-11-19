@@ -135,12 +135,12 @@
 
           <h3 id="task-color">Colour the model from a report</h3>
           <ol class="steps">
-            <li>Open a report that has the <b>COLORING</b> type, here <b>Tag status</b>, and press <b>Coloring</b>.</li>
-            <li>A box shows how many rows came back and asks how to use them. Press <b>White</b>: the whole model turns white and every tag gets the colour of its status.
+            <li>Open a report that has the <b>COLORING</b> type, here <b>Tag status</b>. It has a row of colour buttons.</li>
+            <li>Press <b>As White</b>: the report runs, the whole model turns white and every tag gets the colour of its status.
               <figure class="shot" data-shot="f12-report-coloring"></figure>
               <figure class="shot" data-shot="f12-task-white-viewport"></figure>
             </li>
-            <li>Press <b>Hidden</b> instead to see <i>only</i> the result: everything else is hidden. Here the Telecom tags from <b>Tags by discipline</b>, in yellow because that report has no colour column.
+            <li>Press <b>As Hidden</b> instead to see <i>only</i> the result: everything else is hidden. Here the Telecom tags from <b>Tags by discipline</b>, in yellow because that report has no colour column.
               <figure class="shot" data-shot="f12-task-hidden-viewport"></figure>
             </li>
             <li>To go back, press <b>Undo</b> (<kbd>PAGEUP</kbd>) — every colouring is one undo step — or <b>Clear All</b> (<kbd>ALT+R</kbd>, see <a href="f04-selection-color.html#ribbon-misc">F4</a>) to remove all colours and hiding.</li>
@@ -148,7 +148,7 @@
 
           <h3 id="task-select">Select the result and fly to it</h3>
           <ol class="steps">
-            <li>Run the report's <b>Coloring</b> and press <b>Selection</b>. Every item in the result becomes the selection; colours are not changed.</li>
+            <li>Press the report's <b>As Selection</b>. The report runs and every item in the result becomes the selection; colours are not changed.</li>
             <li>In the <b>Hierarchy</b>, press <b>Fly to selection</b> (<kbd>ALT 625</kbd>) to zoom to the selected items. Here the tags installed since 1 September 2025 (<b>Installed since</b>).
               <figure class="shot" data-shot="f12-task-select-viewport"></figure>
             </li>
@@ -226,25 +226,30 @@
             <li><b>Description</b> — written by whoever made the report.</li>
             <li><b>Filters</b> — text boxes or lists. They start with the report's saved values; what you change is used when you run it, but it is not saved into the report.</li>
             <li><b>Table</b> — runs the report and shows the result in <b>SQL Table</b>.</li>
-            <li><b>Coloring</b> — runs the report and asks how to apply the result (below).</li>
+            <li><b>Colour buttons</b> — run the report and colour or select the result (below).</li>
           </ol>
           <p>
             A report with the DETAIL type also has a <b>Detail</b> button: it connects the report to the <b>SQL Detail</b>
-            panel. <b>Table</b> and <b>Coloring</b> are greyed out while a report is running.
+            panel. <b>Table</b> and the colour buttons are greyed out while a report is running.
           </p>
 
-          <h3 id="reports-coloring">Apply a coloring result</h3>
+          <h3 id="reports-coloring">Colour or select the result</h3>
           <figure class="shot" data-shot="f12-report-coloring"></figure>
+          <p>
+            A report with the COLORING type has the same five buttons as the SQL Editor. Each one runs the report
+            again with the filter values shown at that moment, so change a filter and press the button once more
+            to see the new result.
+          </p>
           <ol class="legend-list">
-            <li><b>How many rows</b> came back. Rows whose fullname is not in the loaded model are ignored.</li>
-            <li><b>Set color</b> — runs your current <a href="panel-set-color.html">Set Color</a> rules, with the result added as one more rule on top. The Set Color panel itself is not changed.</li>
-            <li><b>White</b> — everything white, the result in its colours.</li>
-            <li><b>Hidden</b> — only the result is shown, in its colours; everything else is hidden.</li>
-            <li><b>Transparent</b> — like White, but the rest of the model is white at 10 % opacity, so it stays faintly visible.</li>
-            <li><b>Selection</b> — selects the result instead of colouring it.</li>
+            <li><b>As White</b> — everything white, the result in its colours.</li>
+            <li><b>As Transparent</b> — like As White, but the rest of the model is white at 10 % opacity, so it stays faintly visible.</li>
+            <li><b>As Hidden</b> — only the result is shown, in its colours; everything else is hidden.</li>
+            <li><b>Use Set Color</b> — runs your current <a href="panel-set-color.html">Set Color</a> rules, with the result added as one more rule on top. The Set Color panel itself is not changed.</li>
+            <li><b>As Selection</b> — selects the result instead of colouring it. The Console says how many names were found and how many are not in the model.</li>
           </ol>
           <p>
-            Rows without a colour are yellow. The colour choices clear earlier colours first, except <b>Set color</b>,
+            Rows without a colour are yellow, and rows whose fullname is not in the loaded model are ignored. The
+            colour buttons clear earlier colours first, except <b>Use Set Color</b>,
             which follows the run mode of your Set Color rules (see <a href="panel-set-color.html#set-color-modes">Run
             modes</a>). Every colouring can be undone in one step with <b>Undo</b> (<kbd>PAGEUP</kbd>).
           </p>
@@ -259,7 +264,7 @@
             <li><b>Types</b> — which buttons the report gets: COLORING, TABLE, DETAIL.</li>
             <li><b>SQL</b> — the query. Drag the bottom-right corner to make the box bigger. The <b>ⓘ</b> button next to the label sums up the rules from <a href="#sql">Writing SQL for the viewer</a>.</li>
             <li><b>As Table</b> — runs the form <i>as it is now</i>, unsaved changes included, and shows it in SQL Table.</li>
-            <li><b>Color White</b>, <b>Color Hidden</b>, <b>Color Transparent</b>, <b>Color Set</b>, <b>Color Selection</b> — test the colouring directly (the same as the choices above).</li>
+            <li><b>Color White</b>, <b>Color Hidden</b>, <b>Color Transparent</b>, <b>Color Set</b>, <b>Color Selection</b> — test the colouring directly (the same as a saved report's colour buttons).</li>
             <li><b>As Detail</b> — connects the unsaved form to SQL Detail.</li>
           </ol>
           <figure class="shot" data-shot="f12-report-filter"></figure>
@@ -305,10 +310,11 @@
             <li><b>Status</b> — <b>ready</b>, <b>running…</b>, the time and row count of the last run, or the error message.</li>
           </ol>
           <p class="note">
-            <b>As Detail</b> in the editor helps you: if the SQL does not use <code class="inline">TREE_VIEW_ARGS</code>,
-            it is automatically limited to the row whose <code class="inline">fullname</code> is the clicked item.
-            A report's <b>Detail</b> button does <i>not</i> do this — a saved DETAIL report must use
-            <code class="inline">TREE_VIEW_ARGS</code> itself, or it shows the same first row for every click
+            <b>As Detail</b> helps you: if the SQL does not use <code class="inline">TREE_VIEW_ARGS</code>,
+            it is automatically limited to the row whose <code class="inline">fullname</code> is the clicked item,
+            so the result needs a <code class="inline">fullname</code> column. A report's <b>Detail</b> button and
+            the report editor's <b>As Detail</b> do the same; SQL that uses
+            <code class="inline">TREE_VIEW_ARGS</code> itself is connected as written
             (see <a href="#sql-detail">Detail queries</a>). Alt + click on As Detail or Detail writes the SQL it
             connected to the Console.
           </p>

@@ -1,19 +1,14 @@
 import { Button } from '@treDeSpaceUI/widgets';
-import type { PackedNames } from '../../../lib/color/packedNames';
 import { sqlReportsActions as act } from '../../../state/sqlReports/sqlReports.actions';
 import type { ReportDef } from '../../../state/sqlReports/sqlReports.state';
 import { sqlReportsState } from '../../../state/sqlReports/sqlReports.state';
-import { bindDetailReport, openSqlDetailPanel } from '../sql-detail/sqlDetailPanel';
 import { openSqlTablePanel } from '../sql-table/sqlTablePanel';
+import { ReportColorButtons } from './ReportColorButtons';
 
-type ReportRunButtonsProps = Readonly<{
-  effective: ReportDef;
-  onColorRows: (rows: PackedNames | null) => void;
-}>;
-
-/** The report's run buttons — one per enabled output type, running the
- *  EFFECTIVE report (saved definition + the current run-time filter values). */
-export function ReportRunButtons({ effective, onColorRows }: ReportRunButtonsProps) {
+/** The report's run buttons — the ones its enabled output types give it, each
+ *  running the EFFECTIVE report (saved definition + the current run-time
+ *  filter values) at the moment it is pressed. */
+export function ReportRunButtons({ effective }: { effective: ReportDef }) {
   const { busy } = sqlReportsState.use();
 
   return (
@@ -28,25 +23,11 @@ export function ReportRunButtons({ effective, onColorRows }: ReportRunButtonsPro
           Table
         </Button>
       )}
-      {effective.types.includes('COLORING') && (
-        <Button
-          disabled={busy}
-          tooltip="Run the coloring query, then choose how to apply it"
-          onClick={() => void act.runColoring(effective).then((rows) => onColorRows(rows))}
-        >
-          Coloring
-        </Button>
-      )}
+      {effective.types.includes('COLORING') && <ReportColorButtons report={effective} disabled={busy} />}
       {effective.types.includes('DETAIL') && (
         <Button
-          tooltip="Open the SQL Detail panel and follow viewport clicks with this report. ALT+click prints the bound SQL to the Console."
-          onClick={(e) => {
-            bindDetailReport(effective);
-            if (e.altKey) {
-              act.logDetailSql(effective);
-            }
-            openSqlDetailPanel();
-          }}
+          tooltip="Open the SQL Detail panel and follow viewport clicks with this report. SQL that does not read TREE_VIEW_ARGS is wrapped to the clicked item's fullname. ALT+click prints the bound SQL to the Console."
+          onClick={(e) => act.asDetail(effective, e.altKey)}
         >
           Detail
         </Button>
