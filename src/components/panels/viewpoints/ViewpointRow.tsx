@@ -1,4 +1,5 @@
 import { IconListCheck } from '@tabler/icons-react';
+import { cn } from '@treDeSpaceUI/lib/cn';
 import { Badge, Button, Collapsible, TextArea, TextInput } from '@treDeSpaceUI/widgets';
 import { viewpointsActions as act } from '../../../state/viewer/viewpoints.actions';
 import type { Viewpoint } from '../../../state/viewer/viewpoints.state';
@@ -9,7 +10,8 @@ import { ViewpointTransfer } from './ViewpointTransfer';
 /** One viewpoint's editor row: insert / reorder in the header with a badge of
  *  what it stores, then actions, name/description, the Get / Return / Undo
  *  rows to and from the main panels and the selected-on-activation fullname
- *  list. */
+ *  list. The header is one line — a long name is cut with an ellipsis — so
+ *  every closed row is the same height (the list is virtualized). */
 export function ViewpointRow({
   vp,
   active,
@@ -28,13 +30,16 @@ export function ViewpointRow({
       open={expanded}
       onToggle={(next) => act.select(next ? vp.id : null)}
       title={
-        <span className={active ? 'text-blue-300' : undefined}>
+        <span className={cn('min-w-0 truncate', active && 'text-blue-300')}>
           {vp.name}
           {active ? ' — active' : ''}
         </span>
       }
       aside={
-        <Badge tooltip="Labels · Measurements · Selected fullnames · Set Color rules stored in this viewpoint">
+        <Badge
+          className="whitespace-nowrap"
+          tooltip="Labels · Measurements · Selected fullnames · Set Color rules stored in this viewpoint"
+        >
           {vp.labels.length}L {vp.measurements.length}M {vp.fullnames.length}S {vp.colorRules.rules.length}C
         </Badge>
       }

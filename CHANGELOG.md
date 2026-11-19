@@ -7,6 +7,26 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.19** (>0.26.4):
+  Viewpoint Editor: the list is virtualized, so a long set stays quick.
+  - **What changed:** only the rows in view are mounted, plus the open row.
+    Before, every viewpoint was a mounted row with its buttons, so a set
+    of thousands made the whole app slow. Checked headless with 3,000
+    viewpoints (open, move, activate, insert, rename): 27-59 rows mounted,
+    the whole run about 15 s. A similar 3,000-viewpoint run with the old
+    editor in the layout took over three minutes.
+  - **Buttons stay on top:** Add viewpoint, Save, Load and Delete all no
+    longer scroll away with the list.
+  - **One-line row headers:** a long name is cut with an ellipsis (closed
+    rows must be one height); the Name field shows it whole.
+  - **The editor follows the selection:** when a viewpoint becomes the
+    selected one (activated from the Viewpoint Viewer, Add viewpoint,
+    Insert before, Move up / down), the list scrolls to its row.
+  - **Shared with the Viewpoint Viewer:** both lists use one hook
+    (`useOpenRowVirtualList`: fixed rows, one measured taller row). The
+    viewer's list now scrolls only when the active viewpoint changes, so
+    resizing the panel no longer jumps it back to the active one.
+  - **Tests / guide:** `tests/openRowLayout.test.ts` covers the row and
+    scroll arithmetic; the F11 guide describes the list.
   Fix: NWD files written by Navisworks' Inventor reader imported as a
   single `model` element at 100× their size.
   - **Hierarchy:** some nodes store an empty class slot (a plain `0`).
