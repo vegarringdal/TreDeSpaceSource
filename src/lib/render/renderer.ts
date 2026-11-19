@@ -742,6 +742,12 @@ export class Renderer {
     return { vp: Float32Array.from(this.lastVP), w: canvas.width, h: canvas.height, t: performance.now(), tag };
   }
 
+  /** Fly toward the surface under a canvas pixel — the Space+LMB move, for
+   *  callers without a click (the SpaceMouse button aims at the centre). */
+  flyToPixel(cssX: number, cssY: number) {
+    this.queuePick(cssX, cssY, 'fly');
+  }
+
   /** Record the world position under a canvas pixel without moving the camera. */
   probeWorld(cssX: number, cssY: number) {
     this.queuePick(cssX, cssY, 'probe');
