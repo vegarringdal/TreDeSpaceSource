@@ -11,9 +11,9 @@ import {
   healItemBounds,
   INFO_STRIDE_WORDS,
   ITEM_DROP,
-  MESHLET_RECORD_BYTES,
   packModelMixed,
 } from '../src/lib/model/pack';
+import { gpuSizingOf, meshletBytes } from '../src/lib/render/drawLayout';
 
 // -----------------------------------------------------------------------------
 // synthetic ParsedModel: N items in one color group, `meshletsPerItem` each,
@@ -228,17 +228,28 @@ describe('estimateItemFullBytes', () => {
   const PER_ITEM = 2;
   const VERTS = 3; // makeParsed: 3 vertices + 1 triangle per meshlet
 
+  const PLAIN = { transparent: false, outline: false };
+  const VP = gpuSizingOf('vp', PLAIN);
+
   it('sums positions, indices and the per-meshlet record for each item', () => {
     const full = makeParsed(ITEMS, PER_ITEM, FULL_TAG);
-    const est = estimateItemFullBytes(full, false);
-    const perItem = PER_ITEM * (VERTS * 8 + 1 * 6 + MESHLET_RECORD_BYTES);
+    const est = estimateItemFullBytes(full, false, VP);
+    const perItem = PER_ITEM * (VERTS * 8 + 1 * 3 + meshletBytes('vp', PLAIN));
     expect([...est]).toEqual([perItem, perItem, perItem]);
+  });
+
+  it('costs MDI at u16 indices and 20-byte draw records', () => {
+    const full = makeParsed(ITEMS, PER_ITEM, FULL_TAG);
+    const vp = estimateItemFullBytes(full, false, VP);
+    const mdi = estimateItemFullBytes(full, false, gpuSizingOf('mdi', PLAIN));
+    // per meshlet: 3 more index bytes per triangle, 2 × 16 more list bytes
+    expect(mdi[0] - vp[0]).toBe(PER_ITEM * (1 * 3 + 2 * 16));
   });
 
   it('adds the 4 B/vertex normal stream only for smooth-shaded models', () => {
     const full = makeParsed(ITEMS, PER_ITEM, FULL_TAG);
-    const flat = estimateItemFullBytes(full, false);
-    const smooth = estimateItemFullBytes(full, true);
+    const flat = estimateItemFullBytes(full, false, VP);
+    const smooth = estimateItemFullBytes(full, true, VP);
     expect(smooth[0] - flat[0]).toBe(PER_ITEM * VERTS * 4);
   });
 

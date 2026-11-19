@@ -182,9 +182,10 @@ own. Key facts, kept here so the port history isn't lost:
   otherwise the hidden outline of a selection behind other geometry broke
   wherever the HZB culled a meshlet (2026-11-11). A full replay with a per-fragment discard cost a large slice
   of the scene pass on every frame with a selection. Cost: `N + 2T` vertex work instead of
-  `2N`; +28 B per meshlet (`MESHLET_RECORD_BYTES` 116 → 144; 164 since the
-  outline list above added its slot) and ~8 KB per
-  model. Not done: cross-model interleaving (draws are per model, so glass of
+  `2N`; the sorted list and its candidates cost +28 B per meshlet under MDI
+  (+16 B on vertex pull) and ~8 KB per model — since 2026-11-19 only for
+  models that hold something transparent (see *Per-meshlet GPU layout*).
+  Not done: cross-model interleaving (draws are per model, so glass of
   an earlier-loaded model stays under a later one's where they overlap) and a
   "front faces only" variant that would show the true slider opacity at the
   price of the far wall; freeze-cull keeps whatever list the last cull built,
@@ -200,6 +201,37 @@ own. Key facts, kept here so the port history isn't lost:
   cost ~12 ms on a large multi-model scene on a fast GPU). The gate rides with the
   states rather than the async whole-scene `hasTransparency` refresh because
   a gate that lags the states would route glass to a list nobody scans.
+- **Per-meshlet GPU layout** (2026-11-19, `drawLayout.ts`). What a meshlet
+  costs on the GPU is decided in one place, which the renderer allocates from
+  and the mixed repack's budget estimate uses (`Renderer.gpuSizing`). Always
+  held: cull record 36 B, info 32 B and the visibility word 4 B. On top of
+  that, the pass-1/pass-2 lists are 4-byte entries on vertex pull and 20-byte
+  draw records under MDI. The sorted transparent list and its candidates exist
+  only while the model's `transparent` gate holds, and on a culling path. The
+  outline list exists only while an outline feature is switched on (allocated
+  on the switch, not per selection). The static full list exists only on the
+  no-cull path. That is 80 B per meshlet on vertex pull with nothing optional,
+  112 B under MDI, against the old fixed 164 B. Indices are u8 meshlet-local
+  (< 64) in the pack and on the GPU for vertex pull. MDI needs a u16
+  hardware index buffer, so `ensureLayout` widens a model's indices on the
+  GPU (`shaders/indexWidth.ts`) when the path becomes MDI and narrows them
+  when it leaves. No CPU copy is kept. The measure snap has a pipeline pair
+  per width. `ensureLayout` runs at frame start and on every state update and
+  is a no-op unless something changed. A rebuilt cull list starts empty with
+  its count slots zeroed. `modelBytes` reports what a slot holds right now,
+  so an optional list appearing shows up in the residency budget at once
+  (snapshots like `bytesFull` refresh on the next commit).
+- **Cone culling, orthographic** (2026-11-19). Orthographic uses
+  meshoptimizer's orthographic form `dot(forward, axis) >= cutoff`; the
+  perspective, apex-free form `dot(c - eye, axis) >= cutoff·|c - eye| + r` is
+  for perspective only. The orthographic depth slab spans the whole scene
+  box, so geometry can sit behind the orbit eye point, and there the
+  perspective form inverts and culls the camera-facing side. The s8 cone
+  packing (`pack.ts packCone`) is conservative as it stands: the axis
+  rounding error is at most √3·0.5/127 on the dot product, and the extra
+  +1/127 on the cutoff covers it (a cutoff that clamps to 127 is the
+  "skip the test" marker). meshoptimizer's own s8 cutoff adds the
+  per-component error sum, which is merely looser.
 - **Selection outline and hover** (`outlinePass.ts`, a three.js OutlinePass
   on the native `hover_xray` mask): `selectionStyle` is `tint` (default),
   `outline` or `both`; the outline draws a visible and a hidden (see-through)

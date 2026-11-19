@@ -6,6 +6,39 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.19** (>0.26.5):
+  GPU memory: a meshlet now costs only the GPU lists its draw path uses.
+  On the default vertex-pull path that is 80 bytes per meshlet instead of a
+  fixed 164, and indices take half the space.
+  - **Indices are u8 on the vertex-pull paths:** meshlet-local indices
+    never exceed 63, so the pack emits bytes and the vertex-pull shaders
+    and measure snap read them directly. Only MDI keeps a u16 hardware
+    index buffer. A compute pass converts each model's indices on the GPU
+    when the draw path crosses MDI, so no CPU copy is kept.
+  - **Lists follow the path and what is in use:** vertex pull writes
+    4-byte list entries, MDI keeps its 20-byte draw records. The sorted
+    transparent list and its candidates exist only for models with
+    something transparent. The outline list exists only while an outline
+    feature is switched on, and the static full list only on the no-cull
+    path. Under MDI with nothing optional, a meshlet costs 112 bytes.
+  - **The budget uses the same numbers:** `src/lib/render/drawLayout.ts`
+    is the single source of these per-path sizes. The renderer allocates
+    from it, and the mixed repack's per-item estimate receives the
+    renderer's current sizing, so more full detail fits under the same
+    VRAM budget. `modelBytes` reports what a slot holds right now, so
+    turning outline on or adding transparency shows up in the budget at
+    once.
+  Fix: in orthographic view, cone culling could drop surfaces that face
+  the camera. The cone test measured direction from the orbit eye point,
+  but the orthographic depth range spans the whole scene, so geometry
+  between the viewer and that point was tested from behind. That side
+  was culled and the far side drawn instead. Orthographic now uses
+  meshoptimizer's own test for that projection (`dot(forward, axis) >=
+  cutoff`).
+  Generic GLB cook: each draw range is reordered for the vertex cache
+  before meshlets are built (as the Rust cook already does), and meshlets
+  are built with cone weight 0.25 (meshoptimizer's default when cone
+  culling is used) instead of 0.
 - **2026.11.19** (>0.26.4):
   Viewpoint Editor: the list is virtualized, so a long set stays quick.
   - **What changed:** only the rows in view are mounted, plus the open row.

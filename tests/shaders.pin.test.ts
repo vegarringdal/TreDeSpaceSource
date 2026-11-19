@@ -9,6 +9,7 @@ import {
   pointsWgsl,
   cullWgsl,
   hzbWgsl,
+  indexWidthWgsl,
   lineWgsl,
   markerWgsl,
   measureSnapWgsl,
@@ -54,7 +55,10 @@ describe('shader text pins', () => {
     hashes['renderVpWgsl()'] = sha(renderVpWgsl());
     hashes['lineWgsl()'] = sha(lineWgsl());
     hashes['markerWgsl()'] = sha(markerWgsl());
-    hashes['measureSnapWgsl()'] = sha(measureSnapWgsl());
+    for (const width of [1, 2] as const) {
+      hashes[`measureSnapWgsl(${width})`] = sha(measureSnapWgsl(width));
+      hashes[`indexWidthWgsl(${width})`] = sha(indexWidthWgsl(width));
+    }
     hashes['cubeBlitWgsl()'] = sha(cubeBlitWgsl());
     hashes['panoWgsl(false)'] = sha(panoWgsl(false));
     hashes['panoWgsl(true)'] = sha(panoWgsl(true));

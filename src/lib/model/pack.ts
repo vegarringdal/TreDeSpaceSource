@@ -1,6 +1,7 @@
 // Pure geometry packing: ParsedModel -> flat typed arrays ready for GPU
 // upload. Runs inside the model-database worker so multi-second packing of
 // big models never blocks the main thread; every array is transferable.
+import type { GpuSizing } from '../render/drawLayout';
 import type { ParsedModel } from './format';
 
 export const MESHLET_STRIDE = 36; // packed MeshletCull words in shaders/cull.ts (9 u32)
@@ -22,8 +23,10 @@ export interface PackedModel {
   /** 2× snorm16 octahedral normals per vertex (parallel to positionsQ), or
    *  null when the model shades flat. Read as array<u32> on the GPU. */
   normalsQ: Int16Array | null;
-  /** u16 meshlet-local indices, trimmed + even-padded. */
-  indices16: Uint16Array;
+  /** u8 meshlet-local indices (a meshlet has ≤ 64 vertices), trimmed and
+   *  zero-padded to a multiple of 4 bytes. The renderer widens them to u16 on
+   *  the GPU only for the MDI path's hardware index buffer. */
+  indices8: Uint8Array;
   /** MeshletCull records (64 B each). */
   cull: ArrayBuffer;
   /** MeshletInfo records (32 B each); .item is the DENSE local ItemIndex. */
@@ -59,14 +62,14 @@ function packCone(ax: number, ay: number, az: number, cutoff: number): number {
  */
 export const ITEM_DROP = 2;
 
-/** GPU bytes per meshlet that do not depend on its size: the cull record,
- *  the four draw-record slots (pass 1, pass 2, sorted transparent, outline
- *  mask), the sort candidate, the visibility word, the info record and the
- *  full-list entry (renderer.ts MESHLET_RECORD_BYTES). */
-export const MESHLET_RECORD_BYTES = 164;
 const POSITION_BYTES_PER_VERTEX = 8;
 const NORMAL_BYTES_PER_VERTEX = 4;
-const INDEX_BYTES_PER_TRIANGLE = 6;
+
+/** u8 index array for `indexCount` indices, padded to a whole number of u32
+ *  words (writeBuffer sizes and the shaders' array<u32> reads). */
+function allocIndices8(indexCount: number): Uint8Array {
+  return new Uint8Array(Math.ceil(indexCount / 4) * 4);
+}
 
 /** Whether a pack of these parses would carry an authored-normal stream: the
  *  packer only emits one when EVERY color group of every source has normals. */
@@ -82,8 +85,10 @@ export function hasAuthoredNormals(full: ParsedModel, coarse: ParsedModel | null
  *  fill budgets with. Positions, indices, the per-meshlet records, and the
  *  normal stream when the model has one (omitting it under-estimated
  *  smooth-shaded models by a third of their vertex bytes, so mixed packs
- *  overshot their target). */
-export function estimateItemFullBytes(full: ParsedModel, withNormals: boolean): Float32Array {
+ *  overshot their target). `sizing` is the renderer's current layout
+ *  (drawLayout.ts): index width and per-meshlet records depend on the draw
+ *  path and on which optional lists the model holds. */
+export function estimateItemFullBytes(full: ParsedModel, withNormals: boolean, sizing: GpuSizing): Float32Array {
   const est = new Float32Array(full.itemCount);
   const drToItem = full.colorGroups.map((cg) => new Uint32Array(cg.drawRangeCount));
   for (let i = 0; i < full.itemCount; i++) {
@@ -98,8 +103,8 @@ export function estimateItemFullBytes(full: ParsedModel, withNormals: boolean): 
         const off = (start + k) * 40;
         est[item] +=
           cg.descs.getUint32(off + 8, true) * vertexBytes +
-          cg.descs.getUint32(off + 12, true) * INDEX_BYTES_PER_TRIANGLE +
-          MESHLET_RECORD_BYTES;
+          cg.descs.getUint32(off + 12, true) * sizing.indexBytesPerTriangle +
+          sizing.meshletBytes;
       }
     }
   });
@@ -183,9 +188,7 @@ export function packModelMixed(full: ParsedModel, coarse: ParsedModel | null, us
     full.colorGroups.every((cg) => cg.normals != null) &&
     (!coarse || coarse.colorGroups.every((cg) => cg.normals != null));
   const normalsQ = withNormals ? new Int16Array(totalVerts * 2) : null;
-  // exact length, rounded up to an even u16 count so the byte size stays
-  // 4-byte aligned for writeBuffer
-  const indices16 = new Uint16Array(totalTris * 3 + ((totalTris * 3) & 1));
+  const indices8 = allocIndices8(totalTris * 3);
   const cull = new ArrayBuffer(totalMeshlets * MESHLET_STRIDE);
   const cullF = new Float32Array(cull);
   const cullU = new Uint32Array(cull);
@@ -268,9 +271,8 @@ export function packModelMixed(full: ParsedModel, coarse: ParsedModel | null, us
         itemBounds[it + 5] = Math.max(itemBounds[it + 5], mxz);
 
         const firstIndex = indexPos;
-        for (let t = 0; t < tCount * 3; t++) {
-          indices16[indexPos++] = src.tris[tOff + t];
-        }
+        indices8.set(src.tris.subarray(tOff, tOff + tCount * 3), indexPos);
+        indexPos += tCount * 3;
         triangleCount += tCount;
 
         const b = (start + k) * 12;
@@ -301,7 +303,7 @@ export function packModelMixed(full: ParsedModel, coarse: ParsedModel | null, us
     itemCount: full.itemCount,
     cgCount: full.colorGroups.length,
     positionsQ,
-    indices16,
+    indices8,
     cull,
     meshletInfo,
     cgColors,
@@ -328,9 +330,7 @@ export function packModel(model: ParsedModel): PackedModel {
   // normals are all-or-nothing per file (cook.ts) — pack only when every CG has them
   const withNormals = model.colorGroups.length > 0 && model.colorGroups.every((cg) => cg.normals != null);
   const normalsQ = withNormals ? new Int16Array(totalVerts * 2) : null;
-  // exact length, rounded up to an even u16 count so the byte size stays
-  // 4-byte aligned for writeBuffer
-  const indices16 = new Uint16Array(totalTris * 3 + ((totalTris * 3) & 1));
+  const indices8 = allocIndices8(totalTris * 3);
   const cull = new ArrayBuffer(totalMeshlets * MESHLET_STRIDE);
   const cullF = new Float32Array(cull);
   const cullU = new Uint32Array(cull);
@@ -440,10 +440,9 @@ export function packModel(model: ParsedModel): PackedModel {
       }
 
       const firstIndex = indexPos;
-      // meshlet-local u16 indices; baseVertex in the draw record
-      for (let t = 0; t < tCount * 3; t++) {
-        indices16[indexPos++] = cg.tris[tOff + t];
-      }
+      // meshlet-local u8 indices; baseVertex in the draw record
+      indices8.set(cg.tris.subarray(tOff, tOff + tCount * 3), indexPos);
+      indexPos += tCount * 3;
       triangleCount += tCount;
 
       // MeshletBounds in the file: center[3] radius apex[3] axis[3] cutoff
@@ -479,7 +478,7 @@ export function packModel(model: ParsedModel): PackedModel {
     itemCount: model.itemCount,
     cgCount: model.colorGroups.length,
     positionsQ,
-    indices16,
+    indices8,
     cull,
     meshletInfo,
     cgColors,

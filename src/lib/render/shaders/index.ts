@@ -2,6 +2,7 @@
 // pinned by tests/shaders.pin.test.ts — regenerate snapshots on intentional
 // shader changes.
 export { cullWgsl, hzbWgsl, sortScanWgsl, sortScatterWgsl } from './cull';
+export { INDEX_WIDTH_WORKGROUP, indexWidthWgsl } from './indexWidth';
 export { markerWgsl } from './marker';
 export { panoWgsl } from './pano';
 export { pickDepthWgsl, pickItemIdWgsl } from './pick';

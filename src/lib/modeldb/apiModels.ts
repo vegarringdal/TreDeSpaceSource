@@ -14,6 +14,7 @@ import {
 } from '../model/pack';
 import { opfsFileFromRoot } from '../opfs/opfsSyncWrite';
 import { clipCulledSphere } from '../render/clipCull';
+import type { GpuSizing } from '../render/drawLayout';
 import { resetAnimationState } from './apiAnimation';
 import { resetTransformObjects } from './apiTransform';
 import { resetColorUndo } from './colorUndo';
@@ -28,7 +29,7 @@ import { itemWorldBounds, resetTransformPool } from './transformPool';
 function transferPacked<T extends Omit<PackedModel, 'itemBounds'>>(packed: T): T {
   const transfers = [
     packed.positionsQ.buffer,
-    packed.indices16.buffer,
+    packed.indices8.buffer,
     packed.cull,
     packed.meshletInfo,
     packed.cgColors.buffer,
@@ -318,7 +319,8 @@ export const modelsApi = {
    * full-detail budget. Both variants are read from OPFS here (paths from
    * the root) through the parsed LRU. No DbModel mutation; throws
    * `itemcount-mismatch:` if either variant's item table differs from the
-   * registered model. */
+   * registered model. `sizing` is the renderer's per-meshlet / per-triangle
+   * cost for this slot under its current draw path (Renderer.gpuSizing). */
   async repackModelMixed(
     index: number,
     fullPath: string,
@@ -328,6 +330,7 @@ export const modelsApi = {
     cuts: ResidencyCuts,
     viewProj: Float32Array | null,
     clip: Float32Array | null,
+    sizing: GpuSizing,
   ): Promise<Omit<PackedModel, 'itemBounds'> & { fullBudgetLimited: boolean; packDropped: number }> {
     const m = models[index];
     if (!m) {
@@ -338,7 +341,7 @@ export const modelsApi = {
 
     // estimated full-detail GPU bytes per item — the same terms the renderer
     // allocates, normal stream included when the pack will carry one
-    const estBytes = estimateItemFullBytes(full, hasAuthoredNormals(full, coarse));
+    const estBytes = estimateItemFullBytes(full, hasAuthoredNormals(full, coarse), sizing);
 
     // nearest-first over the WORLD-space item boxes (clamped AABB distance),
     // in-frustum items strictly before out-of-view ones — full detail lands

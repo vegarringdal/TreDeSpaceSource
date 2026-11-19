@@ -282,12 +282,24 @@ fn frustum_cone_visible(m: MeshletCull, skip_cone: bool) -> bool {
     }
   }
   if (m.cutoff < 1.0 && !skip_cone) {
-    // meshopt cone test, apex-free conservative form (niagara): the cluster
-    // faces entirely away when the view ray to its bounding sphere lies
-    // inside the normal cone — the +radius term absorbs the dropped apex
-    let to_c = m.center - params.eye.xyz;
-    if (dot(to_c, m.axis) >= m.cutoff * length(to_c) + m.radius) {
-      return false;
+    if (params.is_ortho == 1u) {
+      // ortho: every view ray runs along the camera's forward axis, so the
+      // test is meshopt's ortho form dot(view, axis) >= cutoff. The eye point
+      // means nothing here — the depth slab spans the whole scene, so a
+      // meshlet can sit BEHIND it, where the perspective form below inverts
+      // and culls the camera-facing side. view rows: z = -forward.
+      let fwd = -vec3f(params.view[0].z, params.view[1].z, params.view[2].z);
+      if (dot(fwd, m.axis) >= m.cutoff) {
+        return false;
+      }
+    } else {
+      // meshopt cone test, apex-free conservative form (niagara): the cluster
+      // faces entirely away when the view ray to its bounding sphere lies
+      // inside the normal cone — the +radius term absorbs the dropped apex
+      let to_c = m.center - params.eye.xyz;
+      if (dot(to_c, m.axis) >= m.cutoff * length(to_c) + m.radius) {
+        return false;
+      }
     }
   }
   if (params.px_cut > 0.0) {
