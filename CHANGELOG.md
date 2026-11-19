@@ -7,6 +7,10 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.19** (>0.26.6):
+  `tsconfig.tsbuildinfo` is no longer kept in git and `*.tsbuildinfo` is
+  ignored. It is the TypeScript compiler's local build cache: committed once
+  by accident, never kept current, and every type check marked it modified.
+
   SpaceMouse (3Dconnexion) support through WebHID (Chrome/Edge). Settings ›
   Navigation › SpaceMouse pairs the device once; later visits re-open it
   without asking. The SpaceMouse flies the camera: push to move along the

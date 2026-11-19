@@ -7,6 +7,8 @@ docs/generated/
 chrome/
 dist/
 .claude/settings.local.json
+# TypeScript incremental build cache — rewritten on every type check
+*.tsbuildinfo
 
 # IFC test models — third-party files, not kept in git: fetched on demand with
 # convertSamples/ifc/fetch-samples.sh (--large adds the big stress models).
