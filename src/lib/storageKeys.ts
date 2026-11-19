@@ -30,6 +30,7 @@ export const VIEWER_STORAGE_NAMES = [
   'opfsLayout',
   'dialogIds',
   'scans',
+  'viewpointViewer',
   // reset placeholders (globalReset.ts) with no store behind them yet
   'viewpoints',
   'labels',

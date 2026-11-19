@@ -47,8 +47,8 @@ pub struct ConvertReport {
     pub bbox_min: [f32; 3],
     pub bbox_max: [f32; 3],
     /// The unit factor that was applied (model units → metres): the explicit
-    /// [`UnitScale::Factor`], or what [`UnitScale::Auto`] resolved to
-    /// (`0.3048` for a Revit-loader file, else `1.0`).
+    /// [`UnitScale::Factor`], or what [`UnitScale::Auto`] resolved to (the
+    /// stored unit's factor: `1.0` RVM, `0.3048` Revit, `0.01` Inventor …).
     pub unit_scale: f32,
 }
 
@@ -1053,17 +1053,17 @@ pub enum OutputMode {
 /// Feet → metres: Navisworks' Revit loader keeps Revit's internal length unit.
 pub const FEET_TO_METRES: f32 = 0.3048;
 
-/// How the stored geometry is brought to metres. NWD files carry no unit
-/// factor the converter can rely on; the unit follows the LOADER that wrote
-/// the file (RVM / PDMS: metres, Revit: feet).
+/// How the stored geometry is brought to metres. The unit is the one the
+/// file's File trailers name (a Navisworks `Units` code — see
+/// [`crate::inspect::loaders`]); without one it follows the LOADER that wrote
+/// the file (Revit: feet, anything else: as stored).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum UnitScale {
-    /// [`FEET_TO_METRES`] when the file was written by the Revit loader (every
-    /// plugin slot of the file names a Revit plugin — see
-    /// [`crate::inspect::loaders`]), otherwise `1.0`: RVM-loader files are
-    /// metres already, and the unit of DWG / 3DS-loader files is not known,
-    /// so those — and files naming several different loaders — are left as
-    /// stored.
+    /// The stored unit's factor when every File trailer names the same unit
+    /// ([`crate::inspect::Loaders::stored_unit`]: RVM loader metres, Revit
+    /// feet, Inventor centimetres …). Otherwise [`FEET_TO_METRES`] when every
+    /// plugin slot names a Revit plugin, else `1.0` — files without a unit
+    /// word, or whose trailers disagree, are left as stored.
     #[default]
     Auto,
     /// An explicit factor, model units → metres (`1.0` = as stored). A value
@@ -1072,12 +1072,26 @@ pub enum UnitScale {
 }
 
 impl UnitScale {
-    fn factor(self, loaders: crate::inspect::Loaders) -> f32 {
+    /// The factor to apply and, when `Auto` rescaled, the status-file note
+    /// that says why.
+    fn resolve(self, loaders: crate::inspect::Loaders) -> (f32, Option<String>) {
         match self {
-            UnitScale::Auto if loaders.revit_only() => FEET_TO_METRES,
-            UnitScale::Auto => 1.0,
-            UnitScale::Factor(f) if f.is_finite() && f > 0.0 => f,
-            UnitScale::Factor(_) => 1.0,
+            UnitScale::Auto => match loaders.stored_unit() {
+                Some((_, f)) if f == 1.0 => (1.0, None),
+                Some((name, f)) => (
+                    f,
+                    Some(format!("Stored in {name}: geometry scaled to metres (× {f})")),
+                ),
+                None if loaders.revit_only() => (
+                    FEET_TO_METRES,
+                    Some(format!(
+                        "Revit export: geometry scaled from feet to metres (× {FEET_TO_METRES})"
+                    )),
+                ),
+                None => (1.0, None),
+            },
+            UnitScale::Factor(f) if f.is_finite() && f > 0.0 => (f, None),
+            UnitScale::Factor(_) => (1.0, None),
         }
     }
 }
@@ -1718,20 +1732,14 @@ pub(crate) struct Units {
 /// out at the requested width in metres. With a factor of 1 all three are
 /// no-ops and the output bytes do not move.
 pub(crate) fn units(opts: &ConvertOptions, infos: &[crate::inspect::ChunkInfo]) -> Units {
-    let unit_scale = opts.unit_scale.factor(
+    let (unit_scale, note) = opts.unit_scale.resolve(
         infos
             .iter()
             .fold(Default::default(), |acc: crate::inspect::Loaders, i| {
                 acc.merge(i.loaders)
             }),
     );
-    let notes = if opts.unit_scale == UnitScale::Auto && unit_scale != 1.0 {
-        vec![format!(
-            "Revit export: geometry scaled from feet to metres (× {unit_scale})"
-        )]
-    } else {
-        Vec::new()
-    };
+    let notes: Vec<String> = note.into_iter().collect();
     Units {
         unit_scale,
         gopts: opts.glb(unit_scale),

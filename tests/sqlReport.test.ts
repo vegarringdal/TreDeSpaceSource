@@ -29,7 +29,7 @@ describe('buildReportStatements — TREE_VIEW_ARGS seeding', () => {
   });
 });
 
-describe('detailScopedSql — the editor\'s As Detail wrap', () => {
+describe('detailScopedSql — the wrap every Detail button binds through', () => {
   const WRAP = 'where fullname in (select fullname from TREE_VIEW_ARGS) limit 1';
 
   it('leaves SQL that reads TREE_VIEW_ARGS as written', () => {

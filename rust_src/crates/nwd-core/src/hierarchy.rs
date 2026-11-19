@@ -712,7 +712,7 @@ pub struct Tree {
 /// ```text
 /// chunk  := [n][n × u32][first_id][root_count]  node × root_count
 /// node   := [id][22 leaf | 53 container] name          name := [len][utf-8, pad 4] | [-1]
-///           class            [1][id] | [id][52] string string
+///           class            0 | [1][id] | [id][52] string string
 ///           [flags][k][F]    F = number of attribute slots
 ///           slot × F
 ///           [child_count]    containers (53) only
@@ -958,7 +958,14 @@ pub fn parse_tree(chunk: &[u8]) -> Option<Tree> {
                 return None;
             }
             let name = self.string()?;
-            let class = self.named()?;
+            // `[0]` = a node without a class (Inventor loader: a few
+            // containers carry none); the node then displays as its name.
+            let class = if self.peek()? == 0 {
+                self.o += 4;
+                None
+            } else {
+                Some(self.named()?)
+            };
             self.o += 8; // flags, k
             let n_slots = self.u()?;
             if n_slots > 64 {
@@ -985,7 +992,7 @@ pub fn parse_tree(chunk: &[u8]) -> Option<Tree> {
                 id,
                 leaf,
                 name,
-                class: Some(class),
+                class,
                 material,
                 translation,
                 slots: n_slots,
@@ -1143,6 +1150,50 @@ mod tests {
         let nodes = parse_nodes(&b);
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].display, "ROOT");
+    }
+
+    /// A container whose class slot is `0` (no class — seen on Inventor-loader
+    /// files) is part of the general grammar: the tree parses to its end
+    /// instead of being dropped whole, and the node keeps its own name.
+    #[test]
+    fn parse_tree_accepts_a_node_without_a_class() {
+        let mut w: Vec<u32> = Vec::new();
+        let string = |w: &mut Vec<u32>, s: &str| {
+            w.push(s.len() as u32);
+            let mut b = s.as_bytes().to_vec();
+            b.resize(s.len().div_ceil(4) * 4, 0);
+            w.extend(b.chunks(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())));
+        };
+        // header `[0][first_id = 100][roots = 1]`
+        w.extend([0, 100, 1]);
+        // 101: container "ROOT", inline class 102 "Group" / "LcGroup",
+        // flags, k, F = 0, one child
+        w.extend([101, 53]);
+        string(&mut w, "ROOT");
+        w.extend([102, TYPE_CLASS]);
+        string(&mut w, "Group");
+        string(&mut w, "LcGroup");
+        w.extend([0, 0, 0, 1]);
+        // 103: container "Body" with a NULL class slot, one child
+        w.extend([103, 53]);
+        string(&mut w, "Body");
+        w.extend([0, 0, 0, 0, 1]);
+        // 104: unnamed leaf, class ref 102
+        w.extend([104, 22, NONAME_LEN, 1, 102, 0, 0, 0]);
+        let b: Vec<u8> = w.iter().flat_map(|x| x.to_le_bytes()).collect();
+
+        let tree = parse_tree(&b).expect("a null class slot must not drop the tree");
+        let shown: Vec<(&str, u32, bool)> = tree
+            .nodes
+            .iter()
+            .map(|n| (n.display.as_str(), n.depth, n.geometry))
+            .collect();
+        assert_eq!(
+            shown,
+            [("ROOT", 0, false), ("Body", 1, false), ("Group", 2, true)]
+        );
+        assert_eq!(tree.nodes[1].class, None);
+        assert_eq!(tree.nodes[2].class.as_deref(), Some("Group"));
     }
 
     /// End-to-end on the Huldra sample (`convertSamples/nwd/huldra/`): crack the

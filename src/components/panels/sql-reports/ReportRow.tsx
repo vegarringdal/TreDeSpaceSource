@@ -1,11 +1,9 @@
 import { IconPencil } from '@tabler/icons-react';
 import { Badge, Button, Collapsible } from '@treDeSpaceUI/widgets';
 import { useState } from 'react';
-import type { PackedNames } from '../../../lib/color/packedNames';
 import { sqlReportsActions as act } from '../../../state/sqlReports/sqlReports.actions';
 import { type ReportDef, sqlReportsState } from '../../../state/sqlReports/sqlReports.state';
 import { RichText } from '../../shared/RichText';
-import { ColorApplyBox } from './ColorApplyBox';
 import { ReportFilterInput } from './ReportFilterInput';
 import { ReportRunButtons } from './ReportRunButtons';
 import { seedVals, stringOr, stringsOr } from './reportValues';
@@ -18,7 +16,6 @@ export function ReportRow({ report }: { report: ReportDef }) {
   const open = openId === report.id;
   // ephemeral filter values (defaults come from the report; not persisted per keystroke)
   const [vals, setVals] = useState<Record<string, string | string[]>>(() => seedVals(report.filters));
-  const [colorRows, setColorRows] = useState<PackedNames | null>(null);
 
   const effective: ReportDef = {
     ...report,
@@ -57,9 +54,7 @@ export function ReportRow({ report }: { report: ReportDef }) {
         />
       ))}
 
-      <ReportRunButtons effective={effective} onColorRows={setColorRows} />
-
-      {colorRows && <ColorApplyBox rows={colorRows} />}
+      <ReportRunButtons effective={effective} />
     </Collapsible>
   );
 }

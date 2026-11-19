@@ -1,7 +1,6 @@
 import { Button } from '@treDeSpaceUI/widgets';
 import { sqlReportsActions as act } from '../../../state/sqlReports/sqlReports.actions';
 import type { ReportDef } from '../../../state/sqlReports/sqlReports.state';
-import { bindDetailReport, openSqlDetailPanel } from '../sql-detail/sqlDetailPanel';
 import { openSqlTablePanel } from '../sql-table/sqlTablePanel';
 
 /** Test buttons for the editor — each runs the DRAFT (via `eff`) against the
@@ -18,43 +17,37 @@ export function ReportTestButtons({ eff }: { eff: () => ReportDef }) {
       </Button>
       <Button
         tooltip="Everything white + the returned rows their colors"
-        onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorWhite(rows))}
+        onClick={() => void act.runAndColor(eff(), 'white')}
       >
         Color White
       </Button>
       <Button
         tooltip="Isolate the result: hits keep their colors, everything else fades to opacity 0"
-        onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorHidden(rows))}
+        onClick={() => void act.runAndColor(eff(), 'hidden')}
       >
         Color Hidden
       </Button>
       <Button
         tooltip="Like Color White, but the base coat is white at 10% opacity — the rest of the model stays faintly visible"
-        onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorTransparent(rows))}
+        onClick={() => void act.runAndColor(eff(), 'transparent')}
       >
         Color Transparent
       </Button>
       <Button
         tooltip="Run your current Set Color rules + the result appended as one extra Multi rule (Set Color panel untouched)"
-        onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorSetColor(rows))}
+        onClick={() => void act.runAndColor(eff(), 'set')}
       >
         Color Set
       </Button>
       <Button
         tooltip="Select the result in the viewer: every returned fullname becomes the selection (colors untouched)"
-        onClick={() => void act.runColoring(eff()).then((rows) => rows && act.colorSelection(rows))}
+        onClick={() => void act.runAndColor(eff(), 'selection')}
       >
         Color Selection
       </Button>
       <Button
-        tooltip="Bind this draft to the SQL Detail panel (follows viewport clicks). ALT+click prints the bound SQL."
-        onClick={(e) => {
-          bindDetailReport(eff());
-          if (e.altKey) {
-            act.logDetailSql(eff());
-          }
-          openSqlDetailPanel();
-        }}
+        tooltip="Bind this draft to the SQL Detail panel (follows viewport clicks). SQL that does not read TREE_VIEW_ARGS is wrapped to the clicked item's fullname. ALT+click prints the bound SQL."
+        onClick={(e) => act.asDetail(eff(), e.altKey)}
       >
         As Detail
       </Button>

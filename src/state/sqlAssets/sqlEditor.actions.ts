@@ -8,12 +8,11 @@
 
 import { dialogs } from '../../components/dialogs/dialogs.actions';
 import { consoleActions } from '../../components/panels/console/console.actions';
-import { bindDetailReport, openSqlDetailPanel } from '../../components/panels/sql-detail/sqlDetailPanel';
 import { openSqlReportsPanel } from '../../components/panels/sql-reports/sqlReportsPanel';
 import { openSqlTablePanel } from '../../components/panels/sql-table/sqlTablePanel';
 import { killSqliteWorker, sqliteClient, sqlOptions } from '../../lib/sqlite/client';
 import { parseAttachPaths, splitSqlStatements } from '../../lib/sqlite/sqlAttach';
-import { detailScopedSql, filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
+import { filterArgsStatements, treeViewArgsStatements } from '../../lib/sqlite/sqlReport';
 import {
   moveFilterCollapsed,
   removeFilterCollapsed,
@@ -28,7 +27,7 @@ import {
   toggleReportType,
   withDatabases,
 } from '../sqlReports/reportDraft';
-import { lastSelectedTree, sqlReportsActions } from '../sqlReports/sqlReports.actions';
+import { lastSelectedTree, type ReportColorUse, sqlReportsActions } from '../sqlReports/sqlReports.actions';
 import type { ReportDef, ReportFilter, ReportType } from '../sqlReports/sqlReports.state';
 import { sqlAssetsState } from './sqlAssets.state';
 import { emptyEditorDraft, sqlEditorState } from './sqlEditor.state';
@@ -325,65 +324,22 @@ export const sqlEditorActions = {
     openSqlTablePanel();
   },
 
-  /** White base coat + the result as a colored Multi highlight in Set Color. */
-  async colorWhite() {
-    const rows = await sqlReportsActions.runColoring(editorReport());
-    if (rows) {
-      await sqlReportsActions.colorWhite(rows);
-    }
-  },
-
-  /** Opacity-0 base coat + the result colored (default yellow): isolates the
-   *  returned rows, like As White but hiding the rest instead of whitening. */
-  async colorHidden() {
-    const rows = await sqlReportsActions.runColoring(editorReport());
-    if (rows) {
-      await sqlReportsActions.colorHidden(rows);
-    }
-  },
-
-  /** White base at 10% + the result colored: like As White, but the rest of
-   *  the model stays faintly visible instead of going flat white. */
-  async colorTransparent() {
-    const rows = await sqlReportsActions.runColoring(editorReport());
-    if (rows) {
-      await sqlReportsActions.colorTransparent(rows);
-    }
-  },
-
-  /** Append a per-row Multi rule (fullname + fullname_color) to Set Color and run it. */
-  async colorSet() {
-    const rows = await sqlReportsActions.runColoring(editorReport());
-    if (rows) {
-      await sqlReportsActions.colorSetColor(rows);
-    }
-  },
-
-  /** Select the result in the viewer: every returned fullname becomes the
-   *  selection (replacing the current one). Only the fullname column is used;
-   *  a fullname_color column is ignored. Colors are left as they are. */
-  async colorSelection() {
-    const rows = await sqlReportsActions.runColoring(editorReport());
-    if (!rows) {
-      return;
-    }
-    const r = await sqlReportsActions.colorSelection(rows);
-    const missed = r.missed ? ` (${r.missed} not in the model)` : '';
-    consoleActions.log('info', `SQL: selected ${r.matched} of ${rows.count} fullname(s)${missed}`);
+  /** A colour button: run the current SQL as a coloring query and use the
+   *  result as `use` says — painted over a white, 10 % white or hidden base
+   *  coat, layered on the live Set Color rules, or selected in the viewer
+   *  (only the fullname column counts there; the Console says how many names
+   *  resolved). Needs a `fullname` column; `fullname_color` is optional and
+   *  defaults to yellow. */
+  async color(use: ReportColorUse) {
+    await sqlReportsActions.runAndColor(editorReport(), use);
   },
 
   /** Bind the current SQL to the SQL Detail panel — clicks run it against the
-   *  clicked hierarchy. SQL that reads TREE_VIEW_ARGS itself is bound as
-   *  written; anything else is wrapped to the clicked item's fullname first
-   *  (detailScopedSql). The editor's draft stays as typed. `debug`
-   *  (ALT+click) prints the SQL actually bound, so you can verify it was set. */
+   *  clicked hierarchy, wrapped to the clicked item's fullname unless it
+   *  reads TREE_VIEW_ARGS itself (sqlReportsActions.asDetail). The editor's
+   *  draft stays as typed. `debug` (ALT+click) prints the SQL actually bound,
+   *  so you can verify it was set. */
   asDetail(debug = false) {
-    const draft = editorReport();
-    const r = { ...draft, sql: detailScopedSql(draft.sql) };
-    bindDetailReport(r);
-    if (debug) {
-      sqlReportsActions.logDetailSql(r);
-    }
-    openSqlDetailPanel();
+    sqlReportsActions.asDetail(editorReport(), debug);
   },
 };

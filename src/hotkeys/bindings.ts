@@ -89,6 +89,7 @@ import { getRenderer, viewerActions } from '../state/viewer/viewer.actions';
 import { type ViewerState, viewerState } from '../state/viewer/viewer.state';
 import { viewpointsActions } from '../state/viewer/viewpoints.actions';
 import { viewpointsState } from '../state/viewer/viewpoints.state';
+import { viewpointViewerActions } from '../state/viewer/viewpointViewer.actions';
 import { ANIMATION_AUTHOR_HOTKEYS, ANIMATION_PLAYER_HOTKEYS } from './animationBindings';
 import { ANIMATION_KEY_HOTKEYS } from './animationKeyBindings';
 import { ANIMATION_LOOK_HOTKEYS } from './animationLookBindings';
@@ -1138,6 +1139,30 @@ export const HOTKEYS: HotkeyDef[] = [
     },
   },
   {
+    id: 'viewpoints.prev',
+    category: 'View',
+    label: 'Viewpoint: previous',
+    defaultKeys: 'ALT 1292',
+    description: 'Activate the viewpoint before the active one (the last one when none is active)',
+    run: () => void viewpointsActions.step(-1),
+  },
+  {
+    id: 'viewpoints.next',
+    category: 'View',
+    label: 'Viewpoint: next',
+    defaultKeys: 'ALT 1293',
+    description: 'Activate the viewpoint after the active one (the first one when none is active)',
+    run: () => void viewpointsActions.step(1),
+  },
+  {
+    id: 'viewpointViewer.oneAtATime',
+    category: 'View',
+    label: 'Viewpoint Viewer: one at a time',
+    defaultKeys: 'ALT 1294',
+    description: 'Switch the Viewpoint Viewer between the whole list and only the active viewpoint',
+    run: () => viewpointViewerActions.toggleOneAtATime(),
+  },
+  {
     id: 'viewpoints.updateCamera',
     category: 'View',
     label: 'Viewpoint: update camera/clip',
@@ -1989,7 +2014,7 @@ export const HOTKEYS: HotkeyDef[] = [
     label: 'SQL Editor: as white',
     defaultKeys: 'ALT 644',
     description: 'Paint every returned fullname white',
-    run: () => void sqlEditorActions.colorWhite(),
+    run: () => void sqlEditorActions.color('white'),
     context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
@@ -1998,7 +2023,7 @@ export const HOTKEYS: HotkeyDef[] = [
     label: 'SQL Editor: as hidden',
     defaultKeys: 'ALT 645',
     description: 'Hide every returned fullname',
-    run: () => void sqlEditorActions.colorHidden(),
+    run: () => void sqlEditorActions.color('hidden'),
     context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
@@ -2007,7 +2032,7 @@ export const HOTKEYS: HotkeyDef[] = [
     label: 'SQL Editor: as transparent',
     defaultKeys: 'ALT 1220',
     description: 'Run the editor SQL and color the result over a white base at 10% opacity',
-    run: () => void sqlEditorActions.colorTransparent(),
+    run: () => void sqlEditorActions.color('transparent'),
     context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
@@ -2016,7 +2041,7 @@ export const HOTKEYS: HotkeyDef[] = [
     label: 'SQL Editor: use set color',
     defaultKeys: 'ALT 646',
     description: 'Append a per-row Multi rule to Set Color and run it',
-    run: () => void sqlEditorActions.colorSet(),
+    run: () => void sqlEditorActions.color('set'),
     context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {
@@ -2025,7 +2050,7 @@ export const HOTKEYS: HotkeyDef[] = [
     label: 'SQL Editor: as selection',
     defaultKeys: 'ALT 1291',
     description: 'Run the editor SQL and select every returned fullname in the viewer',
-    run: () => void sqlEditorActions.colorSelection(),
+    run: () => void sqlEditorActions.color('selection'),
     context: () => sqlEditorState.get().draft.types.includes('COLORING'),
   },
   {

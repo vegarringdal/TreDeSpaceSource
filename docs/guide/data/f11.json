@@ -2,47 +2,45 @@
   "shots": {
     "f11-edit-locked": {
       "w": 410,
-      "h": 301,
+      "h": 331,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 4,
           "y": 8,
-          "w": 334.59375,
+          "w": 332.75,
           "h": 16
         },
         {
           "n": 2,
-          "x": 346.59375,
+          "x": 344.75,
           "y": 4,
-          "w": 59.40625,
+          "w": 61.25,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-edit-dirty": {
       "w": 410,
-      "h": 301,
+      "h": 331,
       "gpu": false,
       "marks": [
         {
           "n": 1,
-          "x": 94.40625,
+          "x": 81.9375,
           "y": 6,
-          "w": 79.59375,
+          "w": 84.03125,
           "h": 20
         },
         {
           "n": 2,
-          "x": 182,
+          "x": 173.96875,
           "y": 4,
-          "w": 138.25,
+          "w": 145.375,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-layout": {
       "w": 1440,
@@ -117,46 +115,45 @@
           "n": 1,
           "x": 9,
           "y": 54,
-          "w": 119.078125,
+          "w": 123.296875,
           "h": 24
         },
         {
           "n": 2,
-          "x": 134.078125,
+          "x": 138.296875,
           "y": 54,
-          "w": 65.78125,
+          "w": 67.46875,
           "h": 24
         },
         {
           "n": 3,
-          "x": 205.859375,
+          "x": 211.765625,
           "y": 54,
-          "w": 66.1875,
+          "w": 66.796875,
           "h": 24
         },
         {
           "n": 4,
-          "x": 278.046875,
+          "x": 284.5625,
           "y": 54,
-          "w": 91.3125,
+          "w": 95.265625,
           "h": 24
         },
         {
           "n": 5,
           "x": 18,
           "y": 91,
-          "w": 238.109375,
+          "w": 235.421875,
           "h": 16
         },
         {
           "n": 6,
           "x": 18,
           "y": 127,
-          "w": 239.0625,
+          "w": 235.421875,
           "h": 16
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-row-head": {
       "w": 396,
@@ -165,9 +162,9 @@
       "marks": [
         {
           "n": 1,
-          "x": 249.0625,
+          "x": 245.421875,
           "y": 6,
-          "w": 72.9375,
+          "w": 76.578125,
           "h": 20,
           "at": "bl"
         },
@@ -198,25 +195,24 @@
           "n": 5,
           "x": 6,
           "y": 38,
-          "w": 84.203125,
+          "w": 87.1875,
           "h": 24
         },
         {
           "n": 6,
-          "x": 96.203125,
+          "x": 99.1875,
           "y": 38,
-          "w": 149.765625,
+          "w": 155.515625,
           "h": 24
         },
         {
           "n": 7,
-          "x": 251.96875,
+          "x": 260.703125,
           "y": 38,
-          "w": 74.59375,
+          "w": 77.4375,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-row-content": {
       "w": 396,
@@ -272,8 +268,7 @@
           "w": 384,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-setcolor": {
       "w": 420,
@@ -284,25 +279,24 @@
           "n": 1,
           "x": 9,
           "y": 56,
-          "w": 334.59375,
+          "w": 332.75,
           "h": 16
         },
         {
           "n": 2,
-          "x": 351.59375,
+          "x": 349.75,
           "y": 52,
-          "w": 59.40625,
+          "w": 61.25,
           "h": 24
         },
         {
           "n": 3,
           "x": 9,
           "y": 91,
-          "w": 59.921875,
+          "w": 61.015625,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-scene-muted": {
       "w": 420,
@@ -316,8 +310,7 @@
           "w": 402,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-viewpoint-muted": {
       "w": 420,
@@ -331,8 +324,7 @@
           "w": 402,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-unsaved": {
       "w": 340,
@@ -341,63 +333,89 @@
       "marks": [
         {
           "n": 1,
-          "x": 255.21875,
+          "x": 253.53125,
           "y": 124.5,
-          "w": 61.78125,
+          "w": 63.46875,
           "h": 24
         },
         {
           "n": 2,
-          "x": 171.9375,
+          "x": 168.40625,
           "y": 124.5,
-          "w": 77.28125,
+          "w": 79.125,
           "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-viewer": {
       "w": 200,
-      "h": 301,
+      "h": 758,
       "gpu": false,
       "marks": [
         {
           "n": 1,
           "x": 9,
           "y": 32,
-          "w": 66.1875,
+          "w": 65,
           "h": 24
         },
         {
           "n": 2,
-          "x": 81.1875,
-          "y": 32,
-          "w": 104.140625,
-          "h": 24
+          "x": 80,
+          "y": 36,
+          "w": 40,
+          "h": 16
         },
         {
           "n": 3,
-          "x": 9,
-          "y": 62,
-          "w": 125.5625,
+          "x": 126,
+          "y": 32,
+          "w": 65,
           "h": 24
         },
         {
           "n": 4,
-          "x": 9,
-          "y": 128,
-          "w": 182,
-          "h": 30
+          "x": 70.59375,
+          "y": 62,
+          "w": 120.40625,
+          "h": 24
         },
         {
           "n": 5,
           "x": 9,
-          "y": 158,
+          "y": 129,
           "w": 182,
-          "h": 95
+          "h": 26
+        },
+        {
+          "n": 6,
+          "x": 9,
+          "y": 155,
+          "w": 182,
+          "h": 114.5
+        },
+        {
+          "n": 7,
+          "x": 10.03125,
+          "y": 695,
+          "w": 66.796875,
+          "h": 24
+        },
+        {
+          "n": 8,
+          "x": 82.828125,
+          "y": 695,
+          "w": 107.140625,
+          "h": 24
+        },
+        {
+          "n": 9,
+          "x": 34.765625,
+          "y": 725,
+          "w": 130.453125,
+          "h": 24
         }
-      ],
-      "fromGpu": true
+      ]
     },
     "f11-task-pa-viewport": {
       "w": 600,
@@ -412,6 +430,12 @@
       "gpu": true,
       "marks": [],
       "fromGpu": true
+    },
+    "f11-viewer-one": {
+      "w": 200,
+      "h": 758,
+      "gpu": false,
+      "marks": []
     }
   },
   "reference": {
@@ -588,6 +612,41 @@
     "viewpointViewer": [
       {
         "section": "",
+        "label": "Previous",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevron-left \"><path d=\"M15 6l-6 6l6 6\"></path></svg>",
+        "tooltip": "Previous: activate the viewpoint before the active one (the last one when none is active)",
+        "keys": "ALT 1292"
+      },
+      {
+        "section": "",
+        "label": "Position (x / y)",
+        "icon": "",
+        "tooltip": "The active viewpoint's place in the list / how many there are",
+        "keys": ""
+      },
+      {
+        "section": "",
+        "label": "Next",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-chevron-right \"><path d=\"M9 6l6 6l-6 6\"></path></svg>",
+        "tooltip": "Next: activate the viewpoint after the active one (the first one when none is active)",
+        "keys": "ALT 1293"
+      },
+      {
+        "section": "",
+        "label": "One at a time",
+        "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-slideshow \"><path d=\"M15 6l.01 0\"></path><path d=\"M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -8\"></path><path d=\"M3 13l4 -4a3 5 0 0 1 3 0l4 4\"></path><path d=\"M13 12l2 -2a3 5 0 0 1 3 0l3 3\"></path><path d=\"M8 21l.01 0\"></path><path d=\"M12 21l.01 0\"></path><path d=\"M16 21l.01 0\"></path></svg>",
+        "tooltip": "Show only the active viewpoint instead of the whole list — step with the arrows",
+        "keys": "ALT 1294"
+      },
+      {
+        "section": "",
+        "label": "Viewpoint name",
+        "icon": "",
+        "tooltip": "Activate this viewpoint",
+        "keys": ""
+      },
+      {
+        "section": "",
         "label": "Load",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-upload \"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"></path><path d=\"M7 9l5 -5l5 5\"></path><path d=\"M12 4l0 12\"></path></svg>",
         "tooltip": "Load viewpoints from a JSON file (replaces the current set)",
@@ -606,15 +665,8 @@
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-ruler-off \"><path d=\"M8 4h11a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-4m-3.713 .299a1 1 0 0 0 -.287 .701v7a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1v-14c0 -.284 .118 -.54 .308 -.722\"></path><path d=\"M4 8h2\"></path><path d=\"M4 12h3\"></path><path d=\"M4 16h2\"></path><path d=\"M12 4v3\"></path><path d=\"M16 4v2\"></path><path d=\"M3 3l18 18\"></path></svg>",
         "tooltip": "Hide/show all measurements in the viewport",
         "keys": "ALT 720"
-      },
-      {
-        "section": "",
-        "label": "Viewpoint name",
-        "icon": "",
-        "tooltip": "Activate this viewpoint",
-        "keys": ""
       }
     ]
   },
-  "appVersion": "0.26.3"
+  "appVersion": "0.26.4"
 }

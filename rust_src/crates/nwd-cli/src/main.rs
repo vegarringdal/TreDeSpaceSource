@@ -79,7 +79,8 @@ struct Cli {
     line_width: f32,
 
     /// Unit of the stored geometry, scaled to metres in the output: `auto`
-    /// (feet for a Revit-loader file, otherwise as stored), `asis` (no
+    /// (the unit the file stores, else feet for a Revit-loader file,
+    /// otherwise as stored), `asis` (no
     /// scaling), `ft`, `in`, `mm`, `cm`, `m`, or a number (the factor model
     /// units → metres, e.g. `0.3048`).
     #[arg(long, default_value = "auto", value_parser = parse_units)]

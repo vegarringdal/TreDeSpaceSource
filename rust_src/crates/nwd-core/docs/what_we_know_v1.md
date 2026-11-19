@@ -83,7 +83,7 @@ on the three committed NWDs.
 | **Geometry records** | the byte bulk; one or more chunks (see Geometry) |
 | **Geometry size index** | `[count][nchunks][nchunks × compressed chunk sizes][count × record sizes][0 pad]` — present in every file, immediately after the geometry chain; the authoritative geometry locator (`inspect::geometry_chunks_by_index`). Its compressed sizes match zlib-consumed bytes (back-to-back writers) or on-disk spans (writers with interleaved metadata) |
 | zero markers | 8-byte zero chunks delimiting sections |
-| `LcOaPartition` metadata | the NWD's own File node: `[100][32][0][name]`, class `File`, F = 3 (a type-92 record with the model GUID/ids, a material, an inline `PDMS File Comments` property set), then the usual File trailer (lights, loader plugin, source path). Type-92 framing OPAQUE. No unit FACTOR or up-vector anywhere; the trailer's plugin slot names the loader, which is what the converter's unit scale goes by (see *Units*) |
+| `LcOaPartition` metadata | the NWD's own File node: `[100][32][0][name]`, class `File`, F = 3 (a type-92 record with the model GUID/ids, a material, an inline `PDMS File Comments` property set), then the usual File trailer (lights, loader plugin, source path). Type-92 framing OPAQUE. No unit FACTOR or up-vector anywhere; the trailer stores the unit as a Navisworks `Units` code next to the loader's plugin slot, which is what the converter's unit scale goes by (see *Units*) |
 | **Property stream** | n chunks (see Property stream) — new in writers that store attributes |
 | **LogicalHierarchy** | the selection tree (see Hierarchy) |
 | **Fragments** | placements (see Fragments) |
@@ -340,7 +340,7 @@ definition must carry exactly the next id — a wrong field length is detected a
 ```
 chunk  := [n][n × u32][first_id][root_count]  node × root_count
 node   := [id][22 leaf | 53 container] name          name := [len][utf-8, pad 4] | [-1]
-          class            [1][id] | [id][52] string string   (display, internal)
+          class            0 | [1][id] | [id][52] string string   (display, internal)
           [flags][k][F]    F = number of attribute slots
           slot × F
           [child_count]    containers only
@@ -370,18 +370,30 @@ value  := [4] string | [2] i32 | [3] bool | [1|6|7|10|11] pad 8, f64
   the complete world transform, so the converter does not need them.
 - Unfolding: each `[1][id]` child becomes its own run of nodes in the result, with fresh ids
   above the stream's last id, so every instance is a separately selectable element.
-- Per-loader coverage: all six public Revit files parse to the last byte. DWG- and
+- **Null class** (DECODED 2026-11-19): the class slot can be a single `0` — a node without a
+  class. Seen on a few containers of an Inventor-loader file (3 of 15,862 nodes); the strict
+  parser used to reject the whole stream on the first one, so the file converted as one
+  unnamed `model` element. The node displays as its name (or `Object` when unnamed).
+- Per-loader coverage: all six public Revit files parse to the last byte. An Inventor-loader
+  file (`LcNwcLoaderPlugin:lcldinv`; not committed) parses to the last byte too: 65 roots,
+  15,862 nodes in the expanded tree (4,339 instance references), 6,702 geometry leaves; its
+  78,551 placement frames (all declared ones) each land on a geometry leaf, and every leaf owns
+  at least one — the same bijection as on the Revit files. Its classes are `Group`,
+  `Composite Part` and `Geometry`; node flags as for Revit (0x40000 instance, 0x200000
+  composite), plus 0x1040000 on some instances (OPAQUE). DWG- and
   3DS-sourced streams use further definition types (seen: 66 and 97 = DWG entity attributes /
   render material with texture settings, 182) that are not decoded; those files still convert
   with complete geometry but without a tree. See `docs/GRAMMAR_non_rvm.md`.
 
 ### Other notes
 
-- **Units** — DECODED by loader (2026-11-14): Revit-loader geometry and translations are in
-  **FEET** (desk sample: one desk is 1563 × 762 × 819 mm; the 3 × 2 grid spacing is
-  15.318 ft × 9.278 ft; the sample building is 74 ft = 22.6 m high with 18 ft storeys);
-  RVM-loader geometry is metres. No unit factor is stored, so the converter goes by the
-  loader — see *Units and the unit scale* below.
+- **Units** — DECODED (2026-11-14 by loader, 2026-11-19 as a stored code): Revit-loader
+  geometry and translations are in **FEET** (desk sample: one desk is 1563 × 762 × 819 mm; the
+  3 × 2 grid spacing is 15.318 ft × 9.278 ft; the sample building is 74 ft = 22.6 m high with
+  18 ft storeys); RVM-loader geometry is metres; Inventor-loader geometry is **CENTIMETRES**
+  (Inventor's internal unit: the file above spans 1250 × 620 × 410 units — a 12.5 m frame,
+  not a 1.25 km one). The File trailer stores the unit as a code — see *Units and the unit
+  scale* below.
 - The legacy path's heuristic back-scan candidates (no `[93]` marker) that match no geometry
   and have no extent are not placements and are skipped.
 - **NWF** (federation file): no geometry of its own; the XRefTable JSON lists the referenced
@@ -390,12 +402,27 @@ value  := [4] string | [2] i32 | [3] bool | [1|6|7|10|11] pad 8, f64
 ### Units and the unit scale (`ConvertOptions::unit_scale`)
 
 The output is meant to be in metres. `UnitScale::Auto` (the default) multiplies everything
-positional by **0.3048 when the file was written by the Revit loader**, and by 1 otherwise;
+positional by **the factor of the unit the File trailers store** (when they all name the same
+one), else by **0.3048 when the file was written by the Revit loader**, and by 1 otherwise;
 `UnitScale::Factor(f)` forces a factor (`1.0` = as stored). CLI: `--units
 auto|asis|ft|in|mm|cm|m|<factor>`; wasm: `Options.unit_scale` (0 = automatic). The applied
 factor is in `ConvertReport::unit_scale` (wasm report: `unitScale`), and an automatic rescale
-adds a line to the status file's `notes` array (present only then — informational, unlike
-`warnings`).
+adds a line to the status file's `notes` array (`Stored in centimetres: geometry scaled to
+metres (× 0.01)`; present only then — informational, unlike `warnings`).
+
+- **The stored unit — DECODED + VALIDATED (2026-11-19)** (`inspect::loaders`,
+  `Loaders::stored_unit`): in a File trailer the plugin slot is followed by
+  `[tag][unit][1]`, `unit` being an index into Navisworks' `Units` enumeration — 0 metres,
+  1 centimetres, 2 millimetres, 3 feet, 4 inches, 5 yards, 6 kilometres, 7 miles,
+  8 micrometres, 9 mils, 10 microinches. `tag` is 449 on RVM trailers, 448 on Revit ones,
+  451 on the Inventor one (OPAQUE; the reader accepts 400..=599, which keeps out the NWC
+  header copies of the slot, followed by `[1][1][257]` / `[1][1][1]`). Observed: 0 on all 80
+  RVM trailers, 3 on all six Revit trailers, 1 on the Inventor trailer — three codes, each the
+  geometry's real unit, which is what moved this from candidate to decoded. On the committed
+  samples it resolves to the same factors as the loader rule, so their output is unchanged.
+  Codes 2 and 4–10 are taken from the enumeration's order and are not yet seen in a file.
+  Trailers that disagree (several sources in different units) give no stored unit, and the
+  loader rule applies.
 
 - **The loader signal** (`inspect::loaders`): the plugin slot of the File trailer — a
   length-prefixed ASCII string `[len][name, NUL-padded to 4]`, 4-byte aligned, directly in
@@ -426,14 +453,11 @@ adds a line to the status file's `notes` array (present only then — informatio
   all of it — the output bytes of RVM-loader files are unchanged.
 - Model-unit constants inside the converter (placeholder-box thickness 12 mm, the legacy
   path's matching tolerances) stay in MODEL units; they only act on RVM-loader files.
-- **Still unknown**: (1) no stored unit FACTOR has been found. CANDIDATE, not used: the u32
-  after the trailer's `448 | 449` word is 0 in all 80 RVM trailers and 3 in all six Revit
-  ones — the same numbers as Meters = 0 / Feet = 3 in the Navisworks API's `Units`
-  enumeration, i.e. possibly the file's unit as an ENUM (two values observed; needs a file in
-  a third unit to confirm). (2) The unit of DWG- and 3DS-loader files (a DWG can be in any
-  unit) — auto leaves them as stored. (3) Files mixing loaders (an NWD assembled from Revit
-  and other sources): whether Navisworks folds the per-file unit into the stored transforms
-  is not known; auto leaves them as stored, the explicit factor applies to the whole file.
+- **Still unknown**: (1) whether DWG- and 3DS-loader trailers carry the unit word the same
+  way (no such file is committed); without one, auto leaves them as stored. (2) Files mixing
+  units (an NWD assembled from sources in different units): whether Navisworks folds the
+  per-file unit into the stored transforms is not known; auto leaves them as stored (or feet
+  when every loader is Revit), the explicit factor applies to the whole file.
 
 ## Hierarchy (LogicalHierarchy chunk) — DECODED
 
@@ -468,7 +492,7 @@ adds a line to the status file's `notes` array (present only then — informatio
 - **File trailer**: every File node's subtree is followed by partition metadata — `[2]`, an
   optional light list (type-27 records: zero ambient, RGB, unit direction), the plugin slot
   (`LcNwcLoaderPlugin:lcldrvm`; see *Units and the unit scale* for the other loaders),
-  `[449][0][1]`, the source path, an f64 extent block. Its framing varies (light
+  `[449][unit][1]` (the stored unit code), the source path, an f64 extent block. Its framing varies (light
   count, 4/8-byte padding), so the parser resyncs to the next node record whose id continues
   the interned sequence (bounded scan). Framing details OPAQUE.
 - Colour: a node without its own material inherits the nearest ancestor's.
@@ -586,9 +610,8 @@ the NWD and are not used.
 ## Data ceilings (verified absences — not bugs)
 
 - **World bbox / unit factor / up-vector are not stored** — a full-file scan for f64/f32 runs
-  matching a known world bbox found nothing outside vertices/translations. (The unit is
-  derived from the loader instead; a possible unit ENUM is noted under *Units and the unit
-  scale*.)
+  matching a known world bbox found nothing outside vertices/translations. (The unit IS
+  stored, as an enumeration code in the File trailer — see *Units and the unit scale*.)
 - RVM-loader fragment rotation is not stored (baked into vertices); per-leaf instance split
   counts are regenerated by Navisworks at load, not serialized.
 - Some tiny source primitives (e.g. weld rods of a few mm radius) are dropped by Navisworks at
@@ -611,12 +634,11 @@ the NWD and are not used.
 4. **GLB normal export** — stored normals drive winding, but the GLB ships positions only
    (`--include-normals` emits smooth normals). Exporting the decoded per-corner normals needs
    corner-split vertices in the writer.
-5. **Units/up-vector**: DONE for the two known loaders — the unit scale is automatic for
-   Revit-loader files (feet → metres, all six public Revit files) and 1 for RVM-loader files,
-   with an explicit override (`--units`, `ConvertOptions::unit_scale`). STILL OPEN: no stored
-   unit factor has been found (a candidate unit enum in the File trailer is unconfirmed); the
-   unit of DWG / 3DS-loader files and of files mixing loaders is unknown, so those are left as
-   stored unless a factor is given. The up-vector is not stored either (Z up on every file).
+5. **Units/up-vector**: DONE — the unit scale follows the File trailer's stored unit code
+   (RVM metres, Revit feet, Inventor centimetres), with the loader rule as a fallback and an
+   explicit override (`--units`, `ConvertOptions::unit_scale`). STILL OPEN: DWG / 3DS-loader
+   trailers are unchecked, and files mixing units are left as stored unless a factor is given.
+   The up-vector is not stored (Z up on every file).
 6. The pre-codec geometric reconstruction (`faithful_*`, hull, strip) only runs when a
    record fails to decode — never on the test corpora; its two stale tests are ignored.
 

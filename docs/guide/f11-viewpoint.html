@@ -198,8 +198,9 @@
           <ol class="steps">
             <li>Load or create the viewpoints. If you got them as a file, press <b>Load</b> in the Viewpoint Viewer.</li>
             <li>
-              Click a name in the <b>Viewpoint Viewer</b>. The camera flies there and the viewpoint's labels,
-              measurements, colours and selection appear. Its description is shown under the name.
+              Click a name in the <b>Viewpoint Viewer</b>, or step through them with the arrows on top.
+              The camera flies there and the viewpoint's labels, measurements, colours and selection appear. Its
+              description is shown under the name.
             </li>
             <li>
               Use <b>Mute labels</b> or <b>Mute measures</b> to take them off the screen for a moment, without deleting
@@ -227,6 +228,12 @@
           <p>
             The editor lists every viewpoint as a row you can open. The active one is shown in blue with
             <b>— active</b> after its name. Only one row is open at a time; opening a row does not activate it.
+          </p>
+          <p>
+            The buttons stay on top while the list scrolls under them, and the list is built for long sets: it
+            scrolls just as quickly with thousands of viewpoints. A name too long for its row is cut with
+            <b>…</b>; open the row to read it in full in <b>Name</b>. When a viewpoint is activated from elsewhere
+            (the Viewpoint Viewer's arrows, for example), the editor scrolls to it and opens its row.
           </p>
           <figure class="shot" data-shot="f11-editor"></figure>
           <ol class="legend-list">
@@ -274,16 +281,28 @@
           <h2>The Viewpoint Viewer</h2>
           <p>
             A plain list for presenting: no editing, just a click per viewpoint. Open it on its own from the
-            <b>Panel</b> tab of the ribbon, or with <kbd>ALT 1125</kbd>.
+            <b>Panel</b> tab of the ribbon, or with <kbd>ALT 1125</kbd>. The top and bottom rows stay in place while
+            the list between them scrolls.
           </p>
           <figure class="shot" data-shot="f11-viewer"></figure>
           <ol class="legend-list">
+            <li><b>Previous</b> (<kbd>ALT 1292</kbd>) — activates the viewpoint before the active one. It stops at the first one.</li>
+            <li><b>Position</b> — the active viewpoint's place in the list and how many there are, for example <b>2 / 3</b>. A dash means no viewpoint is active.</li>
+            <li><b>Next</b> (<kbd>ALT 1293</kbd>) — activates the viewpoint after the active one. It stops at the last one. With no viewpoint active, Next starts at the first and Previous at the last.</li>
+            <li><b>One at a time</b> (<kbd>ALT 1294</kbd>) — shows only the active viewpoint instead of the whole list (below). The choice is remembered.</li>
+            <li><b>The active viewpoint</b> — click any name to activate it. A long name is cut short in the list; One at a time shows it in full. The list scrolls to the viewpoint you step to.</li>
+            <li><b>Description</b> of the active viewpoint.</li>
             <li><b>Load</b> — replaces all viewpoints with the ones in a file.</li>
             <li><b>Mute labels</b> (<kbd>ALT 1139</kbd>) — hides every label from the 3D view; the button then reads <b>Labels off</b>. Press again to show them. The labels are not deleted, and the setting stays when you switch viewpoints.</li>
             <li><b>Mute measures</b> (<kbd>ALT 720</kbd>) — the same for measurements (<b>Measures off</b>).</li>
-            <li><b>The active viewpoint</b> — click any name to activate it.</li>
-            <li><b>Description</b> of the active viewpoint.</li>
           </ol>
+          <h3 id="viewer-one">One at a time</h3>
+          <p>
+            With <b>One at a time</b> on, the panel shows only the active viewpoint — its full name and its
+            description — so nothing else distracts while you present. Step with the two arrows; the
+            position on top tells you where you are.
+          </p>
+          <figure class="shot" data-shot="f11-viewer-one"></figure>
         </section>
 
         <section id="vp-panels" class="g-sec">

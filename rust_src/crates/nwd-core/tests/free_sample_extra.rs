@@ -122,7 +122,7 @@ fn revit_desk_six_instances_of_one_family() {
     assert!((r.bbox_min[1]).abs() < 1e-6, "desks stand on the floor");
     assert_eq!(
         status_notes(&files),
-        ["Revit export: geometry scaled from feet to metres (× 0.3048)"]
+        ["Stored in feet: geometry scaled to metres (× 0.3048)"]
     );
     // One GLB for the single root (the level), with the real tree in it.
     assert!(files.iter().any(|(f, _)| f == "status_file.json"));
@@ -351,7 +351,8 @@ fn revit_lines_are_opt_in_and_survive_the_1mm_weld() {
 
 /// The loader signal behind the automatic unit scale: the plugin slots of
 /// every sample. Revit files name a Revit plugin and nothing else; the Huldra
-/// NWDs name the RVM reader only; an NWF names none.
+/// NWDs name the RVM reader only; an NWF names none. The File trailers' unit
+/// word names feet resp. metres.
 #[test]
 fn loader_plugin_slots_tell_revit_from_rvm() {
     use nwd_core::inspect::{classify_except, geometry_chunks_by_index, Loaders};
@@ -373,6 +374,8 @@ fn loader_plugin_slots_tell_revit_from_rvm() {
     ] {
         let l = loaders_of(rel);
         assert!(l.revit && !l.other && l.revit_only(), "{rel}: {l:?}");
+        // the File trailer's unit word: 3 = feet
+        assert_eq!(l.stored_unit(), Some(("feet", 0.3048)), "{rel}: {l:?}");
     }
     for rel in [
         "huldra/HDA-ASB-CD2.nwd",
@@ -381,6 +384,8 @@ fn loader_plugin_slots_tell_revit_from_rvm() {
     ] {
         let l = loaders_of(rel);
         assert!(!l.revit && l.other && !l.revit_only(), "{rel}: {l:?}");
+        // every RVM trailer's unit word: 0 = metres
+        assert_eq!(l.stored_unit(), Some(("metres", 1.0)), "{rel}: {l:?}");
     }
     for rel in [
         "clash-detection-matrix-automation/Coordination.nwf",

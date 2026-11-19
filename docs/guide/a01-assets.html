@@ -364,7 +364,7 @@
           <h3 id="import-nwd">Import NWD</h3>
           <ol class="legend-list">
             <li><b>Select NWD file…</b> (<kbd>ALT 1718</kbd>) — pick one <code class="inline">.nwd</code> or <code class="inline">.nwc</code> file.</li>
-            <li><b>Units</b> (<kbd>ALT 1751</kbd> steps to the next) — what the file's coordinates are in; the model is converted to metres. <b>Automatic</b> reads a file exported from Revit as feet (Revit always stores feet) and every other file as metres. If a model comes in at the wrong size, pick <b>Metres (as stored)</b>, <b>Feet</b>, <b>Inches</b>, <b>Millimetres</b> or <b>Centimetres</b> and import it again.</li>
+            <li><b>Units</b> (<kbd>ALT 1751</kbd> steps to the next) — what the file's coordinates are in; the model is converted to metres. <b>Automatic</b> uses the unit the file itself stores (metres, centimetres, feet and so on). A file that stores none is read as feet when it was exported from Revit, and as metres otherwise. If a model comes in at the wrong size, pick <b>Metres (as stored)</b>, <b>Feet</b>, <b>Inches</b>, <b>Millimetres</b> or <b>Centimetres</b> and import it again.</li>
             <li><b>Normals (smooth shading)</b> (<kbd>ALT 1725</kbd>) — curved parts look round; the model gets larger.</li>
             <li><b>Include lines</b> (<kbd>ALT 1726</kbd>) — also import construction and datum lines, drawn as thin crosses. Ticked, a <b>Line width</b> box appears.</li>
             <li><b>Cleanup (weld positions)</b> (<kbd>ALT 1729</kbd>) — joins corner points that share a position: smaller files, cleaner edges. <b>Precision</b> is the number of decimals they must agree to (2, the default, = within 0.01 model units: 1 cm in a metre model; 3 = 1 mm). Fewer decimals weld more and can remove small parts.</li>
@@ -375,9 +375,9 @@
           <p class="note">
             The Navisworks reader is new and may misread some parts. The whole file is held in memory while it
             converts, and the conversion needs roughly 25 times the file's size: a file above about 150 MB may fail.
-            A model exported from Revit is stored in feet and is converted to metres for you; the Console says so
-            when it happens. Files from other sources (DWG, 3DS) are taken as metres — set <b>Units</b> if that is
-            wrong.
+            A model stored in another unit — feet from Revit, centimetres from Inventor — is converted to metres
+            for you; the Console says so when it happens. A file that stores no unit (DWG and 3DS sources may not)
+            is taken as metres — set <b>Units</b> if that is wrong.
           </p>
 
           <h3 id="import-scan">Import LGSX / E57</h3>
