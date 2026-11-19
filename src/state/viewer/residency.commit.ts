@@ -102,6 +102,7 @@ export async function prepareMixed(
     cuts,
     r.viewProjMatrix,
     r.clipData,
+    r.gpuSizing(),
   );
   const states = await db.statesFor([rec.slot]);
   return {

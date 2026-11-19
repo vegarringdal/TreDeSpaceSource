@@ -46,6 +46,9 @@ in the browser's storage.
 | TDP / TDPP | `.tdp`, `.tdpp` | The viewer's own cooked model and point-cloud files | No conversion |
 | SQLite | `.db`, `.sqlite` and similar | Databases for the SQL panels | sqlite-wasm |
 
+NWD / NWC: geometry and the object tree (names and hierarchy) are imported.
+The per-object properties stored in the file are not.
+
 Export: what is on screen can be written as TDP, GLB or IFC.
 
 ### How the readers were made — and what I cannot promise

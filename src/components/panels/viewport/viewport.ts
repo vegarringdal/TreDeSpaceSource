@@ -603,7 +603,7 @@ export const viewport: PanelDefinition = {
         renderer.multiDraw ? 'info' : 'warn',
         renderer.multiDraw
           ? 'multi-draw indirect + GPU culling active'
-          : 'no chromium-experimental-multi-draw-indirect — using vertex-pull culling',
+          : 'no chromium-experimental-multi-draw-indirect + indirect-first-instance — using vertex-pull culling',
       );
       // the GPU checks close the startup block: from here the console rotates
       consoleActions.markStartupDone();

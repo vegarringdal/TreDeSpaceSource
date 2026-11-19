@@ -30,6 +30,46 @@ const HEADER_SIZE = 216;
 const CG_HEADER_SIZE = 128;
 const MAX_VERTS = 64;
 const MAX_TRIS = 124;
+/** meshoptimizer's suggested balance when cone culling is used ("0.25 is a
+ *  reasonable default"): the renderer cone-culls every meshlet it can. */
+const CONE_WEIGHT = 0.25;
+/** reorderMesh's marker for a vertex no triangle references. */
+const UNUSED_VERTEX = 0xffffffff;
+
+/**
+ * Triangle order optimized for the vertex cache, in the range's own vertex
+ * numbering — what the clusterizer should start from (meshoptimizer builds
+ * meshlets "from meshes optimized for vertex cache/fetch"; the Rust cook does
+ * the same). The JS API only offers optimizeVertexCache fused with a
+ * vertex-fetch renumbering (reorderMesh), so the indices are compacted to
+ * first-use order (ranges may index a shared, model-wide positions array),
+ * reordered, and mapped back. Returns a copy; the input is untouched.
+ */
+export function cacheOrderedIndices(indices: Uint32Array): Uint32Array {
+  const toLocal = new Map<number, number>();
+  const toGlobal: number[] = [];
+  const out = new Uint32Array(indices.length);
+  for (let i = 0; i < indices.length; i++) {
+    let l = toLocal.get(indices[i]);
+    if (l === undefined) {
+      l = toGlobal.length;
+      toLocal.set(indices[i], l);
+      toGlobal.push(indices[i]);
+    }
+    out[i] = l;
+  }
+  const [remap] = MeshoptEncoder.reorderMesh(out, true, false);
+  const back = new Uint32Array(toGlobal.length);
+  for (let l = 0; l < remap.length; l++) {
+    if (remap[l] !== UNUSED_VERTEX) {
+      back[remap[l]] = toGlobal[l];
+    }
+  }
+  for (let i = 0; i < out.length; i++) {
+    out[i] = back[out[i]];
+  }
+  return out;
+}
 
 // -----------------------------------------------------------------------------
 // cook pipeline
@@ -424,7 +464,14 @@ function assemble(cgsIn: CgInput[], entries: HierEntry[]): { bytes: ArrayBuffer;
         drMeshletCounts.push(0);
         continue;
       }
-      const built = MeshoptClusterizer.buildMeshlets(r.indices, r.positions, 3, MAX_VERTS, MAX_TRIS);
+      const built = MeshoptClusterizer.buildMeshlets(
+        cacheOrderedIndices(r.indices),
+        r.positions,
+        3,
+        MAX_VERTS,
+        MAX_TRIS,
+        CONE_WEIGHT,
+      );
       const mB = MeshoptClusterizer.computeMeshletBounds(built, r.positions, 3);
       for (let m = 0; m < built.meshletCount; m++) {
         const ml = MeshoptClusterizer.extractMeshlet(built, m);

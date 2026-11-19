@@ -525,7 +525,9 @@ fn load_geo(mi: u32) -> MeshletDraw {
 
 @group(1) @binding(0) var<storage, read> vis_list: array<u32>;
 @group(1) @binding(1) var<storage, read> geo: array<u32>;
-@group(1) @binding(2) var<storage, read> micro_indices: array<u32>; // u16 pairs
+// u8 meshlet-local indices, four per word (drawLayout.ts: the vertex-pull
+// paths always hold the index buffer at width 1)
+@group(1) @binding(2) var<storage, read> micro_indices: array<u32>;
 @group(1) @binding(3) var<storage, read> qverts: array<vec2u>; // u16x4 per vertex
 
 // per-item state, native MeshItem bit layout (item_state.rs)
@@ -543,8 +545,7 @@ fn vs(
   // clamp padding vertices to the last real index -> zero-area triangles
   let li = min(vid, m.index_count - 1u);
   let gi = m.first_index + li;
-  let word = micro_indices[gi >> 1u];
-  let micro = select(word & 0xffffu, word >> 16u, (gi & 1u) == 1u);
+  let micro = (micro_indices[gi >> 2u] >> ((gi & 3u) * 8u)) & 0xffu;
   let v = qverts[m.base_vertex + micro];
   let q = vec3f(f32(v.x & 0xffffu), f32(v.x >> 16u), f32(v.y & 0xffffu));
 

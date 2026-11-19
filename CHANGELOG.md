@@ -6,6 +6,48 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.19** (>0.26.5):
+  GPU memory: a meshlet now costs only the GPU lists its draw path uses.
+  On the default vertex-pull path that is 100 bytes per meshlet instead of
+  a fixed 164, and indices take half the space.
+  - **Indices are u8 on the vertex-pull paths:** meshlet-local indices
+    never exceed 63, so the pack emits bytes and the vertex-pull shaders
+    and measure snap read them directly. Only MDI keeps a u16 hardware
+    index buffer. A compute pass converts each model's indices on the GPU
+    when the draw path crosses MDI, so no CPU copy is kept.
+  - **Lists follow the path:** vertex pull writes 4-byte list entries
+    (8 for the sorted transparent list), MDI keeps its 20-byte draw
+    records (160 bytes per meshlet in all). Every model keeps its sorted
+    and outline lists from upload, as before: allocating them on first use
+    would stall a frame in most sessions for a few bytes per meshlet. The
+    static full list exists only on the no-cull path.
+  - **The budget uses the same numbers:** `src/lib/render/drawLayout.ts`
+    is the single source of these per-path sizes. The renderer allocates
+    from it, and the mixed repack's per-item estimate receives the
+    renderer's current sizing, so more full detail fits under the same
+    VRAM budget (when the budget is on, that also means more geometry
+    drawn).
+  Fix: in orthographic view, cone culling could drop surfaces that face
+  the camera. The cone test measured direction from the orbit eye point,
+  but the orthographic depth range spans the whole scene, so geometry
+  between the viewer and that point was tested from behind. That side
+  was culled and the far side drawn instead. Orthographic now uses
+  meshoptimizer's own test for that projection (`dot(forward, axis) >=
+  cutoff`).
+  Generic GLB cook: each draw range is reordered for the vertex cache
+  before meshlets are built (as the Rust cook already does), and meshlets
+  are built with cone weight 0.25 (meshoptimizer's default when cone
+  culling is used) instead of 0.
+  Fix: with MDI on (Chrome flags) and vertex pull off, most of every model
+  disappeared. Each MDI draw record carries its meshlet in `firstInstance`,
+  and WebGPU skips an indirect draw with a non-zero `firstInstance` unless
+  the device has the `indirect-first-instance` feature, which was never
+  requested. The renderer now requests it with MDI and offers MDI only
+  when the adapter has both features.
+  README › Supported files now says that an NWD / NWC import brings in
+  geometry and the object tree, but not the per-object properties stored
+  in the file. `plans/attributes.md` plans how imported files' properties
+  (and separate attribute files, such as RVM's) could reach the viewer.
 - **2026.11.19** (>0.26.4):
   Viewpoint Editor: the list is virtualized, so a long set stays quick.
   - **What changed:** only the rows in view are mounted, plus the open row.

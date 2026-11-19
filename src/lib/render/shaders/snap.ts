@@ -1,3 +1,5 @@
+import type { IndexWidth } from '../drawLayout';
+
 // Measurement snap compute — port of the native measure_snap.slang.
 //
 // Casts the cursor ray against a model's triangles (Möller–Trumbore) and returns
@@ -5,7 +7,7 @@
 // face from the barycentrics and screen-space pixel distances, exactly like the
 // native compute_measure_probe. Geometry is the meshlet-packed layout the render
 // shaders consume: quantized u16 positions dequantized with the per-meshlet AABB,
-// u16 meshlet-local indices offset by base_vertex.
+// meshlet-local indices (u8 or u16, see measureSnapWgsl) offset by base_vertex.
 //
 // Two-pass arg-min over u32 atomics (t > 0, so IEEE bit order == float order):
 //   pass 1 (snapMin):   atomicMin the closest hit distance into result[0].
@@ -42,7 +44,9 @@
 // `exclude` lets a SECOND cast along the same sight line skip the first hit's
 // item (and every item with an opacity override) to find the surface just
 // behind it — the seam snap (measureSnap.ts seamProbe).
-export function measureSnapWgsl(): string {
+// `indexWidth` is the index buffer's layout (drawLayout.ts): u8 quads on the
+// vertex-pull paths, u16 pairs under MDI — one pipeline pair per width.
+export function measureSnapWgsl(indexWidth: IndexWidth): string {
   return /* wgsl */ `
 // one packed 36-byte cull record (cullWgsl layout, raw words): center xyz,
 // radius, cone, index_count, first_index, pad, base_vertex
@@ -66,7 +70,7 @@ struct SnapParams {
 @group(0) @binding(0) var<storage, read_write> result: array<atomic<u32>, 32>;
 @group(0) @binding(1) var<storage, read> geo: array<u32>;
 @group(0) @binding(2) var<storage, read> info_words: array<u32>;
-@group(0) @binding(3) var<storage, read> micro_indices: array<u32>; // u16 pairs
+@group(0) @binding(3) var<storage, read> micro_indices: array<u32>; // u8 quads / u16 pairs
 @group(0) @binding(4) var<storage, read> qverts: array<vec2u>;      // u16x4 per vertex
 @group(0) @binding(5) var<storage, read> item_states: array<ItemState>;
 @group(0) @binding(6) var<storage, read> transforms: array<mat4x4f>;
@@ -150,9 +154,11 @@ fn vert_world(base_vertex: u32, amin: vec3f, ascale: vec3f, local: u32, tid: u32
 
 fn local_index(first_index: u32, tri: u32, corner: u32) -> u32 {
   let gi = first_index + tri * 3u + corner;
-  let word = micro_indices[gi >> 1u];
-  if ((gi & 1u) == 1u) { return word >> 16u; }
-  return word & 0xffffu;
+${
+  indexWidth === 1
+    ? '  return (micro_indices[gi >> 2u] >> ((gi & 3u) * 8u)) & 0xffu;'
+    : '  return (micro_indices[gi >> 1u] >> ((gi & 1u) * 16u)) & 0xffffu;'
+}
 }
 
 // Cheap ray↔bounding-sphere reject (center already moved by the item

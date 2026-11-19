@@ -40,7 +40,7 @@ function emptyPack(itemCount: number): GpuPackedModel {
     cgCount: 0,
     positionsQ: new Uint16Array(0),
     normalsQ: null,
-    indices16: new Uint16Array(0),
+    indices8: new Uint8Array(0),
     cull: new ArrayBuffer(0),
     meshletInfo: new ArrayBuffer(0),
     cgColors: new Float32Array(0),
@@ -67,7 +67,17 @@ import type { GizmoFace } from '../overlay/ViewGizmo';
 import { trackDeviceAllocations } from './allocationTracker';
 import { CameraController } from './camera';
 import { isMobileDevice } from './device';
-import { type DrawList, drawListOf, type GpuModel, TRANSPARENT_LIST, vpArgsOffsetOf } from './gpuModel';
+import {
+  type DrawPath,
+  type GpuSizing,
+  gpuSizingOf,
+  type IndexWidth,
+  indexWidthOf,
+  listEntryBytes,
+  meshletBytes,
+  transparentEntryBytes,
+} from './drawLayout';
+import { type DrawList, type GpuModel, type ModelBinds, replayDrawLists, TRANSPARENT_LIST } from './gpuModel';
 import { type AdapterFacts, adapterFacts } from './gpuProbe';
 import { GpuTimings } from './gpuTimings';
 import { ItemPickPass, type PickGbuffer } from './itemPickPass';
@@ -80,12 +90,25 @@ import {
   type SnapHit,
   seamProbe,
 } from './measureSnap';
+import {
+  createFullList,
+  createIndexBuffer,
+  createListBuffer,
+  createSortLists,
+  destroyFullList,
+  destroyModelBuffers,
+  destroySortLists,
+  MIN_MODEL_BUFFER_BYTES,
+  modelBytesOf,
+} from './modelLayout';
 import { OutlinePass } from './outlinePass';
 import { PanoPass } from './panoPass';
 import { PointsLayer } from './pointsLayer';
 import {
   cullWgsl,
   hzbWgsl,
+  INDEX_WIDTH_WORKGROUP,
+  indexWidthWgsl,
   lineWgsl,
   markerWgsl,
   measureSnapWgsl,
@@ -95,7 +118,7 @@ import {
   renderWgsl,
   vbaoWgsl,
 } from './shaders';
-import { SORT_CLEAR_BYTES, SORT_COUNT_WORD, SORT_STATE_WORDS, sortScanWgsl, sortScatterWgsl } from './shaders/cull';
+import { SORT_CLEAR_BYTES, SORT_COUNT_WORD, sortScanWgsl, sortScatterWgsl } from './shaders/cull';
 import { unitSphereMesh } from './sphereMesh';
 import { type NavGizmoOptions, ViewCubePass } from './viewCubePass';
 import { type AdapterHints, readDeviceMemoryGb } from './vramHint';
@@ -200,11 +223,6 @@ function rayThroughPixel(view: PickView, px: number, py: number): Ray | null {
   return { origin: a, dir: [dir[0] / l, dir[1] / l, dir[2] / l] };
 }
 
-const RECORD_STRIDE = 20; // drawIndexedIndirect: 5 x u32
-/** Fixed per-meshlet VRAM regardless of fill: cull 36 + info 32 + vis 4 +
- *  4 × RECORD_STRIDE draw records (pass 1, pass 2, sorted transparent,
- *  outline mask) + 8 sort candidate + 4 full-list. */
-const MESHLET_RECORD_BYTES = 164;
 const COUNT_SLOT = 256; // storage-binding offset alignment
 /** Count slots per model: pass 1, pass 2, sorted transparent list, outline list. */
 const COUNT_SLOTS = 4;
@@ -442,7 +460,7 @@ export class Renderer {
   adapterLimits: { maxBufferSize: number; maxStorageBufferBindingSize: number } | null = null;
   /** Adapter request preference — set BEFORE init() (Settings → Rendering → GPU). */
   gpuPreference: 'high-performance' | 'low-power' | 'fallback' = 'high-performance';
-  cullMode: 'mdi' | 'vp' | 'full' = 'full'; // resolved per frame (for the HUD)
+  cullMode: DrawPath = 'full'; // resolved per frame (for the HUD)
   gpuError = ''; // first uncaptured device error, shown in the HUD
   /** The device is gone (GPU crash, out of memory, or simulated) — frames
    *  are pointless until the viewport boots a fresh Renderer (gpuRecovery). */
@@ -626,8 +644,17 @@ export class Renderer {
   private vbaoMsPipeline!: GPUComputePipeline;
   // measurement snap compute (port of the native measure_snap.slang)
   private snapBGL!: GPUBindGroupLayout;
-  private snapMinPipeline!: GPUComputePipeline;
-  private snapWritePipeline!: GPUComputePipeline;
+  /** Snap passes per index width: [min, write] — the index buffer is u8 on
+   *  the vertex-pull paths and u16 under MDI (drawLayout.ts). */
+  private snapPipelines!: Record<IndexWidth, readonly [GPUComputePipeline, GPUComputePipeline]>;
+  /** Index-buffer width converters (shaders/indexWidth.ts), keyed by the
+   *  width they convert INTO. */
+  private indexWidthPipelines!: Record<IndexWidth, GPUComputePipeline>;
+  /** Stand-ins for the cull's sort bindings (9 = candidates, 10 = sort
+   *  state) on models with nothing transparent: their cull never routes a
+   *  meshlet there (the per-model `transparent` gate is exactly that set). */
+  private sortStandInCand!: GPUBuffer;
+  private sortStandInState!: GPUBuffer;
   private snapResultBuf!: GPUBuffer;
   private snapStagingBuf!: GPUBuffer;
   private snapParamsBuf!: GPUBuffer;
@@ -1101,8 +1128,15 @@ export class Renderer {
     };
 
     const wanted: string[] = [];
-    if (adapter.features.has('chromium-experimental-multi-draw-indirect')) {
-      wanted.push('chromium-experimental-multi-draw-indirect');
+    // MDI records carry the meshlet index in firstInstance (2 × index, the
+    // shaders read instance_index >> 1). Without indirect-first-instance,
+    // WebGPU turns every indirect draw whose firstInstance is not 0 into a
+    // no-op — all but meshlet 0 of each model vanished. MDI needs both.
+    if (
+      adapter.features.has('chromium-experimental-multi-draw-indirect') &&
+      adapter.features.has('indirect-first-instance')
+    ) {
+      wanted.push('chromium-experimental-multi-draw-indirect', 'indirect-first-instance');
       this.multiDraw = true;
     }
     const hasTimestamps = adapter.features.has('timestamp-query');
@@ -1246,9 +1280,15 @@ export class Renderer {
     });
     this.vbaoPipeline = compute(vbaoWgsl(false));
     this.vbaoMsPipeline = compute(vbaoWgsl(true));
-    // measurement snap (native measure_snap.slang port): one module, two passes
-    // sharing an explicit layout so both bind the same per-model group
-    const snapModule = dev.createShaderModule({ label: 'snapModule', code: measureSnapWgsl() });
+    // index-buffer width converters (drawLayout.ts): models upload at u8 and
+    // convert on the GPU when the draw path crosses MDI
+    this.indexWidthPipelines = { 1: compute(indexWidthWgsl(2)), 2: compute(indexWidthWgsl(1)) };
+    const standIn = (label: string) => dev.createBuffer({ label, size: 16, usage: GPUBufferUsage.STORAGE });
+    this.sortStandInCand = standIn('sortStandInCand');
+    this.sortStandInState = standIn('sortStandInState');
+    // measurement snap (native measure_snap.slang port): per index width one
+    // module, two passes sharing an explicit layout so both bind the same
+    // per-model group
     const sbuf = (binding: number, type: GPUBufferBindingType): GPUBindGroupLayoutEntry => ({
       binding,
       visibility: GPUShaderStage.COMPUTE,
@@ -1268,16 +1308,17 @@ export class Renderer {
       ],
     });
     const snapLayout = dev.createPipelineLayout({ bindGroupLayouts: [this.snapBGL] });
-    this.snapMinPipeline = dev.createComputePipeline({
-      label: 'snapMinPipeline',
-      layout: snapLayout,
-      compute: { module: snapModule, entryPoint: 'snapMin' },
-    });
-    this.snapWritePipeline = dev.createComputePipeline({
-      label: 'snapWritePipeline',
-      layout: snapLayout,
-      compute: { module: snapModule, entryPoint: 'snapWrite' },
-    });
+    const snapPair = (width: IndexWidth) => {
+      const module = dev.createShaderModule({ label: 'snapModule', code: measureSnapWgsl(width) });
+      const pass = (entryPoint: string) =>
+        dev.createComputePipeline({
+          label: `${entryPoint}Pipeline`,
+          layout: snapLayout,
+          compute: { module, entryPoint },
+        });
+      return [pass('snapMin'), pass('snapWrite')] as const;
+    };
+    this.snapPipelines = { 1: snapPair(1), 2: snapPair(2) };
     this.snapResultBuf = dev.createBuffer({
       label: 'snapResultBuf',
       size: SNAP_RESULT_WORDS * 4,
@@ -1643,11 +1684,12 @@ export class Renderer {
     });
   }
 
-  /** Create the full per-model GPU resource set (13 buffers + 8 bind groups)
-   * for the given packed geometry, bound to a caller-chosen itemBase and
-   * counts-buffer slot. Shared by first upload and slot revive — revive passes
-   * the tombstone's preserved itemBase/countOffsets so item ids and the
-   * per-slot draw-count sub-allocation stay stable across variant swaps. */
+  /** Create a model's GPU resource set for the given packed geometry, bound
+   * to a caller-chosen itemBase and counts-buffer slot and laid out for the
+   * current draw path (drawLayout.ts). Shared by first upload and slot revive
+   * — revive passes the tombstone's preserved itemBase/countOffsets so item
+   * ids and the per-slot draw-count sub-allocation stay stable across variant
+   * swaps. Indices upload at u8; ensureLayout widens them for MDI. */
   private buildModelResources(
     packed: GpuPackedModel,
     opts: { edges?: boolean },
@@ -1658,19 +1700,16 @@ export class Renderer {
     countOffsetO: number,
   ): GpuModel {
     const dev = this.device;
-    const { positionsQ, indices16, cull, meshletInfo, cgColors } = packed;
-    const totalMeshlets = packed.meshletCount;
-    const triangleCount = packed.triangleCount;
+    const { positionsQ, indices8, cull, meshletInfo, cgColors } = packed;
+    const meshletCount = packed.meshletCount;
 
     const mkBuf = (data: ArrayBufferView | ArrayBuffer, usage: number) => {
       const bytes = data instanceof ArrayBuffer ? data : (data.buffer as ArrayBuffer);
-      const len = data instanceof ArrayBuffer ? data.byteLength : data.byteLength;
+      const len = data.byteLength;
       const off = data instanceof ArrayBuffer ? 0 : data.byteOffset;
       const buf = dev.createBuffer({
         label: 'modelBuf',
-        // floor 64 B: near-empty coarse variants (1-2 triangles) must still
-        // satisfy every pipeline's minimum binding size (largest stride 48 B)
-        size: Math.max(64, Math.ceil(len / 4) * 4),
+        size: Math.max(MIN_MODEL_BUFFER_BYTES, Math.ceil(len / 4) * 4),
         usage: usage | GPUBufferUsage.COPY_DST,
       });
       dev.queue.writeBuffer(buf, 0, bytes, off, len);
@@ -1681,7 +1720,8 @@ export class Renderer {
     // consumes as vertex/index buffers. COPY_SRC lets the GLB export read the
     // geometry back — the packed arrays only exist on the GPU after upload.
     const vertexBuf = mkBuf(positionsQ, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
-    const indexBuf = mkBuf(indices16, GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
+    const indexBuf = createIndexBuffer(dev, indices8.length, 1);
+    dev.queue.writeBuffer(indexBuf, 0, indices8);
     const cgColorBuf = mkBuf(cgColors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
     const meshletCullBuf = mkBuf(cull, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
     // visibility starts at 0: the first frame's pass 2 discovers the model
@@ -1690,86 +1730,10 @@ export class Renderer {
     // meshlets other geometry does not hide — a seed of 1 made pass 1 draw
     // every in-frustum meshlet of the zone first. Same picture either way.
     const visBuf = dev.createBuffer({
-      label: 'modelBuf',
-      size: Math.max(64, totalMeshlets * 4),
+      label: 'modelVisBuf',
+      size: Math.max(MIN_MODEL_BUFFER_BYTES, meshletCount * 4),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-
-    const mkRecords = () =>
-      dev.createBuffer({
-        label: 'modelRecordBuf',
-        size: Math.max(RECORD_STRIDE, totalMeshlets * RECORD_STRIDE),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
-      });
-    const recordBuf1 = mkRecords();
-    const recordBuf2 = mkRecords();
-    // sorted transparent list (DESIGN.md "Sorted blend pass"): the record
-    // stride covers both MDI records and the doubled vertex-pull entries
-    const recordBufT = mkRecords();
-    // outline mask list (outlinePass.ts): the outlined items' in-view meshlets
-    const recordBufO = mkRecords();
-    const candBuf = dev.createBuffer({
-      label: 'modelCandBuf',
-      size: Math.max(8, totalMeshlets * 8),
-      usage: GPUBufferUsage.STORAGE,
-    });
-    const sortBuf = dev.createBuffer({
-      label: 'modelSortBuf',
-      size: SORT_STATE_WORDS * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    // the scatter's dispatch args: written by the scan pass, read as indirect
-    // by the scatter pass — a buffer may not be writable storage and an
-    // indirect source within one pass, hence its own buffer and two passes
-    const sortArgsBuf = dev.createBuffer({
-      label: 'modelSortArgsBuf',
-      size: 16,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
-    });
-
-    // args size differs: MDI binds a bare 4-byte atomic counter, the vertex-pull
-    // emit binds the full 16-byte drawIndirect args block at the same offset.
-    const mkCullBind = (pipeline: GPUComputePipeline, recordBuf: GPUBuffer, countOffset: number, argsSize: number) =>
-      dev.createBindGroup({
-        label: 'cullBind',
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: meshletCullBuf } },
-          { binding: 1, resource: { buffer: recordBuf } },
-          { binding: 2, resource: { buffer: this.countsBuf, offset: countOffset, size: argsSize } },
-          { binding: 3, resource: { buffer: visBuf } },
-          { binding: 4, resource: { buffer: meshletInfoBuf } },
-          { binding: 5, resource: { buffer: itemStateBuf } },
-          { binding: 6, resource: { buffer: this.transformsBuf } },
-          { binding: 7, resource: { buffer: modelUniBuf } },
-          { binding: 8, resource: { buffer: cgColorBuf } },
-          { binding: 9, resource: { buffer: candBuf } },
-          { binding: 10, resource: { buffer: sortBuf } },
-        ],
-      });
-    // the scan publishes the transparent draw slot: vertex-pull args at the
-    // slot start, the plain count (MDI multi-draw count, stats) after them
-    const sortScanBind = dev.createBindGroup({
-      label: 'sortScanBind',
-      layout: this.sortScanPipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: sortBuf } },
-        { binding: 1, resource: { buffer: this.countsBuf, offset: countOffsetT, size: (SORT_COUNT_WORD + 1) * 4 } },
-        { binding: 2, resource: { buffer: sortArgsBuf } },
-      ],
-    });
-    const mkScatterBind = (pipeline: GPUComputePipeline, vp: boolean) =>
-      dev.createBindGroup({
-        label: 'sortScatterBind',
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: candBuf } },
-          { binding: 1, resource: { buffer: sortBuf } },
-          { binding: 2, resource: { buffer: recordBufT } },
-          ...(vp ? [] : [{ binding: 3, resource: { buffer: meshletCullBuf } }]),
-        ],
-      });
-
     const meshletInfoBuf = mkBuf(meshletInfo, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
 
     // per-item [flags, colorRGBA8, transform_idx] (native 12-byte MeshItem);
@@ -1805,63 +1769,22 @@ export class Renderer {
       ],
     });
 
-    // static full-draw inputs for the no-cull fallback (all meshlets, one draw)
-    const iota = new Uint32Array(totalMeshlets);
-    for (let i = 0; i < totalMeshlets; i++) {
-      iota[i] = i;
-    }
-    const fullListBuf = mkBuf(iota, GPUBufferUsage.STORAGE);
-    const fullArgsBuf = mkBuf(new Uint32Array([372, totalMeshlets, 0, 0]), GPUBufferUsage.INDIRECT);
-
-    const mkVpGeoBind = (listBuf: GPUBuffer) =>
-      dev.createBindGroup({
-        label: 'vpGeoBind',
-        layout: this.vpGeoBGL,
-        entries: [
-          { binding: 0, resource: { buffer: listBuf } },
-          { binding: 1, resource: { buffer: meshletCullBuf } },
-          { binding: 2, resource: { buffer: indexBuf } },
-          { binding: 3, resource: { buffer: vertexBuf } },
-        ],
-      });
-
-    const buffers = [
-      vertexBuf,
-      indexBuf,
-      cgColorBuf,
-      meshletCullBuf,
-      recordBuf1,
-      recordBuf2,
-      recordBufT,
-      recordBufO,
-      candBuf,
-      sortBuf,
-      sortArgsBuf,
-      visBuf,
-      meshletInfoBuf,
-      itemStateBuf,
-      normalBuf,
-      modelUniBuf,
-      fullListBuf,
-      fullArgsBuf,
-    ];
-
-    return {
+    // lists for the current path — the sorted and outline lists too, so
+    // turning transparency or outline on never allocates mid-session;
+    // ensureLayout adds the full list on the no-cull path and widens the
+    // indices when the path is MDI
+    const path = this.drawPath();
+    const entry = listEntryBytes(path);
+    const base: Omit<GpuModel, 'binds' | 'bytes'> = {
       name: packed.name,
-      meshletCount: totalMeshlets,
-      triangleCount,
-      bytes: buffers.reduce((sum, b) => sum + b.size, 0),
+      meshletCount,
+      triangleCount: packed.triangleCount,
       vertexBuf,
       indexBuf,
+      indexWidth: 1,
+      indexCount: indices8.length,
       cgColorBuf,
       meshletCullBuf,
-      recordBuf1,
-      recordBuf2,
-      recordBufT,
-      recordBufO,
-      candBuf,
-      sortBuf,
-      sortArgsBuf,
       visBuf,
       meshletInfoBuf,
       itemStateBuf,
@@ -1869,36 +1792,230 @@ export class Renderer {
       modelUniBuf,
       itemBase,
       itemCount: packed.itemCount,
-      cullBind1: mkCullBind(this.cull1Pipeline, recordBuf1, countOffset1, 4),
-      cullBind2: mkCullBind(this.cull2Pipeline, recordBuf2, countOffset2, 4),
-      cullVpBind1: mkCullBind(this.cullVp1Pipeline, recordBuf1, countOffset1, 16),
-      cullVpBind2: mkCullBind(this.cullVp2Pipeline, recordBuf2, countOffset2, 16),
-      sortScanBind,
-      sortScatterBind: mkScatterBind(this.sortScatterPipeline, false),
-      sortScatterVpBind: mkScatterBind(this.sortScatterVpPipeline, true),
+      transparent: hasBakedAlpha(cgColors),
+      path,
+      recordBuf1: createListBuffer(dev, meshletCount, entry),
+      recordBuf2: createListBuffer(dev, meshletCount, entry),
+      sort: path === 'full' ? null : createSortLists(dev, meshletCount, path),
+      outlineBuf: createListBuffer(dev, meshletCount, entry),
+      full: null,
       renderBind,
-      vpGeoBind1: mkVpGeoBind(recordBuf1),
-      vpGeoBind2: mkVpGeoBind(recordBuf2),
-      vpGeoBindT: mkVpGeoBind(recordBufT),
-      vpGeoBindO: mkVpGeoBind(recordBufO),
-      outlineListBind: this.outline.createListBind(dev, {
-        meshletCull: meshletCullBuf,
-        records: recordBufO,
-        counts: this.countsBuf,
-        countOffset: countOffsetO,
-        vis: visBuf,
-        meshletInfo: meshletInfoBuf,
-        itemState: itemStateBuf,
-        modelUni: modelUniBuf,
-      }),
-      vpGeoBindFull: mkVpGeoBind(fullListBuf),
-      fullListBuf,
-      fullArgsBuf,
       countOffset1,
       countOffset2,
       countOffsetT,
       countOffsetO,
-      transparent: hasBakedAlpha(cgColors),
+    };
+    const m: GpuModel = { ...base, binds: this.bindModel(base), bytes: 0 };
+    this.ensureLayout(m);
+    m.bytes = modelBytesOf(m);
+    return m;
+  }
+
+  /** The draw path this frame's options select: vertex pull when asked for,
+   *  else MDI when the browser has it, else the no-cull fallback. */
+  private drawPath(): DrawPath {
+    if (this.options.vertexPull) {
+      return 'vp';
+    }
+    return this.multiDraw ? 'mdi' : 'full';
+  }
+
+  /** GPU bytes per meshlet and per triangle a pack costs under the current
+   *  draw path — what the mixed repack's per-item estimate budgets with. */
+  gpuSizing(): GpuSizing {
+    return gpuSizingOf(this.drawPath());
+  }
+
+  /**
+   * Bring one model's buffers and bind groups to the current draw path
+   * (drawLayout.ts): the path's index width, the draw lists' entry size, the
+   * sorted blend list on a culling path, the full list on the no-cull path.
+   * A no-op unless the path changed — it runs every frame. A rebuilt list
+   * starts empty with its count slots zeroed, so a frozen cull draws nothing
+   * until the next real cull rather than reading entries of the other format.
+   */
+  private ensureLayout(m: GpuModel): void {
+    if (m.dead) {
+      return;
+    }
+    const dev = this.device;
+    const path = this.drawPath();
+    let changed = m.path !== path;
+    const width = indexWidthOf(path);
+    if (m.indexWidth !== width) {
+      this.convertIndexWidth(m, width);
+      changed = true;
+    }
+    const entry = listEntryBytes(path);
+    const entryChanged = listEntryBytes(m.path) !== entry;
+    if (entryChanged) {
+      m.recordBuf1.destroy();
+      m.recordBuf2.destroy();
+      m.outlineBuf.destroy();
+      m.recordBuf1 = createListBuffer(dev, m.meshletCount, entry);
+      m.recordBuf2 = createListBuffer(dev, m.meshletCount, entry);
+      m.outlineBuf = createListBuffer(dev, m.meshletCount, entry);
+      dev.queue.writeBuffer(this.countsBuf, m.countOffset1, new Uint8Array(COUNT_SLOT * COUNT_SLOTS));
+      changed = true;
+    }
+    const wantSort = path !== 'full';
+    if (m.sort && (!wantSort || transparentEntryBytes(m.path) !== transparentEntryBytes(path))) {
+      destroySortLists(m.sort);
+      m.sort = null;
+      changed = true;
+    }
+    if (wantSort && !m.sort) {
+      m.sort = createSortLists(dev, m.meshletCount, path);
+      changed = true;
+    }
+    if (m.full && path !== 'full') {
+      destroyFullList(m.full);
+      m.full = null;
+      changed = true;
+    }
+    if (path === 'full' && !m.full) {
+      m.full = createFullList(dev, m.meshletCount);
+      changed = true;
+    }
+    if (!changed) {
+      return;
+    }
+    m.path = path;
+    m.binds = this.bindModel(m);
+    m.bytes = modelBytesOf(m);
+  }
+
+  /** Re-encode a model's index buffer at `width` on the GPU
+   *  (shaders/indexWidth.ts) and swap it in. Queue order puts the conversion
+   *  before any frame that reads the new buffer, and the old one is freed
+   *  once the queue is done with it. */
+  private convertIndexWidth(m: GpuModel, width: IndexWidth): void {
+    const dev = this.device;
+    const dst = createIndexBuffer(dev, m.indexCount, width);
+    const pipeline = this.indexWidthPipelines[width];
+    const bind = dev.createBindGroup({
+      label: 'indexWidthBind',
+      layout: pipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: m.indexBuf } },
+        { binding: 1, resource: { buffer: dst } },
+      ],
+    });
+    const groups = Math.ceil(dst.size / 4 / INDEX_WIDTH_WORKGROUP);
+    const gx = Math.min(groups, dev.limits.maxComputeWorkgroupsPerDimension);
+    const enc = dev.createCommandEncoder({ label: 'indexWidth' });
+    const pass = enc.beginComputePass();
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bind);
+    pass.dispatchWorkgroups(gx, Math.ceil(groups / gx));
+    pass.end();
+    dev.queue.submit([enc.finish()]);
+    m.indexBuf.destroy();
+    m.indexBuf = dst;
+    m.indexWidth = width;
+    m.snapBind = undefined;
+  }
+
+  /** Bind groups over a model's current buffers for its path (ModelBinds).
+   *  Vertex-pull groups exist only while the index buffer is u8. */
+  private bindModel(m: Omit<GpuModel, 'binds' | 'bytes'>): ModelBinds {
+    const dev = this.device;
+    const vp = m.path !== 'mdi';
+    const vpGeo = (listBuf: GPUBuffer | null | undefined): GPUBindGroup | null =>
+      vp && listBuf && m.indexWidth === 1
+        ? dev.createBindGroup({
+            label: 'vpGeoBind',
+            layout: this.vpGeoBGL,
+            entries: [
+              { binding: 0, resource: { buffer: listBuf } },
+              { binding: 1, resource: { buffer: m.meshletCullBuf } },
+              { binding: 2, resource: { buffer: m.indexBuf } },
+              { binding: 3, resource: { buffer: m.vertexBuf } },
+            ],
+          })
+        : null;
+    return {
+      cull1: this.cullBindOf(m, vp ? this.cullVp1Pipeline : this.cull1Pipeline, m.recordBuf1, m.countOffset1),
+      cull2: this.cullBindOf(m, vp ? this.cullVp2Pipeline : this.cull2Pipeline, m.recordBuf2, m.countOffset2),
+      vp1: vpGeo(m.recordBuf1),
+      vp2: vpGeo(m.recordBuf2),
+      vpT: vpGeo(m.sort?.recordBufT),
+      vpO: vpGeo(m.outlineBuf),
+      vpFull: vpGeo(m.full?.fullListBuf),
+      ...this.sortBindsOf(m),
+      outlineList: this.outline.createListBind(dev, {
+        meshletCull: m.meshletCullBuf,
+        records: m.outlineBuf,
+        counts: this.countsBuf,
+        countOffset: m.countOffsetO,
+        vis: m.visBuf,
+        meshletInfo: m.meshletInfoBuf,
+        itemState: m.itemStateBuf,
+        modelUni: m.modelUniBuf,
+      }),
+    };
+  }
+
+  /** One cull pass's bind group. Args size differs: MDI binds a bare 4-byte
+   *  atomic counter, the vertex-pull emit binds the full 16-byte drawIndirect
+   *  args block at the same offset. On the no-cull path (no sorted list) the
+   *  shared stand-ins fill the sort candidate and state bindings. */
+  private cullBindOf(
+    m: Omit<GpuModel, 'binds' | 'bytes'>,
+    pipeline: GPUComputePipeline,
+    recordBuf: GPUBuffer,
+    countOffset: number,
+  ): GPUBindGroup {
+    return this.device.createBindGroup({
+      label: 'cullBind',
+      layout: pipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: m.meshletCullBuf } },
+        { binding: 1, resource: { buffer: recordBuf } },
+        { binding: 2, resource: { buffer: this.countsBuf, offset: countOffset, size: m.path === 'mdi' ? 4 : 16 } },
+        { binding: 3, resource: { buffer: m.visBuf } },
+        { binding: 4, resource: { buffer: m.meshletInfoBuf } },
+        { binding: 5, resource: { buffer: m.itemStateBuf } },
+        { binding: 6, resource: { buffer: this.transformsBuf } },
+        { binding: 7, resource: { buffer: m.modelUniBuf } },
+        { binding: 8, resource: { buffer: m.cgColorBuf } },
+        { binding: 9, resource: { buffer: m.sort?.candBuf ?? this.sortStandInCand } },
+        { binding: 10, resource: { buffer: m.sort?.sortBuf ?? this.sortStandInState } },
+      ],
+    });
+  }
+
+  /** The sorted blend list's scan + scatter groups (null without one). The
+   *  scan publishes the transparent draw slot: vertex-pull args at the slot
+   *  start, the plain count (MDI multi-draw count, stats) after them. */
+  private sortBindsOf(m: Omit<GpuModel, 'binds' | 'bytes'>): Pick<ModelBinds, 'sortScan' | 'sortScatter'> {
+    const sort = m.sort;
+    if (!sort) {
+      return { sortScan: null, sortScatter: null };
+    }
+    const dev = this.device;
+    const vp = m.path !== 'mdi';
+    const scatter = vp ? this.sortScatterVpPipeline : this.sortScatterPipeline;
+    return {
+      sortScan: dev.createBindGroup({
+        label: 'sortScanBind',
+        layout: this.sortScanPipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: sort.sortBuf } },
+          { binding: 1, resource: { buffer: this.countsBuf, offset: m.countOffsetT, size: (SORT_COUNT_WORD + 1) * 4 } },
+          { binding: 2, resource: { buffer: sort.sortArgsBuf } },
+        ],
+      }),
+      sortScatter: dev.createBindGroup({
+        label: 'sortScatterBind',
+        layout: scatter.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: sort.candBuf } },
+          { binding: 1, resource: { buffer: sort.sortBuf } },
+          { binding: 2, resource: { buffer: sort.recordBufT } },
+          ...(vp ? [] : [{ binding: 3, resource: { buffer: m.meshletCullBuf } }]),
+        ],
+      }),
     };
   }
 
@@ -2098,12 +2215,14 @@ export class Renderer {
   /** Read a model's packed geometry back from the GPU (GLB export) — the
    *  arrays were transferred to VRAM at upload and exist nowhere else.
    *  Layouts are the pack.ts ones (positionsQ u16x4, cull 36 B packed records
-   *  with the draw template, meshletInfo 8 words, cgColors f32x4). */
+   *  with the draw template, meshletInfo 8 words, cgColors f32x4); indices
+   *  come back at the width the GPU holds them (`indexWidth`). */
   async readModelGeometry(index: number): Promise<{
     name: string;
     meshletCount: number;
     positionsQ: ArrayBuffer;
-    indices16: ArrayBuffer;
+    indices: ArrayBuffer;
+    indexWidth: IndexWidth;
     cull: ArrayBuffer;
     meshletInfo: ArrayBuffer;
     cgColors: ArrayBuffer;
@@ -2113,6 +2232,9 @@ export class Renderer {
       return null;
     }
     const dev = this.device;
+    // width of the buffer copied below — a path switch during the await
+    // swaps m.indexBuf but not these bytes
+    const indexWidth = m.indexWidth;
     const sources = [m.vertexBuf, m.indexBuf, m.meshletCullBuf, m.meshletInfoBuf, m.cgColorBuf];
     const staging = sources.map((src) =>
       dev.createBuffer({
@@ -2127,18 +2249,19 @@ export class Renderer {
     });
     dev.queue.submit([enc.finish()]);
     await Promise.all(staging.map((b) => b.mapAsync(GPUMapMode.READ)));
-    const [positionsQ, indices16, cull, meshletInfo, cgColors] = staging.map((b) => {
+    const [positionsQ, indices, cull, meshletInfo, cgColors] = staging.map((b) => {
       const copy = b.getMappedRange().slice(0);
       b.unmap();
       b.destroy();
       return copy;
     });
-    return { name: m.name, meshletCount: m.meshletCount, positionsQ, indices16, cull, meshletInfo, cgColors };
+    return { name: m.name, meshletCount: m.meshletCount, positionsQ, indices, indexWidth, cull, meshletInfo, cgColors };
   }
 
   /** Debug: per-model meshlet fill statistics, read back from the GPU cull/info
    *  records. Geometry bytes are packed to content, but every meshlet pays
-   *  MESHLET_RECORD_BYTES no matter how full it is — low fill shows up as the
+   *  its layout's fixed record bytes (drawLayout.ts meshletBytes) no matter
+   *  how full it is — low fill shows up as the
    *  gap between the actual record count and the two repack bounds. */
   async readMeshletFill(): Promise<
     {
@@ -2213,7 +2336,7 @@ export class Renderer {
         idealPerItem,
         idealCrossItem: Math.ceil(tris / 124),
         geoBytes: m.vertexBuf.size + m.indexBuf.size + m.normalBuf.size,
-        recordBytes: m.meshletCount * MESHLET_RECORD_BYTES,
+        recordBytes: m.meshletCount * meshletBytes(m.path),
       });
     }
     return out;
@@ -2241,24 +2364,7 @@ export class Renderer {
       if (!m || m.dead) {
         continue;
       }
-      m.vertexBuf.destroy();
-      m.indexBuf.destroy();
-      m.cgColorBuf.destroy();
-      m.meshletCullBuf.destroy();
-      m.recordBuf1.destroy();
-      m.recordBuf2.destroy();
-      m.recordBufT.destroy();
-      m.recordBufO.destroy();
-      m.candBuf.destroy();
-      m.sortBuf.destroy();
-      m.sortArgsBuf.destroy();
-      m.visBuf.destroy();
-      m.meshletInfoBuf.destroy();
-      m.fullListBuf.destroy();
-      m.fullArgsBuf.destroy();
-      m.itemStateBuf.destroy();
-      m.normalBuf.destroy();
-      m.modelUniBuf.destroy();
+      destroyModelBuffers(m);
       m.dead = true;
       m.meshletCount = 0;
       m.triangleCount = 0;
@@ -2274,24 +2380,7 @@ export class Renderer {
       if (m.dead) {
         continue;
       }
-      m.vertexBuf.destroy();
-      m.indexBuf.destroy();
-      m.cgColorBuf.destroy();
-      m.meshletCullBuf.destroy();
-      m.recordBuf1.destroy();
-      m.recordBuf2.destroy();
-      m.recordBufT.destroy();
-      m.recordBufO.destroy();
-      m.candBuf.destroy();
-      m.sortBuf.destroy();
-      m.sortArgsBuf.destroy();
-      m.visBuf.destroy();
-      m.meshletInfoBuf.destroy();
-      m.fullListBuf.destroy();
-      m.fullArgsBuf.destroy();
-      m.itemStateBuf.destroy();
-      m.normalBuf.destroy();
-      m.modelUniBuf.destroy();
+      destroyModelBuffers(m);
     }
     this.models = [];
     this.nextItemBase = 1;
@@ -2501,14 +2590,14 @@ export class Renderer {
     const cull = new Uint32Array(g.cull);
     const infoU = new Uint32Array(g.meshletInfo);
     const infoF = new Float32Array(g.meshletInfo);
-    const idx16 = new Uint16Array(g.indices16);
+    const idx = g.indexWidth === 1 ? new Uint8Array(g.indices) : new Uint16Array(g.indices);
     const pos = new Uint16Array(g.positionsQ);
     const indexCount = cull[mi * 9 + 5];
     const firstIndex = cull[mi * 9 + 6];
     const baseVertex = cull[mi * 9 + 8];
     const min = [infoF[mi * 8], infoF[mi * 8 + 1], infoF[mi * 8 + 2]];
     const sc = [infoF[mi * 8 + 4], infoF[mi * 8 + 5], infoF[mi * 8 + 6]];
-    const li = [0, 1, 2].map((c) => idx16[firstIndex + tri * 3 + c]);
+    const li = [0, 1, 2].map((c) => idx[firstIndex + tri * 3 + c]);
     const q = li.map((l) => [pos[(baseVertex + l) * 4], pos[(baseVertex + l) * 4 + 1], pos[(baseVertex + l) * 4 + 2]]);
     const p = q.map((v) => [min[0] + v[0] * sc[0], min[1] + v[1] * sc[1], min[2] + v[2] * sc[2]]);
     this.trace(
@@ -2543,13 +2632,14 @@ export class Renderer {
     const enc = dev.createCommandEncoder();
     const pass = enc.beginComputePass();
     // pass 1 (min) over all models, then pass 2 (write) — WebGPU's implicit
-    // barriers between dispatches make result[0] the global minimum first
-    for (const pipeline of [this.snapMinPipeline, this.snapWritePipeline]) {
-      pass.setPipeline(pipeline);
+    // barriers between dispatches make result[0] the global minimum first.
+    // The pipeline follows each model's index width (u8 / u16).
+    for (const phase of [0, 1] as const) {
       for (const m of this.models) {
         if (m.dead || m.meshletCount === 0) {
           continue;
         }
+        pass.setPipeline(this.snapPipelines[m.indexWidth][phase]);
         m.snapBind ??= dev.createBindGroup({
           label: 'modelSnapBind',
           layout: this.snapBGL,
@@ -3162,9 +3252,13 @@ export class Renderer {
     dev.queue.writeBuffer(this.frameBuf, 0, frameData);
     this.pointsLayer.prepare(origin, canvas.width, canvas.height, this.camera.lastP11, this.dpr * this.captureScale);
     // vp = vertex pulling (core WebGPU); mdi = multi-draw indirect (feature);
-    // full = no culling, static all-meshlets vertex-pull draw
-    const cullMode: 'mdi' | 'vp' | 'full' = opt.vertexPull ? 'vp' : this.multiDraw ? 'mdi' : 'full';
+    // full = no culling, static all-meshlets vertex-pull draw. Every model's
+    // buffers follow the path (drawLayout.ts) before anything is encoded.
+    const cullMode = this.drawPath();
     this.cullMode = cullMode;
+    for (const m of this.models) {
+      this.ensureLayout(m);
+    }
     // blend mode with culling: the cull routes transparent meshlets into a
     // depth-sorted list the blend pass draws with the facing split (DESIGN.md
     // "Sorted blend pass"); the no-cull fallback keeps the vertex-shader
@@ -3335,46 +3429,20 @@ export class Renderer {
       : pick4(this.renderVpBlend1x, this.renderVpBlend4x);
     // draw all models' draw list (pass 1, pass 2 or the sorted transparent
     // list) with the mode's submission; blend=true selects the transparency
-    // pipeline and the blend-pass frame slot
+    // pipeline and the blend-pass frame slot. The blend pass skips a model
+    // with nothing transparent: it holds no sorted list (and the no-cull full
+    // list would only degenerate).
     const drawScene = (pass: GPURenderPassEncoder, list: DrawList, blend = false) => {
-      const frameOffset = [blend ? 256 : 0];
-      if (cullMode === 'mdi') {
-        pass.setPipeline(blend ? blendPipeline : renderPipeline);
-        for (const m of this.models) {
-          // meshletCount 0 also covers a fully-cut coarse variant, whose
-          // minimum-sized geometry buffers would fail draw-time binding checks.
-          // The blend pass skips a model with nothing transparent: its sorted
-          // list is empty (and the no-cull full list would only degenerate).
-          if (m.dead || m.meshletCount === 0 || (blend && !m.transparent)) {
-            continue;
-          }
-          pass.setBindGroup(0, m.renderBind, frameOffset);
-          pass.setVertexBuffer(0, m.vertexBuf);
-          pass.setIndexBuffer(m.indexBuf, 'uint16');
-          const { buf, offset } = drawListOf(m, list);
-          (
-            pass as unknown as {
-              multiDrawIndexedIndirect(b: GPUBuffer, o: number, max: number, cb: GPUBuffer, co: number): void;
-            }
-          ).multiDrawIndexedIndirect(buf, 0, m.meshletCount, this.countsBuf, offset);
-        }
-      } else {
-        pass.setPipeline(blend ? vpBlendPipeline : vpPipeline);
-        for (const m of this.models) {
-          if (m.dead || m.meshletCount === 0 || (blend && !m.transparent)) {
-            continue;
-          }
-          pass.setBindGroup(0, m.renderBind, frameOffset);
-          if (cullMode === 'vp') {
-            pass.setBindGroup(1, drawListOf(m, list).vpBind);
-            pass.drawIndirect(this.countsBuf, vpArgsOffsetOf(m, list));
-          } else {
-            // full: static all-meshlets list, no culling
-            pass.setBindGroup(1, m.vpGeoBindFull);
-            pass.drawIndirect(m.fullArgsBuf, 0);
-          }
-        }
-      }
+      replayDrawLists(
+        pass,
+        blend ? this.models.filter((m) => m.transparent) : this.models,
+        this.countsBuf,
+        cullMode,
+        blend ? blendPipeline : renderPipeline,
+        blend ? vpBlendPipeline : vpPipeline,
+        blend ? 256 : 0,
+        [list],
+      );
     };
     // transparency pass (blend mode only): the cull's depth-sorted transparent
     // list, back-to-front with the facing split (no-cull fallback: the static
@@ -3415,8 +3483,8 @@ export class Renderer {
         enc.clearBuffer(this.newBudgetBuf);
         if (sortActive) {
           for (const m of this.models) {
-            if (!m.dead && m.meshletCount > 0 && m.transparent) {
-              enc.clearBuffer(m.sortBuf, 0, SORT_CLEAR_BYTES);
+            if (!m.dead && m.meshletCount > 0 && m.transparent && m.sort) {
+              enc.clearBuffer(m.sort.sortBuf, 0, SORT_CLEAR_BYTES);
             }
           }
         }
@@ -3429,7 +3497,7 @@ export class Renderer {
           if (m.dead || m.meshletCount === 0) {
             continue;
           }
-          cull1.setBindGroup(0, vp ? m.cullVpBind1 : m.cullBind1);
+          cull1.setBindGroup(0, m.binds.cull1);
           cull1.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
         }
         cull1.end();
@@ -3465,7 +3533,7 @@ export class Renderer {
           if (m.dead || m.meshletCount === 0) {
             continue;
           }
-          cull2.setBindGroup(0, vp ? m.cullVpBind2 : m.cullBind2);
+          cull2.setBindGroup(0, m.binds.cull2);
           cull2.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
         }
         cull2.end();
@@ -3482,21 +3550,21 @@ export class Renderer {
           const scan = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'begin') });
           scan.setPipeline(this.sortScanPipeline);
           for (const m of this.models) {
-            if (m.dead || m.meshletCount === 0 || !m.transparent) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent || !m.binds.sortScan) {
               continue;
             }
-            scan.setBindGroup(0, m.sortScanBind);
+            scan.setBindGroup(0, m.binds.sortScan);
             scan.dispatchWorkgroups(1);
           }
           scan.end();
           const scatter = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'end') });
           scatter.setPipeline(vp ? this.sortScatterVpPipeline : this.sortScatterPipeline);
           for (const m of this.models) {
-            if (m.dead || m.meshletCount === 0 || !m.transparent) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent || !m.sort || !m.binds.sortScatter) {
               continue;
             }
-            scatter.setBindGroup(0, vp ? m.sortScatterVpBind : m.sortScatterBind);
-            scatter.dispatchWorkgroupsIndirect(m.sortArgsBuf, 0);
+            scatter.setBindGroup(0, m.binds.sortScatter);
+            scatter.dispatchWorkgroupsIndirect(m.sort.sortArgsBuf, 0);
           }
           scatter.end();
         }

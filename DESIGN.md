@@ -57,7 +57,9 @@ own. Key facts, kept here so the port history isn't lost:
     lit-html islands unless they share these constraints.
 - **Renderer as a library** (`src/lib/render/renderer.ts`, WGSL in
   `src/lib/render/shaders/`): GPU-driven — cull compute → multi-draw indexed
-  indirect (`chromium-experimental-multi-draw-indirect`), vertex-pull fallback,
+  indirect (`chromium-experimental-multi-draw-indirect` + `indirect-first-instance`:
+  each record carries its meshlet in `firstInstance`, and without the second
+  feature WebGPU skips every such draw but meshlet 0's), vertex-pull fallback,
   two-pass HiZ occlusion, TAA (Halton jitter + accumulation), MSAA per-sample
   edges, VBAO. Within 5–10 % of the native Vulkan renderer.
 - **Worker model DB** (`src/lib/modeldb/modeldbWorker.ts` via comlink): cooked `.tdp`
@@ -182,9 +184,9 @@ own. Key facts, kept here so the port history isn't lost:
   otherwise the hidden outline of a selection behind other geometry broke
   wherever the HZB culled a meshlet (2026-11-11). A full replay with a per-fragment discard cost a large slice
   of the scene pass on every frame with a selection. Cost: `N + 2T` vertex work instead of
-  `2N`; +28 B per meshlet (`MESHLET_RECORD_BYTES` 116 → 144; 164 since the
-  outline list above added its slot) and ~8 KB per
-  model. Not done: cross-model interleaving (draws are per model, so glass of
+  `2N`; the sorted list and its candidates cost +28 B per meshlet under MDI
+  (+16 B on vertex pull) and ~8 KB per model (see *Per-meshlet GPU layout*).
+  Not done: cross-model interleaving (draws are per model, so glass of
   an earlier-loaded model stays under a later one's where they overlap) and a
   "front faces only" variant that would show the true slider opacity at the
   price of the far wall; freeze-cull keeps whatever list the last cull built,
@@ -200,6 +202,35 @@ own. Key facts, kept here so the port history isn't lost:
   cost ~12 ms on a large multi-model scene on a fast GPU). The gate rides with the
   states rather than the async whole-scene `hasTransparency` refresh because
   a gate that lags the states would route glass to a list nobody scans.
+- **Per-meshlet GPU layout** (2026-11-19, `drawLayout.ts`). What a meshlet
+  costs on the GPU is decided in one place, which the renderer allocates from
+  and the mixed repack's budget estimate uses (`Renderer.gpuSizing`): cull
+  record 36 B, info 32 B, visibility word 4 B, the pass-1 / pass-2 / outline
+  lists at 4-byte entries on vertex pull or 20-byte draw records under MDI,
+  plus the sorted transparent list and its candidates on a culling path or
+  the static full list on the no-cull path. That is 100 B per meshlet on
+  vertex pull and 160 B under MDI, against the old fixed 164 B. The sorted
+  and outline lists are held from upload on purpose: a first version
+  allocated them on first use (transparent gate / outline switch) for 20 B
+  per meshlet less, but most sessions turn both on, so it only moved the
+  allocation into a frame. Indices are u8 meshlet-local (< 64) in the pack
+  and on the GPU for vertex pull. MDI needs a u16 hardware index buffer, so
+  `ensureLayout` widens a model's indices on the GPU (`shaders/indexWidth.ts`)
+  when the path becomes MDI and narrows them when it leaves. No CPU copy is
+  kept. The measure snap has a pipeline pair per width. `ensureLayout` runs
+  at frame start and is a no-op unless the path changed; a rebuilt list
+  starts empty with its count slots zeroed.
+- **Cone culling, orthographic** (2026-11-19). Orthographic uses
+  meshoptimizer's orthographic form `dot(forward, axis) >= cutoff`; the
+  perspective, apex-free form `dot(c - eye, axis) >= cutoff·|c - eye| + r` is
+  for perspective only. The orthographic depth slab spans the whole scene
+  box, so geometry can sit behind the orbit eye point, and there the
+  perspective form inverts and culls the camera-facing side. The s8 cone
+  packing (`pack.ts packCone`) is conservative as it stands: the axis
+  rounding error is at most √3·0.5/127 on the dot product, and the extra
+  +1/127 on the cutoff covers it (a cutoff that clamps to 127 is the
+  "skip the test" marker). meshoptimizer's own s8 cutoff adds the
+  per-component error sum, which is merely looser.
 - **Selection outline and hover** (`outlinePass.ts`, a three.js OutlinePass
   on the native `hover_xray` mask): `selectionStyle` is `tint` (default),
   `outline` or `both`; the outline draws a visible and a hidden (see-through)
