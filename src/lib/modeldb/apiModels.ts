@@ -320,7 +320,7 @@ export const modelsApi = {
    * the root) through the parsed LRU. No DbModel mutation; throws
    * `itemcount-mismatch:` if either variant's item table differs from the
    * registered model. `sizing` is the renderer's per-meshlet / per-triangle
-   * cost for this slot under its current draw path (Renderer.gpuSizing). */
+   * cost under its current draw path (Renderer.gpuSizing). */
   async repackModelMixed(
     index: number,
     fullPath: string,

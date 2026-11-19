@@ -7,14 +7,6 @@ import { gpuSizingOf, indexWidthOf, meshletBytes } from '../src/lib/render/drawL
 import type { ColorGroup, ParsedModel } from '../src/lib/model/format';
 
 // -----------------------------------------------------------------------------
-// Constants
-// -----------------------------------------------------------------------------
-
-const PLAIN = { transparent: false, outline: false };
-const GLASS = { transparent: true, outline: false };
-const OUTLINE = { transparent: false, outline: true };
-
-// -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
 
@@ -63,28 +55,18 @@ function parsedWithTris(trisPerMeshlet: readonly number[][]): ParsedModel {
 // -----------------------------------------------------------------------------
 
 describe('meshletBytes', () => {
-  it('costs vertex pull 80 B and MDI 112 B per meshlet with no optional list', () => {
-    // cull 36 + info 32 + vis 4 + two lists (4 B entries / 20 B records)
-    expect(meshletBytes('vp', PLAIN)).toBe(80);
-    expect(meshletBytes('mdi', PLAIN)).toBe(112);
+  it('costs vertex pull 100 B, MDI 160 B and the no-cull path 88 B per meshlet', () => {
+    // cull 36 + info 32 + vis 4 + pass-1, pass-2, outline lists + sorted list
+    // and candidates (culling paths) or the full list (no-cull path)
+    expect(meshletBytes('vp')).toBe(36 + 32 + 4 + 3 * 4 + 8 + 8);
+    expect(meshletBytes('mdi')).toBe(36 + 32 + 4 + 3 * 20 + 20 + 8);
+    expect(meshletBytes('full')).toBe(36 + 32 + 4 + 3 * 4 + 4);
   });
 
-  it('adds the sorted list and its candidates only on culling paths', () => {
-    expect(meshletBytes('vp', GLASS) - meshletBytes('vp', PLAIN)).toBe(8 + 8);
-    expect(meshletBytes('mdi', GLASS) - meshletBytes('mdi', PLAIN)).toBe(20 + 8);
-    expect(meshletBytes('full', GLASS)).toBe(meshletBytes('full', PLAIN));
-  });
-
-  it('adds one list entry for the outline list and the full list on the no-cull path', () => {
-    expect(meshletBytes('vp', OUTLINE) - meshletBytes('vp', PLAIN)).toBe(4);
-    expect(meshletBytes('mdi', OUTLINE) - meshletBytes('mdi', PLAIN)).toBe(20);
-    expect(meshletBytes('full', PLAIN) - meshletBytes('vp', PLAIN)).toBe(4);
-  });
-
-  it('never exceeds the old fixed 164 B, even with every list held', () => {
-    const all = { transparent: true, outline: true };
-    expect(meshletBytes('mdi', all)).toBeLessThanOrEqual(164);
-    expect(meshletBytes('vp', all)).toBeLessThanOrEqual(164);
+  it('never exceeds the old fixed 164 B', () => {
+    for (const path of ['vp', 'mdi', 'full'] as const) {
+      expect(meshletBytes(path)).toBeLessThanOrEqual(164);
+    }
   });
 });
 
@@ -93,8 +75,8 @@ describe('index width', () => {
     expect(indexWidthOf('mdi')).toBe(2);
     expect(indexWidthOf('vp')).toBe(1);
     expect(indexWidthOf('full')).toBe(1);
-    expect(gpuSizingOf('vp', PLAIN).indexBytesPerTriangle).toBe(3);
-    expect(gpuSizingOf('mdi', PLAIN).indexBytesPerTriangle).toBe(6);
+    expect(gpuSizingOf('vp').indexBytesPerTriangle).toBe(3);
+    expect(gpuSizingOf('mdi').indexBytesPerTriangle).toBe(6);
   });
 
   it('packs meshlet-local indices as u8, padded to whole words', () => {

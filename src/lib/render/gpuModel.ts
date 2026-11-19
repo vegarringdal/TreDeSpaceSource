@@ -17,7 +17,8 @@ export const OUTLINE_LIST: DrawList = 4;
  *  after them). */
 export const TRANSPARENT_COUNT_OFFSET = SORT_COUNT_WORD * 4;
 
-/** The sorted blend list of a model with something transparent. */
+/** The sorted blend list (every model on a culling path; the per-model
+ *  `transparent` gate decides whether it is cleared, built and drawn). */
 export interface SortLists {
   /** Back-to-front draw list (MDI records / vertex-pull entry pairs). */
   recordBufT: GPUBuffer;
@@ -49,7 +50,7 @@ export interface ModelBinds {
   vpFull: GPUBindGroup | null;
   sortScan: GPUBindGroup | null;
   sortScatter: GPUBindGroup | null;
-  outlineList: GPUBindGroup | null;
+  outlineList: GPUBindGroup;
 }
 
 export interface GpuModel {
@@ -80,17 +81,17 @@ export interface GpuModel {
    *  modelHasTransparency, refreshed by every state update (baked colour
    *  alpha at upload). Gates the per-model sort clear / scan / scatter and
    *  the blend draw, so blend mode's fixed per-model cost is paid only by
-   *  models that have glass — and the sorted list exists only while it holds. */
+   *  models that have glass. */
   transparent: boolean;
   /** Draw path the lists and bind groups are laid out for. */
   path: DrawPath;
   /** Pass-1 / pass-2 cull lists, entry size per path. */
   recordBuf1: GPUBuffer;
   recordBuf2: GPUBuffer;
-  /** Sorted blend list — only while `transparent` (and the path culls). */
+  /** Sorted blend list — null only on the no-cull path, which never sorts. */
   sort: SortLists | null;
-  /** Outline mask list (outlinePass.ts) — only while an outline feature is on. */
-  outlineBuf: GPUBuffer | null;
+  /** Outline mask list (outlinePass.ts). */
+  outlineBuf: GPUBuffer;
   /** Static all-meshlets list — only on the no-cull path. */
   full: FullList | null;
   renderBind: GPUBindGroup;
@@ -106,8 +107,8 @@ export interface GpuModel {
  *  vertex-pull bind group (null under MDI). */
 export type DrawListRef = Readonly<{ buf: GPUBuffer; offset: number; vpBind: GPUBindGroup | null }>;
 
-/** One of a model's draw lists — null when the model does not hold it (no
- *  transparency, outline off), which draws nothing either way. */
+/** One of a model's draw lists — null when the model does not hold it (the
+ *  sorted list on the no-cull path), which draws nothing either way. */
 export function drawListOf(m: GpuModel, list: DrawList): DrawListRef | null {
   if (list === 1) {
     return { buf: m.recordBuf1, offset: m.countOffset1, vpBind: m.binds.vp1 };
@@ -116,7 +117,7 @@ export function drawListOf(m: GpuModel, list: DrawList): DrawListRef | null {
     return { buf: m.recordBuf2, offset: m.countOffset2, vpBind: m.binds.vp2 };
   }
   if (list === OUTLINE_LIST) {
-    return m.outlineBuf ? { buf: m.outlineBuf, offset: m.countOffsetO, vpBind: m.binds.vpO } : null;
+    return { buf: m.outlineBuf, offset: m.countOffsetO, vpBind: m.binds.vpO };
   }
   return m.sort
     ? { buf: m.sort.recordBufT, offset: m.countOffsetT + TRANSPARENT_COUNT_OFFSET, vpBind: m.binds.vpT }

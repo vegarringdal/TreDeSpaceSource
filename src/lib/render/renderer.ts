@@ -1762,9 +1762,12 @@ export class Renderer {
       ],
     });
 
-    // lists for the current path; ensureLayout adds the optional ones and
-    // widens the indices when that path is MDI
+    // lists for the current path — the sorted and outline lists too, so
+    // turning transparency or outline on never allocates mid-session;
+    // ensureLayout adds the full list on the no-cull path and widens the
+    // indices when the path is MDI
     const path = this.drawPath();
+    const entry = listEntryBytes(path);
     const base: Omit<GpuModel, 'binds' | 'bytes'> = {
       name: packed.name,
       meshletCount,
@@ -1784,10 +1787,10 @@ export class Renderer {
       itemCount: packed.itemCount,
       transparent: hasBakedAlpha(cgColors),
       path,
-      recordBuf1: createListBuffer(dev, meshletCount, listEntryBytes(path)),
-      recordBuf2: createListBuffer(dev, meshletCount, listEntryBytes(path)),
-      sort: null,
-      outlineBuf: null,
+      recordBuf1: createListBuffer(dev, meshletCount, entry),
+      recordBuf2: createListBuffer(dev, meshletCount, entry),
+      sort: path === 'full' ? null : createSortLists(dev, meshletCount, path),
+      outlineBuf: createListBuffer(dev, meshletCount, entry),
       full: null,
       renderBind,
       countOffset1,
@@ -1810,28 +1813,19 @@ export class Renderer {
     return this.multiDraw ? 'mdi' : 'full';
   }
 
-  /** Any outline feature on — the per-model outline list exists exactly then
-   *  (allocated on the switch, not per selection, so selecting never churns). */
-  private outlineWanted(): boolean {
-    return this.options.outlineHover || this.options.outlineSelection;
-  }
-
-  /** GPU bytes per meshlet and per triangle a pack for `slot` costs under the
-   *  current layout — what the mixed repack's per-item estimate budgets with. */
-  gpuSizing(slot: number): GpuSizing {
-    const m = this.models[slot];
-    return gpuSizingOf(this.drawPath(), { transparent: m?.transparent ?? false, outline: this.outlineWanted() });
+  /** GPU bytes per meshlet and per triangle a pack costs under the current
+   *  draw path — what the mixed repack's per-item estimate budgets with. */
+  gpuSizing(): GpuSizing {
+    return gpuSizingOf(this.drawPath());
   }
 
   /**
-   * Bring one model's buffers and bind groups to the current layout
-   * (drawLayout.ts): the path's index width, the cull lists' entry size, the
-   * sorted blend list while the model has something transparent on a culling
-   * path, the outline list while an outline feature is on, the full list on
-   * the no-cull path. A no-op when nothing changed — it runs every frame and on
-   * every state update. A rebuilt cull list starts empty with its count slots
-   * zeroed, so a frozen cull draws nothing until the next real cull rather
-   * than reading entries of the other format.
+   * Bring one model's buffers and bind groups to the current draw path
+   * (drawLayout.ts): the path's index width, the draw lists' entry size, the
+   * sorted blend list on a culling path, the full list on the no-cull path.
+   * A no-op unless the path changed — it runs every frame. A rebuilt list
+   * starts empty with its count slots zeroed, so a frozen cull draws nothing
+   * until the next real cull rather than reading entries of the other format.
    */
   private ensureLayout(m: GpuModel): void {
     if (m.dead) {
@@ -1850,12 +1844,14 @@ export class Renderer {
     if (entryChanged) {
       m.recordBuf1.destroy();
       m.recordBuf2.destroy();
+      m.outlineBuf.destroy();
       m.recordBuf1 = createListBuffer(dev, m.meshletCount, entry);
       m.recordBuf2 = createListBuffer(dev, m.meshletCount, entry);
+      m.outlineBuf = createListBuffer(dev, m.meshletCount, entry);
       dev.queue.writeBuffer(this.countsBuf, m.countOffset1, new Uint8Array(COUNT_SLOT * COUNT_SLOTS));
       changed = true;
     }
-    const wantSort = m.transparent && path !== 'full';
+    const wantSort = path !== 'full';
     if (m.sort && (!wantSort || transparentEntryBytes(m.path) !== transparentEntryBytes(path))) {
       destroySortLists(m.sort);
       m.sort = null;
@@ -1863,16 +1859,6 @@ export class Renderer {
     }
     if (wantSort && !m.sort) {
       m.sort = createSortLists(dev, m.meshletCount, path);
-      changed = true;
-    }
-    const wantOutline = this.outlineWanted();
-    if (m.outlineBuf && (!wantOutline || entryChanged)) {
-      m.outlineBuf.destroy();
-      m.outlineBuf = null;
-      changed = true;
-    }
-    if (wantOutline && !m.outlineBuf) {
-      m.outlineBuf = createListBuffer(dev, m.meshletCount, entry);
       changed = true;
     }
     if (m.full && path !== 'full') {
@@ -1950,25 +1936,23 @@ export class Renderer {
       vpO: vpGeo(m.outlineBuf),
       vpFull: vpGeo(m.full?.fullListBuf),
       ...this.sortBindsOf(m),
-      outlineList: m.outlineBuf
-        ? this.outline.createListBind(dev, {
-            meshletCull: m.meshletCullBuf,
-            records: m.outlineBuf,
-            counts: this.countsBuf,
-            countOffset: m.countOffsetO,
-            vis: m.visBuf,
-            meshletInfo: m.meshletInfoBuf,
-            itemState: m.itemStateBuf,
-            modelUni: m.modelUniBuf,
-          })
-        : null,
+      outlineList: this.outline.createListBind(dev, {
+        meshletCull: m.meshletCullBuf,
+        records: m.outlineBuf,
+        counts: this.countsBuf,
+        countOffset: m.countOffsetO,
+        vis: m.visBuf,
+        meshletInfo: m.meshletInfoBuf,
+        itemState: m.itemStateBuf,
+        modelUni: m.modelUniBuf,
+      }),
     };
   }
 
   /** One cull pass's bind group. Args size differs: MDI binds a bare 4-byte
    *  atomic counter, the vertex-pull emit binds the full 16-byte drawIndirect
-   *  args block at the same offset. A model with nothing transparent binds the
-   *  shared stand-ins for the sort candidates and state. */
+   *  args block at the same offset. On the no-cull path (no sorted list) the
+   *  shared stand-ins fill the sort candidate and state bindings. */
   private cullBindOf(
     m: Omit<GpuModel, 'binds' | 'bytes'>,
     pipeline: GPUComputePipeline,
@@ -2165,9 +2149,6 @@ export class Renderer {
     // what the GPU sees (a lagging gate would route glass to a list nobody
     // scans — one frame of vanished items)
     m.transparent = u.transparent;
-    // the sorted blend list exists only while the gate holds — allocate or
-    // free it with the gate, before any frame sees the new states
-    this.ensureLayout(m);
     const first = u.first ?? 0;
     if (first >= m.itemCount) {
       return;
@@ -2348,8 +2329,7 @@ export class Renderer {
         idealPerItem,
         idealCrossItem: Math.ceil(tris / 124),
         geoBytes: m.vertexBuf.size + m.indexBuf.size + m.normalBuf.size,
-        recordBytes:
-          m.meshletCount * meshletBytes(m.path, { transparent: m.sort !== null, outline: m.outlineBuf !== null }),
+        recordBytes: m.meshletCount * meshletBytes(m.path),
       });
     }
     return out;
@@ -3496,7 +3476,7 @@ export class Renderer {
         enc.clearBuffer(this.newBudgetBuf);
         if (sortActive) {
           for (const m of this.models) {
-            if (!m.dead && m.meshletCount > 0 && m.sort) {
+            if (!m.dead && m.meshletCount > 0 && m.transparent && m.sort) {
               enc.clearBuffer(m.sort.sortBuf, 0, SORT_CLEAR_BYTES);
             }
           }
@@ -3557,13 +3537,13 @@ export class Renderer {
           // candidates into recordBufT back-to-front (indirect dispatch, one
           // thread each). Two passes: the scan WRITES the dispatch args the
           // scatter reads as indirect, and one pass may not use a buffer both
-          // ways. A model without glass holds no sorted list and is skipped
-          // outright — its transparent count slot stays at the frame's clear
-          // (0), so every pass that replays the list draws nothing for it.
+          // ways. A model without glass is skipped outright — its transparent
+          // count slot stays at the frame's clear (0), so every pass that
+          // replays the list draws nothing for it.
           const scan = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'begin') });
           scan.setPipeline(this.sortScanPipeline);
           for (const m of this.models) {
-            if (m.dead || m.meshletCount === 0 || !m.sort || !m.binds.sortScan) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent || !m.binds.sortScan) {
               continue;
             }
             scan.setBindGroup(0, m.binds.sortScan);
@@ -3573,7 +3553,7 @@ export class Renderer {
           const scatter = enc.beginComputePass({ timestampWrites: this.timings.span(4, 'end') });
           scatter.setPipeline(vp ? this.sortScatterVpPipeline : this.sortScatterPipeline);
           for (const m of this.models) {
-            if (m.dead || m.meshletCount === 0 || !m.sort || !m.binds.sortScatter) {
+            if (m.dead || m.meshletCount === 0 || !m.transparent || !m.sort || !m.binds.sortScatter) {
               continue;
             }
             scatter.setBindGroup(0, m.binds.sortScatter);

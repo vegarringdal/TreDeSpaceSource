@@ -20,11 +20,6 @@ export type DrawPath = 'mdi' | 'vp' | 'full';
  *  2 under MDI (WebGPU index buffers are uint16 or uint32 only). */
 export type IndexWidth = 1 | 2;
 
-/** The optional per-model lists a layout carries: the blend pass's sorted
- *  transparent list exists only while the model has something transparent,
- *  the outline mask list only while an outline feature is switched on. */
-export type ListNeeds = Readonly<{ transparent: boolean; outline: boolean }>;
-
 /** GPU bytes the renderer allocates per meshlet and per triangle under one
  *  layout — what the residency budget's per-item estimate multiplies by. */
 export type GpuSizing = Readonly<{ meshletBytes: number; indexBytesPerTriangle: number }>;
@@ -68,27 +63,23 @@ export function indexWidthOf(path: DrawPath): IndexWidth {
 
 /**
  * Fixed GPU bytes per meshlet, whatever its fill: cull + info records, the
- * visibility word, the pass-1 and pass-2 lists, plus the full list (no-cull
- * path only), the sorted transparent list with its candidates (culling paths
- * only — the no-cull blend pass routes over the full list) and the outline
- * list when `needs` asks for them.
+ * visibility word, the pass-1, pass-2 and outline lists, and then either the
+ * sorted transparent list with its candidates (culling paths) or the static
+ * full list (no-cull path, whose blend pass routes over the full list).
+ * Every model holds all of them from upload: allocating the sorted and
+ * outline lists on first use stalled the frame where most sessions turn
+ * transparency and outline on, for a few bytes per meshlet.
  */
-export function meshletBytes(path: DrawPath, needs: ListNeeds): number {
+export function meshletBytes(path: DrawPath): number {
   const entry = listEntryBytes(path);
-  let bytes = CULL_RECORD_BYTES + INFO_RECORD_BYTES + VIS_BYTES + 2 * entry;
+  const lists = CULL_RECORD_BYTES + INFO_RECORD_BYTES + VIS_BYTES + 3 * entry;
   if (path === 'full') {
-    bytes += VP_ENTRY_BYTES;
+    return lists + VP_ENTRY_BYTES;
   }
-  if (needs.transparent && path !== 'full') {
-    bytes += transparentEntryBytes(path) + SORT_CANDIDATE_BYTES;
-  }
-  if (needs.outline) {
-    bytes += entry;
-  }
-  return bytes;
+  return lists + transparentEntryBytes(path) + SORT_CANDIDATE_BYTES;
 }
 
-/** The budget estimate's sizing for one model under a layout. */
-export function gpuSizingOf(path: DrawPath, needs: ListNeeds): GpuSizing {
-  return { meshletBytes: meshletBytes(path, needs), indexBytesPerTriangle: 3 * indexWidthOf(path) };
+/** The budget estimate's sizing under a draw path. */
+export function gpuSizingOf(path: DrawPath): GpuSizing {
+  return { meshletBytes: meshletBytes(path), indexBytesPerTriangle: 3 * indexWidthOf(path) };
 }

@@ -435,11 +435,6 @@ export class OutlinePass {
     list.setPipeline(maskMode === 'mdi' ? this.listPipeline : this.listVpPipeline);
     list.setBindGroup(1, this.listParamsBind);
     for (const m of live) {
-      // the outline list exists while an outline feature is on — always, by
-      // the time this runs (renderer.ts ensureLayout)
-      if (!m.binds.outlineList) {
-        continue;
-      }
       list.setBindGroup(0, m.binds.outlineList);
       list.dispatchWorkgroups(Math.ceil(m.meshletCount / 64));
     }

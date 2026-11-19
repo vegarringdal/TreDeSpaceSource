@@ -8,26 +8,25 @@ Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.19** (>0.26.5):
   GPU memory: a meshlet now costs only the GPU lists its draw path uses.
-  On the default vertex-pull path that is 80 bytes per meshlet instead of a
-  fixed 164, and indices take half the space.
+  On the default vertex-pull path that is 100 bytes per meshlet instead of
+  a fixed 164, and indices take half the space.
   - **Indices are u8 on the vertex-pull paths:** meshlet-local indices
     never exceed 63, so the pack emits bytes and the vertex-pull shaders
     and measure snap read them directly. Only MDI keeps a u16 hardware
     index buffer. A compute pass converts each model's indices on the GPU
     when the draw path crosses MDI, so no CPU copy is kept.
-  - **Lists follow the path and what is in use:** vertex pull writes
-    4-byte list entries, MDI keeps its 20-byte draw records. The sorted
-    transparent list and its candidates exist only for models with
-    something transparent. The outline list exists only while an outline
-    feature is switched on, and the static full list only on the no-cull
-    path. Under MDI with nothing optional, a meshlet costs 112 bytes.
+  - **Lists follow the path:** vertex pull writes 4-byte list entries
+    (8 for the sorted transparent list), MDI keeps its 20-byte draw
+    records (160 bytes per meshlet in all). Every model keeps its sorted
+    and outline lists from upload, as before: allocating them on first use
+    would stall a frame in most sessions for a few bytes per meshlet. The
+    static full list exists only on the no-cull path.
   - **The budget uses the same numbers:** `src/lib/render/drawLayout.ts`
     is the single source of these per-path sizes. The renderer allocates
     from it, and the mixed repack's per-item estimate receives the
     renderer's current sizing, so more full detail fits under the same
-    VRAM budget. `modelBytes` reports what a slot holds right now, so
-    turning outline on or adding transparency shows up in the budget at
-    once.
+    VRAM budget (when the budget is on, that also means more geometry
+    drawn).
   Fix: in orthographic view, cone culling could drop surfaces that face
   the camera. The cone test measured direction from the orbit eye point,
   but the orthographic depth range spans the whole scene, so geometry

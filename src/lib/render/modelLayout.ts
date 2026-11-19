@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------------
 // The per-model buffers that follow the draw layout (drawLayout.ts): the
-// index buffer at the path's width, the cull lists at the path's entry size,
-// and the optional lists that exist only while something uses them. The
+// index buffer at the path's width, the draw lists at the path's entry size,
+// and the lists only one kind of path uses (sorted list / full list). The
 // renderer decides WHEN to (re)build (renderer.ts ensureLayout); this module
 // only knows how, and what a model holds right now.
 // -----------------------------------------------------------------------------
@@ -120,12 +120,10 @@ export function heldBuffers(m: GpuModel): GPUBuffer[] {
     m.modelUniBuf,
     m.recordBuf1,
     m.recordBuf2,
+    m.outlineBuf,
   ];
   if (m.sort) {
     out.push(m.sort.recordBufT, m.sort.candBuf, m.sort.sortBuf, m.sort.sortArgsBuf);
-  }
-  if (m.outlineBuf) {
-    out.push(m.outlineBuf);
   }
   if (m.full) {
     out.push(m.full.fullListBuf, m.full.fullArgsBuf);
