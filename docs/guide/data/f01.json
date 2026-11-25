@@ -123,7 +123,7 @@
       "fromGpu": true
     },
     "f01-drawmode": {
-      "w": 293,
+      "w": 232,
       "h": 103,
       "gpu": false,
       "marks": [
@@ -138,42 +138,42 @@
           "n": 2,
           "x": 78.515625,
           "y": 6,
-          "w": 85.328125,
+          "w": 48.8125,
           "h": 21.328125
         },
         {
           "n": 3,
           "x": 78.515625,
           "y": 29.328125,
-          "w": 85.328125,
+          "w": 48.8125,
           "h": 21.328125
         },
         {
           "n": 4,
           "x": 78.515625,
           "y": 52.65625,
-          "w": 85.328125,
+          "w": 48.8125,
           "h": 21.328125
         },
         {
           "n": 5,
-          "x": 165.84375,
+          "x": 140.328125,
           "y": 6,
-          "w": 114.671875,
+          "w": 78.375,
           "h": 21.328125
         },
         {
           "n": 6,
-          "x": 165.84375,
+          "x": 140.328125,
           "y": 29.328125,
-          "w": 114.671875,
+          "w": 78.375,
           "h": 21.328125
         },
         {
           "n": 7,
-          "x": 165.84375,
+          "x": 140.328125,
           "y": 52.65625,
-          "w": 114.671875,
+          "w": 78.375,
           "h": 21.328125
         }
       ],
@@ -186,14 +186,14 @@
       "marks": [
         {
           "n": 1,
-          "x": 12.515625,
+          "x": 12.703125,
           "y": 6,
           "w": 119.96875,
           "h": 33
         },
         {
           "n": 2,
-          "x": 12.515625,
+          "x": 12.703125,
           "y": 41,
           "w": 119.96875,
           "h": 33
@@ -417,50 +417,50 @@
         "keys": "ALT 401"
       },
       {
-        "section": "Draw Mode",
-        "label": "Sketch",
+        "section": "Sketch",
+        "label": "On",
         "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"tabler-icon tabler-icon-pencil \"><path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"></path><path d=\"M13.5 6.5l4 4\"></path></svg>",
         "tooltip": "Sketch mode: white background with black edge lines only (labels/measurements stay visible; screenshots capture the sketch look). Transparent items are not included — they produce no edges.",
         "keys": "ALT 1146"
       },
       {
-        "section": "Draw Mode",
-        "label": "Wire",
+        "section": "Sketch",
+        "label": "Gray",
         "icon": "",
-        "tooltip": "Wire: plain paper and ink edges, no mesh colours",
+        "tooltip": "Gray: plain paper and ink edges, no mesh colours",
         "keys": "ALT 1216"
       },
       {
-        "section": "Draw Mode",
-        "label": "Colour Fill",
+        "section": "Sketch",
+        "label": "Fill",
         "icon": "",
-        "tooltip": "Colour fill: wash the mesh colours onto the paper (colourless meshes stay paper)",
+        "tooltip": "Fill: wash the mesh colours onto the paper (colourless meshes stay paper)",
         "keys": "ALT 1217"
       },
       {
-        "section": "Draw Mode",
-        "label": "Colour Wire",
+        "section": "Sketch",
+        "label": "Color",
         "icon": "",
-        "tooltip": "Colour wire: the ink takes the mesh colour (colourless meshes keep the sketch ink)",
+        "tooltip": "Color: the ink takes the mesh colour (colourless meshes keep the sketch ink)",
         "keys": "ALT 1218"
       },
       {
-        "section": "Draw Mode",
-        "label": "Selection Tint",
+        "section": "Selection",
+        "label": "Tint",
         "icon": "",
         "tooltip": "Show the selection as a colour tint only",
         "keys": "ALT 1113"
       },
       {
-        "section": "Draw Mode",
-        "label": "Selection Outline",
+        "section": "Selection",
+        "label": "Outline",
         "icon": "",
         "tooltip": "Show the selection as an outline only (items keep their true colours)",
         "keys": "ALT 1114"
       },
       {
-        "section": "Draw Mode",
-        "label": "Selection Both",
+        "section": "Selection",
+        "label": "Both",
         "icon": "",
         "tooltip": "Show the selection as both a colour tint and an outline",
         "keys": "ALT 1115"
@@ -625,5 +625,5 @@
       }
     ]
   },
-  "appVersion": "0.26.3"
+  "appVersion": "0.26.7"
 }

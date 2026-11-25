@@ -1,3 +1,4 @@
+import type { ModelRef } from '../../lib/modeldb/itemSets';
 import { db } from './db';
 
 /** An item set by name: nodes to add (with what is under them) and nodes
@@ -16,23 +17,25 @@ export interface NamedItemSet {
  * holds them all but a few nodes, the set is that group with those left out
  * instead. Taken only when it is shorter and names exactly as many items
  * (the same name in another loaded model would widen it); `group` is then
- * the group's display name, else null.
+ * the group's display name, else null. `scope` keeps the search, and the
+ * count, to those model files (absent: every model).
  */
 export async function tidyItemSet(
   items: string[],
   exclude: string[] = [],
+  scope?: ModelRef[],
 ): Promise<{ items: string[]; exclude: string[]; group: string | null }> {
   const asIs = { items, exclude, group: null };
   if (items.length < 2 && exclude.length === 0) {
     return asIs;
   }
-  const group = await db.animClosestGroup(items, exclude);
+  const group = await db.animClosestGroup(items, exclude, scope);
   if (!group) {
     return asIs;
   }
   const [before, after] = await db.animCountItems([
-    { actor: 'before', fullnames: items, exclude },
-    { actor: 'after', fullnames: [group.group], exclude: group.minus },
+    { actor: 'before', fullnames: items, exclude, models: scope },
+    { actor: 'after', fullnames: [group.group], exclude: group.minus, models: scope },
   ]);
   if (before.items !== after.items) {
     return asIs;
@@ -42,9 +45,13 @@ export async function tidyItemSet(
 }
 
 /** A selection (the worker's name for it and its nodes) as a named item set,
- *  said the shortest way and then named after the group. */
-export async function shortestItemSet(sel: { name: string; fullnames: string[] }): Promise<NamedItemSet> {
-  const tidy = await tidyItemSet(sel.fullnames);
+ *  said the shortest way and then named after the group — within `scope`
+ *  (the selection's model files) when given. */
+export async function shortestItemSet(
+  sel: { name: string; fullnames: string[] },
+  scope?: ModelRef[],
+): Promise<NamedItemSet> {
+  const tidy = await tidyItemSet(sel.fullnames, [], scope);
 
   return { name: tidy.group ?? sel.name, items: tidy.items, exclude: tidy.exclude };
 }

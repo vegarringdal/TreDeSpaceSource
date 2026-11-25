@@ -8,6 +8,7 @@
 import { isPivotAnchor } from '../animation/pivots';
 import { roundPose } from './pose';
 import {
+  type ModelRef,
   type Quat,
   TRANSFORM_FORMAT,
   TRANSFORM_VERSION,
@@ -91,6 +92,30 @@ function names(v: unknown, path: string): string[] {
   return [...new Set(v.map((x, i) => text(x, `${path}[${i}]`).toLowerCase()))];
 }
 
+/** A model file ref; `store` and `group` may be empty (a model without
+ *  them), `name` may not. */
+function modelRefOf(v: unknown, path: string): ModelRef {
+  const r = record(v, path);
+  const field = (x: unknown, at: string) => {
+    if (typeof x !== 'string') {
+      throw new FieldError(`${at}: expected a text`);
+    }
+    return x;
+  };
+  return {
+    store: field(r.store, `${path}.store`),
+    group: field(r.group, `${path}.group`),
+    name: text(r.name, `${path}.name`),
+  };
+}
+
+function modelRefs(v: unknown, path: string): ModelRef[] {
+  if (!Array.isArray(v)) {
+    throw new FieldError(`${path}: expected a list of model files`);
+  }
+  return v.map((x, i) => modelRefOf(x, `${path}[${i}]`));
+}
+
 function pivot(v: unknown, path: string): TransformPivot {
   if (v === undefined) {
     return { at: 'center' };
@@ -107,6 +132,7 @@ function object(v: unknown, path: string): TransformObject {
     throw new FieldError(`${path}.items: an object needs at least one item`);
   }
   const exclude = o.exclude === undefined ? [] : names(o.exclude, `${path}.exclude`);
+  const models = o.models === undefined ? [] : modelRefs(o.models, `${path}.models`);
   const pose = roundPose({
     move: o.move === undefined ? [0, 0, 0] : v3(o.move, `${path}.move`),
     rotate: o.rotate === undefined ? [0, 0, 0, 1] : quat(o.rotate, `${path}.rotate`),
@@ -117,6 +143,7 @@ function object(v: unknown, path: string): TransformObject {
     name: o.name === undefined ? items[0] : text(o.name, `${path}.name`),
     items,
     ...(exclude.length > 0 ? { exclude } : {}),
+    ...(models.length > 0 ? { models } : {}),
     ...(o.parent === undefined ? {} : { parent: text(o.parent, `${path}.parent`) }),
     pivot: pivot(o.pivot, `${path}.pivot`),
     ...pose,

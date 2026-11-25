@@ -33,8 +33,10 @@ function packedSize(child: ReactNode): RibbonSize {
  * A titled group: the item area on top, a tinted full-width title band
  * underneath that reads as the group's footer in both themes.
  * Children declare a `size` (big = 1 per column, medium = 2, mini = 3); the
- * section packs them into equal-width columns in order, and a column that is
- * not completely full centres its content vertically.
+ * section packs them into columns in order, and a column that is not
+ * completely full centres its content vertically. A column is as wide as its
+ * widest item; with `fill`, a title wider than the items is shared out among
+ * the columns, so the buttons span the whole section.
  * The size is read off each DIRECT child element's props (a RibbonSlot or
  * RibbonNumber without one packs as the `medium` it draws, anything else as
  * `big`), so a component that wraps a RibbonButton must take `size` as its
@@ -43,10 +45,14 @@ function packedSize(child: ReactNode): RibbonSize {
 export function RibbonSection({
   title,
   children,
+  fill = false,
   className = '',
 }: {
   title: ReactNode;
   children: ReactNode;
+  /** Stretch the columns to the section's width when the title is wider than
+   *  the items (default: columns keep their content width). */
+  fill?: boolean;
   className?: string;
 }) {
   const columns: ReactNode[][] = [];
@@ -70,7 +76,9 @@ export function RibbonSection({
     <div
       className={`grid shrink-0 grid-rows-[1fr_auto] gap-y-1 border-slate-800 border-r px-1.5 last:border-r-0 ${className}`}
     >
-      <div className="grid min-h-0 auto-cols-max grid-flow-col gap-x-0.5">
+      <div
+        className={`grid min-h-0 grid-flow-col gap-x-0.5 ${fill ? 'auto-cols-[minmax(max-content,1fr)]' : 'auto-cols-max'}`}
+      >
         {columns.map((col, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: column order is the identity
           <div key={i} className="flex min-h-0 flex-col justify-center gap-[2px]">
