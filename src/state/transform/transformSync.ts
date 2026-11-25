@@ -43,7 +43,12 @@ let lastCount = selectionState.get().count;
 // -----------------------------------------------------------------------------
 
 function specsOf(objects: readonly TransformObject[]) {
-  return objects.map((o) => ({ id: o.id, fullnames: o.items, exclude: o.exclude ?? [] }));
+  return objects.map((o) => ({
+    id: o.id,
+    fullnames: o.items,
+    exclude: o.exclude ?? [],
+    ...(o.models ? { models: o.models } : {}),
+  }));
 }
 
 function enqueue(job: () => Promise<void>): Promise<void> {

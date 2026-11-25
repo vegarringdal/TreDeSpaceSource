@@ -6,6 +6,27 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.25** (>0.26.7):
+  Home ribbon: Draw Mode is two sections, Sketch (On + Gray / Fill / Color,
+  formerly Wire / Colour Fill / Colour Wire) and Selection (Tint / Outline /
+  Both). `RibbonSection` columns now share a title that is wider than the
+  buttons, so the buttons span the whole section instead of leaving a gap.
+  User guide › Home: the section, the sketch task and the screenshot scene
+  use the new names; the Home ribbon and Hierarchy screenshots are
+  regenerated (the two GPU shots still show the old labels).
+  **TODO before the prod build:** refresh those two GPU shots (`f01-layout`,
+  `f01-task-sketch-viewport`) from a Chrome with a real GPU:
+  `npm run docs:shots -- --only f01 --browser-url http://127.0.0.1:9222`
+  (start that Chrome as in the header of `scripts/doc-shots.mjs`).
+  Transform objects stay in the model file they were made in. Items are
+  named by fullname, so the same file loaded twice (another store, or under
+  another name) or another file with the same names was pulled in — Select
+  lit up every copy, a move moved them all, and the shortest-group search
+  and the parent check counted them too. An object now records its files
+  (`models`: store, folder and file name; saved in the JSON, older files
+  without it still look everywhere) and every lookup stays in them; Select
+  replaces the selection with just those items.
+
 - **2026.11.19** (>0.26.6):
   `tsconfig.tsbuildinfo` is no longer kept in git and `*.tsbuildinfo` is
   ignored. It is the TypeScript compiler's local build cache: committed once

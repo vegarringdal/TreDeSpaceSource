@@ -1569,6 +1569,9 @@ TransformObject
 ├── id, name
 ├── items, exclude?    lower-cased fullnames, the animation objects' rule
 │                      (adds and leave-outs nest, the deeper wins)
+├── models?           the model files the names are looked up in
+│                      ({ store, group, name } — the snapshot identity);
+│                      absent = every loaded model (older files)
 ├── parent?            id of the object it rides on
 ├── pivot              { at: side | point, offset? } — a KeyPivot
 ├── move, rotate, scale   ONE absolute pose (m, quaternion, per-axis factor)
@@ -1594,6 +1597,14 @@ TransformObject
   object is drawn** (`applyWorld`): the pivot's image travels exactly, the
   turn is G's rotation seen from the parent's frame. Math in float64 (a
   pivot far from the origin), the pool takes float32.
+- **Names are looked up only in the object's own files.** The same file
+  can be loaded twice (from two stores, or under two names) with the very
+  same fullnames; New Object records the files the selection is in, and
+  everything that resolves the object — moving its items, Select, the
+  relations that find its parent, the shortest-group search — stays in
+  them (`resolveItems(…, scope)`). Add selection widens the list. Limit: a
+  selection spanning two copies that share a name, picked in only one of
+  them, still matches the name in both (it would take per-file item lists).
 - File: `{ format: 'tredespace.transforms', version: 1, objects }`
   (`io.ts`; strict, every error names its JSON path, returns `{ error }`).
 

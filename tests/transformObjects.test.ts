@@ -228,7 +228,7 @@ describe('parents', () => {
 describe('transform objects file', () => {
   it('round-trips', () => {
     const list = [
-      object('a', { move: [1, 2, 3], exclude: ['/a/x'] }),
+      object('a', { move: [1, 2, 3], exclude: ['/a/x'], models: [{ store: 'bb', group: '', name: 'HA.RVM' }] }),
       object('b', { parent: 'a', pivot: { at: 'bottom', offset: [0, 0, 0.5] }, muted: true }),
     ];
     const parsed = parseTransformDoc(serializeTransformDoc(list));
@@ -252,6 +252,7 @@ describe('transform objects file', () => {
     expect(bad([{ items: [] }])).toContain('objects[0].items');
     expect(bad([{ items: ['/a'], move: [1, 2] }])).toContain('objects[0].move');
     expect(bad([{ items: ['/a'], rotate: [0, 0, 0, 0] }])).toContain('objects[0].rotate');
+    expect(bad([{ items: ['/a'], models: [{ store: 'aa', group: 'g' }] }])).toContain('objects[0].models[0].name');
     expect(parseTransformDoc('{').error).toContain('Not valid JSON');
     expect(parseTransformDoc(JSON.stringify({ format: 'other' })).error).toContain('Not a transform objects file');
   });
