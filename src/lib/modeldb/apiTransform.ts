@@ -12,7 +12,7 @@
 import * as Comlink from 'comlink';
 import { IS_SELECTED, models, type StateUpdate } from './dbState';
 import { packStates, updateBuffers } from './hierarchyIndex';
-import { resolveItems } from './itemSets';
+import { type ModelRef, resolveItems } from './itemSets';
 import { allocTransformSlot, isAnimModeActive, transforms, transformsSnapshot } from './transformPool';
 
 // -----------------------------------------------------------------------------
@@ -34,6 +34,8 @@ export interface TransformObjectSpec {
   fullnames: string[];
   /** lower-cased fullnames left out */
   exclude?: string[];
+  /** the model files the names are looked up in (absent: every model) */
+  models?: ModelRef[];
 }
 
 /** What the worker found for one object. */
@@ -228,7 +230,7 @@ export const transformApi = {
     releaseSlots(new Set(specs.map((s) => s.id)));
     const info: TransformObjectInfo[] = [];
     bound = specs.map((spec) => {
-      const { byModel, missing } = resolveItems(spec.fullnames, spec.exclude);
+      const { byModel, missing } = resolveItems(spec.fullnames, spec.exclude, spec.models);
       const sets = new Map<number, Uint32Array>();
       let count = 0;
       for (const [mi, set] of byModel) {
@@ -299,9 +301,14 @@ export const transformApi = {
 
   /** How an item set (by name) stands to every object it shares items with:
    *  the same items, inside the object, holding all of it, or only partly
-   *  shared. Objects it shares nothing with are left out. */
-  transformRelations(fullnames: string[], exclude: string[] = []): { id: string; relation: SelectionRelation }[] {
-    const { byModel } = resolveItems(fullnames, exclude);
+   *  shared. Objects it shares nothing with are left out. `scope` limits
+   *  the set to those model files (absent: every model). */
+  transformRelations(
+    fullnames: string[],
+    exclude: string[] = [],
+    scope?: ModelRef[],
+  ): { id: string; relation: SelectionRelation }[] {
+    const { byModel } = resolveItems(fullnames, exclude, scope);
     let size = 0;
     for (const set of byModel.values()) {
       size += set.size;

@@ -27,7 +27,7 @@ import {
   transferUpdates,
   updateBuffers,
 } from './hierarchyIndex';
-import { resolveItems } from './itemSets';
+import { type ModelRef, modelRef, resolveItems } from './itemSets';
 import { type ActorColorLayer, type ActorLayer, applyActorLayer, LOOK_BITS } from './lookBlend';
 import {
   ANIM_BAND_FIRST,
@@ -590,14 +590,18 @@ export const animationApi = {
   },
 
   /** The selection as a new actor: the topmost fully selected entries (the
-   *  rows the tree highlights as roots), a name and the rest center. */
-  animActorFromSelection(): { name: string; fullnames: string[]; center: V3 } | null {
+   *  rows the tree highlights as roots), a name, the rest center and the
+   *  model files the selection is in (the same names can live in another
+   *  file, or in the same file loaded from another store). */
+  animActorFromSelection(): { name: string; fullnames: string[]; center: V3; models: ModelRef[] } | null {
     const names: string[] = [];
     const labels: string[] = [];
+    const refs: ModelRef[] = [];
     for (const m of models) {
       if (m.removed || m.selected.length === 0 || !m.itemsUnder) {
         continue;
       }
+      const before = names.length;
       const { selected } = stateAggregates(m);
       const parent = m.hierarchy.entryParent;
       const full = (e: number) => selected[e] > 0 && selected[e] >= (m.itemsUnder?.[e] ?? Infinity);
@@ -613,6 +617,9 @@ export const animationApi = {
         names.push(name.toLowerCase());
         labels.push(name);
       }
+      if (names.length > before) {
+        refs.push(modelRef(m));
+      }
     }
     if (names.length === 0) {
       return null;
@@ -624,7 +631,7 @@ export const animationApi = {
       : [0, 0, 0];
     const first = displayName(labels[0]);
     const label = unique.length === 1 ? first : `${first} +${unique.length - 1}`;
-    return { name: label, fullnames: unique, center };
+    return { name: label, fullnames: unique, center, models: refs };
   },
 
   /** Build-order items for the assembly wizard (DESIGN.md › Animation › Authoring): one entry per
@@ -771,14 +778,16 @@ export const animationApi = {
     return counts.sort((a, b) => b[1] - a[1]).map(([actor]) => actor);
   },
 
-  /** Replace the selection with an object's items (Key panel → Select). */
-  animSelectActor(fullnames: string[], exclude: string[] = []): StateUpdate[] {
-    return animationApi.animSelectActors([{ fullnames, exclude }]);
+  /** Replace the selection with an object's items (Key panel → Select);
+   *  `scope` limits them to those model files (absent: every model). */
+  animSelectActor(fullnames: string[], exclude: string[] = [], scope?: ModelRef[]): StateUpdate[] {
+    return animationApi.animSelectActors([{ fullnames, exclude, models: scope }]);
   },
 
-  /** Select exactly the items of several objects (their item sets joined);
-   *  everything else is deselected. */
-  animSelectActors(lists: { fullnames: string[]; exclude?: string[] }[]): StateUpdate[] {
+  /** Select exactly the items of several objects (their item sets joined,
+   *  each in its own model files when it names them); everything else is
+   *  deselected. */
+  animSelectActors(lists: { fullnames: string[]; exclude?: string[]; models?: ModelRef[] }[]): StateUpdate[] {
     const touched = new Set<number>();
     models.forEach((m, mi) => {
       if (m.removed || m.selected.length === 0) {
@@ -792,7 +801,7 @@ export const animationApi = {
     });
     const joined = new Map<number, Set<number>>();
     for (const l of lists) {
-      for (const [mi, set] of resolveItems(l.fullnames, l.exclude ?? []).byModel) {
+      for (const [mi, set] of resolveItems(l.fullnames, l.exclude ?? [], l.models).byModel) {
         const all = joined.get(mi) ?? new Set<number>();
         for (const it of set) {
           all.add(it);
@@ -853,12 +862,13 @@ export const animationApi = {
   },
 
   /** How many live items each fullname list resolves to (Problems list,
-   *  actor item counts without entering the mode). */
+   *  actor item counts without entering the mode), each in its own model
+   *  files when it names them. */
   animCountItems(
-    lists: { actor: string; fullnames: string[]; exclude?: string[] }[],
+    lists: { actor: string; fullnames: string[]; exclude?: string[]; models?: ModelRef[] }[],
   ): { actor: string; items: number; missing: number }[] {
     return lists.map((l) => {
-      const { byModel, missing } = resolveItems(l.fullnames, l.exclude);
+      const { byModel, missing } = resolveItems(l.fullnames, l.exclude, l.models);
       let items = 0;
       for (const set of byModel.values()) {
         items += set.size;
@@ -880,9 +890,10 @@ export const animationApi = {
   /** The closest group naming the same items more simply: the lowest named
    *  node holding all of `fullnames` (minus `exclude`), with the few nodes
    *  under it that are not in the set left out — null when there is none,
-   *  it is not simpler, or the set spans models. */
-  animClosestGroup(fullnames: string[], exclude: string[] = []): ClosestGroup | null {
-    const { byModel } = resolveItems(fullnames, exclude);
+   *  it is not simpler, or the set spans models. `scope` limits the search
+   *  to those model files (absent: every model). */
+  animClosestGroup(fullnames: string[], exclude: string[] = [], scope?: ModelRef[]): ClosestGroup | null {
+    const { byModel } = resolveItems(fullnames, exclude, scope);
     const only = byModel.size === 1 ? [...byModel][0] : undefined;
     if (!only) {
       return null;

@@ -6,6 +6,16 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.25** (>0.26.7):
+  Transform objects stay in the model file they were made in. Items are
+  named by fullname, so the same file loaded twice (another store, or under
+  another name) or another file with the same names was pulled in — Select
+  lit up every copy, a move moved them all, and the shortest-group search
+  and the parent check counted them too. An object now records its files
+  (`models`: store, folder and file name; saved in the JSON, older files
+  without it still look everywhere) and every lookup stays in them; Select
+  replaces the selection with just those items.
+
 - **2026.11.19** (>0.26.6):
   `tsconfig.tsbuildinfo` is no longer kept in git and `*.tsbuildinfo` is
   ignored. It is the TypeScript compiler's local build cache: committed once

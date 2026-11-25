@@ -27,6 +27,7 @@ import {
 } from '../../lib/transform/pose';
 import {
   IDENTITY_POSE,
+  type ModelRef,
   type Pose,
   type TransformObject,
   type TransformPivot,
@@ -97,7 +98,7 @@ function resting(): boolean {
 }
 
 function specKey(objects: readonly TransformObject[]): string {
-  return JSON.stringify(objects.map((o) => [o.id, o.items, o.exclude ?? []]));
+  return JSON.stringify(objects.map((o) => [o.id, o.items, o.exclude ?? [], o.models ?? []]));
 }
 
 /** The object list becomes `next` (one undo step; `coalesce` joins quick
@@ -161,6 +162,17 @@ async function withWorking<T>(label: string, job: () => Promise<T>): Promise<T> 
       dialogs.hideLoading();
     }
   }
+}
+
+/** `a` plus the files of `b` it does not have yet. An object without files
+ *  (saved before they were kept) looks in every model and stays that way. */
+function withModels(a: readonly ModelRef[] | undefined, b: readonly ModelRef[]): ModelRef[] | undefined {
+  if (!a) {
+    return undefined;
+  }
+  const key = (r: ModelRef) => JSON.stringify([r.store, r.group, r.name]);
+  const have = new Set(a.map(key));
+  return [...a, ...b.filter((r) => !have.has(key(r)))];
 }
 
 function names(ids: readonly string[]): string {
@@ -244,8 +256,8 @@ async function makeFromSelection(): Promise<string | null> {
     toast.error(`No more than ${MAX_TRANSFORM_OBJECTS} transform objects.`);
     return null;
   }
-  const set = await shortestItemSet(sel);
-  const relations = await db.transformRelations(set.items, set.exclude);
+  const set = await shortestItemSet(sel, sel.models);
+  const relations = await db.transformRelations(set.items, set.exclude, sel.models);
   const idsOf = (r: string) => relations.filter((x) => x.relation === r).map((x) => x.id);
   const [same] = idsOf('same');
   if (same) {
@@ -268,6 +280,7 @@ async function makeFromSelection(): Promise<string | null> {
     name: freeName(set.name),
     items: set.items,
     ...(set.exclude.length > 0 ? { exclude: set.exclude } : {}),
+    models: sel.models,
     ...(parent ? { parent } : {}),
     pivot: { at: 'center' },
     move: [...IDENTITY_POSE.move],
@@ -331,14 +344,14 @@ export const transformActions = {
     );
   },
 
-  /** Pick an object: its items become the selection (which makes it the
-   *  current object). */
+  /** Pick an object: the selection is replaced by its items — only in its
+   *  own model files — which makes it the current object. */
   async select(id: string): Promise<void> {
     const o = find(id);
     if (!o) {
       return;
     }
-    applyStateUpdates(await db.animSelectActor(o.items, o.exclude ?? []));
+    applyStateUpdates(await db.animSelectActor(o.items, o.exclude ?? [], o.models));
     await refreshSelection();
   },
 
@@ -366,24 +379,26 @@ export const transformActions = {
       toast.info(`Select the items to ${op === 'add' ? 'add to' : 'take out of'} "${o.name}" first.`);
       return false;
     }
+    const models = op === 'add' ? withModels(o.models, sel.models) : o.models;
     const edited = await db.animEditItemSet(o.items, o.exclude ?? [], sel.fullnames, op);
-    const next = await tidyItemSet(edited.items, edited.exclude);
+    const next = await tidyItemSet(edited.items, edited.exclude, models);
     if (next.items.length === 0) {
       toast.error(`That would leave "${o.name}" without items — delete the object instead.`);
       return false;
     }
-    const clash = (await db.transformRelations(next.items, next.exclude))
+    const clash = (await db.transformRelations(next.items, next.exclude, models))
       .filter((r) => r.id !== id && (r.relation === 'overlap' || r.relation === 'same'))
       .map((r) => r.id);
     if (clash.length > 0) {
       toast.error(`"${o.name}" would then share items with ${names(clash)} — an item cannot follow two objects.`);
       return false;
     }
-    const { exclude: _old, ...rest } = o;
+    const { exclude: _old, models: _oldModels, ...rest } = o;
     const changed: TransformObject = {
       ...rest,
       items: next.items,
       ...(next.exclude.length > 0 ? { exclude: next.exclude } : {}),
+      ...(models ? { models } : {}),
     };
     await commit(mapObject(id, () => changed));
     await transformActions.select(id);
