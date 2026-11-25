@@ -14,6 +14,10 @@ Entries from before the stable pilot (0.26.1) have been removed.
   User guide › Home: the section, the sketch task and the screenshot scene
   use the new names; the Home ribbon and Hierarchy screenshots are
   regenerated (the two GPU shots still show the old labels).
+  **TODO before the prod build:** refresh those two GPU shots (`f01-layout`,
+  `f01-task-sketch-viewport`) from a Chrome with a real GPU:
+  `npm run docs:shots -- --only f01 --browser-url http://127.0.0.1:9222`
+  (start that Chrome as in the header of `scripts/doc-shots.mjs`).
   Transform objects stay in the model file they were made in. Items are
   named by fullname, so the same file loaded twice (another store, or under
   another name) or another file with the same names was pulled in — Select
