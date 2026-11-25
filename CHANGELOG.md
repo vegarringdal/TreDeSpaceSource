@@ -10,6 +10,12 @@ Entries from before the stable pilot (0.26.1) have been removed.
   Ribbon: stretching the columns to a wider section title is opt-in again
   (`RibbonSection fill`), used only by Home › Selection — the change above
   had stretched every section.
+  **TODO before the prod build:** the Home guide screenshots (`f01-*`, the
+  only ones regenerated while every section stretched, e.g. Canvas) must be
+  taken again, UI and GPU shots, from a Chrome with a real GPU (start it as
+  in the header of `scripts/doc-shots.mjs`):
+  `npm run docs:shots -- --only f01 --browser-url http://127.0.0.1:9222`
+  This also covers the f01 GPU-shot TODO below.
   Home ribbon: Draw Mode is two sections, Sketch (On + Gray / Fill / Color,
   formerly Wire / Colour Fill / Colour Wire) and Selection (Tint / Outline /
   Both). `RibbonSection` columns now share a title that is wider than the
