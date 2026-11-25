@@ -11,6 +11,9 @@ Entries from before the stable pilot (0.26.1) have been removed.
   formerly Wire / Colour Fill / Colour Wire) and Selection (Tint / Outline /
   Both). `RibbonSection` columns now share a title that is wider than the
   buttons, so the buttons span the whole section instead of leaving a gap.
+  User guide › Home: the section, the sketch task and the screenshot scene
+  use the new names; the Home ribbon and Hierarchy screenshots are
+  regenerated (the two GPU shots still show the old labels).
   Transform objects stay in the model file they were made in. Items are
   named by fullname, so the same file loaded twice (another store, or under
   another name) or another file with the same names was pulled in — Select

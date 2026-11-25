@@ -46,15 +46,15 @@ async function captureRibbon(ctx) {
     ],
   });
   await ctx.shot('f01-drawmode', {
-    crop: { el: { ...RB, section: 'Draw Mode' } },
+    crop: { union: [{ ...RB, section: 'Sketch' }, { ...RB, section: 'Selection' }] },
     marks: [
-      { n: 1, el: { ...RB, text: 'Sketch' } },
-      { n: 2, el: { ...RB, text: 'Wire' } },
-      { n: 3, el: { ...RB, text: 'Colour Fill' } },
-      { n: 4, el: { ...RB, text: 'Colour Wire' } },
-      { n: 5, el: { ...RB, text: 'Selection Tint' } },
-      { n: 6, el: { ...RB, text: 'Selection Outline' } },
-      { n: 7, el: { ...RB, text: 'Selection Both' } },
+      { n: 1, el: { ...RB, section: 'Sketch', text: 'On' } },
+      { n: 2, el: { ...RB, section: 'Sketch', text: 'Gray' } },
+      { n: 3, el: { ...RB, section: 'Sketch', text: 'Fill' } },
+      { n: 4, el: { ...RB, section: 'Sketch', text: 'Color' } },
+      { n: 5, el: { ...RB, section: 'Selection', text: 'Tint' } },
+      { n: 6, el: { ...RB, section: 'Selection', text: 'Outline' } },
+      { n: 7, el: { ...RB, section: 'Selection', text: 'Both' } },
     ],
   });
   await ctx.shot('f01-quickclear', {
@@ -121,15 +121,15 @@ async function captureConsole(ctx) {
   });
 }
 
-/** The sketch look, for the Draw Mode task. */
+/** The sketch look, for the sketch-picture task. */
 async function captureTasks(ctx) {
   await ctx.call(VIEWER, 'viewerActions', 'clearSelection');
-  await ctx.click({ ...RB, text: 'Sketch' });
-  await ctx.click({ ...RB, text: 'Colour Fill' });
+  await ctx.click({ ...RB, section: 'Sketch', text: 'On' });
+  await ctx.click({ ...RB, section: 'Sketch', text: 'Fill' });
   await fitView(ctx);
   await ctx.shot('f01-task-sketch-viewport', { crop: 'viewport', gpu: true });
-  await ctx.click({ ...RB, text: 'Wire' });
-  await ctx.click({ ...RB, text: 'Sketch' });
+  await ctx.click({ ...RB, section: 'Sketch', text: 'Gray' });
+  await ctx.click({ ...RB, section: 'Sketch', text: 'On' });
 }
 
 async function harvestAll(ctx) {
