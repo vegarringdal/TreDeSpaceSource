@@ -7,6 +7,10 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.25** (>0.26.7):
+  Home ribbon: Draw Mode is two sections, Sketch (On + Gray / Fill / Color,
+  formerly Wire / Colour Fill / Colour Wire) and Selection (Tint / Outline /
+  Both). `RibbonSection` columns now share a title that is wider than the
+  buttons, so the buttons span the whole section instead of leaving a gap.
   Transform objects stay in the model file they were made in. Items are
   named by fullname, so the same file loaded twice (another store, or under
   another name) or another file with the same names was pulled in — Select
