@@ -7,6 +7,9 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.25** (>0.26.7):
+  Ribbon: stretching the columns to a wider section title is opt-in again
+  (`RibbonSection fill`), used only by Home › Selection — the change above
+  had stretched every section.
   Home ribbon: Draw Mode is two sections, Sketch (On + Gray / Fill / Color,
   formerly Wire / Colour Fill / Colour Wire) and Selection (Tint / Outline /
   Both). `RibbonSection` columns now share a title that is wider than the

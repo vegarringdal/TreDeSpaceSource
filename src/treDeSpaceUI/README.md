@@ -1319,9 +1319,10 @@ without one packs as the `medium` it draws, anything else as `big`), so a
 component of your own that wraps a `RibbonButton` must accept `size` as a prop
 and be given it at the call site — a size chosen inside the wrapper is
 invisible to the packer and the child lands in its own column as `big`.
-A column is as wide as its widest item; when the section title is wider than
-the items, the columns share the extra width, so the buttons span the whole
-section rather than leaving a gap beside them.
+A column is as wide as its widest item. When the section title is wider than
+the items, the items normally keep that width and leave a gap; pass `fill` to
+share the extra width out among the columns so the buttons span the whole
+section (e.g. a short column of mini buttons under a longer title).
 
 ```tsx
 <Ribbon>
@@ -1343,7 +1344,7 @@ section rather than leaving a gap beside them.
 type RibbonSize = 'big' | 'medium' | 'mini';
 
 // Ribbon:        { children, className? }
-// RibbonSection: { title: ReactNode, children, className? }
+// RibbonSection: { title: ReactNode, children, fill?: boolean, className? }
 // RibbonSlot:    { size?: RibbonSize (default 'medium'), children?, className? }
 
 type RibbonButtonProps = {

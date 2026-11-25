@@ -86,7 +86,7 @@ export function HomeViewGroups() {
           />
         ))}
       </RibbonSection>
-      <RibbonSection title="Selection">
+      <RibbonSection title="Selection" fill>
         {SELECTION_STYLES.map((st) => (
           <RibbonButton
             key={st.style}

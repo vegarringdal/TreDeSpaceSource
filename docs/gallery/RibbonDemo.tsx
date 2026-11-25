@@ -7,14 +7,16 @@ import { Section } from './Section';
 export function RibbonDemo() {
   const [tool, setTool] = useState('measure');
   const [snap, setSnap] = useState(5);
+  const [show, setShow] = useState('tint');
   return (
     <Section
       title="Ribbon"
-      note="The top toolbar system: Ribbon → titled RibbonSections → items that declare a size (big = 1 per column, medium = 2, mini = 3) and pack into columns in order. RibbonNumber embeds a NumberInput; RibbonSlot is the escape hatch for any content (both default to medium, and pack as such). Give the bar a fixed height (the app's ribbon node is 124 px including its 22 px tab strip)."
+      note="The top toolbar system: Ribbon → titled RibbonSections → items that declare a size (big = 1 per column, medium = 2, mini = 3) and pack into columns in order. RibbonNumber embeds a NumberInput; RibbonSlot is the escape hatch for any content (both default to medium, and pack as such). Columns keep their content width; `fill` stretches them to a wider title (the Show selection section). Give the bar a fixed height (the app's ribbon node is 124 px including its 22 px tab strip)."
       props={['RibbonButtonProps', 'RibbonNumberProps', 'RibbonSize']}
       code={`function Toolbar() {
   const [tool, setTool] = useState('measure');
   const [snap, setSnap] = useState(5);
+  const [show, setShow] = useState('tint');
   return (
     <Ribbon>
       <RibbonSection title="Tools">
@@ -27,6 +29,12 @@ export function RibbonDemo() {
           size="medium" onClick={toggleVisibility} />
         <RibbonNumber label="Snap" unit="mm" size="medium"
           value={snap} onChange={setSnap} />
+      </RibbonSection>
+      <RibbonSection title="Show selection" fill>
+        <RibbonButton label="Tint" size="mini" selected={show === 'tint'}
+          onClick={() => setShow('tint')} />
+        <RibbonButton label="Outline" size="mini" selected={show === 'outline'}
+          onClick={() => setShow('outline')} />
       </RibbonSection>
     </Ribbon>
   );
@@ -53,6 +61,15 @@ export function RibbonDemo() {
             <RibbonButton icon={<IconPalette />} label="Colors" size="medium" onClick={() => undefined} />
             <RibbonNumber label="Snap" unit="mm" size="medium" min={0} max={100} value={snap} onChange={setSnap} />
             <RibbonButton icon={<IconAdjustments />} label="Settings" size="medium" onClick={() => undefined} />
+          </RibbonSection>
+          <RibbonSection title="Show selection" fill>
+            <RibbonButton label="Tint" size="mini" selected={show === 'tint'} onClick={() => setShow('tint')} />
+            <RibbonButton
+              label="Outline"
+              size="mini"
+              selected={show === 'outline'}
+              onClick={() => setShow('outline')}
+            />
           </RibbonSection>
         </Ribbon>
       </div>
