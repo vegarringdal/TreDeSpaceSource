@@ -2217,7 +2217,11 @@ fn convert_inner_sink(
         // place it (instanced families are the bulk of a building model).
         type Proto = (std::sync::Arc<Vec<[f32; 3]>>, std::sync::Arc<Vec<u32>>);
         let mut protos: Vec<Option<Proto>> = vec![None; records.len()];
-        let mut flipped: std::collections::HashMap<usize, std::sync::Arc<Vec<u32>>> =
+        // Mirrored-winding index lists, per mesh record / per AUX topology.
+        let mut flipped: std::collections::HashMap<FlipKey, std::sync::Arc<Vec<u32>>> =
+            std::collections::HashMap::new();
+        // AUX primitives' local tessellation, per on-disk slot.
+        let mut aux_protos: std::collections::HashMap<usize, std::sync::Arc<Vec<[f32; 3]>>> =
             std::collections::HashMap::new();
         let mut per_root: Vec<Vec<(u32, usize)>> = vec![Vec::new(); n_groups];
         let mut parts: Vec<MeshPart> = Vec::new();
@@ -2225,8 +2229,11 @@ fn convert_inner_sink(
         let mut lines = 0usize;
         let mut linked = 0usize;
         for (fi, fr) in ifrags.iter().enumerate() {
-            let ri = fr.record_idx as usize - 1;
-            let Some(rec) = records.get(ri) else { continue };
+            let Some((slot, target)) = fr.record_idx.checked_sub(1).and_then(|s| {
+                resolve_interned(&geom_on_disk, records.len(), s as usize).map(|t| (s as usize, t))
+            }) else {
+                continue;
+            };
             let leaf = nodes
                 .get((fr.group as usize).wrapping_sub(1))
                 .filter(|n| n.geometry);
@@ -2248,45 +2255,65 @@ fn convert_inner_sink(
             } else {
                 format!("i{fi}")
             };
-            if rec.is_line() {
-                // Lines are an opt-in layer here too (same gate as the RVM path).
-                if !include_lines {
+            let (proto, tris, flip_key) = match target {
+                Interned::Aux(p) => {
+                    if p.is_degenerate() {
+                        continue; // no surface — Navisworks emits nothing
+                    }
+                    let proto = aux_protos
+                        .entry(slot)
+                        .or_insert_with(|| std::sync::Arc::new(geometry::aux_points(&p)))
+                        .clone();
+                    match p {
+                        geometry::AuxPrim::Disc { .. } => (proto, aux_disc_idx(), FlipKey::Disc),
+                        geometry::AuxPrim::Cyl { .. } => (proto, aux_tube_idx(), FlipKey::Tube),
+                    }
+                }
+                Interned::Mesh(ri) if !records[ri].is_line() => {
+                    let (proto, tris) = protos[ri]
+                        .get_or_insert_with(|| {
+                            let (p, i, _clean) = records[ri].mesh_clean();
+                            (std::sync::Arc::new(p), std::sync::Arc::new(i))
+                        })
+                        .clone();
+                    (proto, tris, FlipKey::Mesh(ri))
+                }
+                Interned::Mesh(ri) => {
+                    // Lines are an opt-in layer here too (same gate as the RVM path).
+                    if !include_lines {
+                        continue;
+                    }
+                    let rec = &records[ri];
+                    let place =
+                        |p: &[f32; 3]| glb::place_xf(p, &fr.quat, fr.scale, &fr.translation);
+                    let mut pos = Vec::new();
+                    let mut idx = Vec::new();
+                    for (a, b) in rec.segments() {
+                        let (sp, si) = geometry::cross_mesh(place(&a), place(&b), line_width);
+                        let base = pos.len() as u32;
+                        pos.extend_from_slice(&sp);
+                        idx.extend(si.iter().map(|k| k + base));
+                    }
+                    if !idx.is_empty() {
+                        lines += 1;
+                        triangles += idx.len() / 3;
+                        per_root[root].push((eid, parts.len()));
+                        parts.push(MeshPart {
+                            name: if tree.is_some() {
+                                String::new()
+                            } else {
+                                format!("i{fi}l")
+                            },
+                            positions: pos.into(),
+                            indices: std::sync::Arc::new(idx),
+                            mode: glb::MODE_TRIANGLES,
+                            color,
+                            path: Vec::new(),
+                        });
+                    }
                     continue;
                 }
-                let place = |p: &[f32; 3]| glb::place_xf(p, &fr.quat, fr.scale, &fr.translation);
-                let mut pos = Vec::new();
-                let mut idx = Vec::new();
-                for (a, b) in rec.segments() {
-                    let (sp, si) = geometry::cross_mesh(place(&a), place(&b), line_width);
-                    let base = pos.len() as u32;
-                    pos.extend_from_slice(&sp);
-                    idx.extend(si.iter().map(|k| k + base));
-                }
-                if !idx.is_empty() {
-                    lines += 1;
-                    triangles += idx.len() / 3;
-                    per_root[root].push((eid, parts.len()));
-                    parts.push(MeshPart {
-                        name: if tree.is_some() {
-                            String::new()
-                        } else {
-                            format!("i{fi}l")
-                        },
-                        positions: pos.into(),
-                        indices: std::sync::Arc::new(idx),
-                        mode: glb::MODE_TRIANGLES,
-                        color,
-                        path: Vec::new(),
-                    });
-                }
-                continue;
-            }
-            let (proto, tris) = protos[ri]
-                .get_or_insert_with(|| {
-                    let (p, i, _clean) = rec.mesh_clean();
-                    (std::sync::Arc::new(p), std::sync::Arc::new(i))
-                })
-                .clone();
+            };
             if tris.is_empty() {
                 continue;
             }
@@ -2294,7 +2321,7 @@ fn convert_inner_sink(
             // swap two indices per triangle to preserve outward orientation.
             let indices = if fr.scale < 0.0 {
                 flipped
-                    .entry(ri)
+                    .entry(flip_key)
                     .or_insert_with(|| {
                         std::sync::Arc::new(
                             tris.chunks_exact(3)
@@ -4607,6 +4634,46 @@ fn cyl_idx() -> std::sync::Arc<Vec<u32>> {
     I.get_or_init(|| std::sync::Arc::new(geometry::cylinder_mesh([0.0; 3], [0.0, 0.0, 1.0], 0.5).1))
         .clone()
 }
+
+/// What an interned placement frame places.
+enum Interned {
+    /// A decoded record (index into the parsed mesh records).
+    Mesh(usize),
+    /// An AUX parametric primitive (disc / open tube).
+    Aux(geometry::AuxPrim),
+}
+
+/// Cache key for mirrored-winding index lists: one per mesh record, one per
+/// fixed AUX topology.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum FlipKey {
+    Mesh(usize),
+    Disc,
+    Tube,
+}
+
+/// Resolve an interned frame's record word (0-based `slot`).
+///
+/// The word indexes the ON-DISK record array, where mesh records and AUX
+/// primitives are interleaved, not the decoded meshes. The two coincide only
+/// while every slot is a mesh (single-loader Revit / 3DS files). A federated
+/// file with RVM-loader sub-models has AUX slots throughout, so indexing the
+/// meshes directly placed the wrong mesh for most frames. Without an on-disk
+/// index the slot is taken as the mesh index, as before.
+fn resolve_interned(
+    on_disk: &geometry::GeomIndex,
+    n_meshes: usize,
+    slot: usize,
+) -> Option<Interned> {
+    if on_disk.is_empty() {
+        return (slot < n_meshes).then_some(Interned::Mesh(slot));
+    }
+    if let Some(k) = on_disk.mesh(slot) {
+        return Some(Interned::Mesh(k));
+    }
+    on_disk.aux(slot).map(Interned::Aux)
+}
+
 pub(crate) fn aux_disc_idx() -> std::sync::Arc<Vec<u32>> {
     static I: std::sync::OnceLock<std::sync::Arc<Vec<u32>>> = std::sync::OnceLock::new();
     I.get_or_init(|| std::sync::Arc::new(geometry::aux_disc_indices()))
@@ -4652,6 +4719,41 @@ fn parts_bbox(parts: &[MeshPart], gopts: &crate::glb::GlbOptions) -> ([f32; 3], 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An interned frame's record word indexes the ON-DISK record array. With
+    /// AUX primitives interleaved (RVM-loader sub-models in a federated file)
+    /// slot k is NOT mesh k: the slot must resolve through the on-disk index.
+    #[test]
+    fn interned_slots_resolve_through_the_on_disk_index() {
+        let disc = geometry::AuxPrim::Disc {
+            u: [1.0, 0.0, 0.0],
+            v: [0.0, 1.0, 0.0],
+            r: 0.5,
+        };
+        let mut on_disk = geometry::GeomIndex::default();
+        on_disk.push_aux(disc);
+        on_disk.push_mesh(0);
+        on_disk.push_none();
+        on_disk.push_mesh(1);
+        let at = |slot| resolve_interned(&on_disk, 2, slot);
+
+        assert!(matches!(
+            at(0),
+            Some(Interned::Aux(geometry::AuxPrim::Disc { .. }))
+        ));
+        assert!(matches!(at(1), Some(Interned::Mesh(0))));
+        assert!(at(2).is_none());
+        assert!(matches!(at(3), Some(Interned::Mesh(1))));
+        assert!(at(4).is_none());
+
+        // No on-disk index: the slot is the mesh index (single-loader files).
+        let none = geometry::GeomIndex::default();
+        assert!(matches!(
+            resolve_interned(&none, 2, 1),
+            Some(Interned::Mesh(1))
+        ));
+        assert!(resolve_interned(&none, 2, 2).is_none());
+    }
 
     /// End-to-end on the Huldra sample (`convertSamples/nwd/huldra/`): every
     /// fragment links to its leaf via the group ordinal and the

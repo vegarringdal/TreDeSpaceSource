@@ -712,14 +712,17 @@ pub struct Tree {
 /// ```text
 /// chunk  := [n][n × u32][first_id][root_count]  node × root_count
 /// node   := [id][22 leaf | 53 container] name          name := [len][utf-8, pad 4] | [-1]
+///         | [id][32][0] name                          File / sub-model (container)
 ///           class            0 | [1][id] | [id][52] string string
 ///           [flags][k][F]    F = number of attribute slots
 ///           slot × F
-///           [child_count]    containers (53) only
+///           [child_count]    containers (53, 32) only
 ///           child × count    node | [1][id] = ANOTHER INSTANCE of node id
+///           trailer          File (32) only: partition metadata, light
+///                            records [id][27] take ids (see `file_trailer`)
 /// slot   := 0 | [1][id] | definition:
-///           [id][31] label, class ([0][0] | [1][id] |     material
-///                 [id][52] string string), pad 8, 14 × f64
+///           [id][31] label, class (0 | [1][id] |        material
+///                 [id][52] string string), 0, pad 8, 14 × f64
 ///           [id][39|40|41][-1][0][0x20000] pad 8,         transform: 3×3 + t |
 ///                 12 | 3 | 7 × f64 (39: + u32)            t | t + quaternion
 ///           [id][200] name [0][0] slot                    render material; its slot is
@@ -736,7 +739,10 @@ pub struct Tree {
 /// every definition must carry exactly the next id. VALIDATED on the six
 /// freely licensed Revit-loader files (`convertSamples/nwd/`): each stream is consumed
 /// to its end, and every placement frame's group word lands on a geometry
-/// leaf of the expanded tree.
+/// leaf of the expanded tree. Federated files (File nodes appending RVM-,
+/// DWG-loader and nested NWD/NWC sub-models) were validated on a private
+/// 250k-node model, where all of the 548k placement frames link; on the
+/// Huldra RVM-loader assemblies the tree equals [`parse_nodes`]' structure.
 ///
 /// Instancing: a child `[1][id]` re-uses an earlier node's whole subtree. The
 /// result unfolds it — each occurrence becomes its own run of nodes (fresh
@@ -860,16 +866,26 @@ pub fn parse_tree(chunk: &[u8]) -> Option<Tree> {
             match self.u()? {
                 TYPE_MATERIAL => {
                     self.string()?;
-                    // The material's own class: `[0][0]` (none), `[1][id]`
-                    // or an inline class definition (DWG loader:
-                    // `LcOpDwgMaterial`) — then the grid, 8-aligned.
+                    // The material's own class — `[0]` (none), `[1][id]` or
+                    // an inline class definition (DWG loader:
+                    // `LcOpDwgMaterial`) — then a zero word, then the grid,
+                    // 8-aligned. The RVM form `[0][0]` is the no-class case.
+                    // Skipping 8 bytes and aligning instead is only right
+                    // when the zero word happens to be the padding; a
+                    // `[1][id]` class ending on an 8-byte boundary (DWG
+                    // sub-models) then shifts the grid by one word.
                     if self.at_def() {
                         self.named()?;
-                    } else if matches!(self.peek()?, 0 | 1) {
-                        self.o += 8;
                     } else {
-                        return None;
+                        match self.u()? {
+                            0 => {}
+                            1 => {
+                                self.u()?;
+                            }
+                            _ => return None,
+                        }
                     }
+                    (self.u()? == 0).then_some(())?;
                     self.align8();
                     let mut g = [0.0f64; 14];
                     for x in g.iter_mut() {
@@ -954,8 +970,13 @@ pub fn parse_tree(chunk: &[u8]) -> Option<Tree> {
             }
             let id = self.new_id()?;
             let ty = self.u()?;
-            if !NAME_TYPES.contains(&ty) {
+            let is_file = ty == TYPE_FILE;
+            if !NAME_TYPES.contains(&ty) && !is_file {
                 return None;
+            }
+            // A File node carries one zero word before its name.
+            if is_file {
+                (self.u()? == 0).then_some(())?;
             }
             let name = self.string()?;
             // `[0]` = a node without a class (Inventor loader: a few
@@ -1010,7 +1031,56 @@ pub fn parse_tree(chunk: &[u8]) -> Option<Tree> {
                 };
                 self.defs[me].children.push(child);
             }
+            if is_file {
+                self.file_trailer()?;
+            }
             Some(me)
+        }
+        /// Skip the partition metadata that follows a File node's subtree:
+        /// `[2]`, light records, the loader plugin string, the source path
+        /// and an f64 extent block. Its framing varies (light count and
+        /// position, padding), so it is not decoded. Instead the stream
+        /// resumes at the record `[next_id][22 | 53 | 32]`, and every light
+        /// record `[next_id][27]` met on the way takes the next id: lights are
+        /// the only definitions a trailer holds, so the sequential-id check
+        /// stays exact. Nested File nodes can close together; the first
+        /// trailer's scan then also crosses the enclosing ones, and theirs
+        /// finds the next node at once. After the last root, the trailer runs
+        /// to the chunk end.
+        fn file_trailer(&mut self) -> Option<()> {
+            const TRAILER_TAG: u32 = 2;
+            const TYPE_LIGHT: u32 = 27;
+            const MAX_TRAILER: usize = 1 << 20;
+            let at_node = |rd: &Self, p: usize| {
+                rd.word(p) == Some(rd.next_id)
+                    && rd
+                        .word(p + 4)
+                        .is_some_and(|t| NAME_TYPES.contains(&t) || t == TYPE_FILE)
+            };
+            if at_node(self, self.o) || self.o == self.b.len() {
+                return Some(());
+            }
+            (self.peek()? == TRAILER_TAG).then_some(())?;
+            let lim = self.o.saturating_add(MAX_TRAILER).min(self.b.len());
+            let mut p = self.o;
+            while p + 8 <= lim {
+                if at_node(self, p) {
+                    self.o = p;
+                    return Some(());
+                }
+                if self.word(p) == Some(self.next_id) && self.word(p + 4) == Some(TYPE_LIGHT) {
+                    self.next_id += 1;
+                }
+                p += 4;
+            }
+            // No further node: only valid as the chunk's last trailer (the
+            // caller's end-of-stream check rejects anything else).
+            (lim == self.b.len()).then(|| self.o = lim)
+        }
+        fn word(&self, p: usize) -> Option<u32> {
+            self.b
+                .get(p..p + 4)
+                .map(|s| u32::from_le_bytes(s.try_into().unwrap()))
         }
     }
     enum Slot {
@@ -1162,7 +1232,10 @@ mod tests {
             w.push(s.len() as u32);
             let mut b = s.as_bytes().to_vec();
             b.resize(s.len().div_ceil(4) * 4, 0);
-            w.extend(b.chunks(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())));
+            w.extend(
+                b.chunks(4)
+                    .map(|c| u32::from_le_bytes(c.try_into().unwrap())),
+            );
         };
         // header `[0][first_id = 100][roots = 1]`
         w.extend([0, 100, 1]);
@@ -1194,6 +1267,147 @@ mod tests {
         );
         assert_eq!(tree.nodes[1].class, None);
         assert_eq!(tree.nodes[2].class.as_deref(), Some("Group"));
+    }
+
+    /// Words of a `[len][bytes, pad 4]` string.
+    fn push_string(w: &mut Vec<u32>, s: &str) {
+        w.push(s.len() as u32);
+        let mut b = s.as_bytes().to_vec();
+        b.resize(s.len().div_ceil(4) * 4, 0);
+        w.extend(
+            b.chunks(4)
+                .map(|c| u32::from_le_bytes(c.try_into().unwrap())),
+        );
+    }
+
+    fn push_f64(w: &mut Vec<u32>, v: f64) {
+        let bits = v.to_bits();
+        w.extend([bits as u32, (bits >> 32) as u32]);
+    }
+
+    fn to_bytes(w: &[u32]) -> Vec<u8> {
+        w.iter().flat_map(|x| x.to_le_bytes()).collect()
+    }
+
+    /// A federated stream: two File roots (sub-models), each followed by its
+    /// partition trailer. The first trailer holds a light record, which takes
+    /// the next id; the last trailer runs to the chunk end.
+    fn federated_stream(first_trailer_tag: u32) -> Vec<u8> {
+        let mut w: Vec<u32> = vec![0, 100, 2];
+        // 101: File "A.rvm", inline class 102 "File" / "LcOaPartition", one child
+        w.extend([101, TYPE_FILE, 0]);
+        push_string(&mut w, "A.rvm");
+        w.extend([102, TYPE_CLASS]);
+        push_string(&mut w, "File");
+        push_string(&mut w, "LcOaPartition");
+        w.extend([0, 0, 0, 1]);
+        // 103: leaf "pipe", class ref 102
+        w.extend([103, 22]);
+        push_string(&mut w, "pipe");
+        w.extend([1, 102, 0, 0, 0]);
+        // trailer: tag, light 104, plugin string, extent
+        w.extend([first_trailer_tag, 0, 104, 27, 1, 0, 0]);
+        push_string(&mut w, "LcNwcLoaderPlugin:lcldrvm");
+        push_f64(&mut w, 1.0);
+        // 105: File "B.dwg", class ref 102, one child
+        w.extend([105, TYPE_FILE, 0]);
+        push_string(&mut w, "B.dwg");
+        w.extend([1, 102, 0, 0, 0, 1]);
+        // 106: unnamed leaf
+        w.extend([106, 22, NONAME_LEN, 1, 102, 0, 0, 0]);
+        // last trailer, to the chunk end
+        w.extend([2, 0]);
+        push_string(&mut w, "LcNwcLoaderPlugin:lclddwg");
+        push_f64(&mut w, 2.0);
+        to_bytes(&w)
+    }
+
+    /// File nodes and their trailers are part of the strict grammar: both
+    /// sub-models parse, the light record's id is accounted for, and the
+    /// stream is consumed to its end.
+    #[test]
+    fn parse_tree_reads_file_nodes_and_their_trailers() {
+        let tree = parse_tree(&federated_stream(2)).expect("a federated tree parses");
+        let shown: Vec<(u32, &str, u32, bool)> = tree
+            .nodes
+            .iter()
+            .map(|n| (n.id, n.display.as_str(), n.depth, n.geometry))
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                (101, "A.rvm", 0, false),
+                (103, "pipe", 1, true),
+                (105, "B.dwg", 0, false),
+                (106, "File", 1, true),
+            ]
+        );
+        assert_eq!(tree.nodes[0].class.as_deref(), Some("File"));
+    }
+
+    /// A trailer that does not start with its tag is not a trailer: the
+    /// strict parse refuses the stream rather than scanning past garbage.
+    #[test]
+    fn parse_tree_rejects_an_untagged_file_trailer() {
+        assert!(parse_tree(&federated_stream(7)).is_none());
+    }
+
+    /// Material framing `[id][31] label class 0 pad-8 grid`: a `[1][id]`
+    /// class ending on an 8-byte boundary puts a zero word AND padding before
+    /// the grid (DWG-loader sub-models). Reading the class as a fixed 8 bytes
+    /// shifted the grid by a word and lost the rest of the stream.
+    #[test]
+    fn parse_tree_reads_a_material_whose_class_ends_8_aligned() {
+        let mut w: Vec<u32> = vec![0, 100, 1];
+        // 101: container "ROOT", inline class 102 "Group" / "LcGroup", F = 1
+        w.extend([101, 53]);
+        push_string(&mut w, "ROOT");
+        w.extend([102, TYPE_CLASS]);
+        push_string(&mut w, "Group");
+        push_string(&mut w, "LcGroup");
+        w.extend([0, 0, 1]);
+        // slot: material 103 "Mat1", class ref 102 — ends 8-aligned
+        w.extend([103, TYPE_MATERIAL]);
+        push_string(&mut w, "Mat1");
+        w.extend([1, 102]);
+        assert_eq!(w.len() % 2, 0, "fixture: the class ref must end 8-aligned");
+        w.extend([0, 0]); // the zero word, then padding
+        for v in [0.8, 0.6, 0.6, 0.8, 0.6, 0.6] {
+            push_f64(&mut w, v);
+        }
+        for _ in 6..14 {
+            push_f64(&mut w, 0.0);
+        }
+        w.push(1); // child count
+                   // 104: unnamed leaf inheriting the material
+        w.extend([104, 22, NONAME_LEN, 1, 102, 0, 0, 0]);
+
+        let tree = parse_tree(&to_bytes(&w)).expect("the material framing parses");
+        assert_eq!(tree.nodes.len(), 2);
+        assert_eq!(tree.nodes[0].color, Some([0.8, 0.6, 0.6]));
+        assert_eq!(tree.nodes[1].color, Some([0.8, 0.6, 0.6]));
+    }
+
+    /// On an RVM-loader assembly (nested File nodes with trailers) the strict
+    /// tree has exactly the structure `parse_nodes` reads.
+    #[test]
+    fn parse_tree_matches_parse_nodes_on_an_rvm_assembly() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../convertSamples/nwd/huldra/HDA-ASB-HA.nwd"
+        );
+        let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        let container = crate::parse(&bytes).expect("parse");
+        let hier = classify_all(&container)
+            .into_iter()
+            .find(|i| i.kind == ChunkKind::LogicalHierarchy)
+            .expect("a logical-hierarchy chunk");
+        let chunk = container.data(hier.index);
+        let tree = parse_tree(&chunk).expect("the assembly's tree parses");
+        let nodes = parse_nodes(&chunk);
+        let shape = |n: &Node| (n.id, n.parent_id, n.depth, n.geometry, n.display.clone());
+        assert_eq!(tree.nodes.len(), nodes.len());
+        assert!(tree.nodes.iter().map(shape).eq(nodes.iter().map(shape)));
     }
 
     /// End-to-end on the Huldra sample (`convertSamples/nwd/huldra/`): crack the

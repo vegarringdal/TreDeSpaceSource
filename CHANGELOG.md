@@ -6,6 +6,27 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.27** (>0.26.8):
+  NWD import: federated models (sub-models appended from other files) now
+  convert with the right shapes and a full tree. A placement frame's record
+  number counts the file's on-disk records, where meshes and parametric
+  discs / tubes are interleaved; it was read as a mesh number, which gave
+  almost every part another part's shape, or none, as soon as a sub-model
+  held parametric primitives (on a 548k-frame review model 95 % of frames now
+  check out exactly, against 24 before). Discs and tubes are tessellated and
+  placed as on the plain RVM-loader path. The strict tree parser now reads
+  File (sub-model) nodes, their trailers and the general material framing,
+  so such a model gets its real tree (11 roots, 251k nodes) instead of one
+  unnamed `model`. `nwd2tdp` wasm rebuilt. Large federated models can still
+  run out of browser memory; the streaming / size-budget plan is in
+  `rust_src/crates/nwd-core/docs/what_we_know_v1.md` › Open problems.
+  Plan for the SQL Table filters (`plans/table_improvements.md`, with a
+  clickable mock next to it): an operator button per column (not equal,
+  does not contain, in list, number comparisons, blank), number columns
+  detected from the values, pasting a spreadsheet column as an in-list
+  filter with a list editor, and an optional WHERE expression bar. Not
+  implemented yet.
+
 - **2026.11.25** (>0.26.7):
   Ribbon: stretching the columns to a wider section title is opt-in again
   (`RibbonSection fill`), used only by Home › Selection — the change above

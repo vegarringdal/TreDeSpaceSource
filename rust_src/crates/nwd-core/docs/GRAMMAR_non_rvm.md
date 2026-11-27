@@ -5,7 +5,10 @@ machine-readable 3DS ground truth; cross-checked on a second 3DS-loader model
 ("3DS-B"), two DWG-loader models ("DWG-A", "DWG-B") and the RVM corpus. The
 test files are not part of this repository. (The format as a whole was worked
 out from the Huldra NWD, FBX and RVM files and checked against freely
-available files found online — see `what_we_know_v1.md`.)
+available files found online — see `what_we_know_v1.md`.) Loader and product
+names (3DS, DWG, RVM, …) are what the files' own header and trailer strings
+say, not confirmed against the program that wrote them; see "Product names
+are read from the files" in `what_we_know_v1.md`.
 
 > **Status (2026-11-12):** sections 1–2 below are the first reading, kept for their
 > validation numbers. They are superseded by the unified description in
