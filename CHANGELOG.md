@@ -6,6 +6,30 @@ version at release time. See CLAUDE.md for the rule.
 
 Entries from before the stable pilot (0.26.1) have been removed.
 
+- **2026.11.27** (>0.26.9):
+  SQL Table filters: each column filter has an operator, shown as a bare
+  symbol that becomes a button on hover. Text columns now default to
+  **contains**; a value with `*` / `%` still matches the whole value, so
+  `PIPE*` keeps meaning begins with. Number columns default to equals. The
+  other operators are equals, not equal, does not contain, begins / ends
+  with, in list / not in list, blank / not blank, and for number columns >,
+  ≥, <, ≤ and between (`100..250`, one end may be left open). A column counts as a number column
+  when every value SQLite returned is a number. Its header shows `123`
+  (otherwise `abc`), its values are right-aligned, and `80` matches 80.0.
+  Typing `>=`, `<=`, `>`, `<`, `!=` or `<>` first switches the operator.
+  Pasting several spreadsheet cells into a filter makes it an in-list
+  filter, edited one value per line in a resizable list editor. In-list
+  matching uses hash sets, so long lists stay fast at the 450k-row cap.
+  `Alt`+`↓` in a filter opens its operator menu. Filters still reset when a
+  new result arrives. Operator ids follow the `@simple-html/grid` v6 names.
+  @treDeSpaceUI: `Menu` gains `focusId` and arrow-key navigation, and hands
+  focus back after Escape or a pick when it was opened from a key. Escape
+  now closes a `Menu` in the app: it listened in the bubble phase, where the
+  app's Escape hotkey (Clear selection) had already claimed the key, so only
+  a click outside closed it.
+  `usePopoverAnchor` and `PickerPopover` are now exported, for popovers of
+  your own (README and a new gallery tab).
+
 - **2026.11.27** (>0.26.8):
   NWD import: federated models (sub-models appended from other files) now
   convert with the right shapes and a full tree. A placement frame's record

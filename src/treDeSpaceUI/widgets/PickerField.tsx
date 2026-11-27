@@ -75,13 +75,17 @@ export function PickerField({
 }
 
 export interface PickerPopoverProps {
+  /** From `usePopoverAnchor` — render the popover only while `anchor.open`. */
   anchor: PopoverAnchor;
   /** Popover width in px — used to clamp the left edge into the viewport. */
   width: number;
+  /** The popover's content. */
   children: ReactNode;
 }
 
-/** Body-portaled popover box anchored under (or above) the trigger. */
+/** Body-portaled popover box anchored under (or above) the trigger — the
+ *  shell of the picker fields, open for any anchored popover (pair it with
+ *  `usePopoverAnchor`). */
 export function PickerPopover({ anchor, width, children }: PickerPopoverProps) {
   return createPortal(
     <div

@@ -31,6 +31,7 @@ import { MotionInputsDemo } from './gallery/MotionInputsDemo';
 import { NumberInputDemo } from './gallery/NumberInputDemo';
 import { PackageCard } from './gallery/PackageCard';
 import { PanelChromeDemo } from './gallery/PanelChromeDemo';
+import { PopoverDemo } from './gallery/PopoverDemo';
 import { PropertyListDemo } from './gallery/PropertyListDemo';
 import { RadioGroupDemo } from './gallery/RadioGroupDemo';
 import { RibbonDemo } from './gallery/RibbonDemo';
@@ -75,6 +76,7 @@ const GALLERY = [
   { id: 'tree', label: 'TreeView', content: <TreeViewDemo /> },
   { id: 'filetree', label: 'FileTree', content: <FileTreeDemo /> },
   { id: 'menu', label: 'Menu', content: <MenuDemo /> },
+  { id: 'popover', label: 'Anchored popover', content: <PopoverDemo /> },
   { id: 'sql', label: 'SqlCodeEditor', content: <SqlEditorDemo /> },
   { id: 'dialogs', label: 'Dialogs', content: <DialogsDemo /> },
   { id: 'toast', label: 'Toast', content: <ToastDemo /> },

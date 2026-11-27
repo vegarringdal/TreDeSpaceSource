@@ -42,6 +42,7 @@ export {
 } from './motion/RotationInput';
 export { NumberInput, type NumberInputProps } from './number/NumberInput';
 export { PanelHeader, type PanelHeaderProps } from './PanelHeader';
+export { PickerPopover, type PickerPopoverProps } from './PickerField';
 export { PromptDialogCore, type PromptDialogCoreProps } from './PromptDialogCore';
 export { PropertyList, type PropertyListProps, type PropertyRow } from './PropertyList';
 export { RadioGroup, type RadioGroupProps, type RadioOption } from './RadioGroup';
@@ -94,5 +95,6 @@ export {
 } from './transport/TransportControls';
 export { type TreeRowExtras, TreeView, type TreeViewProps, type TreeViewRow } from './tree/TreeView';
 export { readFileText, useFilePicker, useMultiFilePicker } from './useFilePicker';
+export { type PopoverAnchor, type PopoverPos, usePopoverAnchor } from './usePopoverAnchor';
 export { type Vec3, Vec3Input, type Vec3InputProps } from './Vec3Input';
 export { type VerticalTab, VerticalTabs, type VerticalTabsProps } from './VerticalTabs';
