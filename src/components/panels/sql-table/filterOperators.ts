@@ -44,14 +44,17 @@ type OperatorInfo = Readonly<{
 // Constants
 // -----------------------------------------------------------------------------
 
-export const DEFAULT_OPERATOR: FilterOperator = 'EQUAL';
-
-export const EMPTY_FILTER: ColumnFilter = { op: DEFAULT_OPERATOR, text: '' };
+/** What a fresh filter does per column kind: text contains the typed text,
+ *  a number equals it (contains `15` would also match 150). */
+export const DEFAULT_OPERATOR: Readonly<Record<ColumnKind, FilterOperator>> = {
+  text: 'CONTAINS',
+  number: 'EQUAL',
+};
 
 export const OPERATORS: Readonly<Record<FilterOperator, OperatorInfo>> = {
   EQUAL: { symbol: '=', label: 'Equals (* = any text)', hasValue: true },
   NOT_EQUAL_TO: { symbol: '≠', label: 'Does not equal (* = any text)', hasValue: true },
-  CONTAINS: { symbol: '*a*', label: 'Contains', hasValue: true },
+  CONTAINS: { symbol: '*a*', label: 'Contains (PIPE* = begins with)', hasValue: true },
   DOES_NOT_CONTAIN: { symbol: '!*a*', label: 'Does not contain', hasValue: true },
   BEGIN_WITH: { symbol: 'a*', label: 'Begins with', hasValue: true },
   END_WITH: { symbol: '*a', label: 'Ends with', hasValue: true },
@@ -69,8 +72,8 @@ export const OPERATORS: Readonly<Record<FilterOperator, OperatorInfo>> = {
 /** The operator menu per column kind, in groups (a rule between each). */
 export const OPERATOR_GROUPS: Readonly<Record<ColumnKind, readonly (readonly FilterOperator[])[]>> = {
   text: [
-    ['EQUAL', 'NOT_EQUAL_TO'],
     ['CONTAINS', 'DOES_NOT_CONTAIN', 'BEGIN_WITH', 'END_WITH'],
+    ['EQUAL', 'NOT_EQUAL_TO'],
     ['IN', 'NOT_IN'],
     ['IS_BLANK', 'IS_NOT_BLANK'],
   ],
@@ -105,6 +108,11 @@ const PASTED_CELLS = /[\r\n\t]/;
 // -----------------------------------------------------------------------------
 // Helper functions
 // -----------------------------------------------------------------------------
+
+/** An empty filter with the column kind's default operator. */
+export function defaultFilter(kind: ColumnKind): ColumnFilter {
+  return { op: DEFAULT_OPERATOR[kind], text: '' };
+}
 
 export function isListOperator(op: FilterOperator): boolean {
   return op === 'IN' || op === 'NOT_IN';

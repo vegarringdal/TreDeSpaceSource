@@ -2,7 +2,9 @@
 // capitals and surrounding spaces. EQUAL / NOT_EQUAL_TO (and each value of an
 // in-list filter) keep the old wildcard rule: `*` or `%` (the SQL LIKE habit)
 // match any run of characters, every other character is literal (`_` and `.`
-// included — names are full of them). On a number column a value that reads
+// included — names are full of them). CONTAINS (the text default) looks for
+// the text anywhere, but a value WITH a wildcard is matched like EQUAL, so the
+// old habits keep working: `PIPE*` begins with, `*PIPE` ends with. On a number column a value that reads
 // as a number compares as a number, so `80` matches 80.0. Pure, so it stays
 // unit-testable.
 
@@ -161,6 +163,17 @@ function compileComparison(op: FilterOperator, text: string): CellMatcher {
   };
 }
 
+/** Substring match, or the whole-value wildcard match when the text has a
+ *  `*` / `%`; `low` is lower-cased. */
+function compileContains(low: string): CellMatcher {
+  if (WILDCARDS.test(low)) {
+    const match = compileTextPattern(low);
+    return (cell) => match(cellText(cell));
+  }
+
+  return (cell) => cellText(cell).includes(low);
+}
+
 function negate(match: CellMatcher | null): CellMatcher | null {
   return match && ((cell) => !match(cell));
 }
@@ -192,9 +205,9 @@ export function compileCellFilter(filter: ColumnFilter, kind: ColumnKind): CellM
     case 'NOT_EQUAL_TO':
       return negate(compileEquals(value, kind));
     case 'CONTAINS':
-      return (cell) => cellText(cell).includes(low);
+      return compileContains(low);
     case 'DOES_NOT_CONTAIN':
-      return (cell) => !cellText(cell).includes(low);
+      return negate(compileContains(low));
     case 'BEGIN_WITH':
       return (cell) => cellText(cell).startsWith(low);
     case 'END_WITH':

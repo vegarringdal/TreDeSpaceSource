@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileCellFilter, detectColumnKinds } from '../src/components/panels/sql-table/cellFilter';
 import {
   type ColumnKind,
+  defaultFilter,
   type FilterOperator,
   parseTypedOperator,
   pastedListValues,
@@ -89,15 +90,27 @@ describe('compileCellFilter — other text operators', () => {
     expect(matcher('NOT_EQUAL_TO', 'p*')('PIPE')).toBe(false);
   });
 
-  it('CONTAINS / DOES_NOT_CONTAIN / BEGIN_WITH / END_WITH take the text literally', () => {
+  it('CONTAINS finds the text anywhere; with a wildcard it matches the whole value', () => {
     expect(matcher('CONTAINS', 'flange')('/HA/FLANGE-80')).toBe(true);
-    expect(matcher('CONTAINS', 'a*b')('xa*by')).toBe(true);
-    expect(matcher('CONTAINS', 'a*b')('xaZby')).toBe(false);
+    expect(matcher('CONTAINS', 'pipe')('valve')).toBe(false);
+    expect(matcher('CONTAINS', 'PIPE*')('PIPE-80')).toBe(true);
+    expect(matcher('CONTAINS', 'PIPE*')('/A-PIPE-80')).toBe(false);
+    expect(matcher('CONTAINS', '*PIPE')('/A-PIPE')).toBe(true);
+    expect(matcher('CONTAINS', '*SX-*')('/SX-HA86')).toBe(true);
     expect(matcher('DOES_NOT_CONTAIN', 'flange')('/HA/FLANGE-80')).toBe(false);
     expect(matcher('DOES_NOT_CONTAIN', 'flange')(null)).toBe(true);
+    expect(matcher('DOES_NOT_CONTAIN', 'PIPE*')('/A-PIPE')).toBe(true);
+  });
+
+  it('BEGIN_WITH / END_WITH take the text literally', () => {
     expect(matcher('BEGIN_WITH', '/ha')('/HA/PIPE')).toBe(true);
     expect(matcher('BEGIN_WITH', 'pipe')('/HA/PIPE')).toBe(false);
     expect(matcher('END_WITH', 'pipe')('/HA/PIPE')).toBe(true);
+  });
+
+  it('a fresh filter contains on text and equals on numbers', () => {
+    expect(defaultFilter('text')).toEqual({ op: 'CONTAINS', text: '' });
+    expect(defaultFilter('number')).toEqual({ op: 'EQUAL', text: '' });
   });
 
   it('IS_BLANK / IS_NOT_BLANK need no value; spaces count as blank', () => {

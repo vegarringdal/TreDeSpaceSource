@@ -472,14 +472,14 @@
           "n": 6,
           "x": 181,
           "y": 92,
-          "w": 111,
+          "w": 106.984375,
           "h": 21
         },
         {
           "n": 7,
-          "x": 294,
+          "x": 289.984375,
           "y": 94.5,
-          "w": 24,
+          "w": 28.015625,
           "h": 16
         },
         {
@@ -1142,14 +1142,14 @@
         "keys": "",
         "section": "",
         "label": "Column filter",
-        "tooltip": "Show only matching rows (all filtering columns must match). Paste cells from a spreadsheet for an in-list filter."
+        "tooltip": "Text: rows that contain the text (PIPE* begins with). Numbers: rows that equal it. All filtering columns must match. Paste cells from a spreadsheet for an in-list filter."
       },
       {
         "icon": "",
         "keys": "",
         "section": "",
-        "label": "Filter operator (=)",
-        "tooltip": "How the column is filtered: equals (* or % match any text), not equal, contains, in list, >, between, blank… Alt+↓ in the filter opens it."
+        "label": "Filter operator (*a* / =)",
+        "tooltip": "How the column is filtered: contains, equals, not equal, in list, >, between, blank… Alt+↓ in the filter opens it."
       },
       {
         "icon": "",

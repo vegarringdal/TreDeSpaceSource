@@ -7,11 +7,13 @@ version at release time. See CLAUDE.md for the rule.
 Entries from before the stable pilot (0.26.1) have been removed.
 
 - **2026.11.27** (>0.26.9):
-  SQL Table filters: each column filter has an operator button. Equals with
-  `*` / `%` wildcards stays the default; the others are not equal,
-  contains, does not contain, begins / ends with, in list / not in list,
-  blank / not blank, and for number columns >, ≥, <, ≤ and between
-  (`100..250`, one end may be left open). A column counts as a number column
+  SQL Table filters: each column filter has an operator, shown as a bare
+  symbol that becomes a button on hover. Text columns now default to
+  **contains**; a value with `*` / `%` still matches the whole value, so
+  `PIPE*` keeps meaning begins with. Number columns default to equals. The
+  other operators are equals, not equal, does not contain, begins / ends
+  with, in list / not in list, blank / not blank, and for number columns >,
+  ≥, <, ≤ and between (`100..250`, one end may be left open). A column counts as a number column
   when every value SQLite returned is a number. Its header shows `123`
   (otherwise `abc`), its values are right-aligned, and `80` matches 80.0.
   Typing `>=`, `<=`, `>`, `<`, `!=` or `<>` first switches the operator.

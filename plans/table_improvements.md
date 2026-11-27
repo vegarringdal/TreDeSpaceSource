@@ -4,7 +4,10 @@
 > design was worked out on a clickable mock,
 > [`table_improvements_mock.html`](table_improvements_mock.html) (open it in a
 > browser; the expression bar loads SQLite from cdnjs). The open questions
-> were settled with the director: text keeps **equals** as its default,
+> were settled with the director: text defaults to **contains** (a value
+> with a wildcard still matches the whole value, so `PIPE*` is begins with;
+> numbers default to equals; the operator shows as a bare symbol until
+> hovered),
 > filters still **reset** on every new result, and the **expression bar
 > (phase 2) comes later**. What is left is [phase 2](#expression-bar-optional-phase-2).
 >

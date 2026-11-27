@@ -545,7 +545,7 @@ async function captureTableFilters(ctx) {
   });
   await ctx.click({ within: LIST_EDITOR, text: 'Done' });
   await ctx.click(TAG_OPERATOR);
-  await ctx.click({ css: '[role="menuitem"][data-menu-id="EQUAL"]' });
+  await ctx.click({ css: '[role="menuitem"][data-menu-id="CONTAINS"]' });
   await ctx.type(TAG_FILTER, '*SX-*');
   await ctx.call(TABLE, 'callTableAction', null, 'toggleSideMenu');
 }
@@ -674,8 +674,8 @@ async function harvestPanels(ctx) {
     extra: [
       { section: '', label: 'Column title', tooltip: 'Click to sort A→Z, again Z→A, a third time unsorted. Drag the edge to resize.' },
       { section: '', label: '123 / abc', tooltip: 'The column kind, detected from the values: number columns get number filters' },
-      { section: '', label: 'Column filter', tooltip: 'Show only matching rows (all filtering columns must match). Paste cells from a spreadsheet for an in-list filter.' },
-      { section: '', label: 'Filter operator (=)', tooltip: 'How the column is filtered: equals (* or % match any text), not equal, contains, in list, >, between, blank… Alt+↓ in the filter opens it.' },
+      { section: '', label: 'Column filter', tooltip: 'Text: rows that contain the text (PIPE* begins with). Numbers: rows that equal it. All filtering columns must match. Paste cells from a spreadsheet for an in-list filter.' },
+      { section: '', label: 'Filter operator (*a* / =)', tooltip: 'How the column is filtered: contains, equals, not equal, in list, >, between, blank… Alt+↓ in the filter opens it.' },
       { section: '', label: 'Row number', tooltip: 'Click to select a row — Ctrl adds or removes one, Shift selects a range' },
       { section: '', label: 'Export to Excel (all)', tooltip: 'Right-click menu: every row as shown to an .xlsx file', keys: 'ALT 654' },
       { section: '', label: 'Export to Excel (selected rows)', tooltip: 'Right-click menu: only the selected rows', keys: 'ALT 655' },

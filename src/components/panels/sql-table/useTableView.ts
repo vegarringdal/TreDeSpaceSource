@@ -3,7 +3,7 @@ import { type CellMatcher, compileCellFilter, detectColumnKinds } from './cellFi
 import {
   type ColumnFilter,
   type ColumnKind,
-  EMPTY_FILTER,
+  defaultFilter,
   type FilterOperator,
   isListOperator,
   parseTypedOperator,
@@ -18,7 +18,7 @@ export type Sort = { col: number; dir: 'asc' | 'desc' } | null;
 
 export type TableView = Readonly<{
   sort: Sort;
-  /** One per column; read through `filterOf` while a new result settles. */
+  /** One per column: what the user set, else the kind's default operator. */
   filters: readonly ColumnFilter[];
   /** Per column, detected from the values: drives the operators offered. */
   kinds: readonly ColumnKind[];
@@ -56,11 +56,12 @@ function compare(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b));
 }
 
-/** The filter of one column, empty while a new result has more columns than
- *  the state has caught up with. */
+/** The filter of one column — the text default if the column is unknown. */
 export function filterOf(filters: readonly ColumnFilter[], col: number): ColumnFilter {
-  return filters[col] ?? EMPTY_FILTER;
+  return filters[col] ?? defaultFilter('text');
 }
+
+type FilterEdits = readonly (ColumnFilter | undefined)[];
 
 /** Click-header sort + per-column operator filters (see cellFilter; AND across
  *  filtering columns) expressed as a view over ORIGINAL row indices, plus
@@ -68,15 +69,17 @@ export function filterOf(filters: readonly ColumnFilter[], col: number): ColumnF
  *  arrives. */
 export function useTableView(columns: string[], rows: unknown[][]): TableView {
   const [sort, setSort] = useState<Sort>(null);
-  const [filters, setFilters] = useState<readonly ColumnFilter[]>(() => columns.map(() => EMPTY_FILTER));
+  // only the columns the user touched; the rest use their kind's default
+  const [edits, setEdits] = useState<FilterEdits>([]);
 
   // reset per-result state when a new payload arrives
   useEffect(() => {
     setSort(null);
-    setFilters(columns.map(() => EMPTY_FILTER));
+    setEdits(columns.map(() => undefined));
   }, [columns]);
 
   const kinds = useMemo(() => detectColumnKinds(columns.length, rows), [columns, rows]);
+  const filters = useMemo(() => kinds.map((kind, c) => edits[c] ?? defaultFilter(kind)), [kinds, edits]);
 
   // stable, unique React keys per column (names can repeat) — used for header
   // cells AND body cells so neither has to key off the array index
@@ -119,7 +122,9 @@ export function useTableView(columns: string[], rows: unknown[][]): TableView {
   }, [rows, matchers, sort]);
 
   const updateFilter = (col: number, next: (f: ColumnFilter) => ColumnFilter): void =>
-    setFilters((prev) => columns.map((_, k) => (k === col ? next(filterOf(prev, k)) : filterOf(prev, k))));
+    setEdits((prev) =>
+      columns.map((_, k) => (k === col ? next(prev[k] ?? defaultFilter(kinds[k] ?? 'text')) : prev[k])),
+    );
 
   const toggleSort = (col: number): void =>
     setSort((s) => (s?.col !== col ? { col, dir: 'asc' } : s.dir === 'asc' ? { col, dir: 'desc' } : null));

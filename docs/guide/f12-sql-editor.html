@@ -338,11 +338,11 @@
             <li><b>Clear on close / Keep</b> (<kbd>ALT 662</kbd>) — whether closing the panel throws the result away (the default, to free memory) or keeps it for when you open the panel again. Switching layout never throws it away.</li>
             <li><b>Column title</b> — click to sort A→Z, again for Z→A, a third time to unsort. Drag the edge of a title to change the column width.</li>
             <li><b>Column kind</b> — <b>123</b> when every value in the column is a number, else <b>abc</b>. It decides which filters the column offers. Numbers are right-aligned.</li>
-            <li><b>Column filter</b> — by default shows only rows whose <i>whole</i> value in that column is the text (capitals do not matter).
-              Use <code class="inline">*</code> or <code class="inline">%</code> for “any text”: <code class="inline">PIPE*</code> starts with,
-              <code class="inline">*PIPE</code> ends with, <code class="inline">*PIPE*</code> contains, and <code class="inline">*PIPE*100*</code> has PIPE with 100 somewhere after it.
+            <li><b>Column filter</b> — on a text column it shows only rows that <i>contain</i> the text (capitals do not matter); on a number column, rows that equal the number.
+              With <code class="inline">*</code> or <code class="inline">%</code> (“any text”) the filter matches the <i>whole</i> value instead: <code class="inline">PIPE*</code> begins with,
+              <code class="inline">*PIPE</code> ends with, and <code class="inline">*PIPE*100*</code> has PIPE with 100 somewhere after it.
               A column that filters is underlined in blue. Filters in several columns must all match.</li>
-            <li><b>Filter operator</b> — how the column is filtered. Click it, or press <kbd>Alt</kbd> + <kbd>↓</kbd> in the filter, to pick another one (see <a href="#table-filters">Column filters</a>). It turns blue when it is not the default <b>=</b>.</li>
+            <li><b>Filter operator</b> — how the column is filtered: <b>*a*</b> (contains) on text, <b>=</b> on numbers. Hover it to see it is a button; click it, or press <kbd>Alt</kbd> + <kbd>↓</kbd> in the filter, to pick another one (see <a href="#table-filters">Column filters</a>). It turns blue when it is not the column's default.</li>
             <li><b>Row number</b> — click to mark a row, <kbd>Ctrl</kbd> + click to add or remove one, <kbd>Shift</kbd> + click for a range.</li>
             <li><b>Corner box</b> (<kbd>ALT 652</kbd>) — marks every row shown, or unmarks them all.</li>
           </ol>
@@ -356,16 +356,16 @@
 
           <h3 id="table-filters">Column filters</h3>
           <p>
-            Each filter has an operator button. Text columns have it on the right, number columns on the left. Pick the
-            operator from its menu:
+            Each filter has an operator symbol, which shows a button box when you hover it. Text columns have it on the
+            right, number columns on the left. Pick the operator from its menu:
           </p>
           <figure class="shot" data-shot="f12-table-operators"></figure>
           <div class="ref-table"><table>
             <thead><tr><th>Button</th><th>Shows rows where the value…</th><th>Columns</th></tr></thead>
             <tbody>
-              <tr><td><code class="inline">=</code></td><td>equals the text. The default. <code class="inline">*</code> or <code class="inline">%</code> match any text.</td><td>all</td></tr>
+              <tr><td><code class="inline">*a*</code> <code class="inline">!*a*</code></td><td>contains / does not contain the text. The text default. With <code class="inline">*</code> or <code class="inline">%</code> the whole value must match: <code class="inline">PIPE*</code> begins with.</td><td>text</td></tr>
+              <tr><td><code class="inline">=</code></td><td>equals the text or number. The number default. <code class="inline">*</code> or <code class="inline">%</code> match any text.</td><td>all</td></tr>
               <tr><td><code class="inline">≠</code></td><td>does not equal the text. Wildcards work here too.</td><td>all</td></tr>
-              <tr><td><code class="inline">*a*</code> <code class="inline">!*a*</code></td><td>contains / does not contain the text</td><td>text</td></tr>
               <tr><td><code class="inline">a*</code> <code class="inline">*a</code></td><td>begins with / ends with the text</td><td>text</td></tr>
               <tr><td><code class="inline">∈</code> <code class="inline">∉</code></td><td>is in / is not in a list of values. The button shows how many: <code class="inline">∈ 12</code>.</td><td>all</td></tr>
               <tr><td><code class="inline">&gt;</code> <code class="inline">≥</code> <code class="inline">&lt;</code> <code class="inline">≤</code></td><td>is greater / less than the number</td><td>number</td></tr>
