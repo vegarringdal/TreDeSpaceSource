@@ -458,18 +458,32 @@
           "n": 4,
           "x": 187,
           "y": 72.296875,
-          "w": 127,
+          "w": 100.796875,
           "h": 15.390625
         },
         {
           "n": 5,
-          "x": 181,
-          "y": 92,
-          "w": 139,
-          "h": 21
+          "x": 291.796875,
+          "y": 74.5,
+          "w": 22.203125,
+          "h": 11
         },
         {
           "n": 6,
+          "x": 181,
+          "y": 92,
+          "w": 111,
+          "h": 21
+        },
+        {
+          "n": 7,
+          "x": 294,
+          "y": 94.5,
+          "w": 24,
+          "h": 16
+        },
+        {
+          "n": 8,
           "x": 1,
           "y": 114,
           "w": 40,
@@ -477,7 +491,7 @@
           "at": "bl"
         },
         {
-          "n": 7,
+          "n": 9,
           "x": 14,
           "y": 73.5,
           "w": 13,
@@ -587,6 +601,40 @@
           "y": 201,
           "w": 131,
           "h": 20
+        }
+      ]
+    },
+    "f12-table-operators": {
+      "w": 256,
+      "h": 311,
+      "gpu": false,
+      "marks": []
+    },
+    "f12-table-list": {
+      "w": 491,
+      "h": 326,
+      "gpu": false,
+      "marks": [
+        {
+          "n": 1,
+          "x": 294.96875,
+          "y": 76.5,
+          "w": 28.03125,
+          "h": 16
+        },
+        {
+          "n": 2,
+          "x": 193,
+          "y": 128,
+          "w": 286,
+          "h": 160
+        },
+        {
+          "n": 3,
+          "x": 193,
+          "y": 296,
+          "w": 129.21875,
+          "h": 16
         }
       ]
     }
@@ -1086,8 +1134,22 @@
         "icon": "",
         "keys": "",
         "section": "",
+        "label": "123 / abc",
+        "tooltip": "The column kind, detected from the values: number columns get number filters"
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
         "label": "Column filter",
-        "tooltip": "Show only rows whose whole value in this column equals the text. * or % matches any text: PIPE* starts with, *PIPE* contains (all filled columns must match)"
+        "tooltip": "Show only matching rows (all filtering columns must match). Paste cells from a spreadsheet for an in-list filter."
+      },
+      {
+        "icon": "",
+        "keys": "",
+        "section": "",
+        "label": "Filter operator (=)",
+        "tooltip": "How the column is filtered: equals (* or % match any text), not equal, contains, in list, >, between, blank… Alt+↓ in the filter opens it."
       },
       {
         "icon": "",
@@ -1149,5 +1211,5 @@
       }
     ]
   },
-  "appVersion": "0.26.4"
+  "appVersion": "0.26.9"
 }

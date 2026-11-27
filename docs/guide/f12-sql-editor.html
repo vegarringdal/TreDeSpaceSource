@@ -337,9 +337,12 @@
             <li><b>Load all</b> (<kbd>ALT 653</kbd>) — a report shows its first <b>50 rows</b> only. Load all runs it again for up to 450,000 rows. The button is only there when the result was cut off.</li>
             <li><b>Clear on close / Keep</b> (<kbd>ALT 662</kbd>) — whether closing the panel throws the result away (the default, to free memory) or keeps it for when you open the panel again. Switching layout never throws it away.</li>
             <li><b>Column title</b> — click to sort A→Z, again for Z→A, a third time to unsort. Drag the edge of a title to change the column width.</li>
-            <li><b>Column filter</b> (<i>equals (* = any)</i>) — shows only rows whose <i>whole</i> value in that column is the text (capitals do not matter).
+            <li><b>Column kind</b> — <b>123</b> when every value in the column is a number, else <b>abc</b>. It decides which filters the column offers. Numbers are right-aligned.</li>
+            <li><b>Column filter</b> — by default shows only rows whose <i>whole</i> value in that column is the text (capitals do not matter).
               Use <code class="inline">*</code> or <code class="inline">%</code> for “any text”: <code class="inline">PIPE*</code> starts with,
-              <code class="inline">*PIPE</code> ends with, <code class="inline">*PIPE*</code> contains, and <code class="inline">*PIPE*100*</code> has PIPE with 100 somewhere after it. Filters in several columns must all match.</li>
+              <code class="inline">*PIPE</code> ends with, <code class="inline">*PIPE*</code> contains, and <code class="inline">*PIPE*100*</code> has PIPE with 100 somewhere after it.
+              A column that filters is underlined in blue. Filters in several columns must all match.</li>
+            <li><b>Filter operator</b> — how the column is filtered. Click it, or press <kbd>Alt</kbd> + <kbd>↓</kbd> in the filter, to pick another one (see <a href="#table-filters">Column filters</a>). It turns blue when it is not the default <b>=</b>.</li>
             <li><b>Row number</b> — click to mark a row, <kbd>Ctrl</kbd> + click to add or remove one, <kbd>Shift</kbd> + click for a range.</li>
             <li><b>Corner box</b> (<kbd>ALT 652</kbd>) — marks every row shown, or unmarks them all.</li>
           </ol>
@@ -350,6 +353,39 @@
             <li><b>Copy to clipboard (all)</b> (<kbd>ALT 656</kbd>) / <b>(selected rows)</b> (<kbd>ALT 657</kbd>) — tab-separated with a header row, ready to paste into a spreadsheet.</li>
           </ul>
           <p>Both take the rows <i>as shown</i>: column filters and sorting are applied. The “selected rows” entries are greyed out until rows are marked.</p>
+
+          <h3 id="table-filters">Column filters</h3>
+          <p>
+            Each filter has an operator button. Text columns have it on the right, number columns on the left. Pick the
+            operator from its menu:
+          </p>
+          <figure class="shot" data-shot="f12-table-operators"></figure>
+          <div class="ref-table"><table>
+            <thead><tr><th>Button</th><th>Shows rows where the value…</th><th>Columns</th></tr></thead>
+            <tbody>
+              <tr><td><code class="inline">=</code></td><td>equals the text. The default. <code class="inline">*</code> or <code class="inline">%</code> match any text.</td><td>all</td></tr>
+              <tr><td><code class="inline">≠</code></td><td>does not equal the text. Wildcards work here too.</td><td>all</td></tr>
+              <tr><td><code class="inline">*a*</code> <code class="inline">!*a*</code></td><td>contains / does not contain the text</td><td>text</td></tr>
+              <tr><td><code class="inline">a*</code> <code class="inline">*a</code></td><td>begins with / ends with the text</td><td>text</td></tr>
+              <tr><td><code class="inline">∈</code> <code class="inline">∉</code></td><td>is in / is not in a list of values. The button shows how many: <code class="inline">∈ 12</code>.</td><td>all</td></tr>
+              <tr><td><code class="inline">&gt;</code> <code class="inline">≥</code> <code class="inline">&lt;</code> <code class="inline">≤</code></td><td>is greater / less than the number</td><td>number</td></tr>
+              <tr><td><code class="inline">a..b</code></td><td>is between two numbers, both included: <code class="inline">100..250</code>. Leave one end out for no limit: <code class="inline">100..</code></td><td>number</td></tr>
+              <tr><td><code class="inline">∅</code> <code class="inline">!∅</code></td><td>is blank / is not blank. No text needed.</td><td>all</td></tr>
+            </tbody>
+          </table></div>
+          <ul class="plain">
+            <li><b>Typing a sign first</b> switches the operator: <code class="inline">&gt;=500</code> becomes <b>≥</b> 500, and <code class="inline">!=</code> or <code class="inline">&lt;&gt;</code> becomes <b>≠</b>. <code class="inline">&gt;</code> and <code class="inline">&lt;</code> only switch on number columns.</li>
+            <li><b>Numbers</b> — on a number column, <code class="inline">80</code> matches 80 and 80.0. A decimal comma works too: <code class="inline">1,5</code>.</li>
+            <li><b>Paste from a spreadsheet</b> — pasting several cells into a filter (a copied column, or a row) makes it an <b>in list</b> filter. Empty cells are skipped and repeats dropped. A <b>not in list</b> filter stays not in list.</li>
+          </ul>
+          <p>An in-list filter is edited in the <b>list editor</b>, which opens when you pick In list or Not in list, click the filter, or paste several cells:</p>
+          <figure class="shot" data-shot="f12-table-list"></figure>
+          <ol class="legend-list">
+            <li><b>∈ 3</b> — the list has 3 values. The filter itself shows them separated by <code class="inline">;</code>.</li>
+            <li><b>The list</b> — one value per line. Type or paste here. The table follows as you type, and values may use <code class="inline">*</code> wildcards. Drag the corner to make the box bigger.</li>
+            <li><b>Count</b> — how many values, and how many lines repeat one. Repeats are removed the next time the list opens.</li>
+          </ol>
+          <p><b>Done</b>, <kbd>Esc</kbd> or a click outside closes the editor.</p>
 
           <h3 id="table-side">Side menu — with the marked rows</h3>
           <p>

@@ -13,7 +13,7 @@ type TableBodyProps = Readonly<{
 /** The virtualized grid body: only the rows in the [first, last) view window
  *  are mounted, absolutely positioned inside a full-height spacer. */
 export function TableBody({ rows, view, layout, selection }: TableBodyProps) {
-  const { colKeys, viewIdx } = view;
+  const { colKeys, kinds, viewIdx } = view;
   const { widths, gutterW, virtual } = layout;
   const { selected, clickRow } = selection;
 
@@ -48,7 +48,10 @@ export function TableBody({ rows, view, layout, selection }: TableBodyProps) {
             {row.map((v, ci) => (
               <div
                 key={colKeys[ci] ?? ci}
-                className="flex items-center overflow-hidden border-slate-900 border-r px-1.5 text-slate-300"
+                className={cn(
+                  'flex items-center overflow-hidden border-slate-900 border-r px-1.5 text-slate-300',
+                  kinds[ci] === 'number' && 'justify-end tabular-nums',
+                )}
                 style={{ width: widths[ci] }}
                 title={v == null ? '' : String(v)}
               >

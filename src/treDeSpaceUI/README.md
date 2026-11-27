@@ -924,6 +924,7 @@ type MenuProps = {
   items: readonly MenuEntry[];
   onClose: () => void;
   minWidth?: number;    // default 160
+  focusId?: string;     // entry to focus on open — for a menu opened from the keyboard
   className?: string;
 };
 ```
@@ -933,6 +934,52 @@ an entry closes the menu **before** running `onSelect`, so a handler that opens
 a dialog never leaves the menu floating behind it. Closes on outside press and
 on Escape. To open it from a button, anchor it under the button:
 `onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setAnchor({ x: r.left, y: r.bottom + 2 }); }}`.
+
+**Keyboard.** While focus is in the menu, `↑` / `↓` move between the enabled
+entries (wrapping). Pass `focusId` (say the current choice) when the menu is
+opened from a key, like a picker's `Alt`+`↓`: that entry gets focus, and Escape
+or a pick hands focus back to where it was, so the user keeps typing where
+they left off. A menu opened by a click outside it leaves focus where the
+click put it.
+
+### Anchored popovers — usePopoverAnchor + PickerPopover
+
+The pieces the pickers (Select, DatePicker, TimePicker) are built from, for a
+popover of your own under a field or button: a list editor, a small form.
+`usePopoverAnchor(estimatedHeight)` holds the open state, closes on a press
+outside both the trigger and the popover, follows the trigger while anything
+scrolls or resizes, and flips upward when the estimated height does not fit
+below. `PickerPopover` is the body-portaled box (popover floor `2500`, so a
+panel's scroll never clips it).
+
+```tsx
+const anchor = usePopoverAnchor(220);   // estimated height in px
+
+<div ref={anchor.rootRef}>             {/* the trigger area — presses here do not close it */}
+  <Button onClick={() => anchor.setOpen((o) => !o)}>Edit list</Button>
+  {anchor.open && (
+    <PickerPopover anchor={anchor} width={300}>
+      <textarea autoFocus onKeyDown={(e) => e.key === 'Escape' && anchor.setOpen(false)} />
+    </PickerPopover>
+  )}
+</div>
+```
+
+```ts
+type PopoverAnchor = {
+  open: boolean;
+  setOpen: (o: boolean | ((o: boolean) => boolean)) => void;
+  pos: { left: number; top: number; width: number; up: boolean };
+  rootRef: RefObject<HTMLDivElement | null>;   // on the trigger's wrapper
+  popRef: RefObject<HTMLDivElement | null>;    // PickerPopover sets it
+};
+type PickerPopoverProps = { anchor: PopoverAnchor; width: number; children: ReactNode };
+```
+
+Render the popover only while `anchor.open`, so its content mounts fresh (and
+can take its initial state from props) every time it opens. Escape is yours
+to handle; the hook only closes on an outside press. `width` clamps the left
+edge into the viewport — a resizable child may still grow past it.
 
 ### TreeView
 
@@ -3039,6 +3086,7 @@ Every enum in the library in one place:
 | a transient notification | `toast` + one `<Toaster />` |
 | a dialog box | `DialogFrame`; a ready one: `ConfirmDialogCore` / `PromptDialogCore` / `ErrorDialogCore` / `LoadingDialogCore` |
 | a right-click or dropdown menu | `Menu` |
+| your own popover under a field or button | `usePopoverAnchor` + `PickerPopover` |
 | a tree | `TreeView`; files and folders: `FileTree` |
 | a path / location trail | `Breadcrumbs` |
 | side tabs | `VerticalTabs` |
@@ -3127,7 +3175,7 @@ Every enum in the library in one place:
 | Tooltips never appear | `initTooltips()` not called | call it once at boot |
 | A tooltip has no shortcut footer | hotkeys not registered, or an unknown id | `hotkeysActions.register(...)` at boot; check the id |
 | Toasts do nothing | no `<Toaster />` mounted | mount one at the app root |
-| A dropdown is clipped by a panel | a custom popover that is not portaled | portal it, on a floor from §2's stacking order |
+| A dropdown is clipped by a panel | a custom popover that is not portaled | build it on `usePopoverAnchor` + `PickerPopover` (§3), or portal it on a floor from §2's stacking order |
 | Two overlays fight | equal z-index — DOM order decides | give them different values (§2) |
 | `onChange` gives `string`, not your union | an untyped option list | type it: `readonly SelectOption<Mode>[]` |
 | "Invalid hook call" | two copies of React | one React 19 at the root; `npm ls react` |

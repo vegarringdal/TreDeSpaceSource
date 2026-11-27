@@ -1,10 +1,23 @@
-# SQL Table filters — operators, typed columns, list editor (PLANNED, not scheduled)
+# SQL Table filters — operators, typed columns, list editor (PHASE 1 DONE, phase 2 open)
 
-> **Status: design agreed with the director, 2026-11-27; no implementation
-> started.** Worked out on a clickable mock,
+> **Status: phase 1 built on branch `table_improvments`, 2026-11-27.** The
+> design was worked out on a clickable mock,
 > [`table_improvements_mock.html`](table_improvements_mock.html) (open it in a
-> browser; the expression bar loads SQLite from cdnjs). File references were
-> accurate when written. **Check them again before starting.**
+> browser; the expression bar loads SQLite from cdnjs). The open questions
+> were settled with the director: text keeps **equals** as its default,
+> filters still **reset** on every new result, and the **expression bar
+> (phase 2) comes later**. What is left is [phase 2](#expression-bar-optional-phase-2).
+>
+> Phase 1 as built: `filterOperators.ts` (operator ids, symbols, menus, typed
+> shortcuts, paste parsing), `cellFilter.ts` (`compileCellFilter(filter,
+> kind)`, `detectColumnKinds`), `useTableView.ts`, `FilterCell.tsx` +
+> `useFilterCell.ts` + `operatorMenu.tsx`, `FilterListEditor.tsx`. Two library
+> additions came with it: `Menu` got `focusId` and arrow-key navigation (so
+> `Alt`+`↓` gives a menu you can drive from the keyboard), and
+> `usePopoverAnchor` / `PickerPopover` are exported. Deviations from the
+> sketch: the list text is stored one value per line (not `; `), repeats are
+> dropped when the editor next opens rather than on close, and `BETWEEN`
+> allows an open end (`100..`).
 
 ## Goal
 

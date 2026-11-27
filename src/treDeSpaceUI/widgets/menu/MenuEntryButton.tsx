@@ -8,6 +8,7 @@ export function MenuEntryButton({ item, onClose }: { item: MenuItem; onClose: ()
     <button
       type="button"
       role="menuitem"
+      data-menu-id={item.id}
       disabled={item.disabled}
       data-tooltip={item.tooltip}
       data-shortcut={item.shortcut}
