@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL Table Filters</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working grid (the panel as it would ship) on top, how-it-behaves notes below. Palette follows the app's slate ribbon/panel look. */
+:root {
+  --bg: #f1f4f8;
+  --panel: #ffffff;
+  --panel-2: #f6f8fb;
+  --line: #d5dce6;
+  --line-2: #e6ebf1;
+  --fg: #1c2633;
+  --muted: #5d6b7d;
+  --faint: #8794a6;
+  --accent: #2563c9;
+  --accent-bg: #e3edfc;
+  --accent-line: #8db3ee;
+  --warn: #a65d00;
+  --warn-bg: #fff3df;
+  --bad: #b42318;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --row: 24px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1018; --panel: #111827; --panel-2: #0d1420; --line: #2a3546; --line-2: #1d2635;
+    --fg: #dbe3ee; --muted: #94a3b8; --faint: #64748b; --accent: #7fb0ff; --accent-bg: #15284a;
+    --accent-line: #3b6fc4; --warn: #f5b454; --warn-bg: #3a2a10; --bad: #ff8a80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1018; --panel: #111827; --panel-2: #0d1420; --line: #2a3546; --line-2: #1d2635;
+  --fg: #dbe3ee; --muted: #94a3b8; --faint: #64748b; --accent: #7fb0ff; --accent-bg: #15284a;
+  --accent-line: #3b6fc4; --warn: #f5b454; --warn-bg: #3a2a10; --bad: #ff8a80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 13px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; text-wrap: balance; }
+h2 { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+p { margin: 0; max-width: 72ch; }
+.lead { color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--panel); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* panel chrome */
+.panel { background: var(--panel); border: 1px solid var(--line); min-width: 0; }
+.titlebar { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--line); background: var(--panel-2); flex-wrap: wrap; }
+.titlebar .name { font-weight: 600; }
+.titlebar .count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.titlebar .spacer { flex: 1; }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 2px 8px; cursor: pointer; font-size: 12px; }
+.btn:hover { border-color: var(--accent-line); }
+.btn.on { background: var(--accent-bg); border-color: var(--accent-line); color: var(--accent); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.pill { font-size: 11px; padding: 0 6px; border: 1px solid var(--accent-line); background: var(--accent-bg); color: var(--accent); }
+
+/* expression bar */
+.expr { border-bottom: 1px solid var(--line); padding: 6px 8px; display: grid; gap: 6px; background: var(--panel-2); }
+.expr-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.expr-row label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.expr input { flex: 1; min-width: 200px; font-family: var(--mono); font-size: 12px; padding: 3px 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); }
+.expr .sql { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: pre-wrap; margin: 4px 0 0; }
+.expr summary { font-size: 11px; color: var(--faint); cursor: pointer; width: max-content; }
+.expr summary:hover { color: var(--muted); }
+.expr .msg { font-size: 12px; }
+.expr .msg.err { color: var(--bad); }
+.expr .msg.note { color: var(--muted); }
+
+/* grid */
+.scroll { overflow: auto; max-height: 470px; }
+.grid { display: grid; min-width: max-content; font-size: 12px; }
+.hrow, .frow, .row { display: grid; grid-template-columns: var(--cols); }
+.hrow { position: sticky; top: 0; z-index: 3; background: var(--panel-2); }
+.frow { position: sticky; top: var(--row); z-index: 3; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.cell, .hcell, .fcell { height: var(--row); border-right: 1px solid var(--line-2); display: flex; align-items: center; min-width: 0; }
+.hcell { padding: 0 6px; font-weight: 500; color: var(--muted); cursor: pointer; gap: 4px; user-select: none; white-space: nowrap; overflow: hidden; }
+.hcell:hover { color: var(--fg); }
+.hcell .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hcell .arrow { flex: none; width: 10px; font-size: 11px; color: var(--accent); text-align: center; }
+.hcell .type { flex: none; font-family: var(--mono); font-size: 10px; color: var(--faint); border: 1px solid var(--line); padding: 0 3px; margin-left: auto; }
+.gutter { justify-content: flex-end; padding: 0 6px; color: var(--faint); font-variant-numeric: tabular-nums; position: sticky; left: 0; z-index: 2; border-right: 1px solid var(--line); }
+.hcell.gutter, .fcell.gutter { background: var(--panel-2); }
+.cell { padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--panel); }
+.row:nth-child(even) .cell { background: color-mix(in srgb, var(--panel-2) 60%, var(--panel)); }
+.row:hover .cell { background: var(--accent-bg); }
+.cell.num { justify-content: flex-end; font-variant-numeric: tabular-nums; }
+.cell.null { color: var(--faint); font-style: italic; }
+
+/* filter cell: input + operator chip on the right */
+.fcell { position: relative; }
+.fcell input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--fg); padding: 0 4px 0 6px; font-size: 11px; font-family: var(--font); outline: none; }
+.fcell input::placeholder { color: var(--faint); }
+.fcell input:focus { background: var(--panel); }
+.fcell input:disabled { cursor: default; }
+.fcell.active { box-shadow: inset 0 -2px 0 var(--accent); }
+.chip { flex: none; height: 18px; min-width: 26px; margin-right: 3px; padding: 0 4px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+.chip:hover { border-color: var(--accent-line); color: var(--fg); }
+.chip.changed { border-color: var(--accent-line); color: var(--accent); background: var(--accent-bg); }
+.fcell.gutter { position: sticky; }
+.fcell input[readonly] { cursor: pointer; }
+.listpop { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 24px rgb(0 0 0 / .18); padding: 6px; display: grid; gap: 6px; font-size: 12px; }
+.listpop .head { display: flex; gap: 8px; align-items: baseline; }
+.listpop .head b { font-weight: 600; }
+.listpop .head span { color: var(--muted); }
+.listpop textarea { width: 280px; height: 160px; min-width: 200px; min-height: 80px; max-width: calc(100vw - 32px); resize: both; font-family: var(--mono); font-size: 12px; line-height: 1.45; padding: 4px 6px; border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); }
+.listpop .foot { display: flex; gap: 6px; align-items: center; }
+.listpop .foot .n { color: var(--muted); margin-right: auto; font-variant-numeric: tabular-nums; }
+.fcell.num .chip { order: -1; margin: 0 0 0 3px; }
+.fcell.num input { text-align: right; padding: 0 6px 0 4px; }
+.copied { color: var(--muted); font-size: 12px; align-self: center; }
+
+.menu { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 24px rgb(0 0 0 / .18); padding: 3px; min-width: 210px; font-size: 12px; }
+.menu .title { padding: 2px 6px 4px; color: var(--faint); font-size: 11px; }
+.menu button { display: grid; grid-template-columns: 36px 1fr; gap: 6px; align-items: center; width: 100%; text-align: left; border: 0; background: transparent; padding: 3px 6px; cursor: pointer; }
+.menu button:hover, .menu button:focus-visible { background: var(--accent-bg); outline: none; }
+.menu button.sel { color: var(--accent); font-weight: 500; }
+.menu .sym { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; }
+.menu hr { border: 0; border-top: 1px solid var(--line-2); margin: 3px 0; }
+
+.empty { padding: 24px; color: var(--muted); text-align: center; }
+
+/* notes */
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; min-width: 0; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+table.ops { border-collapse: collapse; width: 100%; font-size: 12px; }
+table.ops th, table.ops td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+table.ops th { color: var(--muted); font-weight: 500; }
+table.ops td:first-child { font-family: var(--mono); color: var(--accent); white-space: nowrap; }
+.q { background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+.q h2 { color: var(--warn); }
+.tryit { display: flex; gap: 6px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header style="display:grid;gap:6px">
+    <h1>SQL Table filters (plan A)</h1>
+    <p class="lead">A working mock of the SQL Table panel with an operator button at the right of every filter cell. The rows are example data. Click a column's operator button, type in a filter, or try the examples below.</p>
+    <div class="tryit" aria-label="Examples">
+      <button class="btn" data-try="ex1">TYPE ≠ PIPE</button>
+      <button class="btn" data-try="ex2">NAME does not contain FLANGE</button>
+      <button class="btn" data-try="ex3">DIAMETER_MM in 80; 150</button>
+      <button class="btn" data-try="ex4">WEIGHT_KG ≥ 500</button>
+      <button class="btn" data-try="ex5">STATUS is blank</button>
+      <button class="btn" data-try="ex6">Type “&gt;=1000” in WEIGHT_KG</button>
+      <button class="btn" data-try="ex7">Paste an Excel column into NAME</button>
+      <button class="btn" id="copyList">Copy 4 names to paste yourself</button>
+      <span class="copied" id="copied" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <section class="panel" aria-label="SQL Table panel mock">
+    <div class="titlebar">
+      <span class="name">Pipe and steel items</span>
+      <span class="count" id="count"></span>
+      <span class="pill" id="activePill" hidden></span>
+      <span class="spacer"></span>
+      <button class="btn" id="clearFilters" disabled>Clear filters</button>
+      <button class="btn" id="exprToggle" aria-expanded="false">Expression…</button>
+    </div>
+    <div class="expr" id="expr" hidden>
+      <div class="expr-row">
+        <label for="exprInput">WHERE</label>
+        <input id="exprInput" spellcheck="false" autocomplete="off" value="diameter_mm >= 100 AND status <> 'Planned'">
+        <button class="btn" id="exprRun">Run</button>
+        <button class="btn" id="exprClear">Clear</button>
+      </div>
+      <div class="msg note" id="exprMsg">Runs the report again with this condition. The column filters still apply on top.</div>
+      <details class="sqlwrap"><summary>Show full query</summary><pre class="sql" id="exprSql"></pre></details>
+    </div>
+    <div class="scroll" id="scroll">
+      <div class="grid" id="grid" role="table" aria-label="Result rows"></div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="card">
+      <h2>Operators</h2>
+      <table class="ops">
+        <thead><tr><th>Button</th><th>Meaning</th><th>Columns</th></tr></thead>
+        <tbody>
+          <tr><td>=</td><td>Equals the whole value. <code>*</code> or <code>%</code> match any text, as today.</td><td>all</td></tr>
+          <tr><td>≠</td><td>Does not equal. Wildcards work here too.</td><td>all</td></tr>
+          <tr><td>*a*</td><td>Contains</td><td>text</td></tr>
+          <tr><td>!*a*</td><td>Does not contain</td><td>text</td></tr>
+          <tr><td>a*&nbsp;/&nbsp;*a</td><td>Begins with / ends with</td><td>text</td></tr>
+          <tr><td>∈&nbsp;/&nbsp;∉</td><td>In list / not in list. Paste cells copied from Excel, or separate values with <code>;</code>. The button shows how many values the list has.</td><td>all</td></tr>
+          <tr><td>&gt; ≥ &lt; ≤</td><td>Compared as numbers</td><td>number</td></tr>
+          <tr><td>a..b</td><td>Between, both ends included: <code>100..250</code></td><td>number</td></tr>
+          <tr><td>∅&nbsp;/&nbsp;!∅</td><td>Is blank / is not blank. No value needed.</td><td>all</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>How it behaves</h2>
+      <ul>
+        <li><b>Column types are detected.</b> A column where every value SQLite returns is a number gets the number operators and its <span class="mono">123</span> tag. Everything else is text. No setup in the report.</li>
+        <li><b>Number columns</b> have the operator button on the left and the value right-aligned, in line with the numbers below.</li>
+        <li><b>Paste from Excel.</b> Pasting several cells (a copied column, or a row) into any filter makes it an in-list filter: one value per cell, empty cells skipped, repeats dropped. A not-in-list filter stays not-in-list.</li>
+        <li><b>List editor.</b> An in-list filter opens a resizable box with one value per line, where you can read, type or paste values. The count shows repeats, and the table follows as you type. <b>Done</b>, <kbd>Esc</kbd> or a click outside closes it. The filter cell then shows the values separated by <code>;</code>.</li>
+        <li><b>Text compare ignores capitals</b> and surrounding spaces, as today.</li>
+        <li><b>Shortcuts while typing.</b> Starting a filter with <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>!=</code> or <code>&lt;&gt;</code> switches the operator and removes the sign. Old habits keep working.</li>
+        <li><b>The button turns blue</b> when a column uses anything other than its default. The cell gets a blue underline while it filters.</li>
+        <li><b>Filters in several columns must all match.</b> Export, copy and "With selection" act on the rows shown, as today.</li>
+        <li><b>Keyboard:</b> <kbd>Alt</kbd>+<kbd>↓</kbd> in a filter opens its operators, <kbd>Esc</kbd> closes the list.</li>
+      </ul>
+    </div>
+    <div class="card q">
+      <h2>To decide</h2>
+      <ul>
+        <li><b>Default for text:</b> keep <b>equals</b> with wildcards (today's behaviour), or switch to <b>contains</b>? This mock keeps equals.</li>
+        <li><b>Remember the operators</b> per report, so a re-run keeps them? Today the filters reset when a new result arrives.</li>
+        <li><b>Expression bar:</b> worth it now, or later? It re-runs the whole report, so a slow report is slow again. It is the only way to filter on a column you didn't select, or to use OR.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ---------------------------------------------------------------------------
+  // example data (what a report would return)
+  // ---------------------------------------------------------------------------
+  const REPORT_SQL = "SELECT name, type, diameter_mm, weight_kg, area, status\n  FROM items\n WHERE area LIKE 'HA-%'";
+  const COLUMNS = ['NAME', 'TYPE', 'DIAMETER_MM', 'WEIGHT_KG', 'AREA', 'STATUS'];
+  const KINDS = [
+    { type: 'PIPE', area: 'HA-PIPE', sizes: [50, 80, 100, 150, 200, 250], w: [40, 900] },
+    { type: 'VALVE', area: 'HA-PIPE', sizes: [50, 80, 100], w: [15, 220] },
+    { type: 'FLANGE', area: 'HA-PIPE', sizes: [80, 100, 150], w: [8, 60] },
+    { type: 'BEAM', area: 'HA-STRU', sizes: [null], w: [300, 2400] },
+    { type: 'PUMP', area: 'HA-MECH', sizes: [null], w: [800, 3600] },
+  ];
+  const STATUSES = ['Installed', 'Planned', 'On hold', null, 'Installed'];
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const BASE_ROWS = [];
+  for (let i = 0; i < 64; i++) {
+    const k = KINDS[i % KINDS.length];
+    const size = k.sizes[Math.floor(rand() * k.sizes.length)];
+    const nr = String(100 + i * 7).padStart(4, '0');
+    const name = k.type === 'BEAM' ? `/HA-STRU/DECKGIRDER-B${nr}`
+      : k.type === 'PUMP' ? `/HA-MECH/PUMP-P${nr}`
+      : `/HA-PIPE/${k.type}-${size}-${nr}`;
+    const weight = Math.round((k.w[0] + rand() * (k.w[1] - k.w[0])) * 10) / 10;
+    BASE_ROWS.push([name, k.type, size, weight, k.area, STATUSES[Math.floor(rand() * STATUSES.length)]]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // operators
+  // ---------------------------------------------------------------------------
+  const OPS = {
+    eq: { sym: '=', label: 'Equals', ph: 'equals (* = any)' },
+    neq: { sym: '≠', label: 'Does not equal', ph: 'not equal (* = any)' },
+    contains: { sym: '*a*', label: 'Contains', ph: 'contains' },
+    ncontains: { sym: '!*a*', label: 'Does not contain', ph: 'does not contain' },
+    begins: { sym: 'a*', label: 'Begins with', ph: 'begins with' },
+    ends: { sym: '*a', label: 'Ends with', ph: 'ends with' },
+    in: { sym: '∈', label: 'In list', ph: 'click to enter values' },
+    nin: { sym: '∉', label: 'Not in list', ph: 'click to enter values' },
+    gt: { sym: '>', label: 'Greater than', ph: 'greater than' },
+    gte: { sym: '≥', label: 'Greater or equal', ph: 'at least' },
+    lt: { sym: '<', label: 'Less than', ph: 'less than' },
+    lte: { sym: '≤', label: 'Less or equal', ph: 'at most' },
+    between: { sym: 'a..b', label: 'Between', ph: 'from..to' },
+    blank: { sym: '∅', label: 'Is blank', ph: '(no value needed)', noValue: true },
+    nblank: { sym: '!∅', label: 'Is not blank', ph: '(no value needed)', noValue: true },
+  };
+  const TEXT_OPS = [['eq', 'neq'], ['contains', 'ncontains', 'begins', 'ends'], ['in', 'nin'], ['blank', 'nblank']];
+  const NUMBER_OPS = [['eq', 'neq'], ['gt', 'gte', 'lt', 'lte', 'between'], ['in', 'nin'], ['blank', 'nblank']];
+  const TYPED_PREFIX = [['>=', 'gte'], ['<=', 'lte'], ['<>', 'neq'], ['!=', 'neq'], ['>', 'gt'], ['<', 'lt']];
+
+  const norm = (v) => (v == null ? '' : String(v).trim().toLowerCase());
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const toNumber = (s) => { const n = Number(String(s).trim().replace(',', '.')); return String(s).trim() === '' || Number.isNaN(n) ? null : n; };
+
+  function textMatcher(pattern) {
+    const parts = pattern.split(/[*%]+/);
+    if (parts.length === 1) { return (t) => t === pattern; }
+    const rx = new RegExp(`^${parts.map(esc).join('.*')}$`, 's');
+    return (t) => rx.test(t);
+  }
+  function valueMatcher(raw, isNumber) {
+    const n = isNumber ? toNumber(raw) : null;
+    if (n !== null) { return (cell) => cell !== null && cell !== '' && Number(cell) === n; }
+    const m = textMatcher(norm(raw));
+    return (cell) => m(norm(cell));
+  }
+  function listOf(text) { return text.split(/[;\n]/).map((s) => s.trim()).filter(Boolean); }
+
+  /** A cell predicate for one column's operator + text, null when it does not filter. */
+  function compile(op, text, isNumber) {
+    const t = text.trim();
+    if (op === 'blank') { return (c) => norm(c) === ''; }
+    if (op === 'nblank') { return (c) => norm(c) !== ''; }
+    if (!t) { return null; }
+    const low = t.toLowerCase();
+    switch (op) {
+      case 'eq': return valueMatcher(t, isNumber);
+      case 'neq': { const m = valueMatcher(t, isNumber); return (c) => !m(c); }
+      case 'contains': return (c) => norm(c).includes(low);
+      case 'ncontains': return (c) => !norm(c).includes(low);
+      case 'begins': return (c) => norm(c).startsWith(low);
+      case 'ends': return (c) => norm(c).endsWith(low);
+      case 'in': case 'nin': {
+        const ms = listOf(t).map((v) => valueMatcher(v, isNumber));
+        if (!ms.length) { return null; }
+        const hit = (c) => ms.some((m) => m(c));
+        return op === 'in' ? hit : (c) => !hit(c);
+      }
+      case 'between': {
+        const [a, b] = t.split('..').map(toNumber);
+        if (a == null || b == null) { return () => false; }
+        const lo = Math.min(a, b), hi = Math.max(a, b);
+        return (c) => c != null && c !== '' && Number(c) >= lo && Number(c) <= hi;
+      }
+      default: {
+        const v = toNumber(t);
+        if (v == null) { return () => false; }
+        const cmp = { gt: (x) => x > v, gte: (x) => x >= v, lt: (x) => x < v, lte: (x) => x <= v }[op];
+        return (c) => c != null && c !== '' && cmp(Number(c));
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // state
+  // ---------------------------------------------------------------------------
+  let rows = BASE_ROWS;
+  let isNumberCol = [];
+  let filters = COLUMNS.map(() => ({ op: 'eq', text: '' }));
+  let sort = null;
+  let exprActive = false;
+
+  function detectTypes() {
+    isNumberCol = COLUMNS.map((_, c) => {
+      let seen = false;
+      for (const r of rows) {
+        const v = r[c];
+        if (v == null || v === '') { continue; }
+        if (typeof v !== 'number') { return false; }
+        seen = true;
+      }
+      return seen;
+    });
+  }
+  const defaultOp = () => 'eq';
+  const opsFor = (c) => (isNumberCol[c] ? NUMBER_OPS : TEXT_OPS);
+
+  function viewRows() {
+    const active = [];
+    filters.forEach((f, c) => { const m = compile(f.op, f.text, isNumberCol[c]); if (m) { active.push([m, c]); } });
+    let idx = rows.map((_, i) => i).filter((ri) => active.every(([m, c]) => m(rows[ri][c])));
+    if (sort) {
+      const { col, dir } = sort;
+      idx.sort((a, b) => {
+        const x = rows[a][col], y = rows[b][col];
+        const r = x == null ? (y == null ? 0 : -1) : y == null ? 1
+          : typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y));
+        return dir === 'asc' ? r : -r;
+      });
+    }
+    return { idx, activeCount: active.length };
+  }
+
+  // ---------------------------------------------------------------------------
+  // render
+  // ---------------------------------------------------------------------------
+  const grid = document.getElementById('grid');
+  const WIDTHS = [250, 90, 120, 120, 100, 110];
+
+  function renderHeader() {
+    grid.style.setProperty('--cols', `44px ${WIDTHS.map((w) => w + 'px').join(' ')}`);
+    const h = document.createElement('div');
+    h.className = 'hrow'; h.setAttribute('role', 'row');
+    h.innerHTML = `<div class="hcell gutter"></div>` + COLUMNS.map((c, i) => {
+      const arrow = sort?.col === i ? (sort.dir === 'asc' ? '↑' : '↓') : '';
+      return `<div class="hcell" role="columnheader" data-sort="${i}" title="${c} — click to sort"><span class="label">${c}</span><span class="arrow" aria-hidden="true">${arrow}</span><span class="type">${isNumberCol[i] ? '123' : 'abc'}</span></div>`;
+    }).join('');
+    const f = document.createElement('div');
+    f.className = 'frow'; f.setAttribute('role', 'row');
+    f.innerHTML = `<div class="fcell gutter"></div>` + COLUMNS.map((c, i) => {
+      const flt = filters[i], op = OPS[flt.op];
+      const changed = flt.op !== defaultOp(i);
+      const listed = flt.op === 'in' || flt.op === 'nin' ? listOf(flt.text).length : 0;
+      const sym = listed ? `${op.sym} ${listed}` : op.sym;
+      const title = listed ? `${op.label}: ${listed} value${listed === 1 ? '' : 's'} — click to change` : `${op.label} — click to change`;
+      return `<div class="fcell ${isNumberCol[i] ? 'num' : ''}" data-col="${i}">
+        <input id="f${i}" aria-label="Filter ${c}" value="${flt.text.replace(/"/g, '&quot;')}" placeholder="${op.noValue ? '' : 'filter'}" ${op.noValue ? 'disabled' : ''} ${listed || flt.op === 'in' || flt.op === 'nin' ? 'readonly title="Click to edit the list"' : ''} spellcheck="false" autocomplete="off">
+        <button class="chip ${changed ? 'changed' : ''}" data-op="${i}" aria-haspopup="menu" title="${title}">${sym}</button>
+      </div>`;
+    }).join('');
+    return [h, f];
+  }
+
+  function render(keepFocus) {
+    const focusId = keepFocus ? document.activeElement?.id : null;
+    const caret = focusId ? document.activeElement.selectionStart : null;
+    const { idx, activeCount } = viewRows();
+    grid.replaceChildren(...renderHeader());
+    const frag = document.createDocumentFragment();
+    for (const ri of idx) {
+      const r = rows[ri];
+      const row = document.createElement('div');
+      row.className = 'row'; row.setAttribute('role', 'row');
+      row.innerHTML = `<div class="cell gutter">${ri + 1}</div>` + r.map((v, c) => {
+        const cls = ['cell', isNumberCol[c] ? 'num' : '', v == null ? 'null' : ''].join(' ');
+        return `<div class="${cls}" role="cell">${v == null ? 'null' : String(v)}</div>`;
+      }).join('');
+      frag.appendChild(row);
+    }
+    if (!idx.length) {
+      const e = document.createElement('div');
+      e.className = 'empty'; e.textContent = 'No rows match the filters.';
+      frag.appendChild(e);
+    }
+    grid.appendChild(frag);
+    filters.forEach((f, i) => {
+      const on = compile(f.op, f.text, isNumberCol[i]) !== null;
+      grid.querySelector(`.fcell[data-col="${i}"]`).classList.toggle('active', on);
+    });
+    document.getElementById('count').textContent = `${idx.length.toLocaleString()} of ${rows.length.toLocaleString()} rows`;
+    const pill = document.getElementById('activePill');
+    const total = activeCount + (exprActive ? 1 : 0);
+    pill.hidden = total === 0;
+    pill.textContent = `${total} filter${total === 1 ? '' : 's'}${exprActive ? ' incl. expression' : ''}`;
+    document.getElementById('clearFilters').disabled = total === 0;
+    if (focusId) {
+      const el = document.getElementById(focusId);
+      if (el) { el.focus(); if (caret != null && el.setSelectionRange) { el.setSelectionRange(caret, caret); } }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // operator menu
+  // ---------------------------------------------------------------------------
+  let menuEl = null;
+  function closeMenu() { menuEl?.remove(); menuEl = null; }
+  function openMenu(col, anchor) {
+    closeMenu();
+    const m = document.createElement('div');
+    m.className = 'menu'; m.setAttribute('role', 'menu');
+    const groups = opsFor(col);
+    m.innerHTML = `<div class="title">${COLUMNS[col]} · ${isNumberCol[col] ? 'number' : 'text'}</div>` +
+      groups.map((g) => g.map((k) =>
+        `<button role="menuitem" data-pick="${k}" class="${filters[col].op === k ? 'sel' : ''}"><span class="sym">${OPS[k].sym}</span>${OPS[k].label}</button>`,
+      ).join('')).join('<hr>');
+    document.body.appendChild(m);
+    const r = anchor.getBoundingClientRect();
+    const w = m.offsetWidth, h = m.offsetHeight;
+    m.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + 'px';
+    m.style.top = (r.bottom + h + 4 > innerHeight ? r.top - h - 4 : r.bottom + 4) + 'px';
+    m.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pick]');
+      if (!b) { return; }
+      closeMenu();
+      setOp(col, b.dataset.pick);
+    });
+    m.addEventListener('keydown', (e) => {
+      const items = [...m.querySelectorAll('button')];
+      const at = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown') { items[(at + 1) % items.length].focus(); e.preventDefault(); }
+      if (e.key === 'ArrowUp') { items[(at - 1 + items.length) % items.length].focus(); e.preventDefault(); }
+      if (e.key === 'Escape') { closeMenu(); document.getElementById(`f${col}`).focus(); }
+    });
+    menuEl = m;
+    (m.querySelector('.sel') ?? m.querySelector('button')).focus();
+  }
+  function setOp(col, op) {
+    filters[col] = { op, text: OPS[op].noValue ? '' : filters[col].text };
+    render(false);
+    if (op === 'in' || op === 'nin') { openListEditor(col); return; }
+    const input = document.getElementById(`f${col}`);
+    if (!input.disabled) { input.focus(); }
+  }
+
+  // ---------------------------------------------------------------------------
+  // in-list editor: one value per line, resizable, live
+  // ---------------------------------------------------------------------------
+  let listPop = null;
+  const linesOf = (text) => text.split(/\r?\n|\t|;/).map((s) => s.trim()).filter(Boolean);
+  function closeListEditor() {
+    if (!listPop) { return; }
+    const { col } = listPop;
+    listPop.el.remove();
+    listPop = null;
+    filters[col] = { ...filters[col], text: [...new Set(linesOf(filters[col].text))].join('; ') };
+    render(false);
+  }
+  function openListEditor(col) {
+    closeMenu();
+    if (listPop) { closeListEditor(); }
+    const el = document.createElement('div');
+    el.className = 'listpop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `${COLUMNS[col]} list`);
+    const isIn = filters[col].op === 'in';
+    el.innerHTML = `
+      <div class="head"><b>${COLUMNS[col]}</b><span>${isIn ? 'in list' : 'not in list'} · one value per line</span></div>
+      <textarea id="listText" spellcheck="false" placeholder="Paste cells from Excel, or type one value per line">${linesOf(filters[col].text).join('\n')}</textarea>
+      <div class="foot"><span class="n" id="listN"></span><button class="btn" id="listClear">Clear</button><button class="btn on" id="listDone">Done</button></div>`;
+    document.body.appendChild(el);
+    listPop = { el, col };
+    const ta = el.querySelector('textarea');
+    const count = () => {
+      const all = linesOf(ta.value);
+      const uniq = new Set(all.map((v) => v.toLowerCase())).size;
+      el.querySelector('#listN').textContent = `${uniq} value${uniq === 1 ? '' : 's'}${all.length > uniq ? ` (${all.length - uniq} repeated)` : ''}`;
+    };
+    ta.addEventListener('input', () => {
+      filters[col] = { ...filters[col], text: linesOf(ta.value).join('; ') };
+      count();
+      render(false);
+    });
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeListEditor(); document.querySelector(`[data-op="${col}"]`)?.focus(); }
+    });
+    el.querySelector('#listClear').addEventListener('click', () => { ta.value = ''; ta.dispatchEvent(new Event('input')); ta.focus(); });
+    el.querySelector('#listDone').addEventListener('click', closeListEditor);
+    const r = grid.querySelector(`.fcell[data-col="${col}"]`).getBoundingClientRect();
+    const w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+    el.style.top = (r.bottom + h + 4 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    count();
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (listPop && !listPop.el.contains(e.target)) { closeListEditor(); }
+  });
+
+  // ---------------------------------------------------------------------------
+  // events
+  // ---------------------------------------------------------------------------
+  grid.addEventListener('input', (e) => {
+    const cell = e.target.closest('.fcell');
+    if (!cell) { return; }
+    const col = Number(cell.dataset.col);
+    let text = e.target.value;
+    for (const [sign, op] of TYPED_PREFIX) {
+      if (text.startsWith(sign) && text.length > sign.length && !(sign.length === 1 && TYPED_PREFIX.some(([s]) => s.length === 2 && text.startsWith(s)))) {
+        if ((op === 'gt' || op === 'gte' || op === 'lt' || op === 'lte') && !isNumberCol[col]) { break; }
+        filters[col] = { op, text: text.slice(sign.length).trimStart() };
+        render(false);
+        const el = document.getElementById(`f${col}`);
+        el.focus(); el.setSelectionRange(el.value.length, el.value.length);
+        return;
+      }
+    }
+    filters[col] = { ...filters[col], text };
+    render(true);
+  });
+  /** Several cells pasted (a column copied from Excel: one value per line,
+   *  or a row: tab-separated) become an in-list filter. */
+  function pasteList(col, text) {
+    const values = [...new Set(text.split(/\r?\n|\t/).map((s) => s.trim()).filter(Boolean))];
+    const op = filters[col].op === 'nin' ? 'nin' : 'in';
+    filters[col] = { op, text: values.join('; ') };
+    render(false);
+    openListEditor(col);
+  }
+  grid.addEventListener('paste', (e) => {
+    const cell = e.target.closest('.fcell');
+    const text = e.clipboardData?.getData('text') ?? '';
+    if (!cell || !/[\r\n\t]/.test(text.trim())) { return; }
+    e.preventDefault();
+    pasteList(Number(cell.dataset.col), text);
+  });
+  grid.addEventListener('keydown', (e) => {
+    const cell = e.target.closest('.fcell');
+    if (cell && e.altKey && e.key === 'ArrowDown') {
+      e.preventDefault();
+      openMenu(Number(cell.dataset.col), cell.querySelector('.chip'));
+    }
+  });
+  grid.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-op]');
+    if (chip) { e.stopPropagation(); openMenu(Number(chip.dataset.op), chip); return; }
+    if (e.target.matches('.fcell input[readonly]')) {
+      openListEditor(Number(e.target.closest('.fcell').dataset.col));
+      return;
+    }
+    const h = e.target.closest('[data-sort]');
+    if (h) {
+      const col = Number(h.dataset.sort);
+      sort = sort?.col !== col ? { col, dir: 'asc' } : sort.dir === 'asc' ? { col, dir: 'desc' } : null;
+      render(false);
+    }
+  });
+  document.addEventListener('click', (e) => { if (menuEl && !menuEl.contains(e.target)) { closeMenu(); } });
+  document.getElementById('scroll').addEventListener('scroll', () => { closeMenu(); closeListEditor(); });
+
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    filters = COLUMNS.map(() => ({ op: 'eq', text: '' }));
+    if (exprActive) { clearExpr(); return; }
+    render(false);
+  });
+
+  const EXAMPLES = {
+    ex1: () => { filters[1] = { op: 'neq', text: 'pipe' }; },
+    ex2: () => { filters[0] = { op: 'ncontains', text: 'flange' }; },
+    ex3: () => { filters[2] = { op: 'in', text: '80; 150' }; },
+    ex4: () => { filters[3] = { op: 'gte', text: '500' }; },
+    ex5: () => { filters[5] = { op: 'blank', text: '' }; },
+    ex6: () => {
+      const el = document.getElementById('f3');
+      filters[3] = { op: 'eq', text: '' }; render(false);
+      const input = document.getElementById('f3');
+      input.focus(); input.value = '>=1000'; input.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    },
+    ex7: () => { render(false); pasteList(0, `${sampleNames()}\r\n`); return true; },
+  };
+  /** Four names as Excel puts a copied column on the clipboard (CRLF lines). */
+  const sampleNames = () => [3, 11, 20, 42].map((i) => BASE_ROWS[i][0]).join('\r\n');
+  document.getElementById('copyList').addEventListener('click', () => {
+    const note = document.getElementById('copied');
+    navigator.clipboard.writeText(`${sampleNames()}\r\n`).then(
+      () => { note.textContent = 'Copied. Click the NAME filter and paste.'; },
+      () => { note.textContent = 'This viewer blocks copying. Use the button to the left instead.'; },
+    );
+  });
+  document.querySelectorAll('[data-try]').forEach((b) => b.addEventListener('click', () => {
+    filters = COLUMNS.map(() => ({ op: 'eq', text: '' }));
+    if (!EXAMPLES[b.dataset.try]()) { render(false); }
+  }));
+
+  // ---------------------------------------------------------------------------
+  // expression bar (runs in a real in-browser SQLite)
+  // ---------------------------------------------------------------------------
+  const exprBox = document.getElementById('expr');
+  const exprInput = document.getElementById('exprInput');
+  const exprSql = document.getElementById('exprSql');
+  const exprMsg = document.getElementById('exprMsg');
+  let dbPromise = null;
+
+  const wrapped = (expr) => `SELECT * FROM (\n  ${REPORT_SQL.replace(/\n/g, '\n  ')}\n) WHERE ${expr.trim() || '…'}`;
+  const showSql = () => { exprSql.textContent = wrapped(exprInput.value); };
+  exprInput.addEventListener('input', showSql);
+
+  function loadDb() {
+    if (dbPromise) { return dbPromise; }
+    dbPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-asm.js';
+      s.onload = () => window.initSqlJs().then((SQL) => {
+        const db = new SQL.Database();
+        db.run('CREATE TABLE items (name TEXT, type TEXT, diameter_mm REAL, weight_kg REAL, area TEXT, status TEXT)');
+        const st = db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?)');
+        for (const r of BASE_ROWS) { st.run(r); }
+        st.free();
+        resolve(db);
+      }, reject);
+      s.onerror = () => reject(new Error('SQLite could not load in this page.'));
+      document.head.appendChild(s);
+    });
+    return dbPromise;
+  }
+
+  async function runExpr() {
+    const expr = exprInput.value.trim();
+    if (!expr) { clearExpr(); return; }
+    exprMsg.className = 'msg note'; exprMsg.textContent = 'Running…';
+    try {
+      const db = await loadDb();
+      const res = db.exec(wrapped(expr));
+      rows = res.length ? res[0].values : [];
+      exprActive = true;
+      exprMsg.className = 'msg note';
+      exprMsg.textContent = `The report returned ${rows.length} row${rows.length === 1 ? '' : 's'} with the expression. The column filters still apply on top.`;
+      detectTypes();
+      render(false);
+    } catch (err) {
+      exprMsg.className = 'msg err';
+      exprMsg.textContent = `SQL error: ${err.message}. The table still shows the last result.`;
+    }
+  }
+  function clearExpr() {
+    exprActive = false; rows = BASE_ROWS; detectTypes();
+    exprMsg.className = 'msg note';
+    exprMsg.textContent = 'Runs the report again with this condition. The column filters still apply on top.';
+    render(false);
+  }
+  document.getElementById('exprRun').addEventListener('click', runExpr);
+  document.getElementById('exprClear').addEventListener('click', clearExpr);
+  exprInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { runExpr(); } });
+  document.getElementById('exprToggle').addEventListener('click', (e) => {
+    exprBox.hidden = !exprBox.hidden;
+    e.currentTarget.classList.toggle('on', !exprBox.hidden);
+    e.currentTarget.setAttribute('aria-expanded', String(!exprBox.hidden));
+    if (!exprBox.hidden) { showSql(); exprInput.focus(); loadDb().catch(() => {}); }
+  });
+
+  detectTypes();
+  render(false);
+})();
+</script>
+</body>
+</html>

@@ -4210,14 +4210,14 @@ impl GeomIndex {
             _ => None,
         }
     }
-    fn push_mesh(&mut self, record_idx: usize) {
+    pub(crate) fn push_mesh(&mut self, record_idx: usize) {
         self.slot.push(record_idx as u32 + 1);
     }
-    fn push_aux(&mut self, p: AuxPrim) {
+    pub(crate) fn push_aux(&mut self, p: AuxPrim) {
         self.slot.push(Self::AUX_BIT | self.aux.len() as u32);
         self.aux.push(p);
     }
-    fn push_none(&mut self) {
+    pub(crate) fn push_none(&mut self) {
         self.slot.push(0);
     }
 

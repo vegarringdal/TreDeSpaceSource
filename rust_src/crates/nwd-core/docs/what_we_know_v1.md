@@ -20,6 +20,15 @@ disassembled: Navisworks was used only as a viewer, to see whether a converted m
 the same. Nothing is decrypted and no protection is circumvented — the container is
 zlib-compressed, not encrypted, and a file without a zlib chunk is rejected.
 
+**Product names are read from the files, not confirmed.** When this document says a file
+was written by, exported from or built with a named product or loader (Navisworks, Revit,
+Inventor, 3DS, DWG, AVEVA/RVM, …), that comes from strings the file stores about itself: its
+header, the loader-plugin slots in its trailer (`LcNwcLoaderPlugin:lcldrevit`, …) and its
+source paths. It was not checked against the program that wrote the file. A label can be
+wrong (for example, a file re-saved by another tool may keep the original strings), so read
+"Revit file" as "a file whose stored strings name the Revit loader", and the same for every
+other name.
+
 **Evidence.** The reference corpus is the Equinor **Huldra** open-data dataset
 (~600 MB zipped, not committed; the three NWDs the tests use are in
 `convertSamples/nwd/huldra/`, whose README says where to get the rest): AVEVA RVM
@@ -331,6 +340,28 @@ instances. The five disciplines of the sample building keep one vertical envelop
 | `Plumbing.nwc` | 172 | 34 | 125 | 2 |
 | `Electrical.nwc` | 48 | 0 | 48 | 1 |
 
+**The fragment's geometry-record index addresses the ON-DISK record array** (DECODED +
+VALIDATED 2026-11-27): the same array the RVM loader's `marker+64` word indexes, with mesh
+records and AUX primitives (variant 104/105) interleaved, resolved through `GeomIndex`. It is
+NOT an index into the decoded meshes. On single-loader Revit / 3DS / Inventor files every
+on-disk record is a mesh, so the two coincide; that is why reading it as a mesh index went
+unnoticed. In a federated file with RVM-loader sub-models the AUX slots are everywhere: on a
+private 43 MB review model (98,812 on-disk records, 42,134 meshes, 548,393 frames, 394,573 of
+them on AUX primitives) the mesh-index reading gave almost every part another part's shape,
+or none. Frames now resolve slot → mesh or AUX primitive; an AUX primitive is tessellated as
+in the RVM path (32-segment disc / open tube) and placed with the frame's full transform.
+Degenerate primitives (r = 0) are skipped, as in the RVM path.
+
+**Self-check oracle** (VALIDATED): a type-93 fragment's 6-f32 bbox is the AABB of the
+referenced record's LOCAL positions, i.e. `anchor + bbox` is the record placed at its anchor
+with identity rotation (`examples/place_check.rs`, "anchor-as-translation": 100 % on all five
+Revit sample disciplines). That makes it an exact check of the slot → geometry mapping. On
+the federated model above: mesh-index reading 24 of 548,393 frames match; slot reading
+522,470 (95.3 %). Every mesh and line frame matches; the 4,929 remaining are AUX discs /
+tubes off by the 32-segment tessellation (median 0.5 % of the extent, = 1 − cos(π/32)), and
+20,994 frames are degenerate primitives or empty slots. The committed samples match 100 %
+both ways.
+
 ### General node grammar — DECODED (Revit loader: complete; DWG / 3DS: partial)
 
 `hierarchy::parse_tree` (strict: any byte that does not fit ⇒ no tree, and the file converts
@@ -340,13 +371,15 @@ definition must carry exactly the next id — a wrong field length is detected a
 ```
 chunk  := [n][n × u32][first_id][root_count]  node × root_count
 node   := [id][22 leaf | 53 container] name          name := [len][utf-8, pad 4] | [-1]
+        | [id][32][0] name                          File / sub-model (container)
           class            0 | [1][id] | [id][52] string string   (display, internal)
           [flags][k][F]    F = number of attribute slots
           slot × F
-          [child_count]    containers only
+          [child_count]    containers (53, 32) only
           child × count    node | [1][id] = ANOTHER INSTANCE of node id (whole subtree)
+          trailer          File (32) only — light records [id][27] take ids (see Hierarchy)
 slot   := 0 | [1][id] | definition:
-          [id][31] label, class ([0][0] | [1][id] | [id][52] …), pad 8, 14 × f64     material
+          [id][31] label, class (0 | [1][id] | [id][52] …), 0, pad 8, 14 × f64      material
           [id][39|40|41][-1][0][0x20000] pad 8, 12 | 3 | 7 × f64 (39: + u32)          transform
           [id][200] name [0][0] slot                                                  render material
           [id][185][len][json] [-1][N] 3N × string       asset JSON + texture paths (in a 200)
@@ -384,6 +417,17 @@ value  := [4] string | [2] i32 | [3] bool | [1|6|7|10|11] pad 8, f64
   3DS-sourced streams use further definition types (seen: 66 and 97 = DWG entity attributes /
   render material with texture settings, 182) that are not decoded; those files still convert
   with complete geometry but without a tree. See `docs/GRAMMAR_non_rvm.md`.
+- **Federated files** (DECODED + VALIDATED 2026-11-27): with File nodes, their trailers and
+  the general material framing in the grammar (see Hierarchy), a private federated review
+  model parses to the last byte. It appends RVM-loader exports (`lcldrvm`), 14 DWG-loader
+  files (`lclddwg`, `Layer` / `PolyFace Mesh` classes, no undecoded types) and NWD/NWC files
+  nested four levels deep: 11 roots, 35 File nodes, 251,595 nodes in the expanded tree. All
+  548,393 placement frames land on a geometry leaf, and the highest group equals the node
+  count. Before, the parse stopped at the first File node and the model converted as one
+  unnamed `model`. On the three Huldra RVM-loader assemblies the strict tree now also parses
+  and has exactly the structure of `parse_nodes` (ids, parents, depths, names; 234,760 nodes on
+  the largest). 69 node colours differ on that file, not looked into yet. Their conversion
+  does not use `parse_tree`. The seven files that parsed before give identical trees.
 
 ### Other notes
 
@@ -477,6 +521,12 @@ metres (× 0.01)`; present only then — informational, unlike `warnings`).
   `[ambient RGB][diffuse RGB][specular RGB][emissive RGB][shininess][transparency]` at exactly
   `align8(label_end) + 8` (alignment relative to the chunk start). Diffuse = grid[3..6] =
   what the Navisworks material panel shows (VALIDATED against the panel). `len = -1` = no label.
+  **General framing** (DECODED 2026-11-27): `[id][31] label class [u32 0] pad-to-8 grid`,
+  with `class := [0] | [1][id] | inline def`. The RVM form above is the no-class case
+  (`[0]` + the zero word). A `[1][id]` class (seen in DWG-loader sub-models) that ends on an
+  8-byte boundary therefore puts the zero word AND 4 bytes of padding before the grid;
+  reading the class as a fixed 8 bytes and then aligning, as the strict parser did, shifts
+  the grid by one word and loses the rest of the stream.
 - **Node body**: name record (optional), class slot (inline def or ref `[1][class_id]`), then
   `[0][k][F]` where **F = the number of ATTRIBUTE SLOTS that follow** (0–3 observed). Each slot
   is `0` (null), `[1][id]` (ref) or an inline def. **Slot 0 = material; slot 1 = the node's
@@ -495,6 +545,16 @@ metres (× 0.01)`; present only then — informational, unlike `warnings`).
   `[449][unit][1]` (the stored unit code), the source path, an f64 extent block. Its framing varies (light
   count, 4/8-byte padding), so the parser resyncs to the next node record whose id continues
   the interned sequence (bounded scan). Framing details OPAQUE.
+  **Light records consume ids** (DECODED 2026-11-27): each type-27 light is a definition
+  `[next_id][27]…` in the sequential id stream, and nothing else in a trailer is. The light
+  count word after `[2]` is not reliable: lights also appear after the plugin string. So the
+  strict parser (`parse_tree`) steps over a trailer exactly: every `[next_id][27]` met takes
+  the next id, and the stream resumes at the record `[next_id][22 | 53 | 32]`. A trailer that
+  does not start with `[2]` (and is not empty) is rejected. Nested File nodes that close
+  together share one scan: the first trailer's scan crosses the enclosing ones, whose own
+  scan then finds the next node at once. After the last root the trailer runs to the chunk
+  end. The source path holds the author's local path (user and folder names). It is not
+  decoded or exported.
 - Colour: a node without its own material inherits the nearest ancestor's.
 - OPAQUE: the File-node `k`, trailer framing, trailing sentinel.
 
@@ -607,6 +667,17 @@ the NWD and are not used.
 
 `NWD_MEM_TRACE=1` prints RSS and elapsed time at each stage boundary.
 
+**Interned (non-RVM) files take the whole-file path** (measured 2026-11-27).
+`direct::scan_fragments` hands any file with an interned placement stream to
+`convert_inner_sink`, which keeps every placed part and every decoded prototype for the
+whole file, and in wasm reads the whole input into memory first. The private federated
+review model above (43 MB, 548k frames, 30.2M triangles after the slot fix) peaks at 1.8 GB
+natively before cooking, and 2.1 GB with `--tdp`; its 11 roots are very uneven, with one
+holding about 88 % of the output (the largest `.tdp` is 120 MB). Inside that root, nested File
+nodes four levels deep hold 72.6 % of all frames and then fan out into 240 children, the
+largest of which holds 5.5 %. So neither a per-root split nor any single fixed split depth
+bounds the model size. See *Open problems*.
+
 ## Data ceilings (verified absences — not bugs)
 
 - **World bbox / unit factor / up-vector are not stored** — a full-file scan for f64/f32 runs
@@ -624,8 +695,9 @@ the NWD and are not used.
 1. **Old-format (`lichunk-007`) placements** — geometry renders at identity.
 2. **DWG / 3DS trees** — the general node grammar parses every public Revit file, but
    DWG- and 3DS-sourced hierarchies use definition types that are not decoded yet (66, 97,
-   182, and File trailers after the tree); such files convert with complete geometry
-   (instances included) but as one unnamed element. Inline properties of non-RVM files are
+   182); such files convert with complete geometry (instances included) but as one unnamed
+   element. File nodes and their trailers are decoded (2026-11-27), and DWG sub-models
+   without those types parse (see *Federated files*). Inline properties of non-RVM files are
    parsed but not exported.
 3. **Remaining opaque fields**: geometry `[101][60]` magic; fragment w0/w1 and the o−40 scalar;
    class-flag bits 0x2/0x2000; normal-stream opcodes 0xc0–0xcf (never observed); the
@@ -641,6 +713,34 @@ the NWD and are not used.
    The up-vector is not stored (Z up on every file).
 6. The pre-codec geometric reconstruction (`faithful_*`, hull, strip) only runs when a
    record fails to decode — never on the test corpora; its two stale tests are ignored.
+7. **Large interned / federated models in the browser** — memory is bounded by the whole
+   file, not by one output model (see *Throughput and memory*), so a large federated model
+   can still exhaust the 4 GB wasm heap. Planned, in order:
+   - **Stream interned frames**: extend `direct.rs` so interned files take the per-model
+     loop. Scan the frame chunk through the sliding window into compact rows (slot, group,
+     transform, colour), decode the geometry stream once for its index only, then build,
+     cook and drop one output model at a time, with shared records in the existing
+     `SHARED_CACHE_BYTES` cache and `BATCH_STORED_BYTES` batches. `convert_streamed_cooked`
+     then returns `Some`, so wasm reads the input by range. The output must stay
+     byte-identical to the whole-file path on every interned sample.
+   - **Adaptive split by size budget**: walk the tree top-down; a subtree within the budget
+     (triangles, estimated from the geometry index before decoding) becomes one model; a
+     node over budget has its children packed in order into models up to the budget, and
+     any child still over budget is split recursively. A pack is named after its parent
+     plus an index. Files whose tree does not link get packed spatially instead of producing
+     one unbounded `model`. The budget becomes an option (CLI / wasm / Import Manager).
+     A fixed `--level` split does not fit this shape (see above).
+   - **Spill the cook** (only if still needed): the STEP converter's OPFS spill
+     (`MergedBuilder::add_bucket_spill`).
+   Acceptance: the federated model imports in Chrome; native peak under 1 GB, wasm under
+   1.5 GB including the cook. Open questions: a small shareable federated fixture (an RVM
+   sample plus a DWG appended in Navisworks) to commit, the default budget, and whether the
+   model list stays usable with 50–100 models per import.
+8. **`parse_nodes` stops early on DWG-loader sub-models**: on the federated model it reads
+   5 roots and 221,009 nodes (the strict tree: 11 and 251,595) and silently stops before
+   the DWG files. It feeds `--tree`, `--props` and the composite direct path. Either fix it
+   or move those callers to `parse_tree` once the 69 colour differences on
+   `Huldra_Asbuilt.nwd` are understood.
 
 ## Refuted ideas (do not re-explore without new evidence)
 
@@ -660,5 +760,7 @@ the NWD and are not used.
 - The hierarchy header n-table as "bucket counts" (it counts property blocks per chunk).
 - "Every placement coordinate is ≥ 1 m in magnitude" (parts near an axis plane exist).
 - AUX kind from word2 (the variant word decides).
+- "An interned frame's record index is an index into the decoded meshes" (it is an on-disk
+  slot; true only when every slot is a mesh — see Placement frames).
 - "The size-index is absent in single-geometry-chunk files" (chunk-numbering confusion); the
   viewpoint chunk as a float/param table (it is a saved camera).
