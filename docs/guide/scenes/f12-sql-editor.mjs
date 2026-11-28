@@ -20,6 +20,7 @@ import { fitView, layout, SAMPLES, select, stack, VIEWER } from './_lib.mjs';
 const REPORTS = '/src/state/sqlReports/sqlReports.actions.ts';
 const EDITOR = '/src/state/sqlAssets/sqlEditor.actions.ts';
 const DETAIL = '/src/components/panels/sql-detail/sqlDetailPanel.ts';
+const TABLE = '/src/components/panels/sql-table/sqlTablePanel.ts';
 const DB_FILE = 'huldra-tags.db';
 const DB_PATH = `sql_assets/main/${DB_FILE}`;
 const SPEAKER = '/SX-HA86-011A';
@@ -35,6 +36,9 @@ const ED = { panel: 'sqlEditor' };
 const TB = { panel: 'sqlTable' };
 const DT = { panel: 'sqlDetail' };
 const EDIT_BOX = { ...R, css: 'div.border-sky-800' };
+const TAG_FILTER = { ...TB, css: 'input[aria-label="Filter tag"]' };
+const TAG_OPERATOR = { ...TB, css: 'button[aria-label^="How tag is filtered"]' };
+const LIST_EDITOR = '[role="dialog"][aria-label="tag list"]';
 
 // -----------------------------------------------------------------------------
 // sample database
@@ -205,7 +209,8 @@ const BY_DISCIPLINE = report(
   'Tags by discipline',
   'Every tag of the chosen disciplines. Pick **none** to list them all.',
   ['TABLE', 'COLORING'],
-  `SELECT fullname, tag, description, discipline, system, area, status
+  `SELECT fullname, tag, description, discipline, system, area, status,
+       CAST(substr(install_date, 1, 4) AS INTEGER) AS install_year
 FROM tags
 WHERE discipline IN (SELECT v FROM FILTER_ARGS WHERE k = 'discipline')
    OR NOT EXISTS (SELECT 1 FROM FILTER_ARGS WHERE k = 'discipline')
@@ -459,7 +464,7 @@ async function captureEditor(ctx) {
 async function captureTable(ctx) {
   await ctx.call(REPORTS, 'sqlReportsActions', 'runTable', BY_DISCIPLINE);
   await ctx.sleep(400);
-  await ctx.type({ ...TB, css: 'input[placeholder^="equals"]', nth: 1 }, '*SX-*');
+  await ctx.type(TAG_FILTER, '*SX-*');
   await ctx.click({ ...TB, css: 'button[title="tag"]' });
   await ctx.click({ ...TB, css: 'button[title^="Click to select"]', nth: 1 });
   await ctx.page.keyboard.down('Shift');
@@ -472,9 +477,11 @@ async function captureTable(ctx) {
       { n: 2, el: { ...TB, text: 'Load all' } },
       { n: 3, el: { ...TB, text: 'Clear on close' } },
       { n: 4, el: { ...TB, css: 'button[title="tag"]' } },
-      { n: 5, el: { ...TB, css: 'input[placeholder^="equals"]', nth: 1 } },
-      { n: 6, el: { ...TB, css: 'button[title^="Click to select"]', nth: 0 }, at: 'bl' },
-      { n: 7, el: { ...TB, tooltip: 'Select every row shown' }, at: 'tr' },
+      { n: 5, el: { ...TB, tooltip: 'Text column', nth: 1 } },
+      { n: 6, el: TAG_FILTER },
+      { n: 7, el: TAG_OPERATOR },
+      { n: 8, el: { ...TB, css: 'button[title^="Click to select"]', nth: 0 }, at: 'bl' },
+      { n: 9, el: { ...TB, tooltip: 'Select every row shown' }, at: 'tr' },
     ],
   });
   const at = await ctx.eval(() => {
@@ -486,8 +493,10 @@ async function captureTable(ctx) {
   await ctx.shot('f12-table-menu', { crop: { el: { css: '[role="menu"]' } } });
   await ctx.page.keyboard.press('Escape');
   await ctx.sleep(300);
-  // the side menu stays open, so the harvest below lists its buttons
-  await ctx.click({ ...TB, tooltip: 'Side menu' });
+  // the side menu stays open, so the harvest below lists its buttons. Opened
+  // the way its hotkey does: in this narrow panel the ☰ button is squeezed
+  // out of the title bar, so a click on it can miss
+  await ctx.call(TABLE, 'callTableAction', null, 'toggleSideMenu');
   await ctx.sleep(300);
   await ctx.shot('f12-table-side', {
     crop: { panel: 'sqlTable' },
@@ -498,6 +507,47 @@ async function captureTable(ctx) {
       { n: 4, el: { ...TB, text: 'Add Set Color' } },
     ],
   });
+  await captureTableFilters(ctx);
+}
+
+/** The operator menu of a number column, and an in-list filter in its list
+ *  editor (three of the tags shown, one of them twice). The tag filter is
+ *  back to `*SX-*` and the side menu open again afterwards. */
+async function captureTableFilters(ctx) {
+  await ctx.click({ ...TB, css: 'button[aria-label^="How install_year is filtered"]' });
+  await ctx.shot('f12-table-operators', { crop: { el: { css: '[role="menu"]' } } });
+  await ctx.page.keyboard.press('Escape');
+  await ctx.sleep(300);
+  // the side menu off and the grid back at its left edge, so the tag column shows
+  await ctx.call(TABLE, 'callTableAction', null, 'toggleSideMenu');
+  await ctx.eval(() => {
+    const scroller = document.querySelector('.dock-panel[data-panel="sqlTable"] .overflow-auto');
+    if (scroller) {
+      scroller.scrollLeft = 0;
+    }
+  });
+  await ctx.sleep(300);
+  const tags = await ctx.eval((css) => {
+    const cells = document.querySelectorAll(`.dock-panel[data-panel="sqlTable"] ${css}`);
+    return [...cells].slice(0, 3).map((el) => el.title);
+  }, 'div[title^="SX-"]');
+  await ctx.click(TAG_OPERATOR);
+  await ctx.click({ css: '[role="menuitem"][data-menu-id="IN"]' });
+  await ctx.type({ within: LIST_EDITOR, css: 'textarea' }, [...tags, tags[0]].join('\n'));
+  await ctx.shot('f12-table-list', {
+    // the editor pops out below the panel, so the crop takes both
+    crop: { union: [TB, { css: LIST_EDITOR }], pad: 6 },
+    marks: [
+      { n: 1, el: TAG_OPERATOR },
+      { n: 2, el: { within: LIST_EDITOR, css: 'textarea' } },
+      { n: 3, el: { within: LIST_EDITOR, re: '^\\d+ values \\(\\d+ repeated\\)$' } },
+    ],
+  });
+  await ctx.click({ within: LIST_EDITOR, text: 'Done' });
+  await ctx.click(TAG_OPERATOR);
+  await ctx.click({ css: '[role="menuitem"][data-menu-id="CONTAINS"]' });
+  await ctx.type(TAG_FILTER, '*SX-*');
+  await ctx.call(TABLE, 'callTableAction', null, 'toggleSideMenu');
 }
 
 async function captureDetail(ctx) {
@@ -619,11 +669,13 @@ async function harvestPanels(ctx) {
   });
   await ctx.harvest('sqlTable', {
     rename: { 'Select every row shown': 'Select all (corner box)', 'Side menu': 'Side menu (☰)' },
-    // the filter inputs carry a tooltip now; the hand-written row below keeps its place after Column title
-    skip: ['Show only rows whose WHOLE value'],
+    // one row per kind of filter control, hand-written below instead of one per column
+    skip: ['Filter this column', 'Filter operator', 'Click to edit the list', 'Number column', 'Text column'],
     extra: [
       { section: '', label: 'Column title', tooltip: 'Click to sort A→Z, again Z→A, a third time unsorted. Drag the edge to resize.' },
-      { section: '', label: 'Column filter', tooltip: 'Show only rows whose whole value in this column equals the text. * or % matches any text: PIPE* starts with, *PIPE* contains (all filled columns must match)' },
+      { section: '', label: '123 / abc', tooltip: 'The column kind, detected from the values: number columns get number filters' },
+      { section: '', label: 'Column filter', tooltip: 'Text: rows that contain the text (PIPE* begins with). Numbers: rows that equal it. All filtering columns must match. Paste cells from a spreadsheet for an in-list filter.' },
+      { section: '', label: 'Filter operator (*a* / =)', tooltip: 'How the column is filtered: contains, equals, not equal, in list, >, between, blank… Alt+↓ in the filter opens it.' },
       { section: '', label: 'Row number', tooltip: 'Click to select a row — Ctrl adds or removes one, Shift selects a range' },
       { section: '', label: 'Export to Excel (all)', tooltip: 'Right-click menu: every row as shown to an .xlsx file', keys: 'ALT 654' },
       { section: '', label: 'Export to Excel (selected rows)', tooltip: 'Right-click menu: only the selected rows', keys: 'ALT 655' },
